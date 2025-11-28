@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>21 - Blackjack Game</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Playfair+Display:wght@700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #204934;
+            background-image: radial-gradient(circle at center, #2b5f43 0%, #1a3c2b 100%);
+        }
+
+        .card {
+            aspect-ratio: 2.5/3.5;
+            transition: transform 0.3s ease, margin-left 0.3s ease;
+            font-family: 'Playfair Display', serif;
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
+        }
+
+        .card:hover {
+            transform: translateY(-10px);
+            z-index: 10;
+        }
+
+        /* Prevent card overlap animation glitches */
+        .card-container {
+            perspective: 1000px;
+        }
+
+        .suit-red {
+            color: #e53e3e;
+        }
+
+        .suit-black {
+            color: #1a202c;
+        }
+
+        /* Felt texture overlay */
+        .felt-texture {
+            background-image: url("data:image/svg+xml,%3Csvg width='6' height='6' viewBox='0 0 6 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23000000' fill-opacity='0.05' fill-rule='evenodd'%3E%3Cpath d='M5 0h1L0 6V5zM6 5v1H5z'/%3E%3C/g%3E%3C/svg%3E");
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        @keyframes deal {
+            from {
+                opacity: 0;
+                transform: translateY(-50px) scale(0.8);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .animate-deal {
+            animation: deal 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+    </style>
+</head>
+
+<body class="h-screen flex flex-col items-center justify-center text-white overflow-hidden select-none">
+    <div class="felt-texture"></div>
+
+    <!-- Header / Status -->
+    <header class="absolute top-0 w-full p-4 flex justify-between items-center max-w-4xl mx-auto z-10">
+        <div
+            class="text-xl font-bold text-yellow-400 tracking-widest border-2 border-yellow-400 px-3 py-1 rounded uppercase">
+            Blackjack 21</div>
+        <div class="flex gap-6">
+            <div class="text-center">
+                <p class="text-xs text-green-200 uppercase">Wins</p>
+                <p id="wins-display" class="text-xl font-bold">0</p>
+            </div>
+            <div class="text-center">
+                <p class="text-xs text-green-200 uppercase">Losses</p>
+                <p id="losses-display" class="text-xl font-bold">0</p>
+            </div>
+            <div class="text-center">
+                <p class="text-xs text-green-200 uppercase">Chips</p>
+                <p id="chips-display" class="text-xl font-bold text-yellow-400">$1000</p>
+            </div>
+        </div>
+    </header>
+
+    <!-- Game Area -->
+    <main class="flex-grow flex flex-col justify-center items-center w-full max-w-4xl gap-8 p-4 relative z-0">
+
+        <!-- Dealer Area -->
+        <div class="w-full flex flex-col items-center">
+            <div class="mb-2 flex items-center gap-3">
+                <h2 class="text-green-100 font-semibold tracking-wide uppercase text-sm">Dealer</h2>
+                <span id="dealer-score"
+                    class="bg-black/30 px-2 py-0.5 rounded-full text-xs font-mono text-yellow-200 hidden">0</span>
+            </div>
+            <div id="dealer-hand" class="flex justify-center items-center h-32 sm:h-40 relative">
+                <!-- Dealer cards go here -->
+                <div
+                    class="w-24 h-36 border-2 border-dashed border-green-400/30 rounded-lg flex items-center justify-center text-green-400/30">
+                    Deck
+                </div>
+            </div>
+            <div id="dealer-message" class="h-6 text-red-300 text-sm font-bold mt-2"></div>
+        </div>
+
+        <!-- Center Info / Result -->
+        <div id="game-message"
+            class="h-12 flex items-center justify-center text-2xl font-bold text-yellow-300 drop-shadow-lg">
+            Place your bet to start
+        </div>
+
+        <!-- Player Area -->
+        <div class="w-full flex flex-col items-center">
+            <div class="mb-2 flex items-center gap-3">
+                <h2 class="text-green-100 font-semibold tracking-wide uppercase text-sm">Player</h2>
+                <span id="player-score"
+                    class="bg-black/30 px-2 py-0.5 rounded-full text-xs font-mono text-yellow-200 hidden">0</span>
+            </div>
+            <div id="player-hand" class="flex justify-center items-center h-32 sm:h-40 relative">
+                <!-- Player cards go here -->
+                <div
+                    class="w-24 h-36 border-2 border-dashed border-green-400/30 rounded-lg flex items-center justify-center text-green-400/30">
+                    Hand
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Controls -->
+    <footer class="w-full bg-black/20 backdrop-blur-sm p-6 z-20 border-t border-white/10">
+        <div class="max-w-2xl mx-auto">
+
+            <!-- Betting Controls -->
+            <div id="betting-controls" class="flex flex-col items-center gap-4 transition-all duration-300">
+                <p class="text-sm text-gray-300">Current Bet: <span id="current-bet"
+                        class="text-yellow-400 font-bold">$100</span></p>
+                <div class="flex gap-4">
+                    <button onclick="adjustBet(-100)"
+                        class="w-12 h-12 rounded-full bg-red-900 border-2 border-red-700 shadow-lg flex items-center justify-center hover:scale-105 active:scale-95 transition font-bold text-xs">-100</button>
+                    <button onclick="adjustBet(-10)"
+                        class="w-12 h-12 rounded-full bg-blue-900 border-2 border-blue-700 shadow-lg flex items-center justify-center hover:scale-105 active:scale-95 transition font-bold text-xs">-10</button>
+                    <button onclick="startGame()"
+                        class="px-8 py-3 bg-yellow-600 hover:bg-yellow-500 text-white font-bold rounded-lg shadow-lg shadow-yellow-900/50 transform hover:-translate-y-1 transition uppercase tracking-wider">Deal</button>
+                    <button onclick="adjustBet(10)"
+                        class="w-12 h-12 rounded-full bg-blue-600 border-2 border-blue-400 shadow-lg flex items-center justify-center hover:scale-105 active:scale-95 transition font-bold text-xs">+10</button>
+                    <button onclick="adjustBet(100)"
+                        class="w-12 h-12 rounded-full bg-red-600 border-2 border-red-400 shadow-lg flex items-center justify-center hover:scale-105 active:scale-95 transition font-bold text-xs">+100</button>
+                </div>
+            </div>
+
+            <!-- Gameplay Controls -->
+            <div id="gameplay-controls" class="hidden flex justify-center gap-4">
+                <button onclick="hit()"
+                    class="px-8 py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg shadow-lg shadow-green-900/50 transform hover:-translate-y-1 transition uppercase tracking-wider w-32">Hit</button>
+                <button onclick="stand()"
+                    class="px-8 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg shadow-lg shadow-red-900/50 transform hover:-translate-y-1 transition uppercase tracking-wider w-32">Stand</button>
+            </div>
+
+            <!-- Restart Controls -->
+            <div id="restart-controls" class="hidden flex justify-center gap-4">
+                <button onclick="resetGame()"
+                    class="px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg shadow-lg shadow-blue-900/50 transform hover:-translate-y-1 transition uppercase tracking-wider">New
+                    Hand</button>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Game State
+        const STATE = {
+            BETTING: 'betting',
+            PLAYING: 'playing',
+            DEALER_TURN: 'dealer_turn',
+            GAME_OVER: 'game_over'
+        };
+
+        let currentState = STATE.BETTING;
+        let deck = [];
+        let playerHand = [];
+        let dealerHand = [];
+        let wins = 0;
+        let losses = 0;
+        let chips = 1000;
+        let currentBet = 100;
+
+        // DOM Elements
+        const elDealerHand = document.getElementById('dealer-hand');
+        const elPlayerHand = document.getElementById('player-hand');
+        const elDealerScore = document.getElementById('dealer-score');
+        const elPlayerScore = document.getElementById('player-score');
+        const elGameMessage = document.getElementById('game-message');
+        const elBettingControls = document.getElementById('betting-controls');
+        const elGameplayControls = document.getElementById('gameplay-controls');
+        const elRestartControls = document.getElementById('restart-controls');
+        const elWins = document.getElementById('wins-display');
+        const elLosses = document.getElementById('losses-display');
+        const elChips = document.getElementById('chips-display');
+        const elCurrentBet = document.getElementById('current-bet');
+        const elDealerMessage = document.getElementById('dealer-message');
+
+        // Card Setup
+        const SUITS = ['♠', '♥', '♦', '♣'];
+        const VALUES = [
+            { name: '2', value: 2 }, { name: '3', value: 3 }, { name: '4', value: 4 },
+            { name: '5', value: 5 }, { name: '6', value: 6 }, { name: '7', value: 7 },
+            { name: '8', value: 8 }, { name: '9', value: 9 }, { name: '10', value: 10 },
+            { name: 'J', value: 10 }, { name: 'Q', value: 10 }, { name: 'K', value: 10 },
+            { name: 'A', value: 11 }
+        ];
+
+        function createDeck() {
+            deck = [];
+            for (let suit of SUITS) {
+                for (let val of VALUES) {
+                    deck.push({
+                        suit: suit,
+                        name: val.name,
+                        value: val.value,
+                        color: (suit === '♥' || suit === '♦') ? 'suit-red' : 'suit-black'
+                    });
+                }
+            }
+        }
+
+        function shuffleDeck() {
+            for (let i = deck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [deck[i], deck[j]] = [deck[j], deck[i]];
+            }
+        }
+
+        function adjustBet(amount) {
+            if (currentState !== STATE.BETTING) return;
+            if (currentBet + amount >= 10 && currentBet + amount <= chips) {
+                currentBet += amount;
+                elCurrentBet.innerText = `$${currentBet}`;
+            }
+        }
+
+        function startGame() {
+            if (chips < currentBet) {
+                elGameMessage.innerText = "Not enough chips!";
+                return;
+            }
+
+            chips -= currentBet;
+            elChips.innerText = `$${chips}`;
+
+            createDeck();
+            shuffleDeck();
+
+            playerHand = [];
+            dealerHand = [];
+
+            // Initial deal
+            playerHand.push(deck.pop());
+            dealerHand.push(deck.pop());
+            playerHand.push(deck.pop());
+            dealerHand.push(deck.pop());
+
+            currentState = STATE.PLAYING;
+            updateUI();
+            checkForBlackjack();
+        }
+
+        function hit() {
+            if (currentState !== STATE.PLAYING) return;
+            playerHand.push(deck.pop());
+            updateUI();
+
+            const score = calculateScore(playerHand);
+            if (score > 21) {
+                endGame('Bust! You went over 21.', false);
+            }
+        }
+
+        function stand() {
+            if (currentState !== STATE.PLAYING) return;
+            currentState = STATE.DEALER_TURN;
+            updateUI(); // Reveal dealer card
+            dealerPlay();
+        }
+
+        function dealerPlay() {
+            const playTurn = () => {
+                const score = calculateScore(dealerHand);
+                if (score < 17) {
+                    setTimeout(() => {
+                        dealerHand.push(deck.pop());
+                        updateUI();
+                        playTurn();
+                    }, 800);
+                } else {
+                    determineWinner();
+                }
+            };
+            playTurn();
+        }
+
+        function calculateScore(hand) {
+            let score = 0;
+            let aces = 0;
+
+            for (let card of hand) {
+                score += card.value;
+                if (card.name === 'A') aces++;
+            }
+
+            while (score > 21 && aces > 0) {
+                score -= 10;
+                aces--;
+            }
+
+            return score;
+        }
+
+        function checkForBlackjack() {
+            const pScore = calculateScore(playerHand);
+            const dScore = calculateScore(dealerHand);
+
+            if (pScore === 21) {
+                if (dScore === 21) {
+                    endGame("Push! Both have Blackjack.", null);
+                } else {
+                    endGame("Blackjack! You win!", true, 1.5);
+                }
+            }
+        }
+
+        function determineWinner() {
+            const pScore = calculateScore(playerHand);
+            const dScore = calculateScore(dealerHand);
+
+            if (dScore > 21) {
+                endGame("Dealer Busts! You win!", true);
+            } else if (pScore > dScore) {
+                endGame("You Win!", true);
+            } else if (pScore < dScore) {
+                endGame("Dealer Wins!", false);
+            } else {
+                endGame("Push! It's a tie.", null);
+            }
+        }
+
+        function endGame(message, playerWon, multiplier = 1) {
+            currentState = STATE.GAME_OVER;
+            elGameMessage.innerText = message;
+
+            if (playerWon === true) {
+                wins++;
+                const winnings = Math.floor(currentBet + (currentBet * multiplier));
+                chips += winnings;
+                elGameMessage.classList.add('text-green-400');
+                elGameMessage.classList.remove('text-red-400', 'text-yellow-300');
+            } else if (playerWon === false) {
+                losses++;
+                elGameMessage.classList.add('text-red-400');
+                elGameMessage.classList.remove('text-green-400', 'text-yellow-300');
+            } else {
+                // Push
+                chips += currentBet;
+                elGameMessage.classList.add('text-yellow-300');
+                elGameMessage.classList.remove('text-green-400', 'text-red-400');
+            }
+
+            elWins.innerText = wins;
+            elLosses.innerText = losses;
+            elChips.innerText = `$${chips}`;
+
+            updateControls();
+
+            // Reveal dealer full hand if game over
+            renderHand(dealerHand, elDealerHand, false);
+            elDealerScore.innerText = calculateScore(dealerHand);
+        }
+
+        function resetGame() {
+            currentState = STATE.BETTING;
+            elGameMessage.innerText = "Place your bet to start";
+            elGameMessage.classList.remove('text-green-400', 'text-red-400');
+            elGameMessage.classList.add('text-yellow-300');
+            elDealerMessage.innerText = "";
+            elDealerHand.innerHTML = `
+                <div class="w-24 h-36 border-2 border-dashed border-green-400/30 rounded-lg flex items-center justify-center text-green-400/30">Deck</div>
+            `;
+            elPlayerHand.innerHTML = `
+                <div class="w-24 h-36 border-2 border-dashed border-green-400/30 rounded-lg flex items-center justify-center text-green-400/30">Hand</div>
+            `;
+            elPlayerScore.classList.add('hidden');
+            elDealerScore.classList.add('hidden');
+
+            updateControls();
+        }
+
+        function updateUI() {
+            // Render Player Hand
+            renderHand(playerHand, elPlayerHand);
+            const pScore = calculateScore(playerHand);
+            elPlayerScore.innerText = pScore;
+            elPlayerScore.classList.remove('hidden');
+
+            // Render Dealer Hand
+            const hideSecondCard = (currentState === STATE.PLAYING);
+            renderHand(dealerHand, elDealerHand, hideSecondCard);
+
+            if (currentState === STATE.PLAYING) {
+                // Show score of only first card or generic ?
+                // Usually we don't show score in UI if hidden, but here let's show score of visible cards
+                elDealerScore.innerText = dealerHand[0].value;
+            } else {
+                elDealerScore.innerText = calculateScore(dealerHand);
+            }
+            elDealerScore.classList.remove('hidden');
+
+            updateControls();
+        }
+
+        function renderHand(hand, element, hideSecondCard = false) {
+            element.innerHTML = '';
+            hand.forEach((card, index) => {
+                const cardEl = document.createElement('div');
+                const isHidden = (hideSecondCard && index === 1);
+
+                // Card Styling
+                let cardContent = '';
+                let bgClass = 'bg-white';
+                let borderClass = 'border-gray-200';
+
+                if (isHidden) {
+                    // Card Back
+                    bgClass = 'bg-red-800';
+                    borderClass = 'border-white';
+                    cardContent = `
+                        <div class="w-full h-full rounded bg-[repeating-linear-gradient(45deg,#600_0px,#600_10px,#800_10px,#800_20px)] border-4 border-white"></div>
+                    `;
+                } else {
+                    // Card Face
+                    cardContent = `
+                        <div class="absolute top-1 left-2 text-lg font-bold ${card.color}">${card.name}</div>
+                        <div class="absolute top-1 left-6 text-sm ${card.color}">${card.suit}</div>
+                        
+                        <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-5xl ${card.color}">${card.suit}</div>
+                        
+                        <div class="absolute bottom-1 right-2 text-lg font-bold ${card.color} transform rotate-180">${card.name}</div>
+                        <div class="absolute bottom-1 right-6 text-sm ${card.color} transform rotate-180">${card.suit}</div>
+                    `;
+                }
+
+                cardEl.className = `card absolute w-24 h-36 sm:w-28 sm:h-40 rounded-lg ${bgClass} ${borderClass} border flex flex-col relative shadow-xl animate-deal select-none`;
+                cardEl.style.left = `${index * 30}px`; // Overlap effect
+                // Center the stack visually if needed, but simplistic approach for now
+                // To center, we can use translate
+                const totalWidth = (hand.length - 1) * 30 + 96; // 96 is w-24 (6rem approx 96px)
+                // Actually w-24 is 6rem = 96px. w-28 is 7rem = 112px.
+                // Let's just rely on flex centering of parent and margin
+
+                cardEl.style.marginLeft = `-${(hand.length - 1) * 15}px`; // Shift left to center stack
+                cardEl.style.transform = `translateX(${index * 30}px)`;
+                cardEl.style.left = 'auto';
+                cardEl.style.marginLeft = '0';
+
+                // Cleaner Overlap Logic using negative margins instead of absolute positioning calculation
+                // Actually absolute is easier for the 'deal' animation from deck spot.
+                // Let's stick to relative for container and simple flex row with negative margin?
+                // No, let's do the absolute fan out.
+
+                // Resetting classes for the fan effect
+                cardEl.className = `card w-24 h-36 sm:w-28 sm:h-40 rounded-lg ${bgClass} border-2 ${isHidden ? 'border-white' : 'border-gray-300'} flex-shrink-0 shadow-xl animate-deal relative ${isHidden ? '' : 'bg-slate-50'}`;
+
+                if (index > 0) {
+                    cardEl.style.marginLeft = '-50px'; // Overlap amount
+                }
+
+                cardEl.innerHTML = cardContent;
+                element.appendChild(cardEl);
+            });
+        }
+
+        function updateControls() {
+            if (currentState === STATE.BETTING) {
+                elBettingControls.classList.remove('hidden');
+                elGameplayControls.classList.add('hidden');
+                elRestartControls.classList.add('hidden');
+            } else if (currentState === STATE.PLAYING) {
+                elBettingControls.classList.add('hidden');
+                elGameplayControls.classList.remove('hidden');
+                elRestartControls.classList.add('hidden');
+            } else if (currentState === STATE.GAME_OVER) {
+                elBettingControls.classList.add('hidden');
+                elGameplayControls.classList.add('hidden');
+                elRestartControls.classList.remove('hidden');
+            } else {
+                // Dealer Turn
+                elBettingControls.classList.add('hidden');
+                elGameplayControls.classList.add('hidden');
+                elRestartControls.classList.add('hidden');
+            }
+        }
+
+        // Initialize
+        resetGame();
+
+    </script>
+</body>
+
+</html>
