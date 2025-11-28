@@ -1,96 +1,26 @@
-# 🐍 Snake Game
 
-A beautiful, modern Snake game built with Python and Pygame featuring stunning visuals and smooth animations.
+🗑️ Jankyard
 
-![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)
-![Pygame](https://img.shields.io/badge/Pygame-2.6+-green.svg)
-![License](https://img.shields.io/badge/License-MIT-yellow.svg)
+Welcome to the Jankyard.
 
-## ✨ Features
+This is a digital salvage yard for random code snippets, text files, half-baked ideas, and things that didn't fit anywhere else. It is not polished, it is not optimized, and it is definitely not production-ready.
 
-- **Beautiful UI**: Modern dark theme with vibrant cyan and orange color palette
-- **Gradient Effects**: Snake body features a smooth color gradient from head to tail
-- **Animated Snake**: Eyes that follow the direction of movement
-- **Glowing Food**: Food particles with attractive glow effects
-- **Score Tracking**: Keeps track of your current score and high score
-- **Progressive Difficulty**: Game speed increases as your score grows
-- **Smooth Animations**: Polished animations including pulsing restart button
-- **Wrap-around Edges**: Snake reappears on the opposite side when hitting walls
+It is, however, highly likely to contain:
 
-## 🎮 Controls
+Python scripts that solve problems I don't remember having.
 
-- **Arrow Keys** (↑ ↓ ← →) - Move the snake
-- **SPACE** - Restart the game after game over
-- **ESC** - Quit the game
+Text files with drafts, notes, or ASCII art.
 
-## 🚀 Installation
+CSS experiments that break on mobile.
 
-### Prerequisites
+One-off utility functions.
 
-- Python 3.8 or higher
-- pip (Python package manager)
+📂 What's Inside?
 
-### Setup
+The contents of this repository are subject to change without notice, reason, or warning. Currently, you might find:
 
-1. Clone the repository:
-```bash
-git clone https://github.com/AmirGhavam/junkyard.git
-cd junkyard
-```
+Code: Snippets in various languages (Python, JS, C++, etc.) that needed a home.
 
-2. Create a virtual environment (recommended):
-```bash
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
+Text: Random thoughts, todo lists, or copy-pasta.
 
-3. Install dependencies:
-```bash
-pip install pygame
-```
-
-## 🎯 How to Play
-
-1. Run the game:
-```bash
-python snake.py
-```
-
-2. Use the arrow keys to control the snake's direction
-3. Eat the orange food to grow longer and increase your score
-4. Avoid running into yourself
-5. Try to beat your high score!
-
-## 🎨 Design
-
-The game features a carefully crafted modern design:
-
-- **Color Palette**: Dark blue-gray background with cyan snake and orange food
-- **Typography**: Clean, readable fonts for all UI elements
-- **Visual Effects**: Gradient bodies, glowing elements, and smooth animations
-- **Responsive Header**: Displays score, high score, and control hints
-
-## 🛠️ Technical Details
-
-- Built with **Pygame 2.6+**
-- Uses modern Python features including Enums and deque
-- Efficient collision detection
-- Frame-rate independent game logic
-- Clean, modular code structure
-
-## 📝 License
-
-This project is open source and available under the MIT License.
-
-## 🤝 Contributing
-
-Contributions, issues, and feature requests are welcome!
-
-## 👤 Author
-
-**Amir Ghavam**
-- GitHub: [@AmirGhavam](https://github.com/AmirGhavam)
-
----
-
-Enjoy the game! 🎉
+Jank: Code that works, but we're not sure why or how.
