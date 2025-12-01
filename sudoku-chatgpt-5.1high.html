@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Modern Sudoku</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        body {
+            background: radial-gradient(circle at top, #0f172a 0, #020617 55%, #000 100%);
+        }
+
+        .cell-selected {
+            box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.9);
+            background-color: rgba(15, 23, 42, 0.95);
+            position: relative;
+            z-index: 1;
+        }
+
+        .cell-related {
+            background-color: rgba(15, 23, 42, 0.8);
+        }
+
+        .cell-same-value {
+            color: #38bdf8;
+            font-weight: 700;
+        }
+
+        .cell-error {
+            color: #fb7185 !important;
+            animation: cell-shake 140ms ease-in-out 0s 3;
+        }
+
+        @keyframes cell-shake {
+            0% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-2px);
+            }
+
+            50% {
+                transform: translateX(2px);
+            }
+
+            75% {
+                transform: translateX(-2px);
+            }
+
+            100% {
+                transform: translateX(0);
+            }
+        }
+
+        .glass-panel {
+            backdrop-filter: blur(18px);
+            background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.17), transparent 55%),
+                radial-gradient(circle at bottom right, rgba(168, 85, 247, 0.16), transparent 60%),
+                rgba(15, 23, 42, 0.9);
+        }
+
+        .gradient-text {
+            background: linear-gradient(120deg, #38bdf8, #a855f7, #f97316);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .dot-divider::before {
+            content: "•";
+            margin: 0 0.5rem;
+            color: rgb(148 163 184);
+        }
+    </style>
+</head>
+
+<body class="min-h-screen text-slate-50 antialiased flex items-center justify-center px-4 py-6">
+    <div class="max-w-5xl w-full mx-auto">
+        <header class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <h1 class="text-3xl sm:text-4xl font-bold tracking-tight gradient-text">
+                    Modern Sudoku
+                </h1>
+                <p class="mt-1 text-sm text-slate-300 max-w-xl">
+                    Play a clean, focused Sudoku experience with smart highlights, keyboard support, and notes.
+                </p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+                <label
+                    class="inline-flex items-center gap-2 text-xs sm:text-sm text-slate-300 bg-slate-900/60 border border-slate-700 rounded-full px-3 py-1.5">
+                    <span class="text-slate-400">Difficulty</span>
+                    <select id="difficulty-select"
+                        class="bg-transparent text-sky-100 text-xs sm:text-sm focus:outline-none cursor-pointer">
+                        <option value="easy">Easy</option>
+                        <option value="medium">Medium</option>
+                        <option value="hard">Hard</option>
+                    </select>
+                </label>
+                <button id="btn-new-game"
+                    class="inline-flex items-center gap-2 rounded-full bg-sky-500 hover:bg-sky-400 text-slate-950 text-xs sm:text-sm font-semibold px-4 py-2 shadow shadow-sky-500/40 transition-colors">
+                    <span class="inline-block h-1.5 w-1.5 rounded-full bg-slate-950"></span>
+                    New game
+                </button>
+            </div>
+        </header>
+
+        <main
+            class="glass-panel border border-slate-800 rounded-3xl shadow-2xl shadow-sky-900/40 p-4 sm:p-6 lg:p-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,18rem)]">
+            <!-- Board column -->
+            <section aria-label="Sudoku board" class="flex flex-col gap-4">
+                <div class="flex items-center justify-between text-xs sm:text-sm text-slate-300 mb-1">
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="inline-flex items-center gap-1.5 rounded-full bg-slate-900/70 border border-slate-700 px-3 py-1">
+                            <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                            <span class="text-[11px] font-medium uppercase tracking-[0.12em] text-slate-300">Live</span>
+                        </div>
+                        <div class="hidden sm:flex items-center text-xs text-slate-400">
+                            <span>Use your keyboard: arrows to move, 1–9 to type, Backspace to erase, N for notes</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-[11px] uppercase tracking-[0.16em] text-slate-400">Time</span>
+                            <span id="timer" class="font-semibold text-sm tabular-nums text-sky-300">00:00</span>
+                        </div>
+                        <div class="hidden sm:flex items-center gap-1.5">
+                            <span class="text-[11px] uppercase tracking-[0.16em] text-slate-400">Mistakes</span>
+                            <span id="mistakes" class="font-semibold text-sm tabular-nums">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="board"
+                    class="aspect-square max-w-[min(28rem,100%)] mx-auto grid grid-cols-9 bg-slate-900/70 border border-slate-700 rounded-2xl overflow-hidden shadow-inner shadow-black/60">
+                    <!-- Cells injected by JS -->
+                </div>
+
+                <div class="flex items-center justify-between text-[11px] sm:text-xs text-slate-400 mt-1">
+                    <div>
+                        <span class="font-semibold text-slate-300">Tip:</span>
+                        <span>Click a number to highlight all its occurrences on the board.</span>
+                    </div>
+                    <div class="hidden sm:flex items-center">
+                        <span>Auto-check enabled</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Controls column -->
+            <section aria-label="Controls" class="flex flex-col justify-between gap-6">
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between text-xs sm:text-sm text-slate-300">
+                        <div class="flex items-center gap-2">
+                            <span class="text-[11px] uppercase tracking-[0.16em] text-slate-400">Notes</span>
+                            <span id="notes-indicator"
+                                class="inline-flex items-center gap-1 rounded-full bg-slate-900/80 border border-slate-700 px-2.5 py-0.5 text-[11px] text-slate-300">
+                                <span class="inline-block w-1.5 h-1.5 rounded-full bg-slate-600"></span>
+                                Off
+                            </span>
+                        </div>
+                        <div class="flex sm:hidden items-center gap-2 text-[11px] text-slate-400">
+                            <span>Arrows to move, 1–9 to type</span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-5 gap-2">
+                        <button id="btn-notes"
+                            class="col-span-2 inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-2 text-xs sm:text-sm font-medium text-slate-200 hover:bg-slate-800/90 transition-colors">
+                            <span class="inline-block w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+                            Notes
+                            <span class="text-[10px] text-slate-400">N</span>
+                        </button>
+                        <button id="btn-erase"
+                            class="inline-flex items-center justify-center rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-2 text-xs sm:text-sm font-medium text-slate-200 hover:bg-slate-800/90 transition-colors">
+                            Erase
+                            <span class="text-[10px] text-slate-400 ml-1">⌫</span>
+                        </button>
+                        <button id="btn-check"
+                            class="col-span-2 inline-flex items-center justify-center rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs sm:text-sm font-medium text-emerald-200 hover:bg-emerald-500/20 transition-colors">
+                            Check board
+                        </button>
+                    </div>
+                </div>
+
+                <div class="space-y-3">
+                    <div class="grid grid-cols-9 gap-1.5 sm:gap-2">
+                        <button type="button" data-number="1"
+                            class="h-10 sm:h-11 rounded-xl bg-slate-900/80 border border-slate-700 text-sm sm:text-base font-semibold text-slate-100 hover:bg-slate-800/90 hover:border-sky-500/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 transition-colors">1</button>
+                        <button type="button" data-number="2"
+                            class="h-10 sm:h-11 rounded-xl bg-slate-900/80 border border-slate-700 text-sm sm:text-base font-semibold text-slate-100 hover:bg-slate-800/90 hover:border-sky-500/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 transition-colors">2</button>
+                        <button type="button" data-number="3"
+                            class="h-10 sm:h-11 rounded-xl bg-slate-900/80 border border-slate-700 text-sm sm:text-base font-semibold text-slate-100 hover:bg-slate-800/90 hover:border-sky-500/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 transition-colors">3</button>
+                        <button type="button" data-number="4"
+                            class="h-10 sm:h-11 rounded-xl bg-slate-900/80 border border-slate-700 text-sm sm:text-base font-semibold text-slate-100 hover:bg-slate-800/90 hover:border-sky-500/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 transition-colors">4</button>
+                        <button type="button" data-number="5"
+                            class="h-10 sm:h-11 rounded-xl bg-slate-900/80 border border-slate-700 text-sm sm:text-base font-semibold text-slate-100 hover:bg-slate-800/90 hover:border-sky-500/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 transition-colors">5</button>
+                        <button type="button" data-number="6"
+                            class="h-10 sm:h-11 rounded-xl bg-slate-900/80 border border-slate-700 text-sm sm:text-base font-semibold text-slate-100 hover:bg-slate-800/90 hover:border-sky-500/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 transition-colors">6</button>
+                        <button type="button" data-number="7"
+                            class="h-10 sm:h-11 rounded-xl bg-slate-900/80 border border-slate-700 text-sm sm:text-base font-semibold text-slate-100 hover:bg-slate-800/90 hover:border-sky-500/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 transition-colors">7</button>
+                        <button type="button" data-number="8"
+                            class="h-10 sm:h-11 rounded-xl bg-slate-900/80 border border-slate-700 text-sm sm:text-base font-semibold text-slate-100 hover:bg-slate-800/90 hover:border-sky-500/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 transition-colors">8</button>
+                        <button type="button" data-number="9"
+                            class="h-10 sm:h-11 rounded-xl bg-slate-900/80 border border-slate-700 text-sm sm:text-base font-semibold text-slate-100 hover:bg-slate-800/90 hover:border-sky-500/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 transition-colors">9</button>
+                    </div>
+
+                    <div
+                        class="flex items-center justify-between text-[11px] sm:text-xs text-slate-400 pt-1 border-t border-slate-800/80 mt-2">
+                        <div class="flex items-center gap-2">
+                            <span class="inline-flex h-1.5 w-1.5 rounded-full bg-sky-400"></span>
+                            <span>Finish the grid with no mistakes to win.</span>
+                        </div>
+                        <div class="hidden sm:flex items-center">
+                            <span>Progress auto-saves while the page is open.</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="mt-5 flex flex-wrap items-center justify-between gap-2 text-[11px] sm:text-xs text-slate-500">
+            <div class="flex items-center flex-wrap gap-x-2 gap-y-1">
+                <span>Keyboard shortcuts:</span>
+                <span class="dot-divider">Arrows to move</span>
+                <span class="dot-divider">1–9 to type</span>
+                <span class="dot-divider">Backspace to erase</span>
+                <span class="dot-divider">N to toggle notes</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span>Generated puzzles • Single-page app</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Win modal -->
+    <div id="win-modal" class="fixed inset-0 hidden items-center justify-center bg-slate-950/80 z-30">
+        <div
+            class="glass-panel border border-sky-500/40 rounded-3xl p-6 sm:p-7 max-w-sm w-full mx-4 text-center shadow-2xl shadow-sky-900/70">
+            <div class="mb-4 flex justify-center">
+                <div
+                    class="h-10 w-10 rounded-2xl bg-emerald-500/20 border border-emerald-400/60 flex items-center justify-center text-emerald-300">
+                    ✓
+                </div>
+            </div>
+            <h2 class="text-xl sm:text-2xl font-semibold text-slate-50 mb-1">Puzzle complete!</h2>
+            <p class="text-sm text-slate-300 mb-3">Nice work. Ready for another one?</p>
+            <p class="text-xs text-slate-400 mb-6">
+                Time: <span id="win-time" class="font-semibold text-sky-300">00:00</span>
+                <span class="mx-1 text-slate-600">•</span>
+                Mistakes: <span id="win-mistakes" class="font-semibold">0</span>
+            </p>
+            <div class="flex gap-3 justify-center">
+                <button id="btn-close-win"
+                    class="px-4 py-2 rounded-full bg-slate-900/80 border border-slate-700 text-xs sm:text-sm font-medium text-slate-200 hover:bg-slate-800 transition-colors">
+                    Keep board
+                </button>
+                <button id="btn-next-game"
+                    class="px-4 py-2 rounded-full bg-sky-500 hover:bg-sky-400 text-xs sm:text-sm font-semibold text-slate-950 shadow shadow-sky-500/50 transition-colors">
+                    New game
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Sudoku generation logic ---
+        const baseGrid = [
+            [1, 2, 3, 4, 5, 6, 7, 8, 9],
+            [4, 5, 6, 7, 8, 9, 1, 2, 3],
+            [7, 8, 9, 1, 2, 3, 4, 5, 6],
+            [2, 3, 4, 5, 6, 7, 8, 9, 1],
+            [5, 6, 7, 8, 9, 1, 2, 3, 4],
+            [8, 9, 1, 2, 3, 4, 5, 6, 7],
+            [3, 4, 5, 6, 7, 8, 9, 1, 2],
+            [6, 7, 8, 9, 1, 2, 3, 4, 5],
+            [9, 1, 2, 3, 4, 5, 6, 7, 8]
+        ];
+
+        const difficultySettings = {
+            easy: 40,   // number of given cells
+            medium: 32,
+            hard: 26
+        };
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function cloneGrid(grid) {
+            return grid.map(row => row.slice());
+        }
+
+        function swapRows(grid, r1, r2) {
+            const tmp = grid[r1];
+            grid[r1] = grid[r2];
+            grid[r2] = tmp;
+        }
+
+        function swapCols(grid, c1, c2) {
+            for (let r = 0; r < 9; r++) {
+                const tmp = grid[r][c1];
+                grid[r][c1] = grid[r][c2];
+                grid[r][c2] = tmp;
+            }
+        }
+
+        function generateSolvedGrid() {
+            let grid = cloneGrid(baseGrid);
+
+            // Randomly permute digits 1-9
+            const digits = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+            const map = {};
+            for (let i = 0; i < 9; i++) {
+                map[i + 1] = digits[i];
+            }
+            for (let r = 0; r < 9; r++) {
+                for (let c = 0; c < 9; c++) {
+                    grid[r][c] = map[grid[r][c]];
+                }
+            }
+
+            // Random row swaps within bands and column swaps within stacks
+            for (let band = 0; band < 3; band++) {
+                const start = band * 3;
+                for (let i = 0; i < 3; i++) {
+                    const r1 = start + Math.floor(Math.random() * 3);
+                    const r2 = start + Math.floor(Math.random() * 3);
+                    swapRows(grid, r1, r2);
+                }
+            }
+
+            for (let stack = 0; stack < 3; stack++) {
+                const start = stack * 3;
+                for (let i = 0; i < 3; i++) {
+                    const c1 = start + Math.floor(Math.random() * 3);
+                    const c2 = start + Math.floor(Math.random() * 3);
+                    swapCols(grid, c1, c2);
+                }
+            }
+
+            // Randomly swap row bands
+            for (let i = 0; i < 3; i++) {
+                const b1 = Math.floor(Math.random() * 3);
+                const b2 = Math.floor(Math.random() * 3);
+                if (b1 !== b2) {
+                    for (let r = 0; r < 3; r++) {
+                        swapRows(grid, b1 * 3 + r, b2 * 3 + r);
+                    }
+                }
+            }
+
+            // Randomly swap column stacks
+            for (let i = 0; i < 3; i++) {
+                const s1 = Math.floor(Math.random() * 3);
+                const s2 = Math.floor(Math.random() * 3);
+                if (s1 !== s2) {
+                    for (let c = 0; c < 3; c++) {
+                        swapCols(grid, s1 * 3 + c, s2 * 3 + c);
+                    }
+                }
+            }
+
+            return grid;
+        }
+
+        function createPuzzle(solvedGrid, difficulty) {
+            const givenCount = difficultySettings[difficulty] || difficultySettings.easy;
+            const totalCells = 81;
+            const cellsToRemove = Math.max(0, totalCells - givenCount);
+
+            // Flatten solution
+            const solution = [];
+            for (let r = 0; r < 9; r++) {
+                for (let c = 0; c < 9; c++) {
+                    solution.push(solvedGrid[r][c]);
+                }
+            }
+
+            const puzzle = solution.slice();
+            const indices = shuffle([...Array(totalCells).keys()]);
+
+            for (let i = 0; i < cellsToRemove; i++) {
+                puzzle[indices[i]] = 0; // 0 indicates empty
+            }
+
+            return { puzzle, solution };
+        }
+
+        // --- Game state ---
+        const boardElement = document.getElementById('board');
+        const difficultySelect = document.getElementById('difficulty-select');
+        const timerElement = document.getElementById('timer');
+        const mistakesElement = document.getElementById('mistakes');
+        const notesIndicator = document.getElementById('notes-indicator');
+        const winModal = document.getElementById('win-modal');
+        const winTimeElement = document.getElementById('win-time');
+        const winMistakesElement = document.getElementById('win-mistakes');
+
+        let cells = [];
+        let currentDifficulty = 'easy';
+        let currentPuzzle = [];
+        let currentSolution = [];
+        let selectedCell = null;
+        let notesMode = false;
+        let timerInterval = null;
+        let elapsedSeconds = 0;
+        let mistakes = 0;
+
+        // --- UI helpers ---
+        function pad(num) {
+            return num.toString().padStart(2, '0');
+        }
+
+        function formatTime(seconds) {
+            const m = Math.floor(seconds / 60);
+            const s = seconds % 60;
+            return `${pad(m)}:${pad(s)}`;
+        }
+
+        function startTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            elapsedSeconds = 0;
+            timerElement.textContent = '00:00';
+            timerInterval = setInterval(() => {
+                elapsedSeconds++;
+                timerElement.textContent = formatTime(elapsedSeconds);
+            }, 1000);
+        }
+
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+
+        function updateMistakesDisplay() {
+            mistakesElement.textContent = mistakes.toString();
+        }
+
+        function clearHighlights() {
+            cells.forEach(cell => {
+                cell.classList.remove('cell-selected', 'cell-related', 'cell-same-value', 'cell-error');
+            });
+        }
+
+        function getCellByIndex(index) {
+            return cells[index] || null;
+        }
+
+        function setSelectedCell(cell) {
+            if (!cell) return;
+
+            clearHighlights();
+            selectedCell = cell;
+            cell.classList.add('cell-selected');
+
+            const row = cell.dataset.row;
+            const col = cell.dataset.col;
+            const box = cell.dataset.box;
+            const value = cell.textContent.trim();
+
+            cells.forEach(other => {
+                if (other === cell) return;
+                if (other.dataset.row === row || other.dataset.col === col || other.dataset.box === box) {
+                    other.classList.add('cell-related');
+                }
+                if (value && other.textContent.trim() === value) {
+                    other.classList.add('cell-same-value');
+                }
+            });
+        }
+
+        function buildBoard(puzzle, solution) {
+            boardElement.innerHTML = '';
+            cells = [];
+            selectedCell = null;
+
+            for (let i = 0; i < 81; i++) {
+                const row = Math.floor(i / 9);
+                const col = i % 9;
+                const box = Math.floor(row / 3) * 3 + Math.floor(col / 3);
+                const value = puzzle[i];
+
+                const cell = document.createElement('button');
+                cell.type = 'button';
+                cell.dataset.index = i.toString();
+                cell.dataset.row = row.toString();
+                cell.dataset.col = col.toString();
+                cell.dataset.box = box.toString();
+                cell.dataset.fixed = value !== 0 ? 'true' : 'false';
+                cell.dataset.notes = '';
+
+                let borderClasses = 'border border-slate-700';
+                if (row % 3 === 0) borderClasses += ' border-t-2 border-t-slate-500';
+                if (col % 3 === 0) borderClasses += ' border-l-2 border-l-slate-500';
+                if (row === 8) borderClasses += ' border-b-2 border-b-slate-500';
+                if (col === 8) borderClasses += ' border-r-2 border-r-slate-500';
+
+                const baseClasses = [
+                    'cell',
+                    'relative',
+                    'flex',
+                    'items-center',
+                    'justify-center',
+                    'text-base',
+                    'sm:text-lg',
+                    'md:text-xl',
+                    'font-medium',
+                    'transition-colors',
+                    'duration-150',
+                    'bg-slate-950/40',
+                    'hover:bg-slate-900/70',
+                    'focus:outline-none',
+                    'focus-visible:ring-2',
+                    'focus-visible:ring-sky-500',
+                    'focus-visible:ring-offset-2',
+                    'focus-visible:ring-offset-slate-950'
+                ];
+
+                cell.className = baseClasses.join(' ') + ' ' + borderClasses;
+
+                if (value !== 0) {
+                    cell.textContent = value.toString();
+                    cell.classList.add('text-slate-100', 'font-semibold', 'bg-slate-950/80');
+                } else {
+                    cell.textContent = '';
+                    cell.classList.add('text-slate-400');
+                }
+
+                cell.addEventListener('click', () => {
+                    setSelectedCell(cell);
+                });
+
+                boardElement.appendChild(cell);
+                cells.push(cell);
+            }
+        }
+
+        function toggleNotesMode() {
+            notesMode = !notesMode;
+            if (notesMode) {
+                notesIndicator.innerHTML = '<span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400"></span>On';
+                notesIndicator.classList.remove('border-slate-700');
+                notesIndicator.classList.add('border-emerald-400/70', 'bg-emerald-500/10', 'text-emerald-200');
+            } else {
+                notesIndicator.innerHTML = '<span class="inline-block w-1.5 h-1.5 rounded-full bg-slate-600"></span>Off';
+                notesIndicator.classList.add('border-slate-700');
+                notesIndicator.classList.remove('border-emerald-400/70', 'bg-emerald-500/10', 'text-emerald-200');
+            }
+        }
+
+        function toggleNoteForCell(cell, num) {
+            if (!cell || cell.dataset.fixed === 'true') return;
+
+            let notes = cell.dataset.notes ? cell.dataset.notes.split('') : [];
+
+            // If the cell currently has a normal value, clear it and switch to notes
+            if (!cell.dataset.notes && cell.textContent.trim() !== '') {
+                cell.textContent = '';
+            }
+
+            if (notes.includes(num)) {
+                notes = notes.filter(n => n !== num);
+            } else {
+                notes.push(num);
+                notes.sort();
+            }
+
+            cell.dataset.notes = notes.join('');
+
+            if (notes.length === 0) {
+                cell.textContent = '';
+                cell.classList.remove('text-xs', 'leading-tight', 'text-slate-400', 'font-normal');
+                return;
+            }
+
+            cell.textContent = notes.join(' ');
+            cell.classList.add('text-xs', 'leading-tight', 'text-slate-400', 'font-normal');
+            cell.classList.remove('cell-error');
+        }
+
+        function handleNumberInput(numStr) {
+            if (!selectedCell) return;
+            if (selectedCell.dataset.fixed === 'true') return;
+
+            const index = parseInt(selectedCell.dataset.index, 10);
+            if (Number.isNaN(index)) return;
+
+            if (notesMode) {
+                toggleNoteForCell(selectedCell, numStr);
+                setSelectedCell(selectedCell); // refresh highlights
+                return;
+            }
+
+            // Normal input
+            selectedCell.dataset.notes = '';
+            selectedCell.textContent = numStr;
+            selectedCell.classList.remove('text-xs', 'leading-tight', 'font-normal');
+            selectedCell.classList.add('text-sky-100', 'font-semibold');
+
+            const value = parseInt(numStr, 10);
+            const correct = currentSolution[index];
+
+            if (value !== correct) {
+                mistakes++;
+                updateMistakesDisplay();
+                selectedCell.classList.add('cell-error');
+                setTimeout(() => {
+                    selectedCell.classList.remove('cell-error');
+                }, 420);
+            } else {
+                selectedCell.classList.remove('cell-error');
+            }
+
+            // Refresh highlighting (same numbers, etc.)
+            setSelectedCell(selectedCell);
+
+            // Check for win after a brief delay to allow UI updates
+            setTimeout(checkWinCondition, 10);
+        }
+
+        function handleErase() {
+            if (!selectedCell) return;
+            if (selectedCell.dataset.fixed === 'true') return;
+
+            selectedCell.dataset.notes = '';
+            selectedCell.textContent = '';
+            selectedCell.classList.remove('cell-error', 'text-sky-100', 'font-semibold', 'text-xs', 'leading-tight');
+            selectedCell.classList.add('text-slate-400');
+            setSelectedCell(selectedCell);
+        }
+
+        function checkBoardForErrors() {
+            // Highlight incorrect cells, but don't count as additional mistakes
+            cells.forEach((cell, index) => {
+                if (cell.dataset.fixed === 'true') return;
+                const text = cell.textContent.trim();
+                if (!text || cell.dataset.notes) return;
+                const value = parseInt(text, 10);
+                if (value && value !== currentSolution[index]) {
+                    cell.classList.add('cell-error');
+                } else {
+                    cell.classList.remove('cell-error');
+                }
+            });
+        }
+
+        function checkWinCondition() {
+            for (let i = 0; i < 81; i++) {
+                const cell = cells[i];
+                if (!cell) return false;
+                if (cell.dataset.notes) return false;
+
+                const text = cell.textContent.trim();
+                const value = text ? parseInt(text, 10) : 0;
+                if (!value || value !== currentSolution[i]) {
+                    return false;
+                }
+            }
+
+            // All cells correct
+            handleWin();
+            return true;
+        }
+
+        function handleWin() {
+            stopTimer();
+            winTimeElement.textContent = formatTime(elapsedSeconds);
+            winMistakesElement.textContent = mistakes.toString();
+            winModal.classList.remove('hidden');
+            winModal.classList.add('flex');
+        }
+
+        function closeWinModal() {
+            winModal.classList.add('hidden');
+            winModal.classList.remove('flex');
+        }
+
+        function newGame(difficulty) {
+            currentDifficulty = difficulty || currentDifficulty;
+            stopTimer();
+            mistakes = 0;
+            updateMistakesDisplay();
+            closeWinModal();
+
+            const solved = generateSolvedGrid();
+            const { puzzle, solution } = createPuzzle(solved, currentDifficulty);
+            currentPuzzle = puzzle;
+            currentSolution = solution;
+
+            buildBoard(puzzle, solution);
+            // Select the first cell that is not fixed
+            const firstEditable = cells.find(c => c.dataset.fixed === 'false');
+            if (firstEditable) {
+                setSelectedCell(firstEditable);
+                firstEditable.focus();
+            }
+
+            startTimer();
+        }
+
+        // --- Event wiring ---
+        function setupControls() {
+            document.querySelectorAll('[data-number]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const num = btn.getAttribute('data-number');
+                    if (num) handleNumberInput(num);
+                });
+            });
+
+            const btnErase = document.getElementById('btn-erase');
+            btnErase.addEventListener('click', handleErase);
+
+            const btnCheck = document.getElementById('btn-check');
+            btnCheck.addEventListener('click', checkBoardForErrors);
+
+            const btnNotes = document.getElementById('btn-notes');
+            btnNotes.addEventListener('click', () => {
+                toggleNotesMode();
+            });
+
+            const btnNewGame = document.getElementById('btn-new-game');
+            btnNewGame.addEventListener('click', () => {
+                newGame(currentDifficulty);
+            });
+
+            difficultySelect.addEventListener('change', (e) => {
+                const value = e.target.value || 'easy';
+                newGame(value);
+            });
+
+            const btnCloseWin = document.getElementById('btn-close-win');
+            const btnNextGame = document.getElementById('btn-next-game');
+
+            btnCloseWin.addEventListener('click', () => {
+                closeWinModal();
+            });
+
+            btnNextGame.addEventListener('click', () => {
+                closeWinModal();
+                newGame(currentDifficulty);
+            });
+
+            // Close modal when clicking outside the inner card
+            winModal.addEventListener('click', (e) => {
+                if (e.target === winModal) {
+                    closeWinModal();
+                }
+            });
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if (winModal.classList.contains('flex')) {
+                    if (e.key === 'Escape') {
+                        e.preventDefault();
+                        closeWinModal();
+                    }
+                    return;
+                }
+
+                const key = e.key;
+
+                if (key >= '1' && key <= '9') {
+                    e.preventDefault();
+                    handleNumberInput(key);
+                    return;
+                }
+
+                if (key === 'Backspace' || key === 'Delete') {
+                    e.preventDefault();
+                    handleErase();
+                    return;
+                }
+
+                if (key === 'n' || key === 'N') {
+                    e.preventDefault();
+                    toggleNotesMode();
+                    return;
+                }
+
+                if (!selectedCell) return;
+
+                let row = parseInt(selectedCell.dataset.row, 10);
+                let col = parseInt(selectedCell.dataset.col, 10);
+                if (Number.isNaN(row) || Number.isNaN(col)) return;
+
+                let handled = false;
+                if (key === 'ArrowUp') {
+                    row = (row + 8) % 9; // -1 mod 9
+                    handled = true;
+                } else if (key === 'ArrowDown') {
+                    row = (row + 1) % 9;
+                    handled = true;
+                } else if (key === 'ArrowLeft') {
+                    col = (col + 8) % 9;
+                    handled = true;
+                } else if (key === 'ArrowRight') {
+                    col = (col + 1) % 9;
+                    handled = true;
+                }
+
+                if (handled) {
+                    e.preventDefault();
+                    const newIndex = row * 9 + col;
+                    const cell = getCellByIndex(newIndex);
+                    if (cell) {
+                        setSelectedCell(cell);
+                        cell.focus();
+                    }
+                }
+            });
+        }
+
+        // --- Initialize ---
+        document.addEventListener('DOMContentLoaded', () => {
+            toggleNotesMode(); // initialize to off with proper styling
+            toggleNotesMode(); // toggle back to ensure text & state are synced (off)
+            setupControls();
+            newGame(currentDifficulty);
+        });
+    </script>
+</body>
+
+</html>
