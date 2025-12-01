@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CRDT (Conflict-free Replicated Data Types) Cheatsheet – Python Examples</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        body {
+            scroll-behavior: smooth;
+        }
+
+        pre {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 0.8rem;
+            line-height: 1.4;
+            overflow-x: auto;
+        }
+
+        code {
+            font-family: inherit;
+        }
+
+        .code-block {
+            position: relative;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 0.4rem;
+            right: 0.5rem;
+            font-size: 0.7rem;
+            padding: 0.1rem 0.45rem;
+            border-radius: 9999px;
+            border: 1px solid rgba(148, 163, 184, 0.7);
+            background: rgba(15, 23, 42, 0.9);
+            color: rgb(226, 232, 240);
+            cursor: pointer;
+            transition: all 0.15s ease-in-out;
+        }
+
+        .copy-btn:hover {
+            background: rgba(30, 64, 175, 0.9);
+            border-color: rgba(129, 140, 248, 0.9);
+        }
+
+        .copy-btn.copied {
+            background: rgba(22, 163, 74, 0.9);
+            border-color: rgba(74, 222, 128, 1);
+        }
+
+        ::-webkit-scrollbar {
+            height: 6px;
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.5);
+            border-radius: 9999px;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-950 text-slate-100">
+    <div class="min-h-screen">
+        <!-- Header -->
+        <header class="sticky top-0 z-30 border-b border-slate-800 bg-slate-950/90 backdrop-blur">
+            <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+                <div>
+                    <h1 class="text-xl md:text-2xl font-semibold tracking-tight text-sky-400">
+                        Conflict-free Replicated Data Types (CRDT) Cheatsheet
+                    </h1>
+                    <p class="text-xs md:text-sm text-slate-400 mt-1">
+                        From basics to advanced topics · Strong eventual consistency · Many Python examples
+                    </p>
+                </div>
+                <nav class="hidden lg:flex items-center gap-3 text-xs text-slate-300">
+                    <a href="#basics" class="hover:text-sky-300">Basics</a>
+                    <a href="#state-vs-op" class="hover:text-sky-300">State vs Op</a>
+                    <a href="#counters" class="hover:text-sky-300">Counters</a>
+                    <a href="#sets" class="hover:text-sky-300">Sets</a>
+                    <a href="#registers" class="hover:text-sky-300">Registers</a>
+                    <a href="#sequences" class="hover:text-sky-300">Sequences</a>
+                    <a href="#maps" class="hover:text-sky-300">Maps</a>
+                    <a href="#version-vectors" class="hover:text-sky-300">Version Vectors</a>
+                    <a href="#patterns" class="hover:text-sky-300">Patterns</a>
+                </nav>
+            </div>
+        </header>
+
+        <main class="max-w-6xl mx-auto px-4 py-6 md:py-10">
+            <!-- Overview / Search -->
+            <section id="overview" class="mb-10" data-keywords="overview introduction why crdt cheatsheet summary">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-5">
+                    <div class="space-y-2 max-w-2xl">
+                        <p class="text-sm md:text-base text-slate-200">
+                            CRDTs are data structures that can be
+                            <span class="text-sky-300 font-medium">replicated, updated independently, and merged without
+                                conflicts</span>
+                            while guaranteeing <span class="font-medium text-emerald-300">strong eventual
+                                consistency</span>.
+                        </p>
+                        <ul class="text-xs md:text-sm text-slate-400 list-disc pl-4 space-y-1">
+                            <li>Focus: state-based & operation-based CRDTs with practical Python examples.</li>
+                            <li>Goal: give you enough intuition and patterns to design and implement your own CRDTs.
+                            </li>
+                            <li>Scope: counters, sets, registers, maps, sequences, causality, and design guidelines.
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="w-full md:w-72">
+                        <label
+                            class="block text-[0.7rem] font-medium text-slate-300 mb-1 tracking-wide uppercase">Filter
+                            sections</label>
+                        <div class="relative">
+                            <input id="filterInput" type="text"
+                                placeholder="e.g. counter, OR-Set, version vector, sequence"
+                                class="w-full rounded-md bg-slate-900/80 border border-slate-700/80 px-2.5 py-1.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-500 focus:border-sky-500" />
+                            <span
+                                class="pointer-events-none absolute inset-y-0 right-2 flex items-center text-[0.7rem] text-slate-500">⌘K</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid gap-4 md:grid-cols-3 text-xs md:text-sm">
+                    <div class="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
+                        <h2 class="text-[0.8rem] font-semibold text-sky-300 mb-2 uppercase tracking-wide">You get</h2>
+                        <ul class="list-disc pl-4 space-y-1 text-slate-300">
+                            <li>Concept → implementation mapping.</li>
+                            <li>Merge functions that always converge.</li>
+                            <li>Copy-pastable Python snippets.</li>
+                        </ul>
+                    </div>
+                    <div class="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
+                        <h2 class="text-[0.8rem] font-semibold text-emerald-300 mb-2 uppercase tracking-wide">When to
+                            use</h2>
+                        <ul class="list-disc pl-4 space-y-1 text-slate-300">
+                            <li>Offline-first / mobile sync.</li>
+                            <li>Multi-region services without global locks.</li>
+                            <li>Event-sourced / log-based systems.</li>
+                        </ul>
+                    </div>
+                    <div class="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
+                        <h2 class="text-[0.8rem] font-semibold text-indigo-300 mb-2 uppercase tracking-wide">Mental
+                            model</h2>
+                        <ul class="list-disc pl-4 space-y-1 text-slate-300">
+                            <li>Each replica is correct locally.</li>
+                            <li>Merging is associative, commutative, idempotent.</li>
+                            <li>State only moves "up" in a partial order.</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 1. Basics -->
+            <section id="basics" class="mb-12"
+                data-keywords="basics definition strong eventual consistency semilattice monotonic order merge">
+                <h2 class="text-lg md:text-xl font-semibold text-sky-300 mb-3">1. CRDT Basics</h2>
+                <div class="space-y-3 text-sm md:text-base text-slate-200">
+                    <p>
+                        A <span class="font-semibold text-sky-300">CRDT</span> (Conflict-free Replicated Data Type) is a
+                        data type
+                        that can be replicated across multiple nodes, updated independently and concurrently, and merged
+                        without
+                        coordination, while guaranteeing <span class="font-semibold text-emerald-300">strong eventual
+                            consistency</span>.
+                    </p>
+
+                    <div class="grid md:grid-cols-2 gap-4 text-xs md:text-sm">
+                        <div class="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
+                            <h3 class="font-semibold text-sky-200 mb-2">Key properties</h3>
+                            <ul class="list-disc pl-4 space-y-1">
+                                <li><span class="font-semibold">Availability:</span> Local updates succeed without
+                                    coordination.</li>
+                                <li><span class="font-semibold">Convergence:</span> All replicas converge to the same
+                                    state if they see the same updates (maybe in different orders).</li>
+                                <li><span class="font-semibold">Monotonicity:</span> State only moves upward in a
+                                    partial order; merges never lose information.</li>
+                                <li><span class="font-semibold">Merge function:</span> Associative, commutative, and
+                                    idempotent.</li>
+                            </ul>
+                        </div>
+                        <div class="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
+                            <h3 class="font-semibold text-indigo-200 mb-2">Strong eventual consistency</h3>
+                            <p class="mb-1">A replicated object is strongly eventually consistent if:</p>
+                            <ul class="list-disc pl-4 space-y-1">
+                                <li><span class="font-semibold">Eventual delivery:</span> Every update eventually
+                                    reaches all replicas.</li>
+                                <li><span class="font-semibold">Termination:</span> All operations eventually complete.
+                                </li>
+                                <li><span class="font-semibold">Convergence:</span> Replicas that have received the same
+                                    updates are in the same state.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 rounded-lg border border-slate-800 bg-slate-900/60 p-4 text-xs md:text-sm">
+                        <h3 class="font-semibold text-emerald-300 mb-2">Mathematical view: join-semilattice</h3>
+                        <p class="mb-2">
+                            Most state-based CRDTs form a <span class="font-semibold">join-semilattice</span>:
+                        </p>
+                        <ul class="list-disc pl-4 mb-3 space-y-1">
+                            <li>A set of states <code class="px-1 rounded bg-slate-800/80">S</code> with a partial order
+                                <code>&le;</code>.</li>
+                            <li>Every pair of states <code>x, y</code> has a least upper bound (join)
+                                <code>x ⊔ y</code>.</li>
+                            <li>Join is <span class="font-semibold">associative</span>, <span
+                                    class="font-semibold">commutative</span>, and <span
+                                    class="font-semibold">idempotent</span>.</li>
+                        </ul>
+                        <p class="mb-2">If updates are monotone (only move state upwards) and replicas merge via join,
+                            they converge.</p>
+
+                        <pre
+                            class="code-block mt-2 rounded bg-slate-950/80 border border-slate-800 p-3 overflow-x-auto"><code class="language-python">from __future__ import annotations
+from dataclasses import dataclass
+from typing import Protocol
+
+
+class JoinSemiLattice(Protocol):
+    def join(self, other: "JoinSemiLattice") -&gt; "JoinSemiLattice":
+        """Return least upper bound of self and other.
+        Must be associative, commutative, idempotent.
+        """
+
+
+@dataclass
+class Replica:
+    id: str
+    state: JoinSemiLattice
+
+    def update(self, f):
+        """Apply a monotone update function."""
+        self.state = f(self.state)
+
+    def merge(self, other: "Replica"):
+        self.state = self.state.join(other.state)
+
+
+# If all updates are monotone and replicas periodically call merge,
+# all replicas converge to the same state (modulo message delivery).
+</code></pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2. State-based vs Operation-based -->
+            <section id="state-vs-op" class="mb-12"
+                data-keywords="state-based op-based operation-based cvrdt cmrdt merge broadcast">
+                <h2 class="text-lg md:text-xl font-semibold text-sky-300 mb-3">2. State-based vs Operation-based CRDTs
+                </h2>
+                <div class="grid gap-4 md:grid-cols-2 text-xs md:text-sm">
+                    <div class="rounded-lg border border-slate-800 bg-slate-900/60 p-4">
+                        <h3 class="font-semibold text-emerald-300 mb-2">State-based (CvRDT)</h3>
+                        <p class="mb-2">
+                            Each replica periodically sends its whole state (or a <em>delta</em>) to other replicas.
+                            Peers merge received state using a <code>join</code> function.
+                        </p>
+                        <ul class="list-disc pl-4 mb-3 space-y-1">
+                            <li>Easy to reason about via semilattices.</li>
+                            <li>Tolerates reordering, duplication, and dropping of messages.</li>
+                            <li>Higher bandwidth use if the state is large (mitigated by delta-CRDTs).</li>
+                        </ul>
+                        <pre class="code-block rounded bg-slate-950/80 border border-slate-800 p-3 overflow-x-auto"><code class="language-python">class StateBasedCRDT:
+    def __init__(self, state):
+        self.state = state  # a semilattice element
+
+    def update(self, f):
+        self.state = f(self.state)  # monotone
+
+    def merge(self, other: "StateBasedCRDT"):
+        self.state = self.state.join(other.state)
+
+    def generate_delta(self):
+        """Optional: return only the change since last sync."""
+        ...
+</code></pre>
+                    </div>
+                    <div class="rounded-lg border border-slate-800 bg-slate-900/60 p-4">
+                        <h3 class="font-semibold text-indigo-300 mb-2">Operation-based (CmRDT)</h3>
+                        <p class="mb-2">
+                            Replicas send <em>operations</em> (e.g. <code>add(42)</code>) instead of whole state.
+                            Operations must be delivered to all replicas, often with causal ordering.
+                        </p>
+                        <ul class="list-disc pl-4 mb-3 space-y-1">
+                            <li>Lower bandwidth than state-based when operations are small.</li>
+                            <li>Requires reliable broadcast and often causal delivery.</li>
+                            <li>Concurrency control ensured by commutative operations.</li>
+                        </ul>
+                        <pre class="code-block rounded bg-slate-950/80 border border-slate-800 p-3 overflow-x-auto"><code class="language-python">class OperationBasedCRDT:
+    def __init__(self, state):
+        self.state = state
+
+    # Local apply and broadcast
+    def apply_local(self, op):
+        self._apply(op)
+        self._broadcast(op)
+
+    # Remote apply
+    def apply_remote(self, op):
+        # Often assumes causal delivery
+        self._apply(op)
+
+    def _apply(self, op):
+        """op is a pure function or a small object describing the operation.
+        All ops must be designed so that applying them in any order
+        (respecting causality) converges.
+        """
+        self.state = op(self.state)
+</code></pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. Counters -->
+            <section id="counters" class="mb-12"
+                data-keywords="counter g-counter pn-counter grow-only increment decrement integer">
+                <h2 class="text-lg md:text-xl font-semibold text-sky-300 mb-3">3. Counter CRDTs</h2>
+                <p class="text-sm md:text-base text-slate-200 mb-3">
+                    Counters are the simplest CRDTs and a good starting point: they model an integer that can be updated
+                    concurrently while converging.
+                </p>
+
+                <!-- G-Counter -->
+                <div class="mb-6 rounded-lg border border-slate-800 bg-slate-900/60 p-4">
+                    <h3 class="text-sm md:text-base font-semibold text-emerald-300 mb-1">3.1 G-Counter (Grow-only
+                        Counter)</h3>
+                    <p class="text-xs md:text-sm text-slate-200 mb-2">
+                        A <span class="font-semibold">G-Counter</span> is a monotonically increasing counter. Each
+                        replica can only increment
+                        its own component; the global value is the sum. Merge takes the pointwise maximum per replica.
+                    </p>
+                    <ul class="list-disc pl-4 text-xs md:text-sm text-slate-300 mb-2">
+                        <li><span class="font-semibold">State:</span> map <code>replica_id → int</code>.</li>
+                        <li><span class="font-semibold">Query:</span> <code>value = sum(counts.values())</code>.</li>
+                        <li><span class="font-semibold">Update:</span> <code>increment()</code> increases the local
+                            entry.</li>
+                        <li><span class="font-semibold">Merge:</span> for each replica id, take
+                            <code>max(local[id], remote[id])</code>.</li>
+                    </ul>
+
+                    <pre class="code-block rounded bg-slate-950/80 border border-slate-800 p-3 overflow-x-auto"><code class="language-python">from __future__ import annotations
+from dataclasses import dataclass, field
+from typing import Dict
+
+
+@dataclass
+class GCounter:
+    replica_id: str
+    counts: Dict[str, int] = field(default_factory=dict)
+
+    # Local update
+    def increment(self, n: int = 1) -&gt; None:
+        if n &lt; 0:
+            raise ValueError("GCounter is grow-only; n must be >= 0")
+        self.counts[self.replica_id] = self.counts.get(self.replica_id, 0) + n
+
+    # Query
+    @property
+    def value(self) -&gt; int:
+        return sum(self.counts.values())
+
+    # Merge (join)
+    def merge(self, other: "GCounter") -&gt; "GCounter":
+        merged = GCounter(self.replica_id, counts=dict(self.counts))
+        for rid, c in other.counts.items():
+            merged.counts[rid] = max(merged.counts.get(rid, 0), c)
+        return merged
+
+
+# Example usage
+
+a = GCounter("A")
+b = GCounter("B")
+
+# Concurrent increments
+#a: +2, b: +5
+for _ in range(2):
+    a.increment()
+for _ in range(5):
+    b.increment()
+
+# Different replicas may see each other in different orders
+m1 = a.merge(b)
+m2 = b.merge(a)
+
+assert m1.value == m2.value == 7
+</code></pre>
+                </div>
+
+                <!-- PN-Counter -->
+                <div class="mb-6 rounded-lg border border-slate-800 bg-slate-900/60 p-4">
+                    <h3 class="text-sm md:text-base font-semibold text-emerald-300 mb-1">3.2 PN-Counter
+                        (Positive-Negative Counter)</h3>
+                    <p class="text-xs md:text-sm text-slate-200 mb-2">
+                        A <span class="font-semibold">PN-Counter</span> supports increments and decrements by combining
+                        two G-Counters:
+                        one for positive updates <code>P</code> and one for negative updates <code>N</code>.
+                    </p>
+                    <ul class="list-disc pl-4 text-xs md:text-sm text-slate-300 mb-2">
+                        <li><span class="font-semibold">State:</span> <code>(P: GCounter, N: GCounter)</code>.</li>
+                        <li><span class="font-semibold">Value:</span> <code>P.value - N.value</code>.</li>
+                        <li><span class="font-semibold">Merge:</span> merge <code>P</code> and <code>N</code>
+                            separately.</li>
+                    </ul>
+
+                    <pre class="code-block rounded bg-slate-950/80 border border-slate-800 p-3 overflow-x-auto"><code class="language-python">from dataclasses import dataclass
+
+
+@dataclass
+class PNCounter:
+    replica_id: str
+
+    def __post_init__(self):
+        self.p = GCounter(self.replica_id)
+        self.n = GCounter(self.replica_id)
+
+    def increment(self, n: int = 1) -&gt; None:
+        if n &lt; 0:
+            return self.decrement(-n)
+        self.p.increment(n)
+
+    def decrement(self, n: int = 1) -&gt; None:
+        if n &lt; 0:
+            return self.increment(-n)
+        self.n.increment(n)
+
+    @property
+    def value(self) -&gt; int:
+        return self.p.value - self.n.value
+
+    def merge(self, other: "PNCounter") -&gt; "PNCounter":
+        merged = PNCounter(self.replica_id)
+        merged.p = self.p.merge(other.p)
+        merged.n = self.n.merge(other.n)
+        return merged
+
+
+# Example
+
+a = PNCounter("A")
+b = PNCounter("B")
+
+a.increment(5)
+a.decrement(2)
+
+b.decrement(3)
+
+m = a.merge(b)
+print(m.value)  # 5 - 2 - 3 = 0
+</code></pre>
+                </div>
+            </section>
+
+            <!-- 4. Set CRDTs -->
+            <section id="sets" class="mb-12"
+                data-keywords="sets g-set 2p-set or-set lww-element-set add remove tombstone">
+                <h2 class="text-lg md:text-xl font-semibold text-sky-300 mb-3">4. Set CRDTs</h2>
+                <p class="text-sm md:text-base text-slate-200 mb-3">
+                    Set CRDTs model <code>add</code> / <code>remove</code> operations over elements. Each variant
+                    resolves
+                    <span class="italic">add vs remove</span> conflicts differently.
+                </p>
+
+                <!-- G-Set -->
+                <div class="mb-6 rounded-lg border border-slate-800 bg-slate-900/60 p-4">
+                    <h3 class="text-sm md:text-base font-semibold text-emerald-300 mb-1">4.1 G-Set (Grow-only Set)</h3>
+                    <p class="text-xs md:text-sm text-slate-200 mb-2">
+                        A <span class="font-semibold">G-Set</span> only supports <code>add(e)</code>; no removals. It's
+                        useful as a
+                        building block.
+                    </p>
+                    <ul class="list-disc pl-4 text-xs md:text-sm text-slate-300 mb-2">
+                        <li><span class="font-semibold">State:</span> set of elements <code>S</code>.</li>
+                        <li><span class="font-semibold">Update:</span> <code>S ← S ∪ {e}</code>.</li>
+                        <li><span class="font-semibold">Merge:</span> <code>S = S₁ ∪ S₂</code>.</li>
+                    </ul>
+
+                    <pre class="code-block rounded bg-slate-950/80 border border-slate-800 p-3 overflow-x-auto"><code class="language-python">from dataclasses import dataclass, field
+from typing import Generic, TypeVar, Set
+
+T = TypeVar("T")
+
+
+@dataclass
+class GSet(Generic[T]):
+    elements: Set[T] = field(default_factory=set)
+
+    def add(self, e: T) -&gt; None:
+        self.elements.add(e)
+
+    def contains(self, e: T) -&gt; bool:
+        return e in self.elements
+
+    def merge(self, other: "GSet[T]") -&gt; "GSet[T]":
+        return GSet(self.elements | other.elements)
+</code></pre>
+                </div>
+
+                <!-- 2P-Set -->
+                <div class="mb-6 rounded-lg border border-slate-800 bg-slate-900/60 p-4">
+                    <h3 class="text-sm md:text-base font-semibold text-emerald-300 mb-1">4.2 2P-Set (Two-Phase Set)</h3>
+                    <p class="text-xs md:text-sm text-slate-200 mb-2">
+                        A <span class="font-semibold">2P-Set</span> (two-phase set) supports adds and removes but with a
+                        key restriction:
+                        once an element has been removed, it can never be added again.
+                    </p>
+                    <ul class="list-disc pl-4 text-xs md:text-sm text-slate-300 mb-2">
+                        <li><span class="font-semibold">State:</span>
+                            <code>(A: G-Set of adds, R: G-Set of removes)</code>.</li>
+                        <li><span class="font-semibold">Contains:</span> <code>e ∈ A and e ∉ R</code>.</li>
+                        <li><span class="font-semibold">Merge:</span> pairwise union: <code>A = A₁ ∪ A₂</code>,
+                            <code>R = R₁ ∪ R₂</code>.</li>
+                    </ul>
+
+                    <pre class="code-block rounded bg-slate-950/80 border border-slate-800 p-3 overflow-x-auto"><code class="language-python">@dataclass
+class TwoPSet(Generic[T]):
+    adds: GSet[T] = field(default_factory=GSet)
+    removes: GSet[T] = field(default_factory=GSet)
+
+    def add(self, e: T) -&gt; None:
+        if self.removes.contains(e):
+            # Once removed, cannot be re-added
+            return
+        self.adds.add(e)
+
+    def remove(self, e: T) -&gt; None:
+        if self.adds.contains(e):
+            self.removes.add(e)
+
+    def contains(self, e: T) -&gt; bool:
+        return self.adds.contains(e) and not self.removes.contains(e)
+
+    def elements(self) -&gt; Set[T]:
+        return {e for e in self.adds.elements if e not in self.removes.elements}
+
+    def merge(self, other: "TwoPSet[T]") -&gt; "TwoPSet[T]":
+        return TwoPSet(
+            adds=self.adds.merge(other.adds),
+            removes=self.removes.merge(other.removes),
+        )
+</code></pre>
+                </div>
+
+                <!-- OR-Set -->
+                <div class="mb-6 rounded-lg border border-slate-800 bg-slate-900/60 p-4">
+                    <h3 class="text-sm md:text-base font-semibold text-emerald-300 mb-1">4.3 OR-Set (Observed-Remove
+                        Set)</h3>
+                    <p class="text-xs md:text-sm text-slate-200 mb-2">
+                        An <span class="font-semibold">Observed-Remove Set (OR-Set)</span> lets you add/remove elements
+                        multiple times and
+                        handles concurrent add/remove operations in a principled way using <span class="italic">unique
+                            tags</span>.
+                    </p>
+                    <ul class="list-disc pl-4 text-xs md:text-sm text-slate-300 mb-2">
+                        <li><span class="font-semibold">Idea:</span> Each <code>add(e)</code> creates a unique tag
+                            <code>t</code>. The remove operation removes only the tags it has observed.</li>
+                        <li><span class="font-semibold">State:</span> set of added pairs <code>(e, t)</code>, and set of
+                            removed tags <code>Tomb</code>.</li>
+                        <li><span class="font-semibold">Contains:</span> <code>e</code> is present if there exists
+                            <code>(e, t)</code> with <code>t ∉ Tomb</code>.</li>
+                        <li><span class="font-semibold">Merge:</span> union of both sets.</li>
+                    </ul>
+
+                    <pre class="code-block rounded bg-slate-950/80 border border-slate-800 p-3 overflow-x-auto"><code class="language-python">import uuid
+from dataclasses import dataclass, field
+from typing import Set, Tuple, Hashable
+
+
+Element = Hashable
+Tag = str
+
+
+@dataclass
+class ORSet:
+    replica_id: str
+    adds: Set[Tuple[Element, Tag]] = field(default_factory=set)
+    tombstones: Set[Tag] = field(default_factory=set)
+
+    def _new_tag(self) -&gt; Tag:
+        # In practice you might use (replica_id, counter) instead of UUID
+        return f"{self.replica_id}:{uuid.uuid4()}"
+
+    def add(self, e: Element) -&gt; None:
+        tag = self._new_tag()
+        self.adds.add((e, tag))
+
+    def remove(self, e: Element) -&gt; None:
+        # Remove all tags for e that we have seen
+        tags_to_remove = {t for (elem, t) in self.adds if elem == e}
+        self.tombstones |= tags_to_remove
+
+    def elements(self) -&gt; Set[Element]:
+        visible = {e for (e, t) in self.adds if t not in self.tombstones}
+        return visible
+
+    def merge(self, other: "ORSet") -&gt; "ORSet":
+        merged = ORSet(self.replica_id)
+        merged.adds = self.adds | other.adds
+        merged.tombstones = self.tombstones | other.tombstones
+        return merged
+
+
+# Example: concurrent add/remove
+
+a = ORSet("A")
+b = ORSet("B")
+
+a.add("x")
+# b concurrently removes "x" before seeing a's add - this will do nothing on b
+b.remove("x")
+
+# Later, sync
+m = a.merge(b)
+print(m.elements())  # {"x"} – remove did not see tag generated by add
+</code></pre>
+                </div>
+
+                <!-- LWW-Element-Set (brief) -->
+                <div class="rounded-lg border border-slate-800 bg-slate-900/60 p-4 text-xs md:text-sm">
+                    <h3 class="text-sm md:text-base font-semibold text-emerald-300 mb-1">4.4 LWW-Element-Set
+                        (Last-Writer-Wins Set)</h3>
+                    <p class="mb-2">
+                        A <span class="font-semibold">Last-Writer-Wins Element Set</span> associates a timestamp with
+                        each add/remove.
+                        On conflict, the operation with the highest timestamp wins.
+                    </p>
+                    <p class="mb-2 text-slate-300">
+                        This CRDT is simple but depends on clock assumptions (wall clocks or logical clocks). Use when
+                        you really want
+                        <span class="italic">"last update wins"</span> semantics.
+                    </p>
+                    <pre class="code-block rounded bg-slate-950/80 border border-slate-800 p-3 overflow-x-auto"><code class="language-python">import time
+from dataclasses import dataclass, field
+from typing import Dict, Tuple
+
+
+@dataclass
+class LWWElementSet:
+    # key -&gt; (is_add, timestamp)
+    entries: Dict[Element, Tuple[bool, float]] = field(default_factory=dict)
+
+    def add(self, e: Element, ts: float | None = None) -&gt; None:
+        ts = ts or time.time()
+        old = self.entries.get(e)
+        if not old or ts &gt; old[1]:
+            self.entries[e] = (True, ts)
+
+    def remove(self, e: Element, ts: float | None = None) -&gt; None:
+        ts = ts or time.time()
+        old = self.entries.get(e)
+        if not old or ts &gt; old[1]:
+            self.entries[e] = (False, ts)
+
+    def elements(self) -&gt; set[Element]:
+        return {e for e, (is_add, _) in self.entries.items() if is_add}
+
+    def merge(self, other: "LWWElementSet") -&gt; "LWWElementSet":
+        merged = LWWElementSet(dict(self.entries))
+        for e, (is_add, ts) in other.entries.items():
+            cur = merged.entries.get(e)
+            if not cur or ts &gt; cur[1]:
+                merged.entries[e] = (is_add, ts)
+        return merged
+</code></pre>
+                </div>
+            </section>
+
+            <!-- 5. Registers -->
+            <section id="registers" class="mb-12"
+                data-keywords="register lww-register mv-register single-value last-writer-wins multi-value">
+                <h2 class="text-lg md:text-xl font-semibold text-sky-300 mb-3">5. Register CRDTs</h2>
+                <p class="text-sm md:text-base text-slate-200 mb-3">
+                    Registers store a single value (or a small set of conflicting values). They are typically used for
+                    fields in
+                    documents or database rows.
+                </p>
+
+                <!-- LWW-Register -->
+                <div class="mb-6 rounded-lg border border-slate-800 bg-slate-900/60 p-4">
+                    <h3 class="text-sm md:text-base font-semibold text-emerald-300 mb-1">5.1 LWW-Register
+                        (Last-Writer-Wins Register)</h3>
+                    <p class="text-xs md:text-sm text-slate-200 mb-2">
+                        Stores a single value with a timestamp (or logical clock). When merging, the value with the
+                        highest timestamp
+                        wins. Good for user preferences where last update should win.
+                    </p>
+
+                    <pre class="code-block rounded bg-slate-950/80 border border-slate-800 p-3 overflow-x-auto"><code class="language-python">from dataclasses import dataclass
+from typing import Generic, TypeVar, Optional
+
+V = TypeVar("V")
+
+
+@dataclass
+class LWWRegister(Generic[V]):
+    value: Optional[V] = None
+    timestamp: float = 0.0  # use logical clock or wall-clock
+
+    def write(self, v: V, ts: float) -&gt; None:
+        if ts &gt; self.timestamp:
+            self.value = v
+            self.timestamp = ts
+
+    def merge(self, other: "LWWRegister[V]") -&gt; "LWWRegister[V]":
+        if other.timestamp &gt; self.timestamp:
+            return LWWRegister(other.value, other.timestamp)
+        return LWWRegister(self.value, self.timestamp)
+
+
+# Example with logical clock per replica
+
+class Replica:
+    def __init__(self, replica_id: str):
+        self.id = replica_id
+        self.clock = 0
+        self.reg = LWWRegister[str]()
+
+    def write(self, value: str):
+        self.clock += 1
+        ts = (self.clock, self.id)  # (counter, replica-id) tuple
+        # Use tuple comparison instead of float in a real implementation
+        self.reg.write(value, ts)  # type: ignore[arg-type]
+</code></pre>
+                </div>
+
+                <!-- MV-Register -->
+                <div class="rounded-lg border border-slate-800 bg-slate-900/60 p-4">
+                    <h3 class="text-sm md:text-base font-semibold text-emerald-300 mb-1">5.2 MV-Register (Multi-Value
+                        Register)</h3>
+                    <p class="text-xs md:text-sm text-slate-200 mb-2">
+                        An <span class="font-semibold">MV-Register</span> keeps all concurrently written values instead
+                        of picking a single
+                        winner. Clients may later resolve conflicts into a single value.
+                    </p>
+                    <ul class="list-disc pl-4 text-xs md:text-sm text-slate-300 mb-2">
+                        <li>Each write is tagged with a <span class="font-semibold">version vector</span>.</li>
+                        <li>When merging, writes whose version is <span class="italic">dominated</span> by another are
+                            discarded.</li>
+                    </ul>
+
+                    <pre class="code-block rounded bg-slate-950/80 border border-slate-800 p-3 overflow-x-auto"><code class="language-python">from dataclasses import dataclass, field
+from typing import Dict, List, Tuple
+
+
+@dataclass(frozen=True)
+class VersionVector:
+    clock: Dict[str, int] = field(default_factory=dict)
+
+    def increment(self, rid: str) -&gt; "VersionVector":
+        c = dict(self.clock)
+        c[rid] = c.get(rid, 0) + 1
+        return VersionVector(c)
+
+    def dominates(self, other: "VersionVector") -&gt; bool:
+        # self &gt;= other and strictly greater for at least one entry
+        ge = True
+        gt = False
+        keys = set(self.clock) | set(other.clock)
+        for k in keys:
+            a = self.clock.get(k, 0)
+            b = other.clock.get(k, 0)
+            if a &lt; b:
+                ge = False
+                break
+            if a &gt; b:
+                gt = True
+        return ge and gt
+
+
+@dataclass
+class MVRegister(Generic[V]):
+    # list of (version, value) pairs
+    versions: List[Tuple[VersionVector, V]] = field(default_factory=list)
+
+    def write(self, vv: VersionVector, value: V) -&gt; None:
+        # Remove entries dominated by new version
+        new_versions = []
+        for old_vv, old_val in self.versions:
+            if vv.dominates(old_vv):
+                continue
+            new_versions.append((old_vv, old_val))
+        new_versions.append((vv, value))
+        self.versions = new_versions
+
+    def read(self) -&gt; List[V]:
+        return [v for _, v in self.versions]
+
+    def merge(self, other: "MVRegister[V]") -&gt; "MVRegister[V]":
+        result = MVRegister[V]()
+        for vv, v in self.versions + other.versions:
+            result.write(vv, v)
+        return result
+</code></pre>
+                </div>
+            </section>
+
+            <!-- 6. Sequences / Lists -->
+            <section id="sequences" class="mb-12"
+                data-keywords="sequence list rga lseq logoot woot text editing collaborative">
+                <h2 class="text-lg md:text-xl font-semibold text-sky-300 mb-3">6. Sequence / List CRDTs</h2>
+                <p class="text-sm md:text-base text-slate-200 mb-3">
+                    Sequence CRDTs power collaborative text editors and ordered lists. Examples include
+                    <span class="font-semibold">RGA</span>, <span class="font-semibold">Logoot</span>, <span
+                        class="font-semibold">LSEQ</span>, and more.
+                </p>
+
+                <div class="rounded-lg border border-slate-800 bg-slate-900/60 p-4 text-xs md:text-sm">
+                    <h3 class="text-sm md:text-base font-semibold text-emerald-300 mb-1">6.1 RGA-style linked list
+                        (simplified)</h3>
+                    <p class="mb-2">
+                        In an RGA-like CRDT, each element has a unique identifier and an insertion point. Deletions are
+                        represented
+                        as tombstones. The order is derived by traversing a linked structure sorted by identifiers.
+                    </p>
+
+                    <pre class="code-block rounded bg-slate-950/80 border border-slate-800 p-3 overflow-x-auto"><code class="language-python">from dataclasses import dataclass, field
+from typing import Dict, Optional, List, Tuple
+
+
+@dataclass
+class RGAElement:
+    value: str
+    prev_id: Optional[Tuple[str, int]]  # (replica_id, counter)
+    deleted: bool = False
+
+
+@dataclass
+class RGAList:
+    replica_id: str
+    counter: int = 0
+    # id -&gt; element
+    elements: Dict[Tuple[str, int], RGAElement] = field(default_factory=dict)
+
+    def _next_id(self) -&gt; Tuple[str, int]:
+        self.counter += 1
+        return (self.replica_id, self.counter)
+
+    def insert_after(self, prev_id: Optional[Tuple[str, int]], value: str) -&gt; Tuple[str, int]:
+        eid = self._next_id()
+        self.elements[eid] = RGAElement(value=value, prev_id=prev_id)
+        return eid
+
+    def delete(self, eid: Tuple[str, int]) -&gt; None:
+        if eid in self.elements:
+            self.elements[eid].deleted = True
+
+    def merge(self, other: "RGAList") -&gt; "RGAList":
+        merged = RGAList(self.replica_id)
+        merged.counter = max(self.counter, other.counter)
+        merged.elements = dict(self.elements)
+        for eid, elem in other.elements.items():
+            cur = merged.elements.get(eid)
+            if cur is None:
+                merged.elements[eid] = elem
+            else:
+                # If both exist, deleted=True wins (monotonic)
+                cur.deleted = cur.deleted or elem.deleted
+        return merged
+
+    def linearize(self) -&gt; List[str]:
+        # Build adjacency list: prev_id -&gt; [ids]
+        children: Dict[Optional[Tuple[str, int]], List[Tuple[str, int]]] = {}
+        for eid, elem in self.elements.items():
+            children.setdefault(elem.prev_id, []).append(eid)
+        # Sort children by id to get deterministic order
+        for child_list in children.values():
+            child_list.sort()  # uses (replica_id, counter)
+
+        result: List[str] = []
+
+        def visit(prev: Optional[Tuple[str, int]]):
+            for eid in children.get(prev, []):
+                elem = self.elements[eid]
+                if not elem.deleted:
+                    result.append(elem.value)
+                visit(eid)
+
+        visit(None)  # start from head
+        return result
+
+
+# Example usage
+
+a = RGAList("A")
+b = RGAList("B")
+
+id1 = a.insert_after(None, "H")
+id2 = a.insert_after(id1, "i")
+
+# Concurrent insert from another replica after id1
+id3 = b.insert_after(id1, "!")
+
+m = a.merge(b)
+print("".join(m.linearize()))  # Possible order: "Hi!" or "H!i" depending on id ordering
+</code></pre>
+                </div>
+            </section>
+
+            <!-- 7. Map CRDTs -->
+            <section id="maps" class="mb-12" data-keywords="map dictionary or-map nested crdt composition">
+                <h2 class="text-lg md:text-xl font-semibold text-sky-300 mb-3">7. Map / Dictionary CRDTs</h2>
+                <p class="text-sm md:text-base text-slate-200 mb-3">
+                    Map CRDTs allow you to build complex objects by mapping keys to CRDT values (counters, sets,
+                    registers, etc.).
+                </p>
+
+                <div class="rounded-lg border border-slate-800 bg-slate-900/60 p-4 text-xs md:text-sm">
+                    <h3 class="text-sm md:text-base font-semibold text-emerald-300 mb-1">7.1 OR-Map (Observed-Remove
+                        Map)</h3>
+                    <p class="mb-2">
+                        An <span class="font-semibold">OR-Map</span> is often defined as: keys behave like an OR-Set,
+                        and values are nested
+                        CRDTs. Removing a key marks its value as removed in a way that composes with merges.
+                    </p>
+
+                    <pre class="code-block rounded bg-slate-950/80 border border-slate-800 p-3 overflow-x-auto"><code class="language-python">from dataclasses import dataclass, field
+from typing import Dict, Hashable
+
+Key = Hashable
+
+
+@dataclass
+class ORMap:
+    replica_id: str
+    # key -&gt; (orset_of_tags_for_key, value_crdt)
+    keys: Dict[Key, ORSet] = field(default_factory=dict)
+    values: Dict[Key, object] = field(default_factory=dict)
+
+    def _ensure_key_crdt(self, key: Key) -&gt; ORSet:
+        if key not in self.keys:
+            self.keys[key] = ORSet(self.replica_id)
+        return self.keys[key]
+
+    def put(self, key: Key, value_crdt: object) -&gt; None:
+        ks = self._ensure_key_crdt(key)
+        ks.add("present")  # tag representing presence of this key
+        self.values[key] = value_crdt
+
+    def remove(self, key: Key) -&gt; None:
+        if key in self.keys:
+            self.keys[key].remove("present")
+
+    def get(self, key: Key) -&gt; object | None:
+        ks = self.keys.get(key)
+        if not ks:
+            return None
+        if "present" not in ks.elements():
+            return None
+        return self.values.get(key)
+
+    def merge(self, other: "ORMap") -&gt; "ORMap":
+        merged = ORMap(self.replica_id)
+        all_keys = set(self.keys) | set(other.keys)
+        for k in all_keys:
+            ks1 = self.keys.get(k)
+            ks2 = other.keys.get(k)
+            if ks1 and ks2:
+                mk = ks1.merge(ks2)
+            else:
+                mk = (ks1 or ks2)
+            if mk is None:
+                continue
+            merged.keys[k] = mk
+
+            # Merge values as CRDTs if present
+            v1 = self.values.get(k)
+            v2 = other.values.get(k)
+            if v1 and v2 and hasattr(v1, "merge"):
+                merged.values[k] = v1.merge(v2)
+            else:
+                merged.values[k] = v1 or v2
+        return merged
+
+
+# Example: map from userId -&gt; PNCounter
+
+users_a = ORMap("A")
+users_b = ORMap("B")
+
+users_a.put("alice", PNCounter("A"))
+users_b.put("alice", PNCounter("B"))
+
+users_a.get("alice").increment(3)
+users_b.get("alice").decrement(1)
+
+merged = users_a.merge(users_b)
+alice_counter = merged.get("alice")
+print(alice_counter.value)  # 2
+</code></pre>
+                </div>
+            </section>
+
+            <!-- 8. Version Vectors & Causality -->
+            <section id="version-vectors" class="mb-12"
+                data-keywords="version vector causality happens-before concurrency lamport clock">
+                <h2 class="text-lg md:text-xl font-semibold text-sky-300 mb-3">8. Version Vectors &amp; Causality</h2>
+                <p class="text-sm md:text-base text-slate-200 mb-3">
+                    Many CRDTs depend on a notion of causality (which operation happened-before another). A common tool
+                    is the
+                    <span class="font-semibold">version vector</span>.
+                </p>
+
+                <div class="rounded-lg border border-slate-800 bg-slate-900/60 p-4 text-xs md:text-sm">
+                    <h3 class="text-sm md:text-base font-semibold text-emerald-300 mb-1">8.1 Version Vector
+                        implementation</h3>
+                    <p class="mb-2">
+                        A version vector maps each replica id to a counter. It can express: <span
+                            class="font-mono">&lt;</span>,
+                        <span class="font-mono">&gt;</span>, <span class="font-mono">==</span>, and <span
+                            class="font-mono">||</span>
+                        (concurrent).
+                    </p>
+
+                    <pre class="code-block rounded bg-slate-950/80 border border-slate-800 p-3 overflow-x-auto"><code class="language-python">from __future__ import annotations
+from dataclasses import dataclass, field
+from typing import Dict, Literal
+
+Relation = Literal["&lt;", "&gt;", "==", "||"]
+
+
+@dataclass(frozen=True)
+class VersionVector:
+    v: Dict[str, int] = field(default_factory=dict)
+
+    def increment(self, rid: str) -&gt; "VersionVector":
+        v = dict(self.v)
+        v[rid] = v.get(rid, 0) + 1
+        return VersionVector(v)
+
+    def merge(self, other: "VersionVector") -&gt; "VersionVector":
+        keys = set(self.v) | set(other.v)
+        merged = {k: max(self.v.get(k, 0), other.v.get(k, 0)) for k in keys}
+        return VersionVector(merged)
+
+    def compare(self, other: "VersionVector") -&gt; Relation:
+        keys = set(self.v) | set(other.v)
+        less = greater = equal = True
+        for k in keys:
+            a = self.v.get(k, 0)
+            b = other.v.get(k, 0)
+            if a &lt; b:
+                greater = False
+            if a &gt; b:
+                less = False
+            if a != b:
+                equal = False
+        if equal:
+            return "=="
+        if less and not greater:
+            return "&lt;"   # self happened-before other
+        if greater and not less:
+            return "&gt;"   # self happened-after other
+        return "||"      # concurrent
+
+
+# Example
+
+a = VersionVector().increment("A")        # A:1
+b = VersionVector().increment("B")        # B:1
+
+c1 = a.merge(b)                            # A:1,B:1
+c2 = b.merge(a)                            # A:1,B:1
+
+assert c1.compare(c2) == "=="
+print(a.compare(b))  # "||" – concurrent
+</code></pre>
+                </div>
+            </section>
+
+            <!-- 9. Design Patterns & Pitfalls -->
+            <section id="patterns" class="mb-12" data-keywords="patterns pitfalls design guidelines testing invariants">
+                <h2 class="text-lg md:text-xl font-semibold text-sky-300 mb-3">9. Design Patterns, Pitfalls &amp;
+                    Testing</h2>
+
+                <div class="grid gap-4 md:grid-cols-2 text-xs md:text-sm">
+                    <!-- Patterns -->
+                    <div class="rounded-lg border border-slate-800 bg-slate-900/60 p-4">
+                        <h3 class="font-semibold text-emerald-300 mb-2">9.1 Design patterns</h3>
+                        <ul class="list-disc pl-4 space-y-1 text-slate-200">
+                            <li><span class="font-semibold">Monotonic metadata:</span> Treat timestamps, counters,
+                                tombstones as monotonic fields that only grow.</li>
+                            <li><span class="font-semibold">Component-wise merge:</span> For product types
+                                (tuples/records), merge each field independently.</li>
+                            <li><span class="font-semibold">Use sets of events:</span> Many CRDTs can be expressed as
+                                sets of events plus a query function.</li>
+                            <li><span class="font-semibold">Compose CRDTs:</span> Use maps of CRDTs, sets of CRDTs, or
+                                CRDTs of CRDTs.</li>
+                        </ul>
+                    </div>
+
+                    <!-- Pitfalls -->
+                    <div class="rounded-lg border border-slate-800 bg-slate-900/60 p-4">
+                        <h3 class="font-semibold text-rose-300 mb-2">9.2 Common pitfalls</h3>
+                        <ul class="list-disc pl-4 space-y-1 text-slate-200">
+                            <li>Using wall-clock time without guarding against clock skew.</li>
+                            <li>Allowing non-monotonic merges (e.g., overwriting state with a smaller value).</li>
+                            <li>Storing unbounded tombstones without a GC strategy.</li>
+                            <li>Ignoring the cost of metadata (version vectors, tags).</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Quick property-based test sketch -->
+                <div class="mt-4 rounded-lg border border-slate-800 bg-slate-900/60 p-4 text-xs md:text-sm">
+                    <h3 class="font-semibold text-indigo-300 mb-2">9.3 Testing CRDTs (property-based)</h3>
+                    <p class="mb-2">
+                        A useful way to test CRDT implementations is to generate random histories of operations and
+                        check
+                        <span class="font-semibold">convergence</span> and <span
+                            class="font-semibold">monotonicity</span>.
+                    </p>
+
+                    <pre class="code-block rounded bg-slate-950/80 border border-slate-800 p-3 overflow-x-auto"><code class="language-python">import random
+from copy import deepcopy
+
+
+def random_history(crdt_class, replica_ids, steps=100):
+    replicas = {rid: crdt_class(rid) for rid in replica_ids}
+    ops = []
+
+    for _ in range(steps):
+        rid = random.choice(replica_ids)
+        r = replicas[rid]
+        # Example: for a PNCounter
+        if random.random() &lt; 0.5:
+            r.increment(1)
+            ops.append((rid, "inc"))
+        else:
+            r.decrement(1)
+            ops.append((rid, "dec"))
+
+        # Occasionally merge two random replicas
+        if random.random() &lt; 0.3:
+            a, b = random.sample(list(replica_ids), 2)
+            ra, rb = replicas[a], replicas[b]
+            ma = ra.merge(rb)
+            mb = rb.merge(ra)
+            replicas[a], replicas[b] = ma, mb
+
+    # Final convergence check
+    final_states = list(replicas.values())
+    first = final_states[0]
+    for r in final_states[1:]:
+        assert r.value == first.value, "Replicas did not converge"
+
+
+random_history(PNCounter, ["A", "B", "C"], steps=200)
+</code></pre>
+                </div>
+            </section>
+        </main>
+
+        <!-- Back to top button -->
+        <button id="backToTop"
+            class="hidden fixed bottom-4 right-4 z-40 rounded-full bg-sky-600/90 hover:bg-sky-500 text-xs font-semibold px-3 py-1.5 shadow-lg shadow-sky-900/40 border border-sky-300/60"
+            type="button">
+            ↑ Top
+        </button>
+    </div>
+
+    <script>
+        // Simple keyboard shortcut: Cmd/Ctrl+K focuses the filter input
+        document.addEventListener("keydown", (e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+                const input = document.getElementById("filterInput");
+                if (input) {
+                    e.preventDefault();
+                    input.focus();
+                    input.select();
+                }
+            }
+        });
+
+        // Section filter
+        (function setupFilter() {
+            const input = document.getElementById("filterInput");
+            if (!input) return;
+            const sections = Array.from(document.querySelectorAll("section[data-keywords]"));
+            input.addEventListener("input", () => {
+                const q = input.value.toLowerCase().trim();
+                sections.forEach((sec) => {
+                    const keys = (sec.getAttribute("data-keywords") || "").toLowerCase();
+                    if (!q || keys.includes(q)) {
+                        sec.classList.remove("hidden");
+                    } else {
+                        sec.classList.add("hidden");
+                    }
+                });
+            });
+        })();
+
+        // Copy-to-clipboard buttons for code blocks
+        (function setupCopyButtons() {
+            const blocks = document.querySelectorAll("pre code");
+            blocks.forEach((code) => {
+                const pre = code.parentElement;
+                if (!pre) return;
+                pre.classList.add("code-block");
+                const btn = document.createElement("button");
+                btn.className = "copy-btn";
+                btn.type = "button";
+                btn.textContent = "Copy";
+                btn.addEventListener("click", async () => {
+                    try {
+                        await navigator.clipboard.writeText(code.innerText);
+                        btn.textContent = "Copied";
+                        btn.classList.add("copied");
+                        setTimeout(() => {
+                            btn.textContent = "Copy";
+                            btn.classList.remove("copied");
+                        }, 1500);
+                    } catch (err) {
+                        btn.textContent = "Error";
+                        setTimeout(() => {
+                            btn.textContent = "Copy";
+                        }, 1500);
+                    }
+                });
+                pre.appendChild(btn);
+            });
+        })();
+
+        // Back to top button behavior
+        (function setupBackToTop() {
+            const btn = document.getElementById("backToTop");
+            if (!btn) return;
+            const toggle = () => {
+                if (window.scrollY > 400) {
+                    btn.classList.remove("hidden");
+                } else {
+                    btn.classList.add("hidden");
+                }
+            };
+            window.addEventListener("scroll", toggle, { passive: true });
+            toggle();
+            btn.addEventListener("click", () => {
+                window.scrollTo({ top: 0, behavior: "smooth" });
+            });
+        })();
+    </script>
+</body>
+
+</html>
