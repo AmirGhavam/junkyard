@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Habit Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-50 min-h-screen flex flex-col items-center py-12 px-4">
+    <div class="max-w-lg w-full">
+        <h1 class="text-4xl font-bold text-center mb-4 text-gray-800">Habit Tracker</h1>
+        <p class="text-center text-gray-600 mb-12">Science-based habit building using the "Don't break the chain"
+            method.</p>
+
+        <div class="bg-white shadow-xl rounded-2xl p-8">
+            <form id="add-habit" class="mb-10">
+                <input type="text" placeholder="Habit name, e.g., Meditate" required
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:border-blue-500 text-lg">
+                <select class="w-full px-4 py-3 border border-gray-300 rounded-lg mb-4 text-lg">
+                    <option value="good">Build Good Habit</option>
+                    <option value="bad">Break Bad Habit</option>
+                </select>
+                <button type="submit"
+                    class="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition text-lg">Add
+                    Habit</button>
+            </form>
+
+            <div id="habits-list"></div>
+        </div>
+    </div>
+
+    <script>
+        const addForm = document.getElementById('add-habit');
+        const habitsList = document.getElementById('habits-list');
+        let habits = JSON.parse(localStorage.getItem('habits') || '[]');
+
+        function saveHabits() {
+            localStorage.setItem('habits', JSON.stringify(habits));
+        }
+
+        function getTodayStr() {
+            return new Date().toISOString().split('T')[0];
+        }
+
+        function getCurrentStreak(checkDates) {
+            if (checkDates.length === 0) return 0;
+            const dates = checkDates.map(d => new Date(d)).sort((a, b) => a - b);
+            let streak = 1;
+            for (let i = dates.length - 1; i > 0; i--) {
+                const curr = dates[i];
+                const prev = dates[i - 1];
+                const diffDays = (curr - prev) / (1000 * 60 * 60 * 24);
+                if (diffDays === 1) {
+                    streak++;
+                } else {
+                    break;
+                }
+            }
+            return streak;
+        }
+
+        function renderHabits() {
+            habitsList.innerHTML = '';
+            if (habits.length === 0) {
+                habitsList.innerHTML = '<p class="text-center text-gray-500 py-12">No habits yet. Add one above to start building or breaking habits!</p>';
+                return;
+            }
+
+            habits.forEach(habit => {
+                const today = getTodayStr();
+                const todayChecked = habit.checks.includes(today);
+                const streak = getCurrentStreak(habit.checks);
+                const isGood = habit.type === 'good';
+                const action = isGood ? 'Complete' : 'Avoid';
+                const done = isGood ? 'Completed' : 'Avoided';
+
+                const card = document.createElement('div');
+                card.className = 'border border-gray-200 rounded-xl p-6 mb-6 bg-gradient-to-br from-gray-50 to-white shadow-md';
+                card.innerHTML = `
+          <div class="flex justify-between items-start mb-4">
+            <div>
+              <h3 class="text-xl font-bold text-gray-800">${habit.name}</h3>
+              <p class="text-sm text-gray-500">${isGood ? 'Good habit' : 'Bad habit'}</p>
+            </div>
+            <button class="text-3xl text-gray-400 hover:text-red-500 transition" data-delete="${habit.id}">×</button>
+          </div>
+          <p class="text-3xl font-extrabold ${streak > 0 ? 'text-green-600' : 'text-gray-400'} mb-6">${streak}<span class="text-lg font-normal text-gray-600"> day${streak === 1 ? '' : 's'}</span>${streak >= 3 ? ' 🔥' : ''}</p>
+          <button class="w-full py-4 rounded-xl text-xl font-medium transition-all ${todayChecked ? 'bg-green-500 text-white shadow-lg' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}" data-toggle="${habit.id}">
+            ${todayChecked ? '✓ ' + done + ' today' : action + ' today'}
+          </button>
+        `;
+                habitsList.appendChild(card);
+            });
+
+            document.querySelectorAll('[data-toggle]').forEach(btn => {
+                btn.onclick = () => {
+                    const id = Number(btn.dataset.toggle);
+                    const habit = habits.find(h => h.id === id);
+                    if (!habit) return;
+                    const today = getTodayStr();
+                    if (habit.checks.includes(today)) {
+                        habit.checks = habit.checks.filter(d => d !== today);
+                    } else {
+                        habit.checks.push(today);
+                    }
+                    saveHabits();
+                    renderHabits();
+                };
+            });
+
+            document.querySelectorAll('[data-delete]').forEach(btn => {
+                btn.onclick = () => {
+                    if (confirm('Delete this habit? All progress will be lost.')) {
+                        const id = Number(btn.dataset.delete);
+                        habits = habits.filter(h => h.id !== id);
+                        saveHabits();
+                        renderHabits();
+                    }
+                };
+            });
+        }
+
+        addForm.onsubmit = e => {
+            e.preventDefault();
+            const input = addForm.querySelector('input');
+            const select = addForm.querySelector('select');
+            const name = input.value.trim();
+            if (!name) return;
+            const type = select.value;
+            habits.push({ id: Date.now(), name, type, checks: [] });
+            input.value = '';
+            saveHabits();
+            renderHabits();
+        };
+
+        renderHabits();
+    </script>
+</body>
+
+</html>
