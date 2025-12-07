@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Habitify - Science-Based Habit Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        .habit-card { transition: all 0.3s ease; }
+        .habit-card:hover { transform: translateY(-2px); }
+        .check-btn { transition: all 0.2s ease; }
+        .check-btn:active { transform: scale(0.95); }
+        .streak-glow { animation: glow 2s ease-in-out infinite alternate; }
+        @keyframes glow {
+            from { box-shadow: 0 0 5px rgba(34, 197, 94, 0.3); }
+            to { box-shadow: 0 0 20px rgba(34, 197, 94, 0.6); }
+        }
+        .fade-in { animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .progress-ring { transition: stroke-dashoffset 0.5s ease; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-2xl mx-auto px-4 py-8">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">🧠 Habitify</h1>
+            <p class="text-gray-500 text-sm">Science-based habit building & breaking</p>
+            <p id="currentDate" class="text-gray-400 text-xs mt-1"></p>
+        </header>
+
+        <!-- Science Tip -->
+        <div id="scienceTip" class="bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-2xl p-4 mb-6 fade-in">
+            <div class="flex items-start gap-3">
+                <span class="text-2xl">💡</span>
+                <div>
+                    <p class="font-medium text-sm">Science Tip of the Day</p>
+                    <p id="tipText" class="text-xs opacity-90 mt-1"></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Overview -->
+        <div class="grid grid-cols-3 gap-4 mb-6">
+            <div class="bg-white rounded-2xl p-4 text-center shadow-sm">
+                <p class="text-2xl font-bold text-green-500" id="activeHabits">0</p>
+                <p class="text-xs text-gray-400">Active</p>
+            </div>
+            <div class="bg-white rounded-2xl p-4 text-center shadow-sm">
+                <p class="text-2xl font-bold text-orange-500" id="longestStreak">0</p>
+                <p class="text-xs text-gray-400">Best Streak</p>
+            </div>
+            <div class="bg-white rounded-2xl p-4 text-center shadow-sm">
+                <p class="text-2xl font-bold text-blue-500" id="todayCompleted">0%</p>
+                <p class="text-xs text-gray-400">Today</p>
+            </div>
+        </div>
+
+        <!-- Add Habit Button -->
+        <button onclick="openModal()" class="w-full bg-white border-2 border-dashed border-gray-200 rounded-2xl p-4 text-gray-400 hover:border-indigo-400 hover:text-indigo-500 transition-all mb-6 flex items-center justify-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+            </svg>
+            <span class="font-medium">Add New Habit</span>
+        </button>
+
+        <!-- Habits List -->
+        <div id="habitsList" class="space-y-3"></div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="text-center py-12 hidden">
+            <p class="text-6xl mb-4">🌱</p>
+            <p class="text-gray-400">Start your journey!</p>
+            <p class="text-gray-300 text-sm">Add your first habit above</p>
+        </div>
+    </div>
+
+    <!-- Add/Edit Modal -->
+    <div id="modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-3xl p-6 w-full max-w-md fade-in">
+            <h2 id="modalTitle" class="text-xl font-bold text-gray-800 mb-4">Add New Habit</h2>
+            
+            <div class="space-y-4">
+                <!-- Habit Type -->
+                <div class="flex gap-2">
+                    <button onclick="setHabitType('good')" id="goodTypeBtn" class="flex-1 py-3 rounded-xl border-2 border-green-500 bg-green-50 text-green-600 font-medium transition-all">
+                        ✨ Build Good
+                    </button>
+                    <button onclick="setHabitType('bad')" id="badTypeBtn" class="flex-1 py-3 rounded-xl border-2 border-gray-200 text-gray-400 font-medium transition-all">
+                        🚫 Break Bad
+                    </button>
+                </div>
+
+                <!-- Habit Name -->
+                <div>
+                    <label class="text-sm text-gray-500 mb-1 block">Habit Name</label>
+                    <input type="text" id="habitName" placeholder="e.g., Morning meditation" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-400 focus:outline-none transition-all">
+                </div>
+
+                <!-- Start Date -->
+                <div>
+                    <label class="text-sm text-gray-500 mb-1 block">Start Date</label>
+                    <input type="date" id="habitDate" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-400 focus:outline-none transition-all">
+                </div>
+
+                <!-- Goal (21/66 days science-based) -->
+                <div>
+                    <label class="text-sm text-gray-500 mb-1 block">Goal (days)</label>
+                    <div class="flex gap-2">
+                        <button onclick="setGoal(21)" class="goal-btn flex-1 py-2 rounded-lg border border-gray-200 text-sm hover:border-indigo-400 transition-all">21 days</button>
+                        <button onclick="setGoal(30)" class="goal-btn flex-1 py-2 rounded-lg border border-gray-200 text-sm hover:border-indigo-400 transition-all">30 days</button>
+                        <button onclick="setGoal(66)" class="goal-btn flex-1 py-2 rounded-lg border border-gray-200 text-sm hover:border-indigo-400 transition-all">66 days</button>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-2">💡 Research shows 66 days to form lasting habits</p>
+                    <input type="number" id="habitGoal" value="21" class="w-full px-4 py-2 rounded-xl border border-gray-200 focus:border-indigo-400 focus:outline-none transition-all mt-2 text-sm">
+                </div>
+
+                <!-- Buttons -->
+                <div class="flex gap-3 pt-2">
+                    <button onclick="closeModal()" class="flex-1 py-3 rounded-xl border border-gray-200 text-gray-500 font-medium hover:bg-gray-50 transition-all">Cancel</button>
+                    <button onclick="saveHabit()" class="flex-1 py-3 rounded-xl bg-indigo-500 text-white font-medium hover:bg-indigo-600 transition-all">Save Habit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detail Modal -->
+    <div id="detailModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-3xl p-6 w-full max-w-md fade-in max-h-[80vh] overflow-y-auto">
+            <div class="flex justify-between items-start mb-4">
+                <h2 id="detailTitle" class="text-xl font-bold text-gray-800"></h2>
+                <button onclick="closeDetailModal()" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div id="detailContent"></div>
+        </div>
+    </div>
+
+    <script>
+        // Science-based tips
+        const scienceTips = [
+            "Habits take an average of 66 days to become automatic, not 21 as commonly believed. — European Journal of Social Psychology",
+            "Stack new habits onto existing ones. This 'habit stacking' leverages neural pathways already formed. — James Clear",
+            "Missing one day doesn't break a habit, but missing two starts a new pattern. Never miss twice! — Research on habit formation",
+            "Environment design beats willpower. Make good habits obvious and bad habits invisible. — Behavioral Psychology",
+            "The 2-minute rule: Scale any habit down to 2 minutes to overcome starting friction. — Atomic Habits",
+            "Reward yourself immediately after completing a habit to strengthen the neural pathway. — Dopamine research",
+            "Track your habits visually. The 'don't break the chain' method works because of loss aversion. — Behavioral Economics",
+            "Morning habits have higher success rates due to decision fatigue being lowest then. — Willpower studies",
+            "Social accountability increases habit success by 65%. Share your goals! — ASTD Research",
+            "Implementation intentions ('I will [habit] at [time] in [location]') double success rates. — Psychology studies"
+        ];
+
+        let habits = JSON.parse(localStorage.getItem('habits')) || [];
+        let editingId = null;
+        let currentType = 'good';
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            updateDate();
+            showRandomTip();
+            renderHabits();
+            document.getElementById('habitDate').valueAsDate = new Date();
+        });
+
+        function updateDate() {
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-US', options);
+        }
+
+        function showRandomTip() {
+            const tip = scienceTips[Math.floor(Math.random() * scienceTips.length)];
+            document.getElementById('tipText').textContent = tip;
+        }
+
+        function openModal(id = null) {
+            editingId = id;
+            const modal = document.getElementById('modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            if (id) {
+                const habit = habits.find(h => h.id === id);
+                document.getElementById('modalTitle').textContent = 'Edit Habit';
+                document.getElementById('habitName').value = habit.name;
+                document.getElementById('habitDate').value = habit.startDate;
+                document.getElementById('habitGoal').value = habit.goal;
+                setHabitType(habit.type);
+            } else {
+                document.getElementById('modalTitle').textContent = 'Add New Habit';
+                document.getElementById('habitName').value = '';
+                document.getElementById('habitDate').valueAsDate = new Date();
+                document.getElementById('habitGoal').value = 21;
+                setHabitType('good');
+            }
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            editingId = null;
+        }
+
+        function setHabitType(type) {
+            currentType = type;
+            const goodBtn = document.getElementById('goodTypeBtn');
+            const badBtn = document.getElementById('badTypeBtn');
+            
+            if (type === 'good') {
+                goodBtn.classList.add('border-green-500', 'bg-green-50', 'text-green-600');
+                goodBtn.classList.remove('border-gray-200', 'text-gray-400');
+                badBtn.classList.remove('border-red-500', 'bg-red-50', 'text-red-600');
+                badBtn.classList.add('border-gray-200', 'text-gray-400');
+            } else {
+                badBtn.classList.add('border-red-500', 'bg-red-50', 'text-red-600');
+                badBtn.classList.remove('border-gray-200', 'text-gray-400');
+                goodBtn.classList.remove('border-green-500', 'bg-green-50', 'text-green-600');
+                goodBtn.classList.add('border-gray-200', 'text-gray-400');
+            }
+        }
+
+        function setGoal(days) {
+            document.getElementById('habitGoal').value = days;
+            document.querySelectorAll('.goal-btn').forEach(btn => {
+                btn.classList.remove('border-indigo-500', 'bg-indigo-50', 'text-indigo-600');
+            });
+            event.target.classList.add('border-indigo-500', 'bg-indigo-50', 'text-indigo-600');
+        }
+
+        function saveHabit() {
+            const name = document.getElementById('habitName').value.trim();
+            const startDate = document.getElementById('habitDate').value;
+            const goal = parseInt(document.getElementById('habitGoal').value) || 21;
+
+            if (!name) {
+                alert('Please enter a habit name');
+                return;
+            }
+
+            if (editingId) {
+                const index = habits.findIndex(h => h.id === editingId);
+                habits[index] = { ...habits[index], name, startDate, goal, type: currentType };
+            } else {
+                habits.push({
+                    id: Date.now(),
+                    name,
+                    type: currentType,
+                    startDate,
+                    goal,
+                    completedDates: [],
+                    createdAt: new Date().toISOString()
+                });
+            }
+
+            saveAndRender();
+            closeModal();
+        }
+
+        function toggleToday(id) {
+            const habit = habits.find(h => h.id === id);
+            const today = new Date().toISOString().split('T')[0];
+            
+            if (habit.completedDates.includes(today)) {
+                habit.completedDates = habit.completedDates.filter(d => d !== today);
+            } else {
+                habit.completedDates.push(today);
+            }
+            
+            saveAndRender();
+        }
+
+        function deleteHabit(id) {
+            if (confirm('Delete this habit? This cannot be undone.')) {
+                habits = habits.filter(h => h.id !== id);
+                saveAndRender();
+                closeDetailModal();
+            }
+        }
+
+        function calculateStreak(habit) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            let streak = 0;
+            let currentDate = new Date(today);
+
+            // Sort completed dates
+            const sortedDates = [...habit.completedDates].sort().reverse();
+            
+            for (const dateStr of sortedDates) {
+                const date = new Date(dateStr);
+                date.setHours(0, 0, 0, 0);
+                
+                const diffDays = Math.floor((currentDate - date) / (1000 * 60 * 60 * 24));
+                
+                if (diffDays <= 1) {
+                    streak++;
+                    currentDate = date;
+                } else {
+                    break;
+                }
+            }
+            
+            return streak;
+        }
+
+        function getProgress(habit) {
+            return Math.min(100, Math.round((habit.completedDates.length / habit.goal) * 100));
+        }
+
+        function openDetailModal(id) {
+            const habit = habits.find(h => h.id === id);
+            const modal = document.getElementById('detailModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            document.getElementById('detailTitle').textContent = habit.name;
+            
+            const streak = calculateStreak(habit);
+            const progress = getProgress(habit);
+            const isGood = habit.type === 'good';
+            
+            // Generate last 30 days calendar
+            let calendarHTML = '<div class="grid grid-cols-7 gap-1 mb-4">';
+            const today = new Date();
+            for (let i = 29; i >= 0; i--) {
+                const date = new Date(today);
+                date.setDate(date.getDate() - i);
+                const dateStr = date.toISOString().split('T')[0];
+                const isCompleted = habit.completedDates.includes(dateStr);
+                const isToday = i === 0;
+                
+                const bgColor = isCompleted 
+                    ? (isGood ? 'bg-green-500' : 'bg-red-500') 
+                    : 'bg-gray-100';
+                const border = isToday ? 'ring-2 ring-indigo-400' : '';
+                
+                calendarHTML += `<div class="w-8 h-8 rounded-lg ${bgColor} ${border} flex items-center justify-center text-xs ${isCompleted ? 'text-white' : 'text-gray-400'}">${date.getDate()}</div>`;
+            }
+            calendarHTML += '</div>';
+            
+            document.getElementById('detailContent').innerHTML = `
+                <div class="text-center mb-6">
+                    <div class="inline-flex items-center justify-center w-24 h-24 rounded-full ${isGood ? 'bg-green-100' : 'bg-red-100'} mb-3 ${streak >= 7 ? 'streak-glow' : ''}">
+                        <div class="text-center">
+                            <p class="text-3xl font-bold ${isGood ? 'text-green-600' : 'text-red-600'}">${streak}</p>
+                            <p class="text-xs ${isGood ? 'text-green-500' : 'text-red-500'}">day streak</p>
+                        </div>
+                    </div>
+                    <div class="flex justify-center gap-6 text-sm">
+                        <div>
+                            <p class="font-semibold text-gray-800">${habit.completedDates.length}</p>
+                            <p class="text-gray-400 text-xs">Total Days</p>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-gray-800">${habit.goal}</p>
+                            <p class="text-gray-400 text-xs">Goal</p>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-gray-800">${progress}%</p>
+                            <p class="text-gray-400 text-xs">Complete</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <p class="text-xs text-gray-400 mb-2 text-center">Last 30 Days</p>
+                ${calendarHTML}
+                
+                <div class="bg-gray-50 rounded-xl p-3 mb-4">
+                    <p class="text-xs text-gray-400">Started</p>
+                    <p class="text-sm text-gray-600">${new Date(habit.startDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                </div>
+                
+                <div class="flex gap-3">
+                    <button onclick="openModal(${habit.id}); closeDetailModal();" class="flex-1 py-3 rounded-xl border border-gray-200 text-gray-500 font-medium hover:bg-gray-50 transition-all">Edit</button>
+                    <button onclick="deleteHabit(${habit.id})" class="flex-1 py-3 rounded-xl bg-red-500 text-white font-medium hover:bg-red-600 transition-all">Delete</button>
+                </div>
+            `;
+        }
+
+        function closeDetailModal() {
+            const modal = document.getElementById('detailModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function renderHabits() {
+            const container = document.getElementById('habitsList');
+            const emptyState = document.getElementById('emptyState');
+            const today = new Date().toISOString().split('T')[0];
+
+            if (habits.length === 0) {
+                container.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                updateStats();
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            
+            container.innerHTML = habits.map(habit => {
+                const isGood = habit.type === 'good';
+                const streak = calculateStreak(habit);
+                const progress = getProgress(habit);
+                const completedToday = habit.completedDates.includes(today);
+                const accentColor = isGood ? 'green' : 'red';
+                
+                return `
+                    <div class="habit-card bg-white rounded-2xl p-4 shadow-sm fade-in">
+                        <div class="flex items-center gap-4">
+                            <button onclick="toggleToday(${habit.id})" class="check-btn w-12 h-12 rounded-xl flex items-center justify-center ${completedToday ? `bg-${accentColor}-500 text-white` : `bg-${accentColor}-50 text-${accentColor}-300`} transition-all">
+                                ${completedToday ? `
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                ` : `
+                                    <span class="text-xl">${isGood ? '✨' : '🚫'}</span>
+                                `}
+                            </button>
+                            
+                            <div class="flex-1 cursor-pointer" onclick="openDetailModal(${habit.id})">
+                                <div class="flex items-center gap-2">
+                                    <h3 class="font-semibold text-gray-800">${habit.name}</h3>
+                                    ${streak >= 7 ? '<span class="text-xs">🔥</span>' : ''}
+                                </div>
+                                <div class="flex items-center gap-3 mt-1">
+                                    <span class="text-xs text-${accentColor}-500 font-medium">${streak} day streak</span>
+                                    <span class="text-xs text-gray-300">•</span>
+                                    <span class="text-xs text-gray-400">${progress}% of ${habit.goal} days</span>
+                                </div>
+                                <div class="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                    <div class="h-full bg-${accentColor}-500 rounded-full transition-all" style="width: ${progress}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            updateStats();
+        }
+
+        function updateStats() {
+            document.getElementById('activeHabits').textContent = habits.length;
+            
+            const longestStreak = habits.reduce((max, habit) => {
+                const streak = calculateStreak(habit);
+                return streak > max ? streak : max;
+            }, 0);
+            document.getElementById('longestStreak').textContent = longestStreak;
+            
+            const today = new Date().toISOString().split('T')[0];
+            const completedToday = habits.filter(h => h.completedDates.includes(today)).length;
+            const percentage = habits.length > 0 ? Math.round((completedToday / habits.length) * 100) : 0;
+            document.getElementById('todayCompleted').textContent = percentage + '%';
+        }
+
+        function saveAndRender() {
+            localStorage.setItem('habits', JSON.stringify(habits));
+            renderHabits();
+        }
+
+        // Close modals on outside click
+        document.getElementById('modal').addEventListener('click', (e) => {
+            if (e.target.id === 'modal') closeModal();
+        });
+        document.getElementById('detailModal').addEventListener('click', (e) => {
+            if (e.target.id === 'detailModal') closeDetailModal();
+        });
+    </script>
+</body>
+</html>
