@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Habit Lab — Build Good Habits, Break Bad Ones</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        :root {
+            color-scheme: light dark;
+        }
+
+        .glass {
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            background: color-mix(in oklab, white 70%, transparent);
+        }
+
+        .dark .glass {
+            background: color-mix(in oklab, black 60%, transparent);
+        }
+
+        .dot {
+            width: 0.75rem;
+            height: 0.75rem;
+            border-radius: 9999px;
+            display: inline-block;
+        }
+
+        .cal-grid {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+            gap: 0.25rem;
+        }
+
+        .cal-cell {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0.5rem;
+            font-size: 0.7rem;
+            cursor: pointer;
+        }
+
+        .cal-cell[data-val="1"] {
+            background: rgb(34 197 94 / 0.15);
+            color: rgb(34 197 94);
+            border: 1px solid rgb(34 197 94 / 0.35);
+        }
+
+        .cal-cell[data-val="-1"] {
+            background: rgb(239 68 68 / 0.15);
+            color: rgb(239 68 68);
+            border: 1px solid rgb(239 68 68 / 0.35);
+        }
+
+        .cal-cell[data-val="0"] {
+            background: rgb(148 163 184 / 0.15);
+            color: rgb(100 116 139);
+            border: 1px solid rgb(148 163 184 / 0.35);
+        }
+
+        .cal-cell[data-val="none"] {
+            background: transparent;
+            color: rgb(100 116 139);
+            border: 1px dashed rgb(148 163 184 / 0.35);
+        }
+
+        .btn {
+            @apply inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors;
+        }
+
+        .btn-ghost {
+            @apply border border-slate-300/50 hover:bg-slate-200/40 dark:border-slate-700/60 dark:hover:bg-slate-800/60;
+        }
+
+        .btn-primary {
+            @apply bg-emerald-600 text-white hover:bg-emerald-700;
+        }
+
+        .btn-danger {
+            @apply bg-rose-600 text-white hover:bg-rose-700;
+        }
+
+        .btn-neutral {
+            @apply bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-slate-100;
+        }
+
+        .badge {
+            @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold;
+        }
+
+        .badge-build {
+            @apply bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300;
+        }
+
+        .badge-break {
+            @apply bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300;
+        }
+
+        .input {
+            @apply w-full rounded-lg border border-slate-300/60 bg-white/70 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 dark:border-slate-700/60 dark:bg-slate-900/40;
+        }
+
+        .label {
+            @apply block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1;
+        }
+
+        .card {
+            @apply rounded-xl border border-slate-200/60 dark:border-slate-800/60 bg-white/60 dark:bg-slate-900/40;
+        }
+
+        .section-title {
+            @apply text-sm uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400;
+        }
+
+        .switch input {
+            display: none;
+        }
+
+        .switch span {
+            @apply inline-block w-10 h-6 bg-slate-300 dark:bg-slate-700 rounded-full relative align-middle cursor-pointer transition-colors;
+        }
+
+        .switch span::after {
+            content: "";
+            @apply absolute top-0.5 left-0.5 w-5 h-5 bg-white dark:bg-slate-900 rounded-full transition-all;
+        }
+
+        .switch input:checked+span {
+            @apply bg-emerald-500;
+        }
+
+        .switch input:checked+span::after {
+            transform: translateX(1.0rem);
+        }
+
+        canvas.spark {
+            width: 100%;
+            height: 40px;
+        }
+    </style>
+</head>
+
+<body
+    class="min-h-dvh bg-gradient-to-br from-emerald-50 via-white to-sky-50 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 text-slate-900 dark:text-slate-100">
+    <div class="mx-auto max-w-6xl p-4 sm:p-6">
+        <!-- Header -->
+        <header class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+            <div class="flex items-center gap-3">
+                <div class="h-10 w-10 rounded-xl bg-emerald-600 text-white grid place-items-center text-xl">H</div>
+                <div>
+                    <h1 class="text-2xl font-semibold tracking-tight">Habit Lab</h1>
+                    <p class="text-sm text-slate-600 dark:text-slate-400">Build good habits. Break bad ones. One date at
+                        a time.</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="exportBtn" class="btn btn-ghost" title="Export data (JSON)">📤 Export</button>
+                <label class="btn btn-ghost cursor-pointer" title="Import data (JSON)">📥 Import
+                    <input id="importInput" type="file" accept="application/json" class="hidden" />
+                </label>
+                <label class="switch ml-2" title="Dark mode">
+                    <input id="themeToggle" type="checkbox" />
+                    <span></span>
+                </label>
+            </div>
+        </header>
+
+        <!-- Tips bar -->
+        <div class="card p-3 sm:p-4 mb-6">
+            <div class="flex items-center gap-2 text-sm">
+                <span class="text-emerald-600">🧠</span>
+                <p id="tip" class="leading-relaxed"></p>
+            </div>
+        </div>
+
+        <main class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Daily Check-in -->
+            <section class="lg:col-span-2 card p-4 sm:p-6">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                    <div>
+                        <h2 class="text-lg font-semibold">Daily Check‑in</h2>
+                        <p class="text-sm text-slate-500">Log today or pick any date to backfill.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button id="prevDay" class="btn btn-neutral" title="Previous day">◀</button>
+                        <input id="datePicker" type="date" class="input w-auto" />
+                        <button id="nextDay" class="btn btn-neutral" title="Next day">▶</button>
+                        <button id="todayBtn" class="btn btn-ghost" title="Jump to today">Today</button>
+                    </div>
+                </div>
+
+                <div id="dailySummary" class="mb-3 text-sm text-slate-600"></div>
+                <div id="dailyList" class="space-y-3"></div>
+            </section>
+
+            <!-- Habits Panel -->
+            <section class="card p-4 sm:p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold">Your Habits</h2>
+                    <button id="addHabitBtn" class="btn btn-primary">➕ Add Habit</button>
+                </div>
+                <div id="habitsList" class="space-y-4"></div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Add/Edit Habit Modal -->
+    <dialog id="habitModal" class="backdrop:bg-black/40 rounded-2xl w-full max-w-xl p-0">
+        <form id="habitForm" method="dialog" class="card !rounded-2xl overflow-hidden">
+            <div class="p-4 sm:p-6 border-b border-slate-200/60 dark:border-slate-800/60">
+                <div class="flex items-center justify-between">
+                    <h3 id="modalTitle" class="text-lg font-semibold">Add Habit</h3>
+                    <button type="button" id="closeModal" class="btn btn-ghost">✖</button>
+                </div>
+            </div>
+            <div class="p-4 sm:p-6 space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="label">Habit type</label>
+                        <div class="flex items-center gap-3">
+                            <label class="inline-flex items-center gap-2">
+                                <input type="radio" name="type" value="build" checked />
+                                <span class="badge badge-build">Build</span>
+                            </label>
+                            <label class="inline-flex items-center gap-2">
+                                <input type="radio" name="type" value="break" />
+                                <span class="badge badge-break">Break</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="label">Start date</label>
+                        <input name="startDate" type="date" class="input" />
+                    </div>
+                </div>
+                <div>
+                    <label class="label">Name of the habit (clear and specific)</label>
+                    <input name="name" class="input" placeholder="e.g., 10 minutes of walking" required />
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                        <label class="label">Cue / Trigger</label>
+                        <input name="cue" class="input" placeholder="After brushing teeth" />
+                    </div>
+                    <div>
+                        <label class="label">Time</label>
+                        <input name="time" type="time" class="input" />
+                    </div>
+                    <div>
+                        <label class="label">Location</label>
+                        <input name="location" class="input" placeholder="Kitchen / Gym / Desk" />
+                    </div>
+                </div>
+                <div data-break-only>
+                    <label class="label">Replacement behavior (for breaking a habit)</label>
+                    <input name="replacement" class="input" placeholder="Drink water instead, short walk, 3 breaths" />
+                </div>
+                <div>
+                    <label class="label">Target frequency per week</label>
+                    <input name="frequency" type="range" min="1" max="7" value="5" class="w-full" />
+                    <div class="text-xs text-slate-600 mt-1"><span id="freqVal">5</span> days / week</div>
+                </div>
+                <div
+                    class="rounded-lg border border-emerald-300/40 bg-emerald-50/60 dark:bg-emerald-900/20 dark:border-emerald-800/60 p-3 text-sm">
+                    <div class="font-semibold mb-1">Implementation intention</div>
+                    <div id="iiPreview" class="text-emerald-800 dark:text-emerald-200"></div>
+                    <p class="mt-2 text-slate-500">Tip: Make it obvious and easy. Attach it to an existing cue (habit
+                        stacking).</p>
+                </div>
+            </div>
+            <div
+                class="p-4 sm:p-6 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-end gap-2">
+                <button type="button" class="btn btn-ghost" id="cancelModal">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="saveHabit">Save</button>
+            </div>
+        </form>
+    </dialog>
+
+    <template id="habitCardTemplate">
+        <div class="card p-4" data-habit-card>
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <h3 class="text-base font-semibold truncate" data-name></h3>
+                        <span class="badge" data-type-badge></span>
+                    </div>
+                    <div class="text-xs text-slate-500 mt-1" data-ii></div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button class="btn btn-ghost" data-log-success title="Mark success">✅</button>
+                    <button class="btn btn-ghost" data-log-skip title="Mark skip">⚪</button>
+                    <button class="btn btn-ghost" data-log-fail title="Mark failure">❌</button>
+                </div>
+            </div>
+            <div class="mt-3 grid grid-cols-3 gap-3 text-sm">
+                <div class="rounded-lg p-2 bg-slate-100/60 dark:bg-slate-800/60">
+                    <div class="text-slate-500">Streak</div>
+                    <div class="font-semibold" data-streak>0 🔥</div>
+                </div>
+                <div class="rounded-lg p-2 bg-slate-100/60 dark:bg-slate-800/60">
+                    <div class="text-slate-500">Last 14 days</div>
+                    <div class="font-semibold" data-success-rate>-</div>
+                </div>
+                <div class="rounded-lg p-2 bg-slate-100/60 dark:bg-slate-800/60">
+                    <div class="text-slate-500">Target</div>
+                    <div class="font-semibold" data-frequency></div>
+                </div>
+            </div>
+            <div class="mt-3">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="section-title">This month</div>
+                    <div class="text-xs text-slate-500" data-month-label></div>
+                </div>
+                <div class="cal-grid" data-calendar></div>
+                <canvas class="spark mt-3" data-sparkline></canvas>
+                <div class="mt-3 flex items-center justify-end gap-2">
+                    <button class="btn btn-ghost" data-edit>✏️ Edit</button>
+                    <button class="btn btn-danger" data-delete>🗑️ Delete</button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <template id="dailyItemTemplate">
+        <div
+            class="rounded-xl border border-slate-200/60 dark:border-slate-800/60 p-3 flex items-center justify-between gap-3">
+            <div class="min-w-0">
+                <div class="flex items-center gap-2">
+                    <div class="font-medium truncate" data-name></div>
+                    <span class="badge" data-type-badge></span>
+                </div>
+                <div class="text-xs text-slate-500 truncate mt-0.5" data-ii></div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button class="btn btn-ghost" data-success></button>
+                <button class="btn btn-ghost" data-skip>⚪ Skip</button>
+                <button class="btn btn-ghost" data-fail></button>
+            </div>
+        </div>
+    </template>
+
+    <script>
+        // Utilities
+        const $ = (sel, root = document) => root.querySelector(sel);
+        const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+        const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
+
+        const toYMD = (d) => {
+            const dt = new Date(d.getTime() - d.getTimezoneOffset() * 60000); // local to ymd
+            return dt.toISOString().slice(0, 10);
+        };
+        const fromYMD = (s) => { const [y, m, d] = s.split('-').map(Number); const dt = new Date(y, m - 1, d); return dt; };
+
+        const todayStr = () => toYMD(new Date());
+
+        // Theme
+        const themeToggle = $('#themeToggle');
+        const applyTheme = (mode) => {
+            document.documentElement.classList.toggle('dark', mode === 'dark');
+            localStorage.setItem('habitlab_theme', mode);
+            themeToggle.checked = mode === 'dark';
+        };
+        const savedTheme = localStorage.getItem('habitlab_theme');
+        applyTheme(savedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+        themeToggle?.addEventListener('change', (e) => applyTheme(e.target.checked ? 'dark' : 'light'));
+
+        // Data store
+        const STORAGE_KEY = 'habitlab_v1';
+        const defaultHabits = () => ([
+            {
+                id: uid(), type: 'build', name: '10 minutes walk', cue: 'After lunch', time: '13:00', location: 'Outside', replacement: '', startDate: todayStr(), frequency: 5, logs: {}
+            },
+            {
+                id: uid(), type: 'break', name: 'Mindless scrolling', cue: 'When bored', time: '20:00', location: 'Couch', replacement: '3 deep breaths + 1 page reading', startDate: todayStr(), frequency: 6, logs: {}
+            }
+        ]);
+
+        const loadState = () => {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return { habits: defaultHabits() };
+                const obj = JSON.parse(raw);
+                if (!obj.habits) obj.habits = [];
+                return obj;
+            } catch (e) { console.warn('Load failed', e); return { habits: defaultHabits() }; }
+        };
+        const saveState = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+
+        let state = loadState();
+        state.currentDate = todayStr();
+
+        // Evidence-based tips
+        const tips = [
+            'Use “implementation intentions”: When [cue], I will [behavior] in [location] at [time]. (Gollwitzer, 1999)',
+            'Make it obvious: put your cue in the environment. Visual prompts boost follow-through.',
+            'Shrink the behavior: start with a 2-minute version to overcome friction (Fogg/Atomic Habits).',
+            'Stack a new habit onto a stable one: After [current habit], I will [new habit].',
+            'Track consistency, not perfection. Missing once won’t derail progress—avoid missing twice in a row.',
+            'For breaking habits, add friction: remove triggers, log slips without shame, and substitute a better behavior.',
+            'Immediate rewards beat distant ones. Pair a tiny reward after completing the habit (temptation bundling).',
+            'Plan for obstacles: If [trigger/obstacle], then I will [recovery plan].',
+            'Design your environment: make good habits easy and bad habits hard.',
+            'Use identity framing: “I am the kind of person who [habit]” to strengthen adherence.'
+        ];
+        const tipEl = $('#tip');
+        let tipIndex = Math.floor(Math.random() * tips.length);
+        const rotateTip = () => { tipEl.textContent = tips[tipIndex % tips.length]; tipIndex++; };
+        rotateTip(); setInterval(rotateTip, 15000);
+
+        // Date controls
+        const datePicker = $('#datePicker');
+        const prevDayBtn = $('#prevDay');
+        const nextDayBtn = $('#nextDay');
+        const todayBtn = $('#todayBtn');
+        datePicker.value = state.currentDate;
+
+        const shiftCurrentDate = (days) => {
+            const d = fromYMD(state.currentDate); d.setDate(d.getDate() + days); state.currentDate = toYMD(d); datePicker.value = state.currentDate; renderAll();
+        };
+        prevDayBtn.addEventListener('click', () => shiftCurrentDate(-1));
+        nextDayBtn.addEventListener('click', () => shiftCurrentDate(1));
+        todayBtn.addEventListener('click', () => { state.currentDate = todayStr(); datePicker.value = state.currentDate; renderAll(); });
+        datePicker.addEventListener('change', (e) => { state.currentDate = e.target.value || todayStr(); renderAll(); });
+
+        // Modal controls
+        const habitModal = $('#habitModal');
+        const habitForm = $('#habitForm');
+        const addHabitBtn = $('#addHabitBtn');
+        const modalTitle = $('#modalTitle');
+        const closeModalBtn = $('#closeModal');
+        const cancelModalBtn = $('#cancelModal');
+        const iiPreview = $('#iiPreview');
+        const freqVal = $('#freqVal');
+
+        let editingHabitId = null;
+
+        const openModal = (habit = null) => {
+            habitForm.reset();
+            editingHabitId = habit?.id || null;
+            modalTitle.textContent = editingHabitId ? 'Edit Habit' : 'Add Habit';
+            const f = habitForm.elements;
+            const now = todayStr();
+            f.startDate.value = habit?.startDate || now;
+            f.name.value = habit?.name || '';
+            (habit?.type === 'break') ? (f.type.value = 'break') : (f.type.value = 'build');
+            f.cue.value = habit?.cue || '';
+            f.time.value = habit?.time || '';
+            f.location.value = habit?.location || '';
+            f.replacement.value = habit?.replacement || '';
+            f.frequency.value = habit?.frequency || 5;
+            freqVal.textContent = f.frequency.value;
+            updateBreakOnlyVisibility();
+            updateIIPreview();
+            habitModal.showModal();
+        };
+        const closeModal = () => habitModal.close();
+
+        const updateBreakOnlyVisibility = () => {
+            const isBreak = habitForm.elements.type.value === 'break';
+            $$('[data-break-only]').forEach(el => el.style.display = isBreak ? 'block' : 'none');
+        };
+        const updateIIPreview = () => {
+            const f = habitForm.elements;
+            const cue = f.cue.value.trim() || '[cue]';
+            const time = f.time.value || '[time]';
+            const loc = f.location.value.trim() || '[location]';
+            const name = f.name.value.trim() || '[behavior]';
+            const repl = f.replacement.value.trim() || '[replacement]';
+            if (f.type.value === 'break') {
+                iiPreview.textContent = `If I feel ${cue} at ${time} in ${loc}, I will ${repl} instead of ${name}.`;
+            } else {
+                iiPreview.textContent = `When ${cue} at ${time} in ${loc}, I will ${name}.`;
+            }
+        };
+        habitForm.elements.type.forEach?.(r => r.addEventListener('change', () => { updateBreakOnlyVisibility(); updateIIPreview(); }));
+        habitForm.elements.cue.addEventListener('input', updateIIPreview);
+        habitForm.elements.time.addEventListener('input', updateIIPreview);
+        habitForm.elements.location.addEventListener('input', updateIIPreview);
+        habitForm.elements.name.addEventListener('input', updateIIPreview);
+        habitForm.elements.replacement.addEventListener('input', updateIIPreview);
+        habitForm.elements.frequency.addEventListener('input', (e) => { freqVal.textContent = e.target.value; });
+
+        addHabitBtn.addEventListener('click', () => openModal());
+        closeModalBtn.addEventListener('click', closeModal);
+        cancelModalBtn.addEventListener('click', closeModal);
+
+        habitForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const f = habitForm.elements;
+            const data = {
+                id: editingHabitId || uid(),
+                type: f.type.value,
+                name: f.name.value.trim(),
+                cue: f.cue.value.trim(),
+                time: f.time.value,
+                location: f.location.value.trim(),
+                replacement: f.replacement.value.trim(),
+                startDate: f.startDate.value || todayStr(),
+                frequency: Number(f.frequency.value),
+                logs: editingHabitId ? (state.habits.find(h => h.id === editingHabitId)?.logs || {}) : {}
+            };
+            if (!data.name) { alert('Please enter a habit name.'); return; }
+            if (editingHabitId) {
+                const idx = state.habits.findIndex(h => h.id === editingHabitId);
+                if (idx >= 0) state.habits[idx] = { ...state.habits[idx], ...data };
+            } else {
+                state.habits.unshift(data);
+            }
+            saveState();
+            closeModal();
+            renderAll();
+        });
+
+        // Logging
+        const setLog = (habit, dateStr, val) => {
+            if (!habit.logs) habit.logs = {};
+            if (val === null) delete habit.logs[dateStr]; else habit.logs[dateStr] = val;
+            saveState();
+        };
+
+        const cycleVal = (current, isBreak) => {
+            const seq = isBreak ? [null, 1, -1] : [null, 1, -1]; // skip not in cycle here; dedicated button sets 0
+            const idx = seq.indexOf(current);
+            return seq[(idx + 1) % seq.length];
+        };
+
+        const labelFor = (habit, kind) => {
+            if (habit.type === 'break') {
+                if (kind === 'success') return '✅ Avoided';
+                if (kind === 'fail') return '❌ Slipped';
+            } else {
+                if (kind === 'success') return '✅ Done';
+                if (kind === 'fail') return '❌ Missed';
+            }
+            return '⚪ Skip';
+        };
+
+        // Stats
+        const getVal = (habit, dateStr) => habit.logs?.[dateStr] ?? null; // null=unlogged, 1=success, 0=skip, -1=fail/slip
+
+        const computeStreak = (habit, untilStr) => {
+            let streak = 0;
+            let d = fromYMD(untilStr);
+            while (true) {
+                const ymd = toYMD(d);
+                if (ymd < habit.startDate) break;
+                const v = getVal(habit, ymd);
+                if (v === 1) { streak++; } else { break; }
+                d.setDate(d.getDate() - 1);
+            }
+            return streak;
+        };
+
+        const successRate = (habit, days = 14, untilStr = state.currentDate) => {
+            let d = fromYMD(untilStr);
+            let succ = 0, total = 0;
+            for (let i = 0; i < days; i++) {
+                const ymd = toYMD(d);
+                const v = getVal(habit, ymd);
+                if (v !== null) { total++; if (v === 1) succ++; }
+                d.setDate(d.getDate() - 1);
+            }
+            if (total === 0) return '-';
+            return Math.round((succ / total) * 100) + '%';
+        };
+
+        const monthMatrix = (year, monthIndex) => {
+            const first = new Date(year, monthIndex, 1);
+            const last = new Date(year, monthIndex + 1, 0);
+            const daysInMonth = last.getDate();
+            const padStart = (first.getDay() + 6) % 7; // week starts Mon
+            const cells = [];
+            for (let i = 0; i < padStart; i++) cells.push(null);
+            for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, monthIndex, d));
+            return cells;
+        };
+
+        const drawSpark = (canvas, series) => {
+            const dpr = window.devicePixelRatio || 1;
+            const w = canvas.clientWidth; const h = canvas.clientHeight;
+            canvas.width = w * dpr; canvas.height = h * dpr; const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
+            ctx.clearRect(0, 0, w, h);
+            if (!series.length) return;
+            const pad = 3;
+            const step = (w - pad * 2) / (series.length - 1 || 1);
+            const toY = v => h - pad - v * (h - pad * 2);
+            ctx.lineWidth = 2; ctx.strokeStyle = getComputedStyle(document.documentElement).className?.includes('dark') ? '#34d399' : '#059669';
+            ctx.beginPath();
+            series.forEach((v, i) => { const x = pad + i * step; const y = toY(v); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+            ctx.stroke();
+        };
+
+        // Renderers
+        const dailyListEl = $('#dailyList');
+        const dailySummaryEl = $('#dailySummary');
+        const habitsListEl = $('#habitsList');
+
+        const renderDaily = () => {
+            dailyListEl.innerHTML = '';
+            const dateStr = state.currentDate;
+            let successes = 0, total = state.habits.length, slips = 0;
+            state.habits.forEach(habit => {
+                const tpl = $('#dailyItemTemplate').content.cloneNode(true);
+                const nameEl = tpl.querySelector('[data-name]');
+                const badge = tpl.querySelector('[data-type-badge]');
+                const ii = tpl.querySelector('[data-ii]');
+                const btnSuccess = tpl.querySelector('[data-success]');
+                const btnSkip = tpl.querySelector('[data-skip]');
+                const btnFail = tpl.querySelector('[data-fail]');
+                nameEl.textContent = habit.name;
+                badge.textContent = habit.type === 'break' ? 'Break' : 'Build';
+                badge.className = 'badge ' + (habit.type === 'break' ? 'badge-break' : 'badge-build');
+                ii.textContent = habit.type === 'break' ? `If ${habit.cue} at ${habit.time} in ${habit.location}, then ${habit.replacement}.` : `When ${habit.cue} at ${habit.time} in ${habit.location}, I will ${habit.name}.`;
+                btnSuccess.textContent = labelFor(habit, 'success');
+                btnFail.textContent = labelFor(habit, 'fail');
+
+                const current = getVal(habit, dateStr);
+                if (current === 1) successes++;
+                if (current === -1) slips++;
+
+                const reflectActive = () => {
+                    const v = getVal(habit, dateStr);
+                    btnSuccess.classList.toggle('btn-primary', v === 1);
+                    btnSkip.classList.toggle('btn-neutral', v === 0);
+                    btnFail.classList.toggle('btn-danger', v === -1);
+                };
+                reflectActive();
+
+                btnSuccess.addEventListener('click', () => { setLog(habit, dateStr, 1); reflectActive(); renderAll(); });
+                btnSkip.addEventListener('click', () => { setLog(habit, dateStr, 0); reflectActive(); renderAll(); });
+                btnFail.addEventListener('click', () => { setLog(habit, dateStr, -1); reflectActive(); renderAll(); });
+
+                dailyListEl.appendChild(tpl);
+            });
+            const rate = total ? Math.round((successes / total) * 100) : 0;
+            dailySummaryEl.textContent = `${dateStr} • ${successes} / ${total} successful (${rate}%)` + (slips ? ` • ${slips} slip${slips > 1 ? 's' : ''}` : '');
+        };
+
+        const renderHabits = () => {
+            habitsListEl.innerHTML = '';
+            const dateStr = state.currentDate;
+            state.habits.forEach(habit => {
+                const tpl = $('#habitCardTemplate').content.cloneNode(true);
+                const card = tpl.querySelector('[data-habit-card]');
+                const nameEl = tpl.querySelector('[data-name]');
+                const typeBadge = tpl.querySelector('[data-type-badge]');
+                const iiEl = tpl.querySelector('[data-ii]');
+                const streakEl = tpl.querySelector('[data-streak]');
+                const rateEl = tpl.querySelector('[data-success-rate]');
+                const freqEl = tpl.querySelector('[data-frequency]');
+                const calEl = tpl.querySelector('[data-calendar]');
+                const monthLabel = tpl.querySelector('[data-month-label]');
+                const spark = tpl.querySelector('[data-sparkline]');
+                const btnSuccess = tpl.querySelector('[data-log-success]');
+                const btnSkip = tpl.querySelector('[data-log-skip]');
+                const btnFail = tpl.querySelector('[data-log-fail]');
+                const btnEdit = tpl.querySelector('[data-edit]');
+                const btnDelete = tpl.querySelector('[data-delete]');
+
+                nameEl.textContent = habit.name;
+                typeBadge.textContent = habit.type === 'break' ? 'Break' : 'Build';
+                typeBadge.className = 'badge ' + (habit.type === 'break' ? 'badge-break' : 'badge-build');
+                iiEl.textContent = habit.type === 'break' ? `If ${habit.cue} at ${habit.time} in ${habit.location}, then ${habit.replacement}.` : `When ${habit.cue} at ${habit.time} in ${habit.location}, I will ${habit.name}.`;
+
+                streakEl.textContent = `${computeStreak(habit, dateStr)} 🔥`;
+                rateEl.textContent = successRate(habit, 14, dateStr);
+                freqEl.textContent = `${habit.frequency} / week`;
+
+                // Calendar
+                const baseDate = fromYMD(dateStr);
+                const year = baseDate.getFullYear();
+                const month = baseDate.getMonth();
+                const cells = monthMatrix(year, month);
+                const monthName = baseDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+                monthLabel.textContent = monthName;
+                calEl.innerHTML = '';
+                const weeksHeader = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                weeksHeader.forEach(w => {
+                    const tag = document.createElement('div');
+                    tag.className = 'text-[10px] text-slate-500 text-center';
+                    tag.textContent = w;
+                    calEl.appendChild(tag);
+                });
+                // offset header row
+                for (let i = 0; i < 7; i++) calEl.appendChild(document.createElement('div')).style.display = 'none';
+
+                cells.forEach(d => {
+                    const cell = document.createElement('div');
+                    cell.className = 'cal-cell';
+                    if (!d) { cell.dataset.val = 'none'; cell.textContent = ''; cell.style.visibility = 'hidden'; calEl.appendChild(cell); return; }
+                    const ymd = toYMD(d);
+                    const v = getVal(habit, ymd);
+                    const valKey = v === 1 ? '1' : (v === -1 ? '-1' : (v === 0 ? '0' : 'none'));
+                    cell.dataset.val = valKey;
+                    cell.textContent = String(d.getDate());
+                    cell.title = `${ymd}: ${v === 1 ? 'Success' : v === -1 ? 'Fail' : 'Unlogged'}`;
+                    cell.addEventListener('click', () => {
+                        const cur = getVal(habit, ymd);
+                        const next = cycleVal(cur, habit.type === 'break');
+                        setLog(habit, ymd, next);
+                        renderAll();
+                    });
+                    calEl.appendChild(cell);
+                });
+
+                // Sparkline for last 28 days (normalize: success=1, skip/unlogged=0.5, fail=-1 => 0)
+                const series = [];
+                let d = fromYMD(dateStr);
+                for (let i = 27; i >= 0; i--) {
+                    const ymd = toYMD(new Date(d.getFullYear(), d.getMonth(), d.getDate() - i));
+                    const v = getVal(habit, ymd);
+                    let norm = 0.5; if (v === 1) norm = 1; else if (v === -1) norm = 0; else if (v === 0) norm = 0.5; else norm = 0.5;
+                    series.push(norm);
+                }
+                // Delay draw to ensure canvas width is measured after layout
+                requestAnimationFrame(() => drawSpark(spark, series));
+
+                // Inline log buttons
+                const reflectInline = () => {
+                    const v = getVal(habit, dateStr);
+                    btnSuccess.classList.toggle('btn-primary', v === 1);
+                    btnSkip.classList.toggle('btn-neutral', v === 0);
+                    btnFail.classList.toggle('btn-danger', v === -1);
+                };
+                reflectInline();
+                btnSuccess.addEventListener('click', () => { setLog(habit, dateStr, 1); reflectInline(); renderAll(); });
+                btnSkip.addEventListener('click', () => { setLog(habit, dateStr, 0); reflectInline(); renderAll(); });
+                btnFail.addEventListener('click', () => { setLog(habit, dateStr, -1); reflectInline(); renderAll(); });
+
+                btnEdit.addEventListener('click', () => openModal(habit));
+                btnDelete.addEventListener('click', () => {
+                    if (confirm('Delete this habit? This cannot be undone.')) {
+                        state.habits = state.habits.filter(h => h.id !== habit.id);
+                        saveState();
+                        renderAll();
+                    }
+                });
+
+                habitsListEl.appendChild(tpl);
+            });
+        };
+
+        const renderAll = () => { renderDaily(); renderHabits(); };
+
+        // Export / Import
+        $('#exportBtn').addEventListener('click', () => {
+            const dataStr = JSON.stringify(state, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'habitlab_backup.json'; a.click(); URL.revokeObjectURL(url);
+        });
+        $('#importInput').addEventListener('change', (e) => {
+            const file = e.target.files?.[0]; if (!file) return;
+            const fr = new FileReader();
+            fr.onload = () => {
+                try {
+                    const obj = JSON.parse(fr.result);
+                    if (!obj || !Array.isArray(obj.habits)) throw new Error('Invalid file');
+                    state = obj; state.currentDate = todayStr(); saveState(); renderAll(); alert('Imported successfully.');
+                } catch (err) { alert('Import failed: ' + err.message); }
+            };
+            fr.readAsText(file);
+            e.target.value = '';
+        });
+
+        // Kickoff
+        renderAll();
+
+        // Accessibility: close modal on backdrop click
+        habitModal.addEventListener('click', (e) => { const rect = habitModal.getBoundingClientRect(); const inDialog = rect.top <= e.clientY && e.clientY <= rect.top + rect.height && rect.left <= e.clientX && e.clientX <= rect.left + rect.width; if (!inDialog) closeModal(); });
+    </script>
+</body>
+
+</html>
