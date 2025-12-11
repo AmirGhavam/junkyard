@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskFlow - Modern Todo App</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .dark {
+            color-scheme: dark;
+        }
+
+        .todo-item {
+            transition: all 0.3s ease;
+        }
+
+        .todo-item:hover {
+            transform: translateX(4px);
+        }
+
+        .todo-item.completed .todo-text {
+            text-decoration: line-through;
+            opacity: 0.6;
+        }
+
+        .priority-high {
+            border-left: 4px solid #ef4444;
+        }
+
+        .priority-medium {
+            border-left: 4px solid #f59e0b;
+        }
+
+        .priority-low {
+            border-left: 4px solid #22c55e;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .slide-out {
+            animation: slideOut 0.3s ease forwards;
+        }
+
+        @keyframes slideOut {
+            to {
+                opacity: 0;
+                transform: translateX(100px);
+            }
+        }
+
+        .progress-ring {
+            transition: stroke-dashoffset 0.5s ease;
+        }
+
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(0.5);
+            cursor: pointer;
+        }
+
+        .dark input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+        }
+
+        .custom-checkbox {
+            appearance: none;
+            width: 22px;
+            height: 22px;
+            border: 2px solid #6366f1;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .custom-checkbox:checked {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border-color: transparent;
+        }
+
+        .custom-checkbox:checked::after {
+            content: '✓';
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .glass {
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .dark .glass {
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #6366f1;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+
+<body
+    class="min-h-screen transition-colors duration-300 bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 dark:from-gray-900 dark:via-purple-950 dark:to-gray-900">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <!-- Header -->
+        <header class="flex items-center justify-between mb-8">
+            <div class="flex items-center gap-3">
+                <div
+                    class="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                    <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800 dark:text-white">TaskFlow</h1>
+                    <p class="text-sm text-gray-500 dark:text-gray-400" id="dateDisplay"></p>
+                </div>
+            </div>
+            <button id="themeToggle"
+                class="p-3 rounded-xl bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl transition-all">
+                <svg class="w-6 h-6 text-yellow-500 dark:hidden" fill="currentColor" viewBox="0 0 20 20">
+                    <path
+                        d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" />
+                </svg>
+                <svg class="w-6 h-6 text-indigo-400 hidden dark:block" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                </svg>
+            </button>
+        </header>
+
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div class="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total</p>
+                        <p class="text-2xl font-bold text-gray-800 dark:text-white" id="totalCount">0</p>
+                    </div>
+                    <div
+                        class="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/50 rounded-xl flex items-center justify-center">
+                        <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Active</p>
+                        <p class="text-2xl font-bold text-orange-500" id="activeCount">0</p>
+                    </div>
+                    <div
+                        class="w-10 h-10 bg-orange-100 dark:bg-orange-900/50 rounded-xl flex items-center justify-center">
+                        <svg class="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Completed</p>
+                        <p class="text-2xl font-bold text-green-500" id="completedCount">0</p>
+                    </div>
+                    <div
+                        class="w-10 h-10 bg-green-100 dark:bg-green-900/50 rounded-xl flex items-center justify-center">
+                        <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Progress</p>
+                        <p class="text-2xl font-bold text-purple-500" id="progressPercent">0%</p>
+                    </div>
+                    <svg class="w-12 h-12 -rotate-90">
+                        <circle cx="24" cy="24" r="20" stroke="#e5e7eb" stroke-width="4" fill="none"
+                            class="dark:stroke-gray-700" />
+                        <circle id="progressRing" cx="24" cy="24" r="20" stroke="#8b5cf6" stroke-width="4" fill="none"
+                            stroke-dasharray="125.6" stroke-dashoffset="125.6" class="progress-ring"
+                            stroke-linecap="round" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Todo Form -->
+        <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg mb-6">
+            <div class="flex flex-col gap-4">
+                <div class="flex gap-3">
+                    <input type="text" id="todoInput" placeholder="What needs to be done?"
+                        class="flex-1 px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-white focus:border-indigo-500 focus:outline-none transition-colors">
+                    <button id="addBtn"
+                        class="px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg hover:scale-105 transition-all flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        <span class="hidden sm:inline">Add</span>
+                    </button>
+                </div>
+
+                <!-- Additional Options -->
+                <div class="flex flex-wrap gap-3">
+                    <select id="prioritySelect"
+                        class="px-4 py-2 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-white focus:border-indigo-500 focus:outline-none text-sm">
+                        <option value="low">🟢 Low Priority</option>
+                        <option value="medium" selected>🟡 Medium Priority</option>
+                        <option value="high">🔴 High Priority</option>
+                    </select>
+                    <select id="categorySelect"
+                        class="px-4 py-2 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-white focus:border-indigo-500 focus:outline-none text-sm">
+                        <option value="personal">👤 Personal</option>
+                        <option value="work">💼 Work</option>
+                        <option value="shopping">🛒 Shopping</option>
+                        <option value="health">❤️ Health</option>
+                        <option value="study">📚 Study</option>
+                        <option value="other">📌 Other</option>
+                    </select>
+                    <input type="date" id="dueDateInput"
+                        class="px-4 py-2 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-white focus:border-indigo-500 focus:outline-none text-sm">
+                    <input type="text" id="notesInput" placeholder="Add notes (optional)"
+                        class="flex-1 min-w-48 px-4 py-2 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-white focus:border-indigo-500 focus:outline-none text-sm">
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters & Search -->
+        <div class="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg mb-6">
+            <div class="flex flex-col md:flex-row gap-4">
+                <div class="relative flex-1">
+                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <input type="text" id="searchInput" placeholder="Search tasks..."
+                        class="w-full pl-10 pr-4 py-2 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-white focus:border-indigo-500 focus:outline-none">
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button data-filter="all"
+                        class="filter-btn active px-4 py-2 rounded-xl text-sm font-medium transition-all bg-indigo-500 text-white">All</button>
+                    <button data-filter="active"
+                        class="filter-btn px-4 py-2 rounded-xl text-sm font-medium transition-all bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600">Active</button>
+                    <button data-filter="completed"
+                        class="filter-btn px-4 py-2 rounded-xl text-sm font-medium transition-all bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600">Completed</button>
+                </div>
+                <select id="sortSelect"
+                    class="px-4 py-2 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-white focus:border-indigo-500 focus:outline-none text-sm">
+                    <option value="newest">📅 Newest First</option>
+                    <option value="oldest">📅 Oldest First</option>
+                    <option value="priority">🔥 By Priority</option>
+                    <option value="dueDate">⏰ By Due Date</option>
+                    <option value="alpha">🔤 Alphabetical</option>
+                </select>
+                <select id="categoryFilter"
+                    class="px-4 py-2 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-white focus:border-indigo-500 focus:outline-none text-sm">
+                    <option value="all">📋 All Categories</option>
+                    <option value="personal">👤 Personal</option>
+                    <option value="work">💼 Work</option>
+                    <option value="shopping">🛒 Shopping</option>
+                    <option value="health">❤️ Health</option>
+                    <option value="study">📚 Study</option>
+                    <option value="other">📌 Other</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Todo List -->
+        <div id="todoList" class="space-y-3 mb-6">
+            <!-- Todos will be rendered here -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="hidden text-center py-16">
+            <div
+                class="w-32 h-32 mx-auto mb-6 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-full flex items-center justify-center">
+                <svg class="w-16 h-16 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+            </div>
+            <h3 class="text-xl font-semibold text-gray-600 dark:text-gray-400 mb-2">No tasks yet</h3>
+            <p class="text-gray-500 dark:text-gray-500">Add your first task to get started!</p>
+        </div>
+
+        <!-- Footer Actions -->
+        <div
+            class="flex flex-wrap items-center justify-between gap-4 bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg">
+            <p class="text-sm text-gray-500 dark:text-gray-400">
+                <span id="itemsLeft">0</span> items left
+            </p>
+            <div class="flex gap-2">
+                <button id="clearCompleted"
+                    class="px-4 py-2 text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition-colors">
+                    Clear Completed
+                </button>
+                <button id="exportBtn"
+                    class="px-4 py-2 text-sm font-medium text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-xl transition-colors flex items-center gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Export
+                </button>
+            </div>
+        </div>
+
+        <!-- Keyboard Shortcuts Info -->
+        <div class="mt-6 text-center text-xs text-gray-400 dark:text-gray-600">
+            <p>⌨️ Shortcuts: <kbd class="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded">Enter</kbd> to add • <kbd
+                    class="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded">Ctrl+D</kbd> toggle dark mode</p>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="editModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-4">Edit Task</h3>
+            <div class="space-y-4">
+                <input type="text" id="editTodoInput"
+                    class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-white focus:border-indigo-500 focus:outline-none">
+                <select id="editPrioritySelect"
+                    class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-white focus:border-indigo-500 focus:outline-none">
+                    <option value="low">🟢 Low Priority</option>
+                    <option value="medium">🟡 Medium Priority</option>
+                    <option value="high">🔴 High Priority</option>
+                </select>
+                <select id="editCategorySelect"
+                    class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-white focus:border-indigo-500 focus:outline-none">
+                    <option value="personal">👤 Personal</option>
+                    <option value="work">💼 Work</option>
+                    <option value="shopping">🛒 Shopping</option>
+                    <option value="health">❤️ Health</option>
+                    <option value="study">📚 Study</option>
+                    <option value="other">📌 Other</option>
+                </select>
+                <input type="date" id="editDueDateInput"
+                    class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-white focus:border-indigo-500 focus:outline-none">
+                <textarea id="editNotesInput" placeholder="Notes" rows="3"
+                    class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-white focus:border-indigo-500 focus:outline-none resize-none"></textarea>
+            </div>
+            <div class="flex gap-3 mt-6">
+                <button id="cancelEdit"
+                    class="flex-1 px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 font-medium hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">Cancel</button>
+                <button id="saveEdit"
+                    class="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-medium hover:shadow-lg transition-all">Save
+                    Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast"
+        class="fixed bottom-6 right-6 bg-gray-800 dark:bg-white text-white dark:text-gray-800 px-6 py-3 rounded-xl shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 z-50">
+        <span id="toastMessage"></span>
+    </div>
+
+    <script>
+        // State
+        let todos = JSON.parse(localStorage.getItem('todos')) || [];
+        let currentFilter = 'all';
+        let currentCategoryFilter = 'all';
+        let currentSort = 'newest';
+        let editingId = null;
+
+        // DOM Elements
+        const todoInput = document.getElementById('todoInput');
+        const prioritySelect = document.getElementById('prioritySelect');
+        const categorySelect = document.getElementById('categorySelect');
+        const dueDateInput = document.getElementById('dueDateInput');
+        const notesInput = document.getElementById('notesInput');
+        const addBtn = document.getElementById('addBtn');
+        const todoList = document.getElementById('todoList');
+        const searchInput = document.getElementById('searchInput');
+        const sortSelect = document.getElementById('sortSelect');
+        const categoryFilter = document.getElementById('categoryFilter');
+        const filterBtns = document.querySelectorAll('.filter-btn');
+        const themeToggle = document.getElementById('themeToggle');
+        const clearCompleted = document.getElementById('clearCompleted');
+        const exportBtn = document.getElementById('exportBtn');
+        const editModal = document.getElementById('editModal');
+        const emptyState = document.getElementById('emptyState');
+
+        // Initialize
+        function init() {
+            updateDateDisplay();
+            loadTheme();
+            render();
+            setupEventListeners();
+        }
+
+        function updateDateDisplay() {
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('dateDisplay').textContent = new Date().toLocaleDateString('en-US', options);
+        }
+
+        function loadTheme() {
+            const isDark = localStorage.getItem('darkMode') === 'true';
+            document.documentElement.classList.toggle('dark', isDark);
+        }
+
+        function setupEventListeners() {
+            addBtn.addEventListener('click', addTodo);
+            todoInput.addEventListener('keypress', (e) => e.key === 'Enter' && addTodo());
+            searchInput.addEventListener('input', render);
+            sortSelect.addEventListener('change', (e) => { currentSort = e.target.value; render(); });
+            categoryFilter.addEventListener('change', (e) => { currentCategoryFilter = e.target.value; render(); });
+            filterBtns.forEach(btn => btn.addEventListener('click', () => setFilter(btn.dataset.filter)));
+            themeToggle.addEventListener('click', toggleTheme);
+            clearCompleted.addEventListener('click', clearCompletedTodos);
+            exportBtn.addEventListener('click', exportTodos);
+            document.getElementById('cancelEdit').addEventListener('click', closeEditModal);
+            document.getElementById('saveEdit').addEventListener('click', saveEdit);
+            editModal.addEventListener('click', (e) => e.target === editModal && closeEditModal());
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if (e.ctrlKey && e.key === 'd') { e.preventDefault(); toggleTheme(); }
+            });
+        }
+
+        function addTodo() {
+            const text = todoInput.value.trim();
+            if (!text) { showToast('Please enter a task!'); return; }
+
+            const todo = {
+                id: Date.now(),
+                text,
+                completed: false,
+                priority: prioritySelect.value,
+                category: categorySelect.value,
+                dueDate: dueDateInput.value,
+                notes: notesInput.value.trim(),
+                createdAt: new Date().toISOString()
+            };
+
+            todos.unshift(todo);
+            saveTodos();
+            render();
+            clearInputs();
+            showToast('Task added successfully! ✨');
+        }
+
+        function clearInputs() {
+            todoInput.value = '';
+            notesInput.value = '';
+            dueDateInput.value = '';
+            prioritySelect.value = 'medium';
+            todoInput.focus();
+        }
+
+        function toggleTodo(id) {
+            const todo = todos.find(t => t.id === id);
+            if (todo) {
+                todo.completed = !todo.completed;
+                saveTodos();
+                render();
+                showToast(todo.completed ? 'Task completed! 🎉' : 'Task reopened');
+            }
+        }
+
+        function deleteTodo(id) {
+            const item = document.querySelector(`[data-id="${id}"]`);
+            item.classList.add('slide-out');
+            setTimeout(() => {
+                todos = todos.filter(t => t.id !== id);
+                saveTodos();
+                render();
+                showToast('Task deleted');
+            }, 300);
+        }
+
+        function openEditModal(id) {
+            editingId = id;
+            const todo = todos.find(t => t.id === id);
+            document.getElementById('editTodoInput').value = todo.text;
+            document.getElementById('editPrioritySelect').value = todo.priority;
+            document.getElementById('editCategorySelect').value = todo.category;
+            document.getElementById('editDueDateInput').value = todo.dueDate || '';
+            document.getElementById('editNotesInput').value = todo.notes || '';
+            editModal.classList.remove('hidden');
+            editModal.classList.add('flex');
+        }
+
+        function closeEditModal() {
+            editModal.classList.add('hidden');
+            editModal.classList.remove('flex');
+            editingId = null;
+        }
+
+        function saveEdit() {
+            const todo = todos.find(t => t.id === editingId);
+            if (todo) {
+                todo.text = document.getElementById('editTodoInput').value.trim();
+                todo.priority = document.getElementById('editPrioritySelect').value;
+                todo.category = document.getElementById('editCategorySelect').value;
+                todo.dueDate = document.getElementById('editDueDateInput').value;
+                todo.notes = document.getElementById('editNotesInput').value.trim();
+                saveTodos();
+                render();
+                closeEditModal();
+                showToast('Task updated! ✏️');
+            }
+        }
+
+        function setFilter(filter) {
+            currentFilter = filter;
+            filterBtns.forEach(btn => {
+                btn.classList.toggle('bg-indigo-500', btn.dataset.filter === filter);
+                btn.classList.toggle('text-white', btn.dataset.filter === filter);
+                btn.classList.toggle('bg-gray-200', btn.dataset.filter !== filter);
+                btn.classList.toggle('dark:bg-gray-700', btn.dataset.filter !== filter);
+                btn.classList.toggle('text-gray-700', btn.dataset.filter !== filter);
+                btn.classList.toggle('dark:text-gray-300', btn.dataset.filter !== filter);
+            });
+            render();
+        }
+
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+            localStorage.setItem('darkMode', document.documentElement.classList.contains('dark'));
+        }
+
+        function clearCompletedTodos() {
+            const completedCount = todos.filter(t => t.completed).length;
+            if (completedCount === 0) { showToast('No completed tasks to clear'); return; }
+            todos = todos.filter(t => !t.completed);
+            saveTodos();
+            render();
+            showToast(`Cleared ${completedCount} completed task${completedCount > 1 ? 's' : ''}`);
+        }
+
+        function exportTodos() {
+            const dataStr = JSON.stringify(todos, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `taskflow-export-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            showToast('Tasks exported! 📁');
+        }
+
+        function getFilteredAndSortedTodos() {
+            let filtered = [...todos];
+
+            // Search filter
+            const search = searchInput.value.toLowerCase();
+            if (search) {
+                filtered = filtered.filter(t =>
+                    t.text.toLowerCase().includes(search) ||
+                    (t.notes && t.notes.toLowerCase().includes(search))
+                );
+            }
+
+            // Status filter
+            if (currentFilter === 'active') filtered = filtered.filter(t => !t.completed);
+            if (currentFilter === 'completed') filtered = filtered.filter(t => t.completed);
+
+            // Category filter
+            if (currentCategoryFilter !== 'all') {
+                filtered = filtered.filter(t => t.category === currentCategoryFilter);
+            }
+
+            // Sort
+            const priorityOrder = { high: 0, medium: 1, low: 2 };
+            switch (currentSort) {
+                case 'oldest': filtered.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)); break;
+                case 'priority': filtered.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]); break;
+                case 'dueDate': filtered.sort((a, b) => {
+                    if (!a.dueDate) return 1;
+                    if (!b.dueDate) return -1;
+                    return new Date(a.dueDate) - new Date(b.dueDate);
+                }); break;
+                case 'alpha': filtered.sort((a, b) => a.text.localeCompare(b.text)); break;
+                default: filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            }
+
+            return filtered;
+        }
+
+        function getCategoryEmoji(category) {
+            const emojis = { personal: '👤', work: '💼', shopping: '🛒', health: '❤️', study: '📚', other: '📌' };
+            return emojis[category] || '📌';
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            const date = new Date(dateStr);
+            const today = new Date();
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+
+            if (date.toDateString() === today.toDateString()) return 'Today';
+            if (date.toDateString() === tomorrow.toDateString()) return 'Tomorrow';
+
+            const isPast = date < today && date.toDateString() !== today.toDateString();
+            return `${isPast ? '⚠️ ' : ''}${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+        }
+
+        function isOverdue(dateStr, completed) {
+            if (!dateStr || completed) return false;
+            return new Date(dateStr) < new Date().setHours(0, 0, 0, 0);
+        }
+
+        function render() {
+            const filtered = getFilteredAndSortedTodos();
+            const total = todos.length;
+            const completed = todos.filter(t => t.completed).length;
+            const active = total - completed;
+            const progress = total ? Math.round((completed / total) * 100) : 0;
+
+            // Update stats
+            document.getElementById('totalCount').textContent = total;
+            document.getElementById('activeCount').textContent = active;
+            document.getElementById('completedCount').textContent = completed;
+            document.getElementById('progressPercent').textContent = `${progress}%`;
+            document.getElementById('itemsLeft').textContent = active;
+
+            // Update progress ring
+            const circumference = 125.6;
+            const offset = circumference - (progress / 100) * circumference;
+            document.getElementById('progressRing').style.strokeDashoffset = offset;
+
+            // Show/hide empty state
+            emptyState.classList.toggle('hidden', filtered.length > 0);
+            todoList.classList.toggle('hidden', filtered.length === 0);
+
+            // Render todos
+            todoList.innerHTML = filtered.map(todo => `
+                <div class="todo-item fade-in bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-lg priority-${todo.priority} ${todo.completed ? 'completed' : ''}" data-id="${todo.id}">
+                    <div class="flex items-start gap-4">
+                        <input type="checkbox" ${todo.completed ? 'checked' : ''} onchange="toggleTodo(${todo.id})" class="custom-checkbox mt-1 shrink-0">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap mb-1">
+                                <span class="text-sm">${getCategoryEmoji(todo.category)}</span>
+                                <h3 class="todo-text font-medium text-gray-800 dark:text-white break-words">${escapeHtml(todo.text)}</h3>
+                            </div>
+                            ${todo.notes ? `<p class="text-sm text-gray-500 dark:text-gray-400 mb-2">${escapeHtml(todo.notes)}</p>` : ''}
+                            <div class="flex flex-wrap items-center gap-2 text-xs">
+                                ${todo.dueDate ? `<span class="${isOverdue(todo.dueDate, todo.completed) ? 'text-red-500 font-medium' : 'text-gray-500 dark:text-gray-400'}">📅 ${formatDate(todo.dueDate)}</span>` : ''}
+                                <span class="px-2 py-0.5 rounded-full ${todo.priority === 'high' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : todo.priority === 'medium' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400' : 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'}">${todo.priority}</span>
+                            </div>
+                        </div>
+                        <div class="flex gap-1 shrink-0">
+                            <button onclick="openEditModal(${todo.id})" class="p-2 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                </svg>
+                            </button>
+                            <button onclick="deleteTodo(${todo.id})" class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function saveTodos() {
+            localStorage.setItem('todos', JSON.stringify(todos));
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMessage').textContent = message;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 3000);
+        }
+
+        // Initialize app
+        init();
+    </script>
+</body>
+
+</html>
