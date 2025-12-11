@@ -1,0 +1,1551 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TaskFlow — Modern Todo</title>
+    <meta name="description"
+        content="A modern, beautiful todo list app with filters, tags, priorities, due dates, bulk actions, import/export, and offline persistence." />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        :root {
+            color-scheme: light;
+        }
+
+        html.dark :root {
+            color-scheme: dark;
+        }
+
+        /* Subtle motion without being distracting */
+        .pop-in {
+            animation: popIn .18s ease-out;
+        }
+
+        @keyframes popIn {
+            from {
+                transform: translateY(6px);
+                opacity: .0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn .16s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: .0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .shake {
+            animation: shake .25s ease-in-out;
+        }
+
+        @keyframes shake {
+
+            0%,
+            100% {
+                transform: translateX(0)
+            }
+
+            25% {
+                transform: translateX(4px)
+            }
+
+            75% {
+                transform: translateX(-4px)
+            }
+        }
+
+        /* Nice scrollbar */
+        *::-webkit-scrollbar {
+            height: 10px;
+            width: 10px;
+        }
+
+        *::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, .6);
+            border-radius: 999px;
+            border: 2px solid rgba(0, 0, 0, 0);
+            background-clip: padding-box;
+        }
+
+        html.dark *::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, .35);
+            border: 2px solid rgba(0, 0, 0, 0);
+            background-clip: padding-box;
+        }
+
+        /* Drag hint */
+        .dragging {
+            opacity: .45;
+            transform: scale(.995);
+        }
+
+        /* Focus ring for non-Tailwind focus */
+        .focus-ring:focus {
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, .25);
+        }
+
+        /* Markdown-ish preview minimal styling */
+        .md p {
+            margin: .4rem 0;
+        }
+
+        .md code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            padding: .1rem .35rem;
+            border-radius: .4rem;
+            background: rgba(148, 163, 184, .18);
+        }
+
+        .md a {
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+    </style>
+</head>
+
+<body class="h-full bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-50">
+    <div class="min-h-full">
+        <!-- Background accents -->
+        <div aria-hidden="true" class="pointer-events-none fixed inset-0 overflow-hidden">
+            <div
+                class="absolute -top-24 -right-24 h-80 w-80 rounded-full bg-gradient-to-br from-indigo-500/25 to-fuchsia-500/20 blur-3xl">
+            </div>
+            <div
+                class="absolute -bottom-24 -left-24 h-80 w-80 rounded-full bg-gradient-to-tr from-emerald-500/18 to-sky-500/20 blur-3xl">
+            </div>
+        </div>
+
+        <header class="relative mx-auto max-w-6xl px-4 pt-8 sm:px-6 lg:px-8">
+            <div
+                class="flex flex-col gap-4 rounded-2xl border border-slate-200/60 bg-white/70 p-5 backdrop-blur-xl shadow-sm dark:border-slate-800/60 dark:bg-slate-900/55">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-indigo-600 to-fuchsia-600 text-white shadow">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"
+                                    stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h1 class="text-xl font-semibold tracking-tight">TaskFlow</h1>
+                            <p class="text-sm text-slate-600 dark:text-slate-300">Fast, beautiful todos — offline,
+                                searchable, and organized.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button id="btnNew"
+                            class="focus-ring inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5"
+                                    stroke-linecap="round" />
+                            </svg>
+                            New task <span
+                                class="hidden sm:inline text-white/70 dark:text-slate-500 font-medium">(N)</span>
+                        </button>
+
+                        <button id="btnTheme"
+                            class="focus-ring inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
+                            title="Toggle theme">
+                            <span id="themeIcon" aria-hidden="true"></span>
+                            <span class="hidden sm:inline" id="themeLabel">Theme</span>
+                        </button>
+
+                        <div class="relative">
+                            <button id="btnMore"
+                                class="focus-ring inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
+                                aria-haspopup="menu" aria-expanded="false">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                    <path d="M12 12h.01M12 19h.01M12 5h.01" stroke="currentColor" stroke-width="3"
+                                        stroke-linecap="round" />
+                                </svg>
+                                More
+                            </button>
+                            <div id="menuMore"
+                                class="hidden fade-in absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-xl dark:border-slate-800/70 dark:bg-slate-900"
+                                role="menu">
+                                <button id="btnExport"
+                                    class="w-full px-4 py-3 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-800"
+                                    role="menuitem">Export JSON</button>
+                                <label
+                                    class="block w-full cursor-pointer px-4 py-3 text-sm hover:bg-slate-50 dark:hover:bg-slate-800"
+                                    role="menuitem">
+                                    Import JSON
+                                    <input id="fileImport" type="file" accept="application/json" class="hidden" />
+                                </label>
+                                <div class="h-px bg-slate-200 dark:bg-slate-800"></div>
+                                <button id="btnClearCompleted"
+                                    class="w-full px-4 py-3 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-800"
+                                    role="menuitem">Clear completed</button>
+                                <button id="btnReset"
+                                    class="w-full px-4 py-3 text-left text-sm text-rose-600 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-950/30"
+                                    role="menuitem">Reset everything</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Controls row -->
+                <div class="grid gap-3 md:grid-cols-12">
+                    <div class="md:col-span-5">
+                        <div class="relative">
+                            <span
+                                class="pointer-events-none absolute inset-y-0 left-3 grid place-items-center text-slate-400">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                    <path d="M21 21l-4.3-4.3M10.8 18a7.2 7.2 0 1 1 0-14.4 7.2 7.2 0 0 1 0 14.4Z"
+                                        stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+                                </svg>
+                            </span>
+                            <input id="search"
+                                class="focus-ring w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm shadow-sm placeholder:text-slate-400 dark:border-slate-800 dark:bg-slate-900 dark:placeholder:text-slate-500"
+                                placeholder="Search tasks… (press /)" />
+                        </div>
+                    </div>
+
+                    <div class="md:col-span-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                        <div>
+                            <label
+                                class="mb-1 block text-xs font-semibold text-slate-600 dark:text-slate-300">Status</label>
+                            <select id="filterStatus"
+                                class="focus-ring w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                                <option value="all">All</option>
+                                <option value="open">Open</option>
+                                <option value="done">Completed</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label
+                                class="mb-1 block text-xs font-semibold text-slate-600 dark:text-slate-300">Due</label>
+                            <select id="filterDue"
+                                class="focus-ring w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                                <option value="all">All</option>
+                                <option value="overdue">Overdue</option>
+                                <option value="today">Today</option>
+                                <option value="week">This week</option>
+                                <option value="nodue">No due date</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label
+                                class="mb-1 block text-xs font-semibold text-slate-600 dark:text-slate-300">Priority</label>
+                            <select id="filterPriority"
+                                class="focus-ring w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                                <option value="all">All</option>
+                                <option value="high">High</option>
+                                <option value="med">Medium</option>
+                                <option value="low">Low</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label
+                                class="mb-1 block text-xs font-semibold text-slate-600 dark:text-slate-300">Sort</label>
+                            <select id="sortBy"
+                                class="focus-ring w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                                <option value="manual">Manual</option>
+                                <option value="due">Due date</option>
+                                <option value="priority">Priority</option>
+                                <option value="created">Created</option>
+                                <option value="title">Title</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats -->
+                <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div
+                        class="rounded-2xl border border-slate-200/60 bg-white/70 p-4 shadow-sm dark:border-slate-800/60 dark:bg-slate-900/55">
+                        <div class="text-xs font-semibold text-slate-600 dark:text-slate-300">Tasks</div>
+                        <div class="mt-1 flex items-end justify-between">
+                            <div class="text-2xl font-semibold" id="statTotal">0</div>
+                            <div class="text-xs text-slate-500 dark:text-slate-400" id="statOpen">0 open</div>
+                        </div>
+                    </div>
+                    <div
+                        class="rounded-2xl border border-slate-200/60 bg-white/70 p-4 shadow-sm dark:border-slate-800/60 dark:bg-slate-900/55">
+                        <div class="text-xs font-semibold text-slate-600 dark:text-slate-300">Completion</div>
+                        <div class="mt-2 flex items-center gap-3">
+                            <div class="relative h-10 w-10">
+                                <svg class="h-10 w-10" viewBox="0 0 36 36" aria-hidden="true">
+                                    <path
+                                        d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                        fill="none" stroke="rgba(148,163,184,.35)" stroke-width="3" />
+                                    <path id="progressArc"
+                                        d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                        fill="none" stroke="rgb(99 102 241)" stroke-width="3" stroke-linecap="round"
+                                        stroke-dasharray="0, 100" />
+                                </svg>
+                                <div class="absolute inset-0 grid place-items-center text-xs font-semibold"
+                                    id="progressPct">0%</div>
+                            </div>
+                            <div>
+                                <div class="text-lg font-semibold" id="statDone">0 done</div>
+                                <div class="text-xs text-slate-500 dark:text-slate-400" id="statOverdue">0 overdue</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div
+                        class="rounded-2xl border border-slate-200/60 bg-white/70 p-4 shadow-sm dark:border-slate-800/60 dark:bg-slate-900/55">
+                        <div class="text-xs font-semibold text-slate-600 dark:text-slate-300">Focus</div>
+                        <div class="mt-1 text-sm text-slate-700 dark:text-slate-200">Tip: Use <span
+                                class="font-semibold">/</span> to search, <span class="font-semibold">N</span> to add,
+                            <span class="font-semibold">Esc</span> to close.</div>
+                    </div>
+                    <div
+                        class="rounded-2xl border border-slate-200/60 bg-white/70 p-4 shadow-sm dark:border-slate-800/60 dark:bg-slate-900/55">
+                        <div class="text-xs font-semibold text-slate-600 dark:text-slate-300">Selected</div>
+                        <div class="mt-1 flex items-center justify-between">
+                            <div class="text-2xl font-semibold" id="statSelected">0</div>
+                            <div class="flex gap-2">
+                                <button id="btnBulkDone"
+                                    class="focus-ring rounded-xl bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-500 disabled:opacity-50 disabled:hover:bg-indigo-600"
+                                    disabled>Mark done</button>
+                                <button id="btnBulkDelete"
+                                    class="focus-ring rounded-xl bg-rose-600 px-3 py-2 text-xs font-semibold text-white hover:bg-rose-500 disabled:opacity-50 disabled:hover:bg-rose-600"
+                                    disabled>Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick add -->
+                <div class="grid gap-3 md:grid-cols-12">
+                    <div class="md:col-span-9">
+                        <div class="relative">
+                            <span
+                                class="pointer-events-none absolute inset-y-0 left-3 grid place-items-center text-slate-400">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                    <path d="M7 12h10M7 7h10M7 17h6" stroke="currentColor" stroke-width="2.2"
+                                        stroke-linecap="round" />
+                                </svg>
+                            </span>
+                            <input id="quickTitle"
+                                class="focus-ring w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm shadow-sm placeholder:text-slate-400 dark:border-slate-800 dark:bg-slate-900 dark:placeholder:text-slate-500"
+                                placeholder="Quick add… (Enter to add, Shift+Enter for details)" />
+                        </div>
+                    </div>
+                    <div class="md:col-span-3 flex gap-2">
+                        <button id="btnQuickAdd"
+                            class="focus-ring w-full rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500">Add</button>
+                        <button id="btnQuickDetails"
+                            class="focus-ring w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800">Details</button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="relative mx-auto max-w-6xl px-4 pb-16 pt-5 sm:px-6 lg:px-8">
+            <div class="grid gap-4">
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div class="flex items-center gap-2">
+                        <button id="btnSelectAll"
+                            class="focus-ring rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-sm hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800">Select
+                            all</button>
+                        <button id="btnSelectNone"
+                            class="focus-ring rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-sm hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800">Select
+                            none</button>
+                        <button id="btnUndo"
+                            class="focus-ring rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-sm hover:bg-slate-50 disabled:opacity-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
+                            disabled>Undo</button>
+                    </div>
+                    <div class="text-xs text-slate-500 dark:text-slate-400" id="hintManual">Tip: Drag tasks to reorder
+                        (manual sort).</div>
+                </div>
+
+                <section
+                    class="rounded-2xl border border-slate-200/60 bg-white/70 backdrop-blur-xl shadow-sm dark:border-slate-800/60 dark:bg-slate-900/55">
+                    <div class="border-b border-slate-200/60 px-4 py-3 dark:border-slate-800/60">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-sm font-semibold">Your tasks</h2>
+                            <div class="text-xs text-slate-500 dark:text-slate-400" id="resultCount">0 shown</div>
+                        </div>
+                    </div>
+
+                    <div id="list" class="divide-y divide-slate-200/60 dark:divide-slate-800/60"></div>
+
+                    <div id="empty" class="hidden p-10 text-center">
+                        <div
+                            class="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-indigo-600/10 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"
+                                    stroke="currentColor" stroke-width="2.3" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                            </svg>
+                        </div>
+                        <h3 class="text-base font-semibold">No tasks match your filters</h3>
+                        <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">Try clearing filters, or create a new
+                            task.</p>
+                        <div class="mt-4 flex justify-center gap-2">
+                            <button id="btnClearFilters"
+                                class="focus-ring rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100">Clear
+                                filters</button>
+                            <button id="btnEmptyNew"
+                                class="focus-ring rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800">New
+                                task</button>
+                        </div>
+                    </div>
+                </section>
+
+                <footer class="text-xs text-slate-500 dark:text-slate-400">
+                    <span class="font-semibold">Privacy:</span> Everything is stored locally in your browser
+                    (localStorage). Export anytime.
+                </footer>
+            </div>
+        </main>
+
+        <!-- Modal (Add/Edit) -->
+        <div id="modal" class="hidden fixed inset-0 z-30">
+            <div class="absolute inset-0 bg-slate-950/40 backdrop-blur-sm"></div>
+            <div class="relative mx-auto flex h-full max-w-2xl items-center px-4 sm:px-6">
+                <div
+                    class="pop-in w-full rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+                    <div
+                        class="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4 dark:border-slate-800">
+                        <div>
+                            <h3 id="modalTitle" class="text-base font-semibold">New task</h3>
+                            <p class="mt-0.5 text-sm text-slate-600 dark:text-slate-300">Add details to keep things
+                                crisp and organized.</p>
+                        </div>
+                        <button id="btnClose"
+                            class="focus-ring rounded-xl p-2 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                            aria-label="Close">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.5"
+                                    stroke-linecap="round" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <form id="taskForm" class="px-5 py-4">
+                        <input type="hidden" id="taskId" />
+                        <div class="grid gap-4">
+                            <div>
+                                <label
+                                    class="mb-1 block text-xs font-semibold text-slate-600 dark:text-slate-300">Title</label>
+                                <input id="title" required
+                                    class="focus-ring w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm dark:border-slate-800 dark:bg-slate-950"
+                                    placeholder="e.g., Plan weekly sprint" />
+                            </div>
+                            <div class="grid gap-4 sm:grid-cols-2">
+                                <div>
+                                    <label
+                                        class="mb-1 block text-xs font-semibold text-slate-600 dark:text-slate-300">Due
+                                        date</label>
+                                    <input id="due" type="date"
+                                        class="focus-ring w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm dark:border-slate-800 dark:bg-slate-950" />
+                                </div>
+                                <div>
+                                    <label
+                                        class="mb-1 block text-xs font-semibold text-slate-600 dark:text-slate-300">Priority</label>
+                                    <select id="priority"
+                                        class="focus-ring w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm dark:border-slate-800 dark:bg-slate-950">
+                                        <option value="med">Medium</option>
+                                        <option value="high">High</option>
+                                        <option value="low">Low</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="mb-1 block text-xs font-semibold text-slate-600 dark:text-slate-300">Tags
+                                    <span class="font-medium text-slate-400">(comma-separated)</span></label>
+                                <input id="tags"
+                                    class="focus-ring w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm dark:border-slate-800 dark:bg-slate-950"
+                                    placeholder="work, personal, errands" />
+                            </div>
+
+                            <div>
+                                <div class="flex items-center justify-between">
+                                    <label
+                                        class="mb-1 block text-xs font-semibold text-slate-600 dark:text-slate-300">Notes
+                                        <span class="font-medium text-slate-400">(supports **bold**, `code`,
+                                            links)</span></label>
+                                    <button type="button" id="togglePreview"
+                                        class="focus-ring rounded-lg px-2 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-indigo-950/30">Preview</button>
+                                </div>
+                                <textarea id="notes" rows="4"
+                                    class="focus-ring w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm dark:border-slate-800 dark:bg-slate-950"
+                                    placeholder="Add context, checklist ideas, or links…"></textarea>
+                                <div id="notesPreview"
+                                    class="hidden mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100">
+                                    <div class="md" id="notesPreviewContent"></div>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                <div class="flex items-center gap-2">
+                                    <label
+                                        class="inline-flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                                        <input id="pinned" type="checkbox"
+                                            class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 dark:border-slate-700" />
+                                        Pin to top
+                                    </label>
+                                    <label
+                                        class="inline-flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                                        <input id="completed" type="checkbox"
+                                            class="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 dark:border-slate-700" />
+                                        Mark completed
+                                    </label>
+                                </div>
+
+                                <div class="flex items-center gap-2">
+                                    <button type="button" id="btnDelete"
+                                        class="hidden focus-ring rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-100 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-200 dark:hover:bg-rose-950/45">Delete</button>
+                                    <button type="button" id="btnCancel"
+                                        class="focus-ring rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800">Cancel</button>
+                                    <button id="btnSave" type="submit"
+                                        class="focus-ring rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500">Save
+                                        <span class="hidden sm:inline text-white/75 font-medium">(Ctrl/⌘ +
+                                            Enter)</span></button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toasts -->
+        <div id="toasts" class="fixed bottom-4 right-4 z-40 flex max-w-sm flex-col gap-2"></div>
+    </div>
+
+    <script>
+        // ============ Utilities ============
+        const $ = (sel, root = document) => root.querySelector(sel);
+        const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+        const uid = () => (crypto?.randomUUID ? crypto.randomUUID() : String(Date.now()) + '-' + Math.random().toString(16).slice(2));
+
+        function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+
+        function parseTags(str) {
+            return (str || '')
+                .split(',')
+                .map(s => s.trim())
+                .filter(Boolean)
+                .slice(0, 12);
+        }
+
+        function toISODateLocal(date) {
+            // date: Date -> yyyy-mm-dd in local time
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        function startOfDay(d) {
+            const x = new Date(d);
+            x.setHours(0, 0, 0, 0);
+            return x;
+        }
+
+        function isSameDay(a, b) {
+            return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+        }
+
+        function withinThisWeek(d) {
+            const today = startOfDay(new Date());
+            const day = today.getDay(); // 0..6
+            const mondayOffset = (day + 6) % 7; // monday as start
+            const start = new Date(today);
+            start.setDate(today.getDate() - mondayOffset);
+            const end = new Date(start);
+            end.setDate(start.getDate() + 7);
+            return d >= start && d < end;
+        }
+
+        function formatDateLabel(iso) {
+            if (!iso) return '';
+            const d = new Date(iso + 'T00:00:00');
+            const today = startOfDay(new Date());
+            const dd = startOfDay(d);
+            const diff = Math.round((dd - today) / (1000 * 60 * 60 * 24));
+            if (diff === 0) return 'Today';
+            if (diff === 1) return 'Tomorrow';
+            if (diff === -1) return 'Yesterday';
+            return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        }
+
+        function escapeHtml(s) {
+            return (s || '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
+        }
+
+        function renderMiniMarkdown(text) {
+            // safe-ish minimal markdown: **bold**, `code`, links http(s)
+            const esc = escapeHtml(text || '');
+            const withCode = esc.replace(/`([^`]+?)`/g, '<code>$1</code>');
+            const withBold = withCode.replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>');
+            const withLinks = withBold.replace(/(https?:\/\/[^\s<]+[^<.,;:\s])/g, '<a href="$1" target="_blank" rel="noreferrer">$1</a>');
+            const paragraphs = withLinks
+                .split(/\n{2,}/)
+                .map(p => `<p>${p.replace(/\n/g, '<br/>')}</p>`)
+                .join('');
+            return paragraphs || '<p class="text-slate-500">Nothing to preview.</p>';
+        }
+
+        function toast(message, type = 'info', actions = []) {
+            const colors = {
+                info: 'border-slate-200 bg-white text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-50',
+                success: 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/35 dark:text-emerald-50',
+                danger: 'border-rose-200 bg-rose-50 text-rose-900 dark:border-rose-900/50 dark:bg-rose-950/35 dark:text-rose-50'
+            };
+            const el = document.createElement('div');
+            el.className = `pop-in overflow-hidden rounded-2xl border px-4 py-3 shadow-lg ${colors[type]}`;
+            el.innerHTML = `
+        <div class="flex items-start gap-3">
+          <div class="min-w-0 flex-1">
+            <div class="text-sm font-semibold">${escapeHtml(message)}</div>
+          </div>
+          <button class="focus-ring -mr-1 rounded-lg p-1.5 opacity-70 hover:opacity-100" aria-label="Dismiss">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        ${actions.length ? `<div class="mt-2 flex gap-2">${actions.map((a, i) => `<button data-act="${i}" class="focus-ring rounded-xl bg-slate-900/5 px-3 py-1.5 text-xs font-semibold hover:bg-slate-900/10 dark:bg-white/10 dark:hover:bg-white/15">${escapeHtml(a.label)}</button>`).join('')}</div>` : ''}
+      `;
+            const closeBtn = el.querySelector('button[aria-label="Dismiss"]');
+            const remove = () => { el.classList.add('opacity-0'); setTimeout(() => el.remove(), 140); };
+            closeBtn.addEventListener('click', remove);
+            actions.forEach((a, i) => {
+                el.querySelector(`[data-act="${i}"]`)?.addEventListener('click', () => { try { a.onClick?.(); } finally { remove(); } });
+            });
+            $('#toasts').appendChild(el);
+            setTimeout(remove, 5200);
+        }
+
+        // ============ Storage ============
+        const STORAGE_KEY = 'taskflow.v1';
+        function loadApp() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return null;
+                return JSON.parse(raw);
+            } catch { return null; }
+        }
+        function saveApp() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ tasks, settings }));
+        }
+
+        // ============ State ============
+        let tasks = [];
+        let settings = {
+            theme: 'system',
+            sortBy: 'manual',
+            filterStatus: 'all',
+            filterDue: 'all',
+            filterPriority: 'all',
+            search: '',
+            tag: ''
+        };
+
+        let selection = new Set();
+        let undoStack = []; // { type, payload }
+
+        // ============ DOM ============
+        const els = {
+            list: $('#list'),
+            empty: $('#empty'),
+            resultCount: $('#resultCount'),
+            hintManual: $('#hintManual'),
+            search: $('#search'),
+            filterStatus: $('#filterStatus'),
+            filterDue: $('#filterDue'),
+            filterPriority: $('#filterPriority'),
+            sortBy: $('#sortBy'),
+
+            statTotal: $('#statTotal'),
+            statOpen: $('#statOpen'),
+            statDone: $('#statDone'),
+            statOverdue: $('#statOverdue'),
+            progressArc: $('#progressArc'),
+            progressPct: $('#progressPct'),
+            statSelected: $('#statSelected'),
+
+            btnNew: $('#btnNew'),
+            btnTheme: $('#btnTheme'),
+            themeIcon: $('#themeIcon'),
+            themeLabel: $('#themeLabel'),
+
+            btnMore: $('#btnMore'),
+            menuMore: $('#menuMore'),
+            btnExport: $('#btnExport'),
+            fileImport: $('#fileImport'),
+            btnClearCompleted: $('#btnClearCompleted'),
+            btnReset: $('#btnReset'),
+
+            btnClearFilters: $('#btnClearFilters'),
+            btnEmptyNew: $('#btnEmptyNew'),
+
+            quickTitle: $('#quickTitle'),
+            btnQuickAdd: $('#btnQuickAdd'),
+            btnQuickDetails: $('#btnQuickDetails'),
+
+            btnSelectAll: $('#btnSelectAll'),
+            btnSelectNone: $('#btnSelectNone'),
+            btnBulkDone: $('#btnBulkDone'),
+            btnBulkDelete: $('#btnBulkDelete'),
+            btnUndo: $('#btnUndo'),
+
+            modal: $('#modal'),
+            modalTitle: $('#modalTitle'),
+            btnClose: $('#btnClose'),
+            btnCancel: $('#btnCancel'),
+            taskForm: $('#taskForm'),
+            taskId: $('#taskId'),
+            title: $('#title'),
+            due: $('#due'),
+            priority: $('#priority'),
+            tags: $('#tags'),
+            notes: $('#notes'),
+            pinned: $('#pinned'),
+            completed: $('#completed'),
+            btnDelete: $('#btnDelete'),
+            btnSave: $('#btnSave'),
+            togglePreview: $('#togglePreview'),
+            notesPreview: $('#notesPreview'),
+            notesPreviewContent: $('#notesPreviewContent')
+        };
+
+        // ============ Theme ============
+        function applyTheme() {
+            const sysDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const mode = settings.theme;
+            const useDark = mode === 'dark' || (mode === 'system' && sysDark);
+            document.documentElement.classList.toggle('dark', useDark);
+            // icon
+            const icon = useDark
+                ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+                : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z" stroke="currentColor" stroke-width="2.2"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
+            els.themeIcon.innerHTML = icon;
+            const label = mode === 'system' ? 'Theme: System' : `Theme: ${mode[0].toUpperCase() + mode.slice(1)}`;
+            els.themeLabel.textContent = label;
+        }
+
+        function cycleTheme() {
+            const order = ['system', 'light', 'dark'];
+            const idx = order.indexOf(settings.theme);
+            settings.theme = order[(idx + 1) % order.length];
+            applyTheme();
+            saveApp();
+            toast(`Theme set to ${settings.theme}.`, 'info');
+        }
+
+        // ============ Task operations ============
+        const priorityWeight = { high: 3, med: 2, low: 1 };
+
+        function normalizeTask(t) {
+            const now = Date.now();
+            return {
+                id: t.id || uid(),
+                title: String(t.title || '').trim(),
+                notes: String(t.notes || ''),
+                due: t.due || '', // yyyy-mm-dd
+                priority: ['low', 'med', 'high'].includes(t.priority) ? t.priority : 'med',
+                tags: Array.isArray(t.tags) ? t.tags.map(x => String(x).trim()).filter(Boolean) : parseTags(t.tags || ''),
+                pinned: !!t.pinned,
+                completed: !!t.completed,
+                createdAt: typeof t.createdAt === 'number' ? t.createdAt : now,
+                updatedAt: typeof t.updatedAt === 'number' ? t.updatedAt : now,
+                order: typeof t.order === 'number' ? t.order : now
+            };
+        }
+
+        function addTask(data) {
+            const t = normalizeTask(data);
+            if (!t.title) return false;
+            // ensure unique order at end
+            const maxOrder = tasks.reduce((m, x) => Math.max(m, x.order ?? 0), 0);
+            t.order = maxOrder + 1;
+            tasks.push(t);
+            saveApp();
+            return t;
+        }
+
+        function updateTask(id, patch) {
+            const idx = tasks.findIndex(t => t.id === id);
+            if (idx === -1) return;
+            tasks[idx] = normalizeTask({ ...tasks[idx], ...patch, id, updatedAt: Date.now() });
+            saveApp();
+        }
+
+        function deleteTask(id) {
+            const idx = tasks.findIndex(t => t.id === id);
+            if (idx === -1) return;
+            const [removed] = tasks.splice(idx, 1);
+            selection.delete(id);
+            saveApp();
+            return removed;
+        }
+
+        function clearCompleted() {
+            const removed = tasks.filter(t => t.completed);
+            if (!removed.length) return [];
+            tasks = tasks.filter(t => !t.completed);
+            removed.forEach(t => selection.delete(t.id));
+            saveApp();
+            return removed;
+        }
+
+        function toggleDone(id) {
+            const t = tasks.find(x => x.id === id);
+            if (!t) return;
+            updateTask(id, { completed: !t.completed });
+        }
+
+        function togglePinned(id) {
+            const t = tasks.find(x => x.id === id);
+            if (!t) return;
+            updateTask(id, { pinned: !t.pinned });
+        }
+
+        function reorderManual(dragId, overId) {
+            if (dragId === overId) return;
+            const a = tasks.find(t => t.id === dragId);
+            const b = tasks.find(t => t.id === overId);
+            if (!a || !b) return;
+            // only meaningful when manual sorting
+            // We'll swap by recalculating order values based on current visible order.
+            const visible = getVisibleTasks();
+            const from = visible.findIndex(t => t.id === dragId);
+            const to = visible.findIndex(t => t.id === overId);
+            if (from < 0 || to < 0) return;
+            visible.splice(to, 0, visible.splice(from, 1)[0]);
+
+            // apply new order for all tasks in visible list
+            const base = Date.now();
+            for (let i = 0; i < visible.length; i++) {
+                const id = visible[i].id;
+                const idx = tasks.findIndex(t => t.id === id);
+                if (idx >= 0) tasks[idx].order = base + i;
+            }
+            saveApp();
+        }
+
+        // ============ Filtering/Sorting ============
+        function matchesSearch(t, q) {
+            if (!q) return true;
+            const hay = `${t.title}\n${t.notes}\n${(t.tags || []).join(' ')}`.toLowerCase();
+            return hay.includes(q.toLowerCase());
+        }
+
+        function dueCategory(t) {
+            if (!t.due) return 'nodue';
+            const d = startOfDay(new Date(t.due + 'T00:00:00'));
+            const today = startOfDay(new Date());
+            if (d < today) return 'overdue';
+            if (isSameDay(d, today)) return 'today';
+            if (withinThisWeek(d)) return 'week';
+            return 'later';
+        }
+
+        function getVisibleTasks() {
+            const q = (settings.search || '').trim();
+
+            let arr = tasks.slice();
+
+            // Tag filter (from clicking chips)
+            if (settings.tag) {
+                const tagQ = settings.tag.toLowerCase();
+                arr = arr.filter(t => (t.tags || []).some(x => x.toLowerCase() === tagQ));
+            }
+
+            // Search
+            arr = arr.filter(t => matchesSearch(t, q));
+
+            // Filters
+            if (settings.filterStatus === 'open') arr = arr.filter(t => !t.completed);
+            if (settings.filterStatus === 'done') arr = arr.filter(t => t.completed);
+
+            if (settings.filterPriority !== 'all') arr = arr.filter(t => t.priority === settings.filterPriority);
+
+            if (settings.filterDue !== 'all') {
+                arr = arr.filter(t => {
+                    const cat = dueCategory(t);
+                    if (settings.filterDue === 'nodue') return cat === 'nodue';
+                    if (settings.filterDue === 'overdue') return cat === 'overdue';
+                    if (settings.filterDue === 'today') return cat === 'today';
+                    if (settings.filterDue === 'week') return cat === 'week';
+                    return true;
+                });
+            }
+
+            // Sorting
+            const sort = settings.sortBy;
+            const sorters = {
+                manual: (a, b) => (b.pinned - a.pinned) || ((a.completed - b.completed)) || ((a.order ?? 0) - (b.order ?? 0)),
+                due: (a, b) => (b.pinned - a.pinned) || (a.completed - b.completed) || ((a.due ? 0 : 1) - (b.due ? 0 : 1)) || ((a.due || '9999-12-31').localeCompare(b.due || '9999-12-31')) || (b.updatedAt - a.updatedAt),
+                priority: (a, b) => (b.pinned - a.pinned) || (a.completed - b.completed) || (priorityWeight[b.priority] - priorityWeight[a.priority]) || ((a.due || '9999-12-31').localeCompare(b.due || '9999-12-31')),
+                created: (a, b) => (b.pinned - a.pinned) || (a.completed - b.completed) || (b.createdAt - a.createdAt),
+                title: (a, b) => (b.pinned - a.pinned) || (a.completed - b.completed) || a.title.localeCompare(b.title)
+            };
+            arr.sort(sorters[sort] || sorters.manual);
+
+            return arr;
+        }
+
+        // ============ Rendering ============
+        function priorityBadge(p) {
+            const map = {
+                high: { label: 'High', cls: 'bg-rose-600/10 text-rose-700 dark:bg-rose-500/15 dark:text-rose-200 border-rose-200/60 dark:border-rose-900/50' },
+                med: { label: 'Medium', cls: 'bg-amber-600/10 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200 border-amber-200/60 dark:border-amber-900/50' },
+                low: { label: 'Low', cls: 'bg-emerald-600/10 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200 border-emerald-200/60 dark:border-emerald-900/50' }
+            };
+            const x = map[p] || map.med;
+            return `<span class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${x.cls}">${x.label}</span>`;
+        }
+
+        function dueBadge(t) {
+            if (!t.due) return '';
+            const cat = dueCategory(t);
+            const label = formatDateLabel(t.due);
+            const cls = {
+                overdue: 'bg-rose-600/10 text-rose-700 dark:bg-rose-500/15 dark:text-rose-200 border-rose-200/60 dark:border-rose-900/50',
+                today: 'bg-indigo-600/10 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-200 border-indigo-200/60 dark:border-indigo-900/50',
+                week: 'bg-sky-600/10 text-sky-800 dark:bg-sky-500/15 dark:text-sky-200 border-sky-200/60 dark:border-sky-900/50',
+                later: 'bg-slate-600/10 text-slate-700 dark:bg-slate-400/10 dark:text-slate-200 border-slate-200/60 dark:border-slate-800/70'
+            }[cat] || 'bg-slate-600/10 text-slate-700 border-slate-200/60';
+            return `<span class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${cls}">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 7V3m8 4V3M5 11h14M7 21h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        ${escapeHtml(label)}
+      </span>`;
+        }
+
+        function tagsChips(tags) {
+            const arr = (tags || []).slice(0, 8);
+            return arr.map(tag => {
+                const active = settings.tag && settings.tag.toLowerCase() === tag.toLowerCase();
+                return `<button data-tag="${escapeHtml(tag)}" class="tag-chip focus-ring inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${active ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-slate-600/10 text-slate-700 dark:text-slate-200 border-slate-200/60 dark:border-slate-800/70 hover:bg-slate-600/15'}">#${escapeHtml(tag)}</button>`;
+            }).join('');
+        }
+
+        function render() {
+            applyTheme();
+
+            // Sync controls
+            els.search.value = settings.search || '';
+            els.filterStatus.value = settings.filterStatus;
+            els.filterDue.value = settings.filterDue;
+            els.filterPriority.value = settings.filterPriority;
+            els.sortBy.value = settings.sortBy;
+
+            els.hintManual.textContent = settings.sortBy === 'manual'
+                ? 'Tip: Drag tasks to reorder (manual sort).'
+                : 'Manual reordering is available when sort is set to Manual.';
+
+            const visible = getVisibleTasks();
+
+            // Stats
+            const total = tasks.length;
+            const done = tasks.filter(t => t.completed).length;
+            const open = total - done;
+            const overdue = tasks.filter(t => !t.completed && dueCategory(t) === 'overdue').length;
+            const pct = total ? Math.round((done / total) * 100) : 0;
+
+            els.statTotal.textContent = total;
+            els.statOpen.textContent = `${open} open`;
+            els.statDone.textContent = `${done} done`;
+            els.statOverdue.textContent = `${overdue} overdue`;
+            els.progressPct.textContent = `${pct}%`;
+            els.progressArc.setAttribute('stroke-dasharray', `${pct}, 100`);
+
+            els.resultCount.textContent = `${visible.length} shown` + (settings.tag ? ` • tag: #${settings.tag}` : '');
+
+            // Selection stats
+            // keep selection clean
+            for (const id of Array.from(selection)) {
+                if (!tasks.some(t => t.id === id)) selection.delete(id);
+            }
+            els.statSelected.textContent = String(selection.size);
+            const hasSel = selection.size > 0;
+            els.btnBulkDone.disabled = !hasSel;
+            els.btnBulkDelete.disabled = !hasSel;
+
+            // Empty state
+            const showEmpty = visible.length === 0;
+            els.empty.classList.toggle('hidden', !showEmpty);
+            els.list.classList.toggle('hidden', showEmpty);
+
+            // Build list
+            const canDrag = settings.sortBy === 'manual';
+            els.list.innerHTML = visible.map(t => {
+                const cat = dueCategory(t);
+                const isOverdue = !t.completed && cat === 'overdue';
+                const isSelected = selection.has(t.id);
+                const hasNotes = (t.notes || '').trim().length > 0;
+
+                return `
+          <article class="group relative p-4 sm:p-5 ${isOverdue ? 'bg-rose-50/50 dark:bg-rose-950/15' : ''}" data-id="${t.id}" draggable="${canDrag}">
+            <div class="flex gap-3">
+              <div class="pt-0.5 flex flex-col items-center gap-2">
+                <input type="checkbox" class="sel h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 dark:border-slate-700" ${isSelected ? 'checked' : ''} aria-label="Select" />
+                <button class="pin focus-ring rounded-lg p-1.5 ${t.pinned ? 'text-amber-500' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'}" title="Pin">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M14 3l7 7-4 4v6l-4-4H7l-4 4v-6L14 3Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+              </div>
+
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <button class="toggleDone focus-ring inline-flex h-6 w-6 items-center justify-center rounded-lg border ${t.completed ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-slate-200 bg-white text-slate-400 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800'}" aria-label="Toggle completed">
+                    ${t.completed ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
+                  </button>
+                  <h3 class="min-w-0 flex-1 truncate text-sm font-semibold ${t.completed ? 'line-through text-slate-400 dark:text-slate-500' : ''}" title="${escapeHtml(t.title)}">${escapeHtml(t.title)}</h3>
+
+                  <div class="flex items-center gap-2">
+                    ${priorityBadge(t.priority)}
+                    ${dueBadge(t)}
+                    ${t.completed ? '<span class="inline-flex items-center rounded-full border border-emerald-200/70 bg-emerald-600/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-500/15 dark:text-emerald-200">Done</span>' : ''}
+                    ${hasNotes ? '<span class="inline-flex items-center gap-1 rounded-full border border-slate-200/70 bg-slate-600/10 px-2 py-0.5 text-[11px] font-semibold text-slate-700 dark:border-slate-800/70 dark:bg-slate-400/10 dark:text-slate-200" title="Has notes"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 7h10M7 12h10M7 17h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Notes</span>' : ''}
+                  </div>
+                </div>
+
+                ${t.tags?.length ? `<div class="mt-2 flex flex-wrap gap-1.5">${tagsChips(t.tags)}</div>` : ''}
+
+                <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
+                  <div class="text-xs text-slate-500 dark:text-slate-400">
+                    <span>Created ${new Date(t.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                    <span class="mx-2">•</span>
+                    <span>Updated ${new Date(t.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                    ${isOverdue ? '<span class="mx-2">•</span><span class="font-semibold text-rose-700 dark:text-rose-300">Overdue</span>' : ''}
+                  </div>
+
+                  <div class="flex items-center gap-2">
+                    <button class="edit focus-ring rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800">Edit</button>
+                    <button class="del focus-ring rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-200 dark:hover:bg-rose-950/45">Delete</button>
+
+                    <span class="hidden sm:inline-flex items-center gap-2 pl-1 text-slate-400 ${canDrag ? '' : 'opacity-40'}" title="${canDrag ? 'Drag to reorder' : 'Switch sort to Manual to reorder'}">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 5h.01M9 12h.01M9 19h.01M15 5h.01M15 12h.01M15 19h.01" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+        `;
+            }).join('');
+
+            wireListEvents();
+            updateUndoButton();
+        }
+
+        function updateUndoButton() {
+            els.btnUndo.disabled = undoStack.length === 0;
+        }
+
+        // ============ List events (delegated) ============
+        let dragId = null;
+
+        function wireListEvents() {
+            // Use event delegation to avoid re-binding everything too much.
+            els.list.onclick = (e) => {
+                const item = e.target.closest('article[data-id]');
+                if (!item) return;
+                const id = item.dataset.id;
+
+                if (e.target.closest('.toggleDone')) {
+                    toggleDone(id);
+                    render();
+                    return;
+                }
+                if (e.target.closest('.edit')) {
+                    openModal(id);
+                    return;
+                }
+                if (e.target.closest('.del')) {
+                    const removed = deleteTask(id);
+                    if (removed) {
+                        undoStack.push({ type: 'delete', payload: removed });
+                        toast('Task deleted.', 'danger', [{ label: 'Undo', onClick: undo }]);
+                    }
+                    render();
+                    return;
+                }
+                if (e.target.closest('.pin')) {
+                    togglePinned(id);
+                    render();
+                    return;
+                }
+                const tagBtn = e.target.closest('.tag-chip');
+                if (tagBtn) {
+                    const tag = tagBtn.getAttribute('data-tag') || '';
+                    settings.tag = (settings.tag && settings.tag.toLowerCase() === tag.toLowerCase()) ? '' : tag;
+                    saveApp();
+                    render();
+                    return;
+                }
+            };
+
+            els.list.onchange = (e) => {
+                const item = e.target.closest('article[data-id]');
+                if (!item) return;
+                const id = item.dataset.id;
+                if (e.target.classList.contains('sel')) {
+                    if (e.target.checked) selection.add(id); else selection.delete(id);
+                    render();
+                }
+            };
+
+            // Drag and drop
+            els.list.ondragstart = (e) => {
+                const item = e.target.closest('article[data-id]');
+                if (!item) return;
+                if (settings.sortBy !== 'manual') return;
+                dragId = item.dataset.id;
+                item.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+                try { e.dataTransfer.setData('text/plain', dragId); } catch { }
+            };
+
+            els.list.ondragend = (e) => {
+                const item = e.target.closest('article[data-id]');
+                item?.classList.remove('dragging');
+                dragId = null;
+            };
+
+            els.list.ondragover = (e) => {
+                if (settings.sortBy !== 'manual') return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+            };
+
+            els.list.ondrop = (e) => {
+                if (settings.sortBy !== 'manual') return;
+                e.preventDefault();
+                const over = e.target.closest('article[data-id]');
+                if (!over) return;
+                const overId = over.dataset.id;
+                const from = dragId || (function () { try { return e.dataTransfer.getData('text/plain'); } catch { return null; } })();
+                if (!from) return;
+                reorderManual(from, overId);
+                render();
+            };
+        }
+
+        // ============ Modal ============
+        function openModal(id = null) {
+            els.notesPreview.classList.add('hidden');
+            els.togglePreview.textContent = 'Preview';
+
+            const editing = !!id;
+            els.taskId.value = id || '';
+            els.modalTitle.textContent = editing ? 'Edit task' : 'New task';
+            els.btnDelete.classList.toggle('hidden', !editing);
+
+            if (editing) {
+                const t = tasks.find(x => x.id === id);
+                if (!t) return;
+                els.title.value = t.title;
+                els.due.value = t.due || '';
+                els.priority.value = t.priority;
+                els.tags.value = (t.tags || []).join(', ');
+                els.notes.value = t.notes || '';
+                els.pinned.checked = !!t.pinned;
+                els.completed.checked = !!t.completed;
+            } else {
+                els.title.value = els.quickTitle.value.trim() || '';
+                els.due.value = '';
+                els.priority.value = 'med';
+                els.tags.value = '';
+                els.notes.value = '';
+                els.pinned.checked = false;
+                els.completed.checked = false;
+            }
+
+            els.modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            setTimeout(() => els.title.focus(), 0);
+        }
+
+        function closeModal() {
+            els.modal.classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+
+        // ============ Import/Export ============
+        function exportJSON() {
+            const payload = {
+                meta: { app: 'TaskFlow', version: 1, exportedAt: new Date().toISOString() },
+                tasks,
+                settings
+            };
+            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `taskflow-export-${toISODateLocal(new Date())}.json`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 2000);
+            toast('Exported JSON.', 'success');
+        }
+
+        async function importJSONFile(file) {
+            const text = await file.text();
+            let obj;
+            try { obj = JSON.parse(text); } catch { throw new Error('Invalid JSON'); }
+
+            let incomingTasks = obj?.tasks;
+            if (!Array.isArray(incomingTasks)) {
+                // allow raw array
+                if (Array.isArray(obj)) incomingTasks = obj;
+            }
+            if (!Array.isArray(incomingTasks)) throw new Error('No tasks found');
+
+            const normalized = incomingTasks.map(normalizeTask).filter(t => t.title);
+            // Merge by id (incoming wins)
+            const map = new Map(tasks.map(t => [t.id, t]));
+            normalized.forEach(t => map.set(t.id, t));
+            tasks = Array.from(map.values());
+
+            // normalize orders to avoid collisions
+            tasks.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+            tasks.forEach((t, i) => t.order = i + 1);
+
+            saveApp();
+            toast(`Imported ${normalized.length} task(s).`, 'success');
+            render();
+        }
+
+        // ============ Undo ============
+        function undo() {
+            const last = undoStack.pop();
+            if (!last) return;
+            if (last.type === 'delete') {
+                const t = normalizeTask(last.payload);
+                // reinsert
+                tasks.push(t);
+                saveApp();
+                toast('Undo: task restored.', 'success');
+            }
+            if (last.type === 'bulkDelete') {
+                const arr = Array.isArray(last.payload) ? last.payload : [];
+                arr.map(normalizeTask).forEach(t => tasks.push(t));
+                saveApp();
+                toast('Undo: tasks restored.', 'success');
+            }
+            render();
+        }
+
+        // ============ Bulk actions ============
+        function selectAllVisible() {
+            getVisibleTasks().forEach(t => selection.add(t.id));
+            render();
+        }
+        function selectNone() {
+            selection.clear();
+            render();
+        }
+
+        function bulkMarkDone() {
+            const ids = Array.from(selection);
+            if (!ids.length) return;
+            ids.forEach(id => updateTask(id, { completed: true }));
+            toast(`Marked ${ids.length} task(s) done.`, 'success');
+            render();
+        }
+
+        function bulkDelete() {
+            const ids = Array.from(selection);
+            if (!ids.length) return;
+            const removed = [];
+            ids.forEach(id => {
+                const t = deleteTask(id);
+                if (t) removed.push(t);
+            });
+            selection.clear();
+            if (removed.length) {
+                undoStack.push({ type: 'bulkDelete', payload: removed });
+                toast(`Deleted ${removed.length} task(s).`, 'danger', [{ label: 'Undo', onClick: undo }]);
+            }
+            render();
+        }
+
+        // ============ Event wiring ============
+        function closeMenus() {
+            els.menuMore.classList.add('hidden');
+            els.btnMore.setAttribute('aria-expanded', 'false');
+        }
+
+        function initEvents() {
+            // Header buttons
+            els.btnNew.addEventListener('click', () => openModal(null));
+            els.btnEmptyNew.addEventListener('click', () => openModal(null));
+
+            els.btnTheme.addEventListener('click', cycleTheme);
+
+            els.btnMore.addEventListener('click', () => {
+                const open = !els.menuMore.classList.contains('hidden');
+                if (open) closeMenus();
+                else {
+                    els.menuMore.classList.remove('hidden');
+                    els.btnMore.setAttribute('aria-expanded', 'true');
+                }
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('#btnMore') && !e.target.closest('#menuMore')) closeMenus();
+            });
+
+            els.btnExport.addEventListener('click', () => { closeMenus(); exportJSON(); });
+
+            els.fileImport.addEventListener('change', async (e) => {
+                closeMenus();
+                const file = e.target.files?.[0];
+                e.target.value = '';
+                if (!file) return;
+                try {
+                    await importJSONFile(file);
+                } catch (err) {
+                    toast(err?.message || 'Import failed.', 'danger');
+                }
+            });
+
+            els.btnClearCompleted.addEventListener('click', () => {
+                closeMenus();
+                const removed = clearCompleted();
+                if (!removed.length) { toast('No completed tasks to clear.', 'info'); return; }
+                undoStack.push({ type: 'bulkDelete', payload: removed });
+                toast(`Cleared ${removed.length} completed task(s).`, 'success', [{ label: 'Undo', onClick: undo }]);
+                render();
+            });
+
+            els.btnReset.addEventListener('click', () => {
+                closeMenus();
+                if (!confirm('Reset everything? This clears all tasks and settings.')) return;
+                tasks = [];
+                selection.clear();
+                undoStack = [];
+                settings = { theme: settings.theme || 'system', sortBy: 'manual', filterStatus: 'all', filterDue: 'all', filterPriority: 'all', search: '', tag: '' };
+                saveApp();
+                toast('Reset complete.', 'success');
+                render();
+            });
+
+            // Filters/search
+            const syncSetting = (k, v) => { settings[k] = v; saveApp(); render(); };
+
+            let searchTimer;
+            els.search.addEventListener('input', () => {
+                clearTimeout(searchTimer);
+                searchTimer = setTimeout(() => {
+                    settings.search = els.search.value;
+                    saveApp();
+                    render();
+                }, 80);
+            });
+
+            els.filterStatus.addEventListener('change', () => syncSetting('filterStatus', els.filterStatus.value));
+            els.filterDue.addEventListener('change', () => syncSetting('filterDue', els.filterDue.value));
+            els.filterPriority.addEventListener('change', () => syncSetting('filterPriority', els.filterPriority.value));
+            els.sortBy.addEventListener('change', () => syncSetting('sortBy', els.sortBy.value));
+
+            els.btnClearFilters.addEventListener('click', () => {
+                settings.search = '';
+                settings.filterStatus = 'all';
+                settings.filterDue = 'all';
+                settings.filterPriority = 'all';
+                settings.tag = '';
+                saveApp();
+                render();
+                toast('Filters cleared.', 'success');
+            });
+
+            // Quick add
+            function doQuickAdd(openDetails = false) {
+                const title = els.quickTitle.value.trim();
+                if (!title) {
+                    els.quickTitle.classList.add('shake');
+                    setTimeout(() => els.quickTitle.classList.remove('shake'), 250);
+                    els.quickTitle.focus();
+                    return;
+                }
+                if (openDetails) {
+                    openModal(null);
+                    return;
+                }
+                const t = addTask({ title, priority: 'med', due: '', tags: [], notes: '', pinned: false, completed: false });
+                if (t) {
+                    els.quickTitle.value = '';
+                    toast('Task added.', 'success');
+                    render();
+                }
+            }
+
+            els.btnQuickAdd.addEventListener('click', () => doQuickAdd(false));
+            els.btnQuickDetails.addEventListener('click', () => doQuickAdd(true));
+            els.quickTitle.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    doQuickAdd(e.shiftKey);
+                }
+            });
+
+            // Selection
+            els.btnSelectAll.addEventListener('click', selectAllVisible);
+            els.btnSelectNone.addEventListener('click', selectNone);
+            els.btnBulkDone.addEventListener('click', bulkMarkDone);
+            els.btnBulkDelete.addEventListener('click', bulkDelete);
+            els.btnUndo.addEventListener('click', undo);
+
+            // Modal interactions
+            els.btnClose.addEventListener('click', closeModal);
+            els.btnCancel.addEventListener('click', closeModal);
+            els.modal.addEventListener('click', (e) => {
+                if (e.target === els.modal) closeModal();
+                // clicks on backdrop
+                if (e.target.classList.contains('bg-slate-950/40')) closeModal();
+            });
+
+            els.togglePreview.addEventListener('click', () => {
+                const showing = !els.notesPreview.classList.contains('hidden');
+                if (showing) {
+                    els.notesPreview.classList.add('hidden');
+                    els.togglePreview.textContent = 'Preview';
+                } else {
+                    els.notesPreviewContent.innerHTML = renderMiniMarkdown(els.notes.value);
+                    els.notesPreview.classList.remove('hidden');
+                    els.togglePreview.textContent = 'Edit';
+                }
+            });
+
+            els.btnDelete.addEventListener('click', () => {
+                const id = els.taskId.value;
+                if (!id) return;
+                const removed = deleteTask(id);
+                if (removed) {
+                    undoStack.push({ type: 'delete', payload: removed });
+                    toast('Task deleted.', 'danger', [{ label: 'Undo', onClick: undo }]);
+                }
+                closeModal();
+                render();
+            });
+
+            els.taskForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const id = els.taskId.value.trim();
+                const data = {
+                    title: els.title.value.trim(),
+                    due: els.due.value || '',
+                    priority: els.priority.value,
+                    tags: parseTags(els.tags.value),
+                    notes: els.notes.value,
+                    pinned: els.pinned.checked,
+                    completed: els.completed.checked
+                };
+
+                if (!data.title) {
+                    toast('Title is required.', 'danger');
+                    els.title.focus();
+                    return;
+                }
+
+                if (id) {
+                    updateTask(id, data);
+                    toast('Task updated.', 'success');
+                } else {
+                    const t = addTask(data);
+                    if (!t) return;
+                    toast('Task created.', 'success');
+                    els.quickTitle.value = '';
+                }
+
+                closeModal();
+                render();
+            });
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+                const mod = isMac ? e.metaKey : e.ctrlKey;
+
+                // ignore when typing in form fields except for shortcuts
+                const tag = (e.target?.tagName || '').toLowerCase();
+                const typing = ['input', 'textarea', 'select'].includes(tag);
+
+                if (!typing && e.key === '/') {
+                    e.preventDefault();
+                    els.search.focus();
+                    return;
+                }
+
+                if (!typing && (e.key === 'n' || e.key === 'N')) {
+                    e.preventDefault();
+                    openModal(null);
+                    return;
+                }
+
+                if (e.key === 'Escape') {
+                    if (!els.modal.classList.contains('hidden')) closeModal();
+                    else closeMenus();
+                    return;
+                }
+
+                if (!els.modal.classList.contains('hidden') && mod && e.key === 'Enter') {
+                    e.preventDefault();
+                    els.taskForm.requestSubmit();
+                    return;
+                }
+            });
+
+            // Listen to system theme change
+            if (window.matchMedia) {
+                window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => {
+                    if (settings.theme === 'system') applyTheme();
+                });
+            }
+        }
+
+        // ============ Boot ============
+        function seedIfEmpty() {
+            if (tasks.length) return;
+            const today = toISODateLocal(new Date());
+            const tomorrow = toISODateLocal(new Date(Date.now() + 86400000));
+            addTask({ title: 'Welcome to TaskFlow', priority: 'med', due: today, tags: ['getting-started'], notes: 'Tip: press **N** to add a task, or use **/** to search.', pinned: true, completed: false });
+            addTask({ title: 'Try drag & drop reordering (Manual sort)', priority: 'low', due: '', tags: ['tips'], notes: 'Switch *Sort* to **Manual**, then drag tasks using the handle area.', pinned: false, completed: false });
+            addTask({ title: 'Add tags like #work, #personal', priority: 'med', due: tomorrow, tags: ['organization'], notes: 'Click a tag chip to filter by it. Click again to clear.', pinned: false, completed: false });
+            saveApp();
+        }
+
+        function boot() {
+            const loaded = loadApp();
+            if (loaded) {
+                tasks = Array.isArray(loaded.tasks) ? loaded.tasks.map(normalizeTask).filter(t => t.title) : [];
+                settings = { ...settings, ...(loaded.settings || {}) };
+            }
+
+            // Normalize orders
+            tasks.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+            tasks.forEach((t, i) => t.order = i + 1);
+
+            applyTheme();
+            initEvents();
+            seedIfEmpty();
+            render();
+        }
+
+        boot();
+    </script>
+</body>
+
+</html>
