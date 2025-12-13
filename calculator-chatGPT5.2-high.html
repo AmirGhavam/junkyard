@@ -1,0 +1,1371 @@
+<!doctype html>
+<html lang="en" class="h-full">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Professional Calculator</title>
+    <meta name="description"
+        content="A modern professional calculator with scientific features, history, memory, keyboard support, and a safe expression engine." />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        :root {
+            --glass: rgba(255, 255, 255, .08);
+            --glass2: rgba(255, 255, 255, .12);
+        }
+
+        .btn {
+            transition: transform .05s ease, filter .15s ease, background-color .15s ease;
+            will-change: transform;
+        }
+
+        .btn:active {
+            transform: translateY(1px) scale(0.99);
+        }
+
+        .btn:focus-visible {
+            outline: 2px solid rgba(99, 102, 241, .85);
+            outline-offset: 2px;
+        }
+
+        /* subtle grid background */
+        .grid-bg {
+            background-image:
+                radial-gradient(circle at 1px 1px, rgba(148, 163, 184, .25) 1px, transparent 0);
+            background-size: 22px 22px;
+        }
+
+        /* scrollbar */
+        .nice-scroll::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        .nice-scroll::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, .35);
+            border-radius: 999px;
+        }
+
+        .nice-scroll::-webkit-scrollbar-thumb:hover {
+            background: rgba(148, 163, 184, .5);
+        }
+
+        /* selection */
+        ::selection {
+            background: rgba(99, 102, 241, .25);
+        }
+    </style>
+</head>
+
+<body class="h-full bg-slate-950 text-slate-100">
+    <div class="min-h-full grid-bg">
+        <div class="mx-auto max-w-6xl px-4 py-6">
+            <header class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div class="flex items-center gap-3">
+                    <div
+                        class="h-10 w-10 rounded-2xl bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-rose-500 shadow-lg">
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-semibold leading-tight">Professional Calculator</h1>
+                        <p class="text-xs text-slate-400">Scientific • History tape • Memory • Keyboard • Safe parser
+                        </p>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2">
+                    <div class="inline-flex rounded-2xl bg-white/5 p-1 ring-1 ring-white/10 backdrop-blur">
+                        <button id="modeBasic" class="btn px-3 py-1.5 text-sm rounded-xl bg-white/10"
+                            aria-pressed="false">Basic</button>
+                        <button id="modeSci" class="btn px-3 py-1.5 text-sm rounded-xl text-slate-300"
+                            aria-pressed="true">Scientific</button>
+                    </div>
+
+                    <div class="inline-flex rounded-2xl bg-white/5 p-1 ring-1 ring-white/10 backdrop-blur">
+                        <button id="angleBtn" class="btn px-3 py-1.5 text-sm rounded-xl bg-white/10"
+                            aria-label="Toggle degrees/radians">DEG</button>
+                        <button id="secondBtn" class="btn px-3 py-1.5 text-sm rounded-xl text-slate-300"
+                            aria-label="Toggle 2nd functions">2nd</button>
+                    </div>
+
+                    <button id="themeBtn"
+                        class="btn inline-flex items-center gap-2 rounded-2xl bg-white/5 px-3 py-2 text-sm ring-1 ring-white/10 backdrop-blur"
+                        aria-label="Toggle theme">
+                        <span id="themeIcon" class="inline-block">◐</span>
+                        <span class="text-slate-300">Theme</span>
+                    </button>
+
+                    <button id="helpBtn"
+                        class="btn inline-flex items-center gap-2 rounded-2xl bg-white/5 px-3 py-2 text-sm ring-1 ring-white/10 backdrop-blur"
+                        aria-label="Show keyboard help">
+                        <span class="text-slate-300">Shortcuts</span>
+                    </button>
+                </div>
+            </header>
+
+            <main class="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-12">
+                <!-- Calculator -->
+                <section class="lg:col-span-8">
+                    <div class="rounded-3xl bg-white/5 ring-1 ring-white/10 backdrop-blur shadow-2xl overflow-hidden">
+                        <!-- Display -->
+                        <div class="p-4 sm:p-6 border-b border-white/10">
+                            <div class="flex items-start gap-3">
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center justify-between gap-3">
+                                        <div class="text-xs text-slate-400">Expression</div>
+                                        <div class="flex items-center gap-2 text-xs text-slate-400">
+                                            <span
+                                                class="inline-flex items-center gap-1 rounded-xl bg-white/5 px-2 py-1 ring-1 ring-white/10">
+                                                <span class="font-medium">M</span>
+                                                <span id="memBadge" class="opacity-60">—</span>
+                                            </span>
+                                            <span
+                                                class="inline-flex items-center gap-1 rounded-xl bg-white/5 px-2 py-1 ring-1 ring-white/10">
+                                                <span class="font-medium">Ans</span>
+                                                <span id="ansBadge" class="opacity-60">0</span>
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div id="exprDisplay"
+                                        class="mt-2 font-mono text-lg sm:text-xl tracking-tight text-slate-100 break-words min-h-[2.25rem] select-text"
+                                        aria-label="Expression display"></div>
+
+                                    <div class="mt-3 flex items-center justify-between gap-3">
+                                        <div class="text-xs text-slate-400">Result</div>
+                                        <div class="flex items-center gap-2">
+                                            <button id="copyResultBtn"
+                                                class="btn text-xs rounded-xl bg-white/5 px-2 py-1 ring-1 ring-white/10 text-slate-300 hover:bg-white/10"
+                                                aria-label="Copy result">Copy</button>
+                                            <button id="clearBtn"
+                                                class="btn text-xs rounded-xl bg-white/5 px-2 py-1 ring-1 ring-white/10 text-slate-300 hover:bg-white/10"
+                                                aria-label="Clear (Esc)">AC</button>
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-1 flex items-baseline justify-between gap-3">
+                                        <div id="resultDisplay"
+                                            class="font-mono text-2xl sm:text-3xl text-slate-100 min-h-[2.25rem] select-text"
+                                            aria-label="Result display">0</div>
+                                        <div id="statusPill"
+                                            class="hidden sm:inline-flex text-xs rounded-full bg-white/5 px-3 py-1 ring-1 ring-white/10 text-slate-300">
+                                            Ready</div>
+                                    </div>
+
+                                    <div class="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                        <div class="rounded-2xl bg-white/5 ring-1 ring-white/10 p-3">
+                                            <div class="text-[11px] text-slate-400">HEX</div>
+                                            <div class="font-mono text-sm mt-1 flex items-center justify-between gap-2">
+                                                <span id="hexOut" class="truncate">—</span>
+                                                <button
+                                                    class="btn text-[11px] rounded-lg bg-white/5 px-2 py-1 ring-1 ring-white/10 hover:bg-white/10"
+                                                    data-copy="hex">Copy</button>
+                                            </div>
+                                        </div>
+                                        <div class="rounded-2xl bg-white/5 ring-1 ring-white/10 p-3">
+                                            <div class="text-[11px] text-slate-400">DEC</div>
+                                            <div class="font-mono text-sm mt-1 flex items-center justify-between gap-2">
+                                                <span id="decOut" class="truncate">—</span>
+                                                <button
+                                                    class="btn text-[11px] rounded-lg bg-white/5 px-2 py-1 ring-1 ring-white/10 hover:bg-white/10"
+                                                    data-copy="dec">Copy</button>
+                                            </div>
+                                        </div>
+                                        <div class="rounded-2xl bg-white/5 ring-1 ring-white/10 p-3">
+                                            <div class="text-[11px] text-slate-400">OCT</div>
+                                            <div class="font-mono text-sm mt-1 flex items-center justify-between gap-2">
+                                                <span id="octOut" class="truncate">—</span>
+                                                <button
+                                                    class="btn text-[11px] rounded-lg bg-white/5 px-2 py-1 ring-1 ring-white/10 hover:bg-white/10"
+                                                    data-copy="oct">Copy</button>
+                                            </div>
+                                        </div>
+                                        <div class="rounded-2xl bg-white/5 ring-1 ring-white/10 p-3">
+                                            <div class="text-[11px] text-slate-400">BIN</div>
+                                            <div class="font-mono text-sm mt-1 flex items-center justify-between gap-2">
+                                                <span id="binOut" class="truncate">—</span>
+                                                <button
+                                                    class="btn text-[11px] rounded-lg bg-white/5 px-2 py-1 ring-1 ring-white/10 hover:bg-white/10"
+                                                    data-copy="bin">Copy</button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Keypad -->
+                        <div class="p-4 sm:p-6">
+                            <div class="grid grid-cols-1 gap-4 md:grid-cols-12">
+                                <!-- Scientific pad -->
+                                <div id="sciPad" class="md:col-span-5">
+                                    <div class="grid grid-cols-4 gap-2">
+                                        <button
+                                            class="btn key rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-insert="sin(">sin</button>
+                                        <button
+                                            class="btn key rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-insert="cos(">cos</button>
+                                        <button
+                                            class="btn key rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-insert="tan(">tan</button>
+                                        <button
+                                            class="btn key rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-insert="abs(">abs</button>
+
+                                        <button id="lnBtn"
+                                            class="btn key rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-insert="ln(">ln</button>
+                                        <button id="logBtn"
+                                            class="btn key rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-insert="log(">log</button>
+                                        <button
+                                            class="btn key rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-insert="sqrt(">√</button>
+                                        <button
+                                            class="btn key rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-insert="^">xʸ</button>
+
+                                        <button
+                                            class="btn key rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-insert="pi">π</button>
+                                        <button
+                                            class="btn key rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-insert="e">e</button>
+                                        <button
+                                            class="btn key rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-insert="!">n!</button>
+                                        <button
+                                            class="btn key rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-action="negate">±</button>
+
+                                        <button id="pow2Btn"
+                                            class="btn key rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-insert="^2">x²</button>
+                                        <button id="pow3Btn"
+                                            class="btn key rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-insert="^3">x³</button>
+                                        <button id="invBtn"
+                                            class="btn key rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-action="reciprocal">1/x</button>
+                                        <button
+                                            class="btn key rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-insert="ans">Ans</button>
+                                    </div>
+                                </div>
+
+                                <!-- Main pad -->
+                                <div class="md:col-span-7">
+                                    <div class="grid grid-cols-4 gap-2">
+                                        <button
+                                            class="btn key rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-action="mc">MC</button>
+                                        <button
+                                            class="btn key rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-action="mr">MR</button>
+                                        <button
+                                            class="btn key rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-action="mplus">M+</button>
+                                        <button
+                                            class="btn key rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-action="mminus">M−</button>
+
+                                        <button
+                                            class="btn key rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-action="ms">MS</button>
+                                        <button
+                                            class="btn key rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-insert="(">(</button>
+                                        <button
+                                            class="btn key rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-insert=")">)</button>
+                                        <button
+                                            class="btn key rounded-2xl bg-rose-500/15 ring-1 ring-rose-400/20 px-3 py-3 text-sm hover:bg-rose-500/20"
+                                            data-action="backspace">⌫</button>
+
+                                        <button
+                                            class="btn key rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-insert="7">7</button>
+                                        <button
+                                            class="btn key rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-insert="8">8</button>
+                                        <button
+                                            class="btn key rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-insert="9">9</button>
+                                        <button
+                                            class="btn key rounded-2xl bg-white/10 ring-1 ring-white/15 px-3 py-3 text-sm hover:bg-white/15"
+                                            data-insert="/">÷</button>
+
+                                        <button
+                                            class="btn key rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-insert="4">4</button>
+                                        <button
+                                            class="btn key rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-insert="5">5</button>
+                                        <button
+                                            class="btn key rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-insert="6">6</button>
+                                        <button
+                                            class="btn key rounded-2xl bg-white/10 ring-1 ring-white/15 px-3 py-3 text-sm hover:bg-white/15"
+                                            data-insert="*">×</button>
+
+                                        <button
+                                            class="btn key rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-insert="1">1</button>
+                                        <button
+                                            class="btn key rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-insert="2">2</button>
+                                        <button
+                                            class="btn key rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-insert="3">3</button>
+                                        <button
+                                            class="btn key rounded-2xl bg-white/10 ring-1 ring-white/15 px-3 py-3 text-sm hover:bg-white/15"
+                                            data-insert="-">−</button>
+
+                                        <button
+                                            class="btn key rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-insert="0">0</button>
+                                        <button
+                                            class="btn key rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-insert=".">.</button>
+                                        <button
+                                            class="btn key rounded-2xl bg-white/10 ring-1 ring-white/15 px-3 py-3 text-sm hover:bg-white/15"
+                                            data-insert="%">%</button>
+                                        <button
+                                            class="btn key rounded-2xl bg-white/10 ring-1 ring-white/15 px-3 py-3 text-sm hover:bg-white/15"
+                                            data-insert="+">+</button>
+
+                                        <button
+                                            class="btn key col-span-2 rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-action="clearEntry">CE</button>
+                                        <button
+                                            class="btn key rounded-2xl bg-white/5 ring-1 ring-white/10 px-3 py-3 text-sm hover:bg-white/10"
+                                            data-action="insertAns">Ans</button>
+                                        <button
+                                            class="btn key rounded-2xl bg-indigo-500/25 ring-1 ring-indigo-400/25 px-3 py-3 text-sm hover:bg-indigo-500/30"
+                                            data-action="equals">=</button>
+                                    </div>
+
+                                    <div class="mt-3 text-xs text-slate-400 leading-relaxed">
+                                        Tips: implicit multiplication supported (e.g., <span
+                                            class="font-mono text-slate-300">2(3+4)</span>, <span
+                                            class="font-mono text-slate-300">2pi</span>, <span
+                                            class="font-mono text-slate-300">2sin(30)</span>). Use <span
+                                            class="font-mono text-slate-300">^</span> for powers, <span
+                                            class="font-mono text-slate-300">!</span> for factorial.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- History -->
+                <aside class="lg:col-span-4">
+                    <div class="rounded-3xl bg-white/5 ring-1 ring-white/10 backdrop-blur shadow-2xl overflow-hidden">
+                        <div class="p-4 sm:p-6 border-b border-white/10 flex items-center justify-between gap-3">
+                            <div>
+                                <h2 class="text-sm font-semibold">History</h2>
+                                <p class="text-xs text-slate-400">Click an item to reuse the expression.</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button id="exportBtn"
+                                    class="btn text-xs rounded-xl bg-white/5 px-2 py-1 ring-1 ring-white/10 text-slate-300 hover:bg-white/10">Export</button>
+                                <button id="clearHistoryBtn"
+                                    class="btn text-xs rounded-xl bg-white/5 px-2 py-1 ring-1 ring-white/10 text-slate-300 hover:bg-white/10">Clear</button>
+                            </div>
+                        </div>
+                        <div id="historyList" class="nice-scroll max-h-[540px] overflow-auto p-2 sm:p-3"></div>
+                    </div>
+
+                    <div class="mt-4 rounded-3xl bg-white/5 ring-1 ring-white/10 backdrop-blur shadow-2xl p-4 sm:p-6">
+                        <div class="flex items-center justify-between gap-3">
+                            <div>
+                                <h3 class="text-sm font-semibold">Engine</h3>
+                                <p class="text-xs text-slate-400">Safe parser (no eval). Supports sin/cos/tan, ln, log,
+                                    sqrt, abs, constants π and e.</p>
+                            </div>
+                            <span id="enginePill"
+                                class="text-xs rounded-full bg-emerald-500/15 text-emerald-200 ring-1 ring-emerald-400/20 px-3 py-1">OK</span>
+                        </div>
+                        <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                            <div class="rounded-2xl bg-white/5 ring-1 ring-white/10 p-3">
+                                <div class="text-slate-400">Angle mode</div>
+                                <div id="angleLabel" class="mt-1 font-mono">DEG</div>
+                            </div>
+                            <div class="rounded-2xl bg-white/5 ring-1 ring-white/10 p-3">
+                                <div class="text-slate-400">Mode</div>
+                                <div id="modeLabel" class="mt-1 font-mono">Scientific</div>
+                            </div>
+                        </div>
+                    </div>
+                </aside>
+            </main>
+
+            <footer class="mt-6 text-xs text-slate-500">
+                Keyboard: <span class="font-mono">0-9</span>, <span class="font-mono">+</span> <span
+                    class="font-mono">-</span> <span class="font-mono">*</span> <span class="font-mono">/</span> <span
+                    class="font-mono">^</span>, <span class="font-mono">( )</span>, <span class="font-mono">%</span>,
+                <span class="font-mono">Enter</span>=, <span class="font-mono">Backspace</span>, <span
+                    class="font-mono">Esc</span>.
+            </footer>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div id="helpModal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-black/60"></div>
+        <div
+            class="relative mx-auto mt-16 w-[min(720px,92vw)] rounded-3xl bg-slate-900/80 ring-1 ring-white/10 backdrop-blur shadow-2xl">
+            <div class="p-5 sm:p-6 border-b border-white/10 flex items-center justify-between">
+                <div>
+                    <div class="text-sm font-semibold">Keyboard shortcuts</div>
+                    <div class="text-xs text-slate-400">Works when the page is focused.</div>
+                </div>
+                <button id="closeHelp"
+                    class="btn rounded-2xl bg-white/5 px-3 py-2 text-sm ring-1 ring-white/10 hover:bg-white/10">Close</button>
+            </div>
+            <div class="p-5 sm:p-6 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                <div class="rounded-2xl bg-white/5 ring-1 ring-white/10 p-4">
+                    <div class="text-xs text-slate-400">Editing</div>
+                    <ul class="mt-2 space-y-1">
+                        <li><span class="font-mono">Backspace</span> — delete</li>
+                        <li><span class="font-mono">Esc</span> — all clear</li>
+                        <li><span class="font-mono">Enter</span> — evaluate</li>
+                    </ul>
+                </div>
+                <div class="rounded-2xl bg-white/5 ring-1 ring-white/10 p-4">
+                    <div class="text-xs text-slate-400">Math</div>
+                    <ul class="mt-2 space-y-1">
+                        <li><span class="font-mono">^</span> — power</li>
+                        <li><span class="font-mono">%</span> — percent (postfix)</li>
+                        <li><span class="font-mono">!</span> — factorial (postfix)</li>
+                    </ul>
+                </div>
+                <div class="rounded-2xl bg-white/5 ring-1 ring-white/10 p-4 sm:col-span-2">
+                    <div class="text-xs text-slate-400">Functions & constants</div>
+                    <div class="mt-2 font-mono text-xs leading-relaxed text-slate-200">
+                        sin(x), cos(x), tan(x), asin(x), acos(x), atan(x),
+                        ln(x), log(x) [base10], sqrt(x), abs(x), exp(x)
+                        <br />
+                        pi, e, ans
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // =========================
+        // State & Persistence
+        // =========================
+        const $ = (sel, root = document) => root.querySelector(sel);
+        const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+        const STORAGE_KEY = 'procalc.v1';
+        const defaultState = {
+            expr: '',
+            ans: 0,
+            memory: null,
+            angle: 'DEG',
+            mode: 'SCI',
+            second: false,
+            theme: 'DARK',
+            history: []
+        };
+
+        let state = loadState();
+
+        function loadState() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return structuredClone(defaultState);
+                const parsed = JSON.parse(raw);
+                return {
+                    ...structuredClone(defaultState),
+                    ...parsed,
+                    history: Array.isArray(parsed.history) ? parsed.history : []
+                };
+            } catch {
+                return structuredClone(defaultState);
+            }
+        }
+
+        function saveState() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                expr: state.expr,
+                ans: state.ans,
+                memory: state.memory,
+                angle: state.angle,
+                mode: state.mode,
+                second: state.second,
+                theme: state.theme,
+                history: state.history.slice(0, 200)
+            }));
+        }
+
+        // =========================
+        // UI Elements
+        // =========================
+        const exprDisplay = $('#exprDisplay');
+        const resultDisplay = $('#resultDisplay');
+        const statusPill = $('#statusPill');
+
+        const angleBtn = $('#angleBtn');
+        const secondBtn = $('#secondBtn');
+        const themeBtn = $('#themeBtn');
+        const modeBasic = $('#modeBasic');
+        const modeSci = $('#modeSci');
+        const sciPad = $('#sciPad');
+
+        const memBadge = $('#memBadge');
+        const ansBadge = $('#ansBadge');
+
+        const hexOut = $('#hexOut');
+        const decOut = $('#decOut');
+        const octOut = $('#octOut');
+        const binOut = $('#binOut');
+
+        const historyList = $('#historyList');
+
+        const angleLabel = $('#angleLabel');
+        const modeLabel = $('#modeLabel');
+
+        const lnBtn = $('#lnBtn');
+        const logBtn = $('#logBtn');
+        const pow2Btn = $('#pow2Btn');
+        const pow3Btn = $('#pow3Btn');
+        const invBtn = $('#invBtn');
+
+        // =========================
+        // Expression Engine (safe)
+        // =========================
+
+        const FUNCTIONS_1 = new Set(['sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'ln', 'log', 'sqrt', 'abs', 'exp', 'floor', 'ceil', 'round']);
+        const CONSTANTS = new Map([
+            ['pi', Math.PI],
+            ['e', Math.E],
+        ]);
+
+        const OP = {
+            '+': { prec: 1, assoc: 'L', arity: 2 },
+            '-': { prec: 1, assoc: 'L', arity: 2 },
+            '*': { prec: 2, assoc: 'L', arity: 2 },
+            '/': { prec: 2, assoc: 'L', arity: 2 },
+            '^': { prec: 3, assoc: 'R', arity: 2 },
+            'u-': { prec: 4, assoc: 'R', arity: 1 },
+            'u+': { prec: 4, assoc: 'R', arity: 1 },
+            '!': { prec: 5, assoc: 'L', arity: 1, postfix: true },
+            '%': { prec: 5, assoc: 'L', arity: 1, postfix: true }
+        };
+
+        function toRad(x) {
+            return state.angle === 'DEG' ? (x * Math.PI / 180) : x;
+        }
+        function fromRad(x) {
+            return state.angle === 'DEG' ? (x * 180 / Math.PI) : x;
+        }
+
+        function factorial(n) {
+            if (!Number.isFinite(n)) throw new Error('Not finite');
+            if (Math.floor(n) !== n) throw new Error('Factorial needs an integer');
+            if (n < 0) throw new Error('Factorial needs n ≥ 0');
+            if (n > 170) throw new Error('Too large');
+            let r = 1;
+            for (let i = 2; i <= n; i++) r *= i;
+            return r;
+        }
+
+        function tokenize(input) {
+            const s = input.trim();
+            const tokens = [];
+            const re = /\s*([0-9]*\.?[0-9]+(?:e[+-]?[0-9]+)?|ans|pi|e|[a-zA-Z_][a-zA-Z_0-9]*|\(|\)|,|\+|\-|\*|\/|\^|!|%|\.)\s*/gy;
+            let i = 0;
+            re.lastIndex = 0;
+            while (i < s.length) {
+                const m = re.exec(s);
+                if (!m) {
+                    throw new Error(`Unexpected character at ${i + 1}`);
+                }
+                const t = m[1];
+                i = re.lastIndex;
+
+                if (t === '.') {
+                    // a lone '.'
+                    throw new Error('Incomplete number');
+                }
+
+                if (/^[0-9]/.test(t)) {
+                    tokens.push({ type: 'number', value: Number(t) });
+                } else if (t === '(' || t === ')' || t === ',') {
+                    tokens.push({ type: 'punc', value: t });
+                } else if (t in OP) {
+                    tokens.push({ type: 'op', value: t });
+                } else {
+                    const id = t.toLowerCase();
+                    if (id === 'ans') tokens.push({ type: 'const', value: 'ans' });
+                    else if (CONSTANTS.has(id)) tokens.push({ type: 'const', value: id });
+                    else tokens.push({ type: 'id', value: id });
+                }
+            }
+
+            // Insert implicit multiplication: value ) ! % const number id(function?) followed by ( const number id
+            const out = [];
+            function isValue(tok) {
+                if (!tok) return false;
+                if (tok.type === 'number' || tok.type === 'const') return true;
+                if (tok.type === 'punc' && tok.value === ')') return true;
+                if (tok.type === 'op' && (tok.value === '!' || tok.value === '%')) return true;
+                return false;
+            }
+            function startsValue(tok, nextTok) {
+                if (!tok) return false;
+                if (tok.type === 'number' || tok.type === 'const') return true;
+                if (tok.type === 'punc' && tok.value === '(') return true;
+                if (tok.type === 'id') return true; // function call or unknown id (will error later)
+                return false;
+            }
+
+            for (let k = 0; k < tokens.length; k++) {
+                const a = tokens[k];
+                const b = tokens[k + 1];
+                out.push(a);
+
+                // Avoid inserting between function name and its '(' => id followed by '('
+                const aIsFuncName = a?.type === 'id' && b?.type === 'punc' && b.value === '(';
+
+                if (!aIsFuncName && isValue(a) && startsValue(b)) {
+                    // Example: 2(3), 2pi, )(.5), 2sin(30)
+                    out.push({ type: 'op', value: '*' });
+                }
+            }
+
+            return out;
+        }
+
+        function shuntingYard(tokens) {
+            const output = [];
+            const stack = [];
+            let prev = null;
+
+            const peek = (arr) => arr[arr.length - 1];
+
+            for (let idx = 0; idx < tokens.length; idx++) {
+                const tok = tokens[idx];
+
+                if (tok.type === 'number' || tok.type === 'const') {
+                    output.push(tok);
+                } else if (tok.type === 'id') {
+                    // must be function
+                    if (!FUNCTIONS_1.has(tok.value)) throw new Error(`Unknown identifier: ${tok.value}`);
+                    stack.push({ type: 'func', value: tok.value });
+                } else if (tok.type === 'punc') {
+                    if (tok.value === '(') {
+                        stack.push(tok);
+                    } else if (tok.value === ')') {
+                        while (stack.length && !(peek(stack).type === 'punc' && peek(stack).value === '(')) {
+                            output.push(stack.pop());
+                        }
+                        if (!stack.length) throw new Error('Mismatched parentheses');
+                        stack.pop(); // pop '('
+
+                        // if the token at the top is a function, pop it too
+                        if (stack.length && peek(stack).type === 'func') {
+                            output.push(stack.pop());
+                        }
+                    } else if (tok.value === ',') {
+                        // For future multi-arg, not used now
+                        while (stack.length && !(peek(stack).type === 'punc' && peek(stack).value === '(')) {
+                            output.push(stack.pop());
+                        }
+                        if (!stack.length) throw new Error('Misplaced comma');
+                    }
+                } else if (tok.type === 'op') {
+                    // Determine unary
+                    let op = tok.value;
+                    if (op === '+' || op === '-') {
+                        const prevIsValue = prev && (
+                            prev.type === 'number' || prev.type === 'const' ||
+                            (prev.type === 'punc' && prev.value === ')') ||
+                            (prev.type === 'op' && (prev.value === '!' || prev.value === '%'))
+                        );
+                        if (!prevIsValue) op = (op === '-') ? 'u-' : 'u+';
+                    }
+
+                    const o1 = OP[op];
+                    if (!o1) throw new Error(`Unknown operator: ${op}`);
+
+                    // postfix operators should apply immediately but shunting-yard handles via precedence
+                    while (stack.length) {
+                        const top = peek(stack);
+                        if (top.type === 'op') {
+                            const o2 = OP[top.value];
+                            const cond = (o1.assoc === 'L' && o1.prec <= o2.prec) || (o1.assoc === 'R' && o1.prec < o2.prec);
+                            if (cond) output.push(stack.pop());
+                            else break;
+                        } else if (top.type === 'func') {
+                            output.push(stack.pop());
+                        } else {
+                            break;
+                        }
+                    }
+                    stack.push({ type: 'op', value: op });
+                }
+
+                prev = tok;
+            }
+
+            while (stack.length) {
+                const top = stack.pop();
+                if (top.type === 'punc' && (top.value === '(' || top.value === ')')) throw new Error('Mismatched parentheses');
+                output.push(top);
+            }
+
+            return output;
+        }
+
+        function evalRPN(rpn) {
+            const st = [];
+
+            const pop1 = () => {
+                if (st.length < 1) throw new Error('Malformed expression');
+                return st.pop();
+            };
+            const pop2 = () => {
+                if (st.length < 2) throw new Error('Malformed expression');
+                const b = st.pop();
+                const a = st.pop();
+                return [a, b];
+            };
+
+            for (const tok of rpn) {
+                if (tok.type === 'number') {
+                    st.push(tok.value);
+                } else if (tok.type === 'const') {
+                    if (tok.value === 'ans') st.push(Number(state.ans) || 0);
+                    else st.push(CONSTANTS.get(tok.value));
+                } else if (tok.type === 'func') {
+                    const x = pop1();
+                    let v;
+                    switch (tok.value) {
+                        case 'sin': v = Math.sin(toRad(x)); break;
+                        case 'cos': v = Math.cos(toRad(x)); break;
+                        case 'tan': v = Math.tan(toRad(x)); break;
+                        case 'asin': v = fromRad(Math.asin(x)); break;
+                        case 'acos': v = fromRad(Math.acos(x)); break;
+                        case 'atan': v = fromRad(Math.atan(x)); break;
+                        case 'ln': v = Math.log(x); break;
+                        case 'log': v = Math.log10(x); break;
+                        case 'sqrt': v = Math.sqrt(x); break;
+                        case 'abs': v = Math.abs(x); break;
+                        case 'exp': v = Math.exp(x); break;
+                        case 'floor': v = Math.floor(x); break;
+                        case 'ceil': v = Math.ceil(x); break;
+                        case 'round': v = Math.round(x); break;
+                        default: throw new Error(`Function not implemented: ${tok.value}`);
+                    }
+                    st.push(v);
+                } else if (tok.type === 'op') {
+                    const op = tok.value;
+                    if (op === 'u-') {
+                        st.push(-pop1());
+                    } else if (op === 'u+') {
+                        st.push(+pop1());
+                    } else if (op === '!') {
+                        st.push(factorial(pop1()));
+                    } else if (op === '%') {
+                        st.push(pop1() / 100);
+                    } else {
+                        const [a, b] = pop2();
+                        let v;
+                        switch (op) {
+                            case '+': v = a + b; break;
+                            case '-': v = a - b; break;
+                            case '*': v = a * b; break;
+                            case '/': v = a / b; break;
+                            case '^': v = Math.pow(a, b); break;
+                            default: throw new Error(`Operator not implemented: ${op}`);
+                        }
+                        st.push(v);
+                    }
+                }
+            }
+
+            if (st.length !== 1) throw new Error('Malformed expression');
+            const res = st[0];
+            if (!Number.isFinite(res)) throw new Error('Result is not finite');
+            return res;
+        }
+
+        function evaluateExpression(expr) {
+            if (!expr.trim()) return { ok: true, value: 0 };
+            const tokens = tokenize(expr);
+            const rpn = shuntingYard(tokens);
+            const value = evalRPN(rpn);
+            return { ok: true, value };
+        }
+
+        // =========================
+        // Formatting & Helpers
+        // =========================
+        function stripZeros(s) {
+            if (!s.includes('.')) return s;
+            s = s.replace(/0+$/, '').replace(/\.$/, '');
+            return s;
+        }
+
+        function formatNumber(n) {
+            if (!Number.isFinite(n)) return 'Error';
+            const abs = Math.abs(n);
+            // choose a stable readable format
+            if (abs !== 0 && (abs >= 1e15 || abs < 1e-9)) {
+                // exponential
+                let s = n.toExponential(12);
+                // trim exponent zeros
+                s = s.replace(/e\+?(-?)0+(\d+)/, 'e$1$2');
+                return stripZeros(s.replace(/\.?(\d+?)0+e/, '.$1e'));
+            }
+            // fixed-ish using significant digits
+            let s = n.toPrecision(14);
+            // toPrecision may switch to scientific; normalize in that case
+            if (s.includes('e')) {
+                let se = n.toExponential(12);
+                se = se.replace(/e\+?(-?)0+(\d+)/, 'e$1$2');
+                return stripZeros(se.replace(/\.?(\d+?)0+e/, '.$1e'));
+            }
+            s = stripZeros(s);
+            // remove leading -0
+            if (s === '-0') s = '0';
+            return s;
+        }
+
+        function prettyExpr(expr) {
+            // display helpers: * => ×, / => ÷, - => − (only when operator)
+            // We'll keep it simple: replace all occurrences of * and / and a standalone minus
+            return expr
+                .replaceAll('*', '×')
+                .replaceAll('/', '÷')
+                .replaceAll('-', '−');
+        }
+
+        function setStatus(text, tone = 'neutral') {
+            if (!statusPill) return;
+            statusPill.textContent = text;
+            statusPill.classList.remove('text-slate-300', 'bg-white/5', 'ring-white/10', 'text-rose-200', 'bg-rose-500/15', 'ring-rose-400/20', 'text-emerald-200', 'bg-emerald-500/15', 'ring-emerald-400/20');
+            if (tone === 'error') {
+                statusPill.classList.add('text-rose-200', 'bg-rose-500/15', 'ring-1', 'ring-rose-400/20');
+            } else if (tone === 'ok') {
+                statusPill.classList.add('text-emerald-200', 'bg-emerald-500/15', 'ring-1', 'ring-emerald-400/20');
+            } else {
+                statusPill.classList.add('text-slate-300', 'bg-white/5', 'ring-1', 'ring-white/10');
+            }
+        }
+
+        async function copyText(text) {
+            try {
+                await navigator.clipboard.writeText(text);
+                setStatus('Copied', 'ok');
+                setTimeout(() => setStatus('Ready', 'neutral'), 800);
+            } catch {
+                setStatus('Copy failed', 'error');
+                setTimeout(() => setStatus('Ready', 'neutral'), 1100);
+            }
+        }
+
+        function pushHistory(expr, result) {
+            const item = {
+                id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2),
+                expr,
+                result,
+                ts: Date.now(),
+                angle: state.angle
+            };
+            state.history.unshift(item);
+            state.history = state.history.slice(0, 200);
+            saveState();
+        }
+
+        function clearEntry() {
+            // remove last "chunk" (number/identifier/operator)
+            let s = state.expr;
+            if (!s) return;
+            // trim spaces (we don't insert spaces, but just in case)
+            s = s.replace(/\s+$/, '');
+            // if ends with ')' or '!' or '%', remove one char
+            if (/[)!%]$/.test(s)) {
+                state.expr = s.slice(0, -1);
+                return;
+            }
+            // remove trailing function name with optional '('
+            const mFunc = s.match(/(asin|acos|atan|sin|cos|tan|sqrt|abs|exp|ln|log|floor|ceil|round)\($/i);
+            if (mFunc) {
+                state.expr = s.slice(0, -mFunc[0].length);
+                return;
+            }
+            // remove trailing identifier (pi/e/ans)
+            const mId = s.match(/(ans|pi|e)$/i);
+            if (mId) {
+                state.expr = s.slice(0, -mId[0].length);
+                return;
+            }
+            // remove trailing number including exponent
+            const mNum = s.match(/([0-9]*\.?[0-9]+(?:e[+-]?[0-9]+)?)$/i);
+            if (mNum) {
+                state.expr = s.slice(0, -mNum[0].length);
+                return;
+            }
+            // otherwise remove one char
+            state.expr = s.slice(0, -1);
+        }
+
+        // =========================
+        // Rendering
+        // =========================
+        function setTheme(theme) {
+            // Theme is mostly decorative; switch background palette
+            state.theme = theme;
+            if (theme === 'LIGHT') {
+                document.body.className = 'h-full bg-slate-50 text-slate-900';
+                // tweak glass variables for light
+                document.documentElement.style.setProperty('--glass', 'rgba(15,23,42,.06)');
+                document.documentElement.style.setProperty('--glass2', 'rgba(15,23,42,.10)');
+            } else {
+                document.body.className = 'h-full bg-slate-950 text-slate-100';
+                document.documentElement.style.setProperty('--glass', 'rgba(255,255,255,.08)');
+                document.documentElement.style.setProperty('--glass2', 'rgba(255,255,255,.12)');
+            }
+            $('#themeIcon').textContent = theme === 'LIGHT' ? '◑' : '◐';
+            saveState();
+        }
+
+        function setMode(mode) {
+            state.mode = mode;
+            const isSci = mode === 'SCI';
+            sciPad.classList.toggle('hidden', !isSci);
+            modeBasic.classList.toggle('bg-white/10', !isSci);
+            modeSci.classList.toggle('bg-white/10', isSci);
+            modeBasic.classList.toggle('text-slate-300', isSci);
+            modeSci.classList.toggle('text-slate-300', !isSci);
+            modeLabel.textContent = isSci ? 'Scientific' : 'Basic';
+            saveState();
+        }
+
+        function setAngle(angle) {
+            state.angle = angle;
+            angleBtn.textContent = angle;
+            angleLabel.textContent = angle;
+            saveState();
+            render();
+        }
+
+        function setSecond(on) {
+            state.second = on;
+            secondBtn.classList.toggle('bg-white/10', on);
+            secondBtn.classList.toggle('text-slate-300', !on);
+            // remap trig and ln/log labels
+            if (on) {
+                // change inserted to inverse functions
+                // sin/cos/tan buttons are first row in sci pad
+                const sciBtns = $$('#sciPad button.key');
+                // Find by current text
+                sciBtns.forEach(b => {
+                    if (b.textContent.trim() === 'sin') { b.textContent = 'asin'; b.dataset.insert = 'asin('; }
+                    else if (b.textContent.trim() === 'cos') { b.textContent = 'acos'; b.dataset.insert = 'acos('; }
+                    else if (b.textContent.trim() === 'tan') { b.textContent = 'atan'; b.dataset.insert = 'atan('; }
+                });
+                lnBtn.textContent = 'exp'; lnBtn.dataset.insert = 'exp(';
+                logBtn.textContent = '10^x'; logBtn.dataset.insert = '10^(';
+                pow2Btn.textContent = 'x⁻²'; pow2Btn.dataset.insert = '^-2';
+                pow3Btn.textContent = 'x⁻³'; pow3Btn.dataset.insert = '^-3';
+                invBtn.textContent = 'x⁻¹';
+            } else {
+                const sciBtns = $$('#sciPad button.key');
+                sciBtns.forEach(b => {
+                    if (b.textContent.trim() === 'asin') { b.textContent = 'sin'; b.dataset.insert = 'sin('; }
+                    else if (b.textContent.trim() === 'acos') { b.textContent = 'cos'; b.dataset.insert = 'cos('; }
+                    else if (b.textContent.trim() === 'atan') { b.textContent = 'tan'; b.dataset.insert = 'tan('; }
+                });
+                lnBtn.textContent = 'ln'; lnBtn.dataset.insert = 'ln(';
+                logBtn.textContent = 'log'; logBtn.dataset.insert = 'log(';
+                pow2Btn.textContent = 'x²'; pow2Btn.dataset.insert = '^2';
+                pow3Btn.textContent = 'x³'; pow3Btn.dataset.insert = '^3';
+                invBtn.textContent = '1/x';
+            }
+            saveState();
+        }
+
+        function updateBases(val) {
+            // Bases for integer results (rounded if near integer)
+            if (!Number.isFinite(val)) {
+                hexOut.textContent = decOut.textContent = octOut.textContent = binOut.textContent = '—';
+                return;
+            }
+            const nearInt = Math.abs(val - Math.round(val)) < 1e-12;
+            if (!nearInt) {
+                hexOut.textContent = '—';
+                decOut.textContent = '—';
+                octOut.textContent = '—';
+                binOut.textContent = '—';
+                return;
+            }
+            const n = BigInt(Math.round(val));
+            const sign = n < 0n ? '-' : '';
+            const abs = n < 0n ? -n : n;
+            hexOut.textContent = sign + '0x' + abs.toString(16).toUpperCase();
+            decOut.textContent = sign + abs.toString(10);
+            octOut.textContent = sign + '0o' + abs.toString(8);
+            binOut.textContent = sign + '0b' + abs.toString(2);
+        }
+
+        function renderHistory() {
+            if (!state.history.length) {
+                historyList.innerHTML = `
+          <div class="p-6 text-center text-sm text-slate-400">
+            No history yet. Evaluate an expression to see it here.
+          </div>
+        `;
+                return;
+            }
+            const items = state.history.slice(0, 120).map(h => {
+                const dt = new Date(h.ts);
+                const time = dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                return `
+          <div class="group rounded-2xl bg-white/5 ring-1 ring-white/10 p-3 mb-2 hover:bg-white/10 transition">
+            <button class="w-full text-left" data-history="${h.id}" aria-label="Use expression from history">
+              <div class="flex items-center justify-between gap-2">
+                <div class="text-[11px] text-slate-400">${time} • ${h.angle}</div>
+                <div class="opacity-0 group-hover:opacity-100 transition flex gap-2">
+                  <button class="btn text-[11px] rounded-lg bg-white/5 px-2 py-1 ring-1 ring-white/10 hover:bg-white/10" data-copyhist="${h.id}" type="button">Copy</button>
+                </div>
+              </div>
+              <div class="mt-1 font-mono text-sm text-slate-200 break-words">${escapeHtml(prettyExpr(h.expr))}</div>
+              <div class="mt-1 font-mono text-base text-slate-100">= ${escapeHtml(h.result)}</div>
+            </button>
+          </div>
+        `;
+            }).join('');
+            historyList.innerHTML = `<div class="p-1">${items}</div>`;
+        }
+
+        function escapeHtml(s) {
+            return String(s)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+        }
+
+        function render() {
+            exprDisplay.textContent = state.expr ? prettyExpr(state.expr) : '';
+            memBadge.textContent = state.memory === null ? '—' : formatNumber(state.memory);
+            ansBadge.textContent = formatNumber(state.ans);
+
+            // Live preview
+            if (!state.expr.trim()) {
+                resultDisplay.textContent = formatNumber(state.ans ?? 0);
+                setStatus('Ready');
+                updateBases(state.ans ?? 0);
+                return;
+            }
+            try {
+                const r = evaluateExpression(state.expr);
+                if (r.ok) {
+                    resultDisplay.textContent = formatNumber(r.value);
+                    setStatus('Preview', 'neutral');
+                    updateBases(r.value);
+                }
+            } catch (e) {
+                resultDisplay.textContent = '…';
+                setStatus(e.message || 'Error', 'error');
+                updateBases(NaN);
+            }
+        }
+
+        // =========================
+        // Actions
+        // =========================
+        function appendText(t) {
+            // Avoid duplicate decimals in the same number chunk: naive guard
+            if (t === '.') {
+                const m = state.expr.match(/(\d+)(?:\.(\d*))?$/);
+                if (m && state.expr.slice(-m[0].length).includes('.')) return;
+                if (!m) {
+                    // start number with 0.
+                    const prev = state.expr.slice(-1);
+                    if (!prev || /[^0-9)]/.test(prev)) state.expr += '0';
+                }
+            }
+
+            // If user inserts function/open paren after a number, implicit multiplication will be handled at evaluation time.
+            state.expr += t;
+            saveState();
+            render();
+        }
+
+        function backspace() {
+            if (!state.expr) return;
+            state.expr = state.expr.slice(0, -1);
+            saveState();
+            render();
+        }
+
+        function allClear() {
+            state.expr = '';
+            saveState();
+            render();
+            setStatus('Cleared', 'neutral');
+            setTimeout(() => setStatus('Ready', 'neutral'), 700);
+        }
+
+        function doEquals() {
+            const expr = state.expr.trim();
+            if (!expr) {
+                setStatus('Ready');
+                return;
+            }
+            try {
+                const out = evaluateExpression(expr);
+                const formatted = formatNumber(out.value);
+                state.ans = out.value;
+                resultDisplay.textContent = formatted;
+                pushHistory(expr, formatted);
+                state.expr = '';
+                saveState();
+                renderHistory();
+                render();
+                setStatus('OK', 'ok');
+                setTimeout(() => setStatus('Ready', 'neutral'), 900);
+            } catch (e) {
+                setStatus(e.message || 'Error', 'error');
+            }
+        }
+
+        function insertAns() {
+            appendText('ans');
+        }
+
+        function negate() {
+            // Toggle unary negative for the last atom by inserting/removing leading '-'
+            // Simple heuristic: if expression ends with a number/const/), wrap with (-...)
+            const s = state.expr;
+            if (!s) { appendText('-'); return; }
+            // If ends with operator or '(', just insert '-'
+            if (/[+\-*/^,(]$/.test(s)) { appendText('-'); return; }
+            // Wrap the last token-ish chunk
+            state.expr = `(-1)*(${s})`;
+            saveState();
+            render();
+            setStatus('Applied ±', 'neutral');
+            setTimeout(() => setStatus('Ready', 'neutral'), 700);
+        }
+
+        function reciprocal() {
+            const s = state.expr.trim();
+            if (!s) {
+                state.expr = '1/('; // user continues
+            } else {
+                state.expr = `1/(${s})`;
+            }
+            saveState();
+            render();
+            setStatus('Applied 1/x', 'neutral');
+            setTimeout(() => setStatus('Ready', 'neutral'), 700);
+        }
+
+        // Memory functions
+        function memSetFromPreview() {
+            try {
+                const r = state.expr.trim() ? evaluateExpression(state.expr) : { ok: true, value: state.ans ?? 0 };
+                return r.value;
+            } catch { return null; }
+        }
+
+        function memMC() { state.memory = null; saveState(); render(); setStatus('MC', 'neutral'); setTimeout(() => setStatus('Ready'), 600); }
+        function memMR() {
+            if (state.memory === null) { setStatus('Memory empty', 'neutral'); return; }
+            appendText(formatNumber(state.memory));
+            setStatus('MR', 'neutral');
+            setTimeout(() => setStatus('Ready'), 600);
+        }
+        function memMS() {
+            const v = memSetFromPreview();
+            if (v === null) { setStatus('Cannot store', 'error'); return; }
+            state.memory = v;
+            saveState();
+            render();
+            setStatus('MS', 'ok');
+            setTimeout(() => setStatus('Ready'), 700);
+        }
+        function memPlus() {
+            const v = memSetFromPreview();
+            if (v === null) { setStatus('Cannot add', 'error'); return; }
+            state.memory = (state.memory ?? 0) + v;
+            saveState();
+            render();
+            setStatus('M+', 'ok');
+            setTimeout(() => setStatus('Ready'), 700);
+        }
+        function memMinus() {
+            const v = memSetFromPreview();
+            if (v === null) { setStatus('Cannot subtract', 'error'); return; }
+            state.memory = (state.memory ?? 0) - v;
+            saveState();
+            render();
+            setStatus('M−', 'ok');
+            setTimeout(() => setStatus('Ready'), 700);
+        }
+
+        // =========================
+        // Events
+        // =========================
+        document.addEventListener('click', (e) => {
+            const t = e.target;
+
+            // keypad inserts
+            const ins = t.closest('[data-insert]');
+            if (ins) {
+                appendText(ins.dataset.insert);
+                return;
+            }
+
+            // keypad actions
+            const act = t.closest('[data-action]');
+            if (act) {
+                const a = act.dataset.action;
+                if (a === 'backspace') backspace();
+                else if (a === 'equals') doEquals();
+                else if (a === 'clearEntry') { clearEntry(); saveState(); render(); }
+                else if (a === 'insertAns') insertAns();
+                else if (a === 'negate') negate();
+                else if (a === 'reciprocal') reciprocal();
+                else if (a === 'mc') memMC();
+                else if (a === 'mr') memMR();
+                else if (a === 'ms') memMS();
+                else if (a === 'mplus') memPlus();
+                else if (a === 'mminus') memMinus();
+                return;
+            }
+
+            // history item
+            const hist = t.closest('[data-history]');
+            if (hist) {
+                const id = hist.dataset.history;
+                const item = state.history.find(h => h.id === id);
+                if (item) {
+                    state.expr = item.expr;
+                    saveState();
+                    render();
+                    setStatus('Loaded', 'neutral');
+                    setTimeout(() => setStatus('Ready'), 700);
+                }
+                return;
+            }
+
+            const copyHist = t.closest('[data-copyhist]');
+            if (copyHist) {
+                e.preventDefault();
+                e.stopPropagation();
+                const id = copyHist.dataset.copyhist;
+                const item = state.history.find(h => h.id === id);
+                if (item) copyText(`${item.expr} = ${item.result}`);
+                return;
+            }
+
+            const copyBase = t.closest('[data-copy]');
+            if (copyBase) {
+                const which = copyBase.dataset.copy;
+                const map = { hex: hexOut, dec: decOut, oct: octOut, bin: binOut };
+                const el = map[which];
+                if (el && el.textContent && el.textContent !== '—') copyText(el.textContent);
+                return;
+            }
+        });
+
+        $('#clearBtn').addEventListener('click', allClear);
+        $('#copyResultBtn').addEventListener('click', () => {
+            const text = resultDisplay.textContent || '';
+            if (text && text !== '…') copyText(text);
+        });
+
+        angleBtn.addEventListener('click', () => setAngle(state.angle === 'DEG' ? 'RAD' : 'DEG'));
+        secondBtn.addEventListener('click', () => setSecond(!state.second));
+
+        modeBasic.addEventListener('click', () => setMode('BASIC'));
+        modeSci.addEventListener('click', () => setMode('SCI'));
+
+        themeBtn.addEventListener('click', () => setTheme(state.theme === 'DARK' ? 'LIGHT' : 'DARK'));
+
+        $('#clearHistoryBtn').addEventListener('click', () => {
+            state.history = [];
+            saveState();
+            renderHistory();
+            setStatus('History cleared', 'neutral');
+            setTimeout(() => setStatus('Ready'), 800);
+        });
+
+        $('#exportBtn').addEventListener('click', async () => {
+            const lines = state.history.map(h => {
+                const t = new Date(h.ts).toISOString();
+                return `[${t} ${h.angle}] ${h.expr} = ${h.result}`;
+            }).join('\n');
+            await copyText(lines || '');
+        });
+
+        // help modal
+        const helpModal = $('#helpModal');
+        $('#helpBtn').addEventListener('click', () => { helpModal.classList.remove('hidden'); });
+        $('#closeHelp').addEventListener('click', () => { helpModal.classList.add('hidden'); });
+        helpModal.addEventListener('click', (e) => {
+            if (e.target === helpModal.firstElementChild) helpModal.classList.add('hidden');
+        });
+
+        // keyboard support
+        document.addEventListener('keydown', (e) => {
+            // ignore when modifier keys (except shift for parentheses)
+            if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+            const k = e.key;
+            if (/^[0-9]$/.test(k)) { appendText(k); e.preventDefault(); return; }
+            if (k === '.') { appendText('.'); e.preventDefault(); return; }
+            if (k === '+') { appendText('+'); e.preventDefault(); return; }
+            if (k === '-') { appendText('-'); e.preventDefault(); return; }
+            if (k === '*') { appendText('*'); e.preventDefault(); return; }
+            if (k === '/') { appendText('/'); e.preventDefault(); return; }
+            if (k === '^') { appendText('^'); e.preventDefault(); return; }
+            if (k === '%') { appendText('%'); e.preventDefault(); return; }
+            if (k === '!') { appendText('!'); e.preventDefault(); return; }
+            if (k === '(' || k === ')') { appendText(k); e.preventDefault(); return; }
+
+            if (k === 'Enter' || k === '=') { doEquals(); e.preventDefault(); return; }
+            if (k === 'Backspace') { backspace(); e.preventDefault(); return; }
+            if (k === 'Escape') { allClear(); e.preventDefault(); return; }
+        });
+
+        // =========================
+        // Init
+        // =========================
+        function init() {
+            setTheme(state.theme || 'DARK');
+            setMode(state.mode || 'SCI');
+            setAngle(state.angle || 'DEG');
+            setSecond(!!state.second);
+            renderHistory();
+            render();
+            setStatus('Ready', 'neutral');
+
+            // Small engine health check
+            try {
+                evaluateExpression('2(3+4)');
+                $('#enginePill').textContent = 'OK';
+            } catch {
+                $('#enginePill').textContent = 'ERR';
+                $('#enginePill').className = 'text-xs rounded-full bg-rose-500/15 text-rose-200 ring-1 ring-rose-400/20 px-3 py-1';
+            }
+        }
+
+        init();
+    </script>
+</body>
+
+</html>
