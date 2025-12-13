@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Professional Calculator</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .dark .glass {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .btn {
+            transition: all 0.15s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        .btn::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at center, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .btn:hover::after {
+            opacity: 1;
+        }
+
+        .display-text {
+            font-size: clamp(1.5rem, 5vw, 2.5rem);
+        }
+
+        .history-item {
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .mode-toggle {
+            transition: all 0.3s ease;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+        }
+
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .dark .gradient-bg {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        }
+    </style>
+</head>
+
+<body class="min-h-screen gradient-bg transition-all duration-500">
+    <div class="min-h-screen flex flex-col items-center justify-center p-4">
+        <!-- Theme Toggle -->
+        <button id="themeToggle"
+            class="absolute top-4 right-4 p-3 rounded-full glass text-white hover:scale-110 transition-transform">
+            <svg id="sunIcon" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z">
+                </path>
+            </svg>
+            <svg id="moonIcon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+            </svg>
+        </button>
+
+        <!-- Calculator Container -->
+        <div class="w-full max-w-2xl">
+            <h1 class="text-white text-center text-2xl font-light mb-6 tracking-wide">Professional Calculator</h1>
+
+            <div class="glass rounded-3xl p-6 shadow-2xl">
+                <!-- Mode Tabs -->
+                <div class="flex gap-2 mb-4">
+                    <button onclick="setMode('basic')" id="basicTab"
+                        class="mode-toggle px-4 py-2 rounded-xl text-white font-medium bg-white/20">Basic</button>
+                    <button onclick="setMode('scientific')" id="scientificTab"
+                        class="mode-toggle px-4 py-2 rounded-xl text-white/60 font-medium hover:text-white">Scientific</button>
+                </div>
+
+                <!-- Display -->
+                <div class="bg-black/30 rounded-2xl p-4 mb-4">
+                    <div id="expression" class="text-white/60 text-right text-sm h-6 overflow-x-auto whitespace-nowrap">
+                    </div>
+                    <div id="display"
+                        class="text-white text-right display-text font-semibold overflow-x-auto whitespace-nowrap">0
+                    </div>
+                    <div id="memory-indicator" class="text-purple-300 text-xs mt-1 h-4"></div>
+                </div>
+
+                <!-- Scientific Buttons -->
+                <div id="scientificPanel" class="hidden mb-4">
+                    <div class="grid grid-cols-5 gap-2">
+                        <button onclick="inputFunction('sin(')"
+                            class="btn bg-purple-500/40 hover:bg-purple-500/60 text-white py-3 rounded-xl font-medium">sin</button>
+                        <button onclick="inputFunction('cos(')"
+                            class="btn bg-purple-500/40 hover:bg-purple-500/60 text-white py-3 rounded-xl font-medium">cos</button>
+                        <button onclick="inputFunction('tan(')"
+                            class="btn bg-purple-500/40 hover:bg-purple-500/60 text-white py-3 rounded-xl font-medium">tan</button>
+                        <button onclick="inputFunction('log(')"
+                            class="btn bg-purple-500/40 hover:bg-purple-500/60 text-white py-3 rounded-xl font-medium">log</button>
+                        <button onclick="inputFunction('ln(')"
+                            class="btn bg-purple-500/40 hover:bg-purple-500/60 text-white py-3 rounded-xl font-medium">ln</button>
+                        <button onclick="inputFunction('sqrt(')"
+                            class="btn bg-purple-500/40 hover:bg-purple-500/60 text-white py-3 rounded-xl font-medium">√</button>
+                        <button onclick="inputFunction('cbrt(')"
+                            class="btn bg-purple-500/40 hover:bg-purple-500/60 text-white py-3 rounded-xl font-medium">∛</button>
+                        <button onclick="inputOperator('^')"
+                            class="btn bg-purple-500/40 hover:bg-purple-500/60 text-white py-3 rounded-xl font-medium">x^y</button>
+                        <button onclick="inputFunction('factorial(')"
+                            class="btn bg-purple-500/40 hover:bg-purple-500/60 text-white py-3 rounded-xl font-medium">x!</button>
+                        <button onclick="inputConstant('pi')"
+                            class="btn bg-purple-500/40 hover:bg-purple-500/60 text-white py-3 rounded-xl font-medium">π</button>
+                        <button onclick="inputFunction('asin(')"
+                            class="btn bg-purple-500/40 hover:bg-purple-500/60 text-white py-3 rounded-xl font-medium">sin⁻¹</button>
+                        <button onclick="inputFunction('acos(')"
+                            class="btn bg-purple-500/40 hover:bg-purple-500/60 text-white py-3 rounded-xl font-medium">cos⁻¹</button>
+                        <button onclick="inputFunction('atan(')"
+                            class="btn bg-purple-500/40 hover:bg-purple-500/60 text-white py-3 rounded-xl font-medium">tan⁻¹</button>
+                        <button onclick="inputFunction('exp(')"
+                            class="btn bg-purple-500/40 hover:bg-purple-500/60 text-white py-3 rounded-xl font-medium">eˣ</button>
+                        <button onclick="inputConstant('e')"
+                            class="btn bg-purple-500/40 hover:bg-purple-500/60 text-white py-3 rounded-xl font-medium">e</button>
+                        <button onclick="inputFunction('abs(')"
+                            class="btn bg-purple-500/40 hover:bg-purple-500/60 text-white py-3 rounded-xl font-medium">|x|</button>
+                        <button onclick="inputFunction('floor(')"
+                            class="btn bg-purple-500/40 hover:bg-purple-500/60 text-white py-3 rounded-xl font-medium">⌊x⌋</button>
+                        <button onclick="inputFunction('ceil(')"
+                            class="btn bg-purple-500/40 hover:bg-purple-500/60 text-white py-3 rounded-xl font-medium">⌈x⌉</button>
+                        <button onclick="inputFunction('round(')"
+                            class="btn bg-purple-500/40 hover:bg-purple-500/60 text-white py-3 rounded-xl font-medium">rnd</button>
+                        <button onclick="inputRandom()"
+                            class="btn bg-purple-500/40 hover:bg-purple-500/60 text-white py-3 rounded-xl font-medium">rand</button>
+                    </div>
+                </div>
+
+                <!-- Memory Buttons -->
+                <div class="grid grid-cols-5 gap-2 mb-2">
+                    <button onclick="memoryClear()"
+                        class="btn bg-white/10 hover:bg-white/20 text-white/80 py-2 rounded-xl text-sm font-medium">MC</button>
+                    <button onclick="memoryRecall()"
+                        class="btn bg-white/10 hover:bg-white/20 text-white/80 py-2 rounded-xl text-sm font-medium">MR</button>
+                    <button onclick="memoryAdd()"
+                        class="btn bg-white/10 hover:bg-white/20 text-white/80 py-2 rounded-xl text-sm font-medium">M+</button>
+                    <button onclick="memorySubtract()"
+                        class="btn bg-white/10 hover:bg-white/20 text-white/80 py-2 rounded-xl text-sm font-medium">M-</button>
+                    <button onclick="memoryStore()"
+                        class="btn bg-white/10 hover:bg-white/20 text-white/80 py-2 rounded-xl text-sm font-medium">MS</button>
+                </div>
+
+                <!-- Main Buttons -->
+                <div class="grid grid-cols-5 gap-2">
+                    <!-- Row 1 -->
+                    <button onclick="clearAll()"
+                        class="btn bg-red-500/60 hover:bg-red-500/80 text-white py-4 rounded-xl font-semibold">AC</button>
+                    <button onclick="clearEntry()"
+                        class="btn bg-orange-500/60 hover:bg-orange-500/80 text-white py-4 rounded-xl font-semibold">CE</button>
+                    <button onclick="backspace()"
+                        class="btn bg-orange-500/60 hover:bg-orange-500/80 text-white py-4 rounded-xl font-semibold">⌫</button>
+                    <button onclick="inputParenthesis('(')"
+                        class="btn bg-white/20 hover:bg-white/30 text-white py-4 rounded-xl font-semibold">(</button>
+                    <button onclick="inputParenthesis(')')"
+                        class="btn bg-white/20 hover:bg-white/30 text-white py-4 rounded-xl font-semibold">)</button>
+
+                    <!-- Row 2 -->
+                    <button onclick="inputNumber('7')"
+                        class="btn bg-white/20 hover:bg-white/30 text-white py-4 rounded-xl font-semibold text-lg">7</button>
+                    <button onclick="inputNumber('8')"
+                        class="btn bg-white/20 hover:bg-white/30 text-white py-4 rounded-xl font-semibold text-lg">8</button>
+                    <button onclick="inputNumber('9')"
+                        class="btn bg-white/20 hover:bg-white/30 text-white py-4 rounded-xl font-semibold text-lg">9</button>
+                    <button onclick="inputOperator('/')"
+                        class="btn bg-blue-500/50 hover:bg-blue-500/70 text-white py-4 rounded-xl font-semibold text-lg">÷</button>
+                    <button onclick="inputPercent()"
+                        class="btn bg-blue-500/50 hover:bg-blue-500/70 text-white py-4 rounded-xl font-semibold">%</button>
+
+                    <!-- Row 3 -->
+                    <button onclick="inputNumber('4')"
+                        class="btn bg-white/20 hover:bg-white/30 text-white py-4 rounded-xl font-semibold text-lg">4</button>
+                    <button onclick="inputNumber('5')"
+                        class="btn bg-white/20 hover:bg-white/30 text-white py-4 rounded-xl font-semibold text-lg">5</button>
+                    <button onclick="inputNumber('6')"
+                        class="btn bg-white/20 hover:bg-white/30 text-white py-4 rounded-xl font-semibold text-lg">6</button>
+                    <button onclick="inputOperator('*')"
+                        class="btn bg-blue-500/50 hover:bg-blue-500/70 text-white py-4 rounded-xl font-semibold text-lg">×</button>
+                    <button onclick="inputReciprocal()"
+                        class="btn bg-blue-500/50 hover:bg-blue-500/70 text-white py-4 rounded-xl font-semibold">1/x</button>
+
+                    <!-- Row 4 -->
+                    <button onclick="inputNumber('1')"
+                        class="btn bg-white/20 hover:bg-white/30 text-white py-4 rounded-xl font-semibold text-lg">1</button>
+                    <button onclick="inputNumber('2')"
+                        class="btn bg-white/20 hover:bg-white/30 text-white py-4 rounded-xl font-semibold text-lg">2</button>
+                    <button onclick="inputNumber('3')"
+                        class="btn bg-white/20 hover:bg-white/30 text-white py-4 rounded-xl font-semibold text-lg">3</button>
+                    <button onclick="inputOperator('-')"
+                        class="btn bg-blue-500/50 hover:bg-blue-500/70 text-white py-4 rounded-xl font-semibold text-lg">−</button>
+                    <button onclick="inputSquare()"
+                        class="btn bg-blue-500/50 hover:bg-blue-500/70 text-white py-4 rounded-xl font-semibold">x²</button>
+
+                    <!-- Row 5 -->
+                    <button onclick="toggleSign()"
+                        class="btn bg-white/20 hover:bg-white/30 text-white py-4 rounded-xl font-semibold">±</button>
+                    <button onclick="inputNumber('0')"
+                        class="btn bg-white/20 hover:bg-white/30 text-white py-4 rounded-xl font-semibold text-lg">0</button>
+                    <button onclick="inputDecimal()"
+                        class="btn bg-white/20 hover:bg-white/30 text-white py-4 rounded-xl font-semibold text-lg">.</button>
+                    <button onclick="inputOperator('+')"
+                        class="btn bg-blue-500/50 hover:bg-blue-500/70 text-white py-4 rounded-xl font-semibold text-lg">+</button>
+                    <button onclick="calculate()"
+                        class="btn bg-green-500/70 hover:bg-green-500/90 text-white py-4 rounded-xl font-semibold text-lg">=</button>
+                </div>
+            </div>
+
+            <!-- History Panel -->
+            <div class="mt-4 glass rounded-2xl p-4">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-white font-medium">History</h2>
+                    <button onclick="clearHistory()" class="text-white/60 hover:text-white text-sm">Clear</button>
+                </div>
+                <div id="history" class="max-h-40 overflow-y-auto space-y-2">
+                    <p class="text-white/40 text-sm text-center py-4">No calculations yet</p>
+                </div>
+            </div>
+
+            <!-- Keyboard Shortcuts -->
+            <div class="mt-4 text-center text-white/40 text-xs">
+                <p>Keyboard shortcuts: Numbers, operators, Enter (=), Escape (AC), Backspace (⌫)</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Calculator State
+        let currentInput = '0';
+        let expression = '';
+        let memory = 0;
+        let history = [];
+        let justCalculated = false;
+        let mode = 'basic';
+
+        // DOM Elements
+        const displayEl = document.getElementById('display');
+        const expressionEl = document.getElementById('expression');
+        const memoryIndicatorEl = document.getElementById('memory-indicator');
+        const historyEl = document.getElementById('history');
+        const scientificPanel = document.getElementById('scientificPanel');
+
+        // Update Display
+        function updateDisplay() {
+            displayEl.textContent = formatNumber(currentInput);
+            expressionEl.textContent = expression;
+            memoryIndicatorEl.textContent = memory !== 0 ? `M: ${formatNumber(memory.toString())}` : '';
+        }
+
+        // Format number with thousand separators
+        function formatNumber(num) {
+            if (num === 'Error' || num === 'Infinity' || num === '-Infinity') return num;
+
+            const parts = num.toString().split('.');
+            if (parts[0].length > 15) {
+                return parseFloat(num).toExponential(6);
+            }
+            return num;
+        }
+
+        // Input number
+        function inputNumber(num) {
+            if (justCalculated) {
+                currentInput = num;
+                expression = '';
+                justCalculated = false;
+            } else if (currentInput === '0' && num !== '.') {
+                currentInput = num;
+            } else if (currentInput.replace(/[^0-9]/g, '').length < 15) {
+                currentInput += num;
+            }
+            updateDisplay();
+        }
+
+        // Input decimal
+        function inputDecimal() {
+            if (justCalculated) {
+                currentInput = '0.';
+                expression = '';
+                justCalculated = false;
+            } else if (!currentInput.includes('.')) {
+                currentInput += '.';
+            }
+            updateDisplay();
+        }
+
+        // Input operator
+        function inputOperator(op) {
+            justCalculated = false;
+            expression += currentInput + ' ' + getOperatorSymbol(op) + ' ';
+            currentInput = '0';
+            updateDisplay();
+        }
+
+        // Get display symbol for operator
+        function getOperatorSymbol(op) {
+            const symbols = { '+': '+', '-': '−', '*': '×', '/': '÷', '^': '^' };
+            return symbols[op] || op;
+        }
+
+        // Input parenthesis
+        function inputParenthesis(paren) {
+            if (justCalculated) {
+                expression = paren;
+                currentInput = '0';
+                justCalculated = false;
+            } else {
+                expression += paren;
+            }
+            updateDisplay();
+        }
+
+        // Input function
+        function inputFunction(func) {
+            if (justCalculated) {
+                expression = func;
+                currentInput = '0';
+                justCalculated = false;
+            } else {
+                expression += func;
+            }
+            updateDisplay();
+        }
+
+        // Input constant
+        function inputConstant(constant) {
+            const value = constant === 'pi' ? Math.PI.toString() : Math.E.toString();
+            if (justCalculated) {
+                currentInput = value;
+                expression = '';
+                justCalculated = false;
+            } else {
+                currentInput = value;
+            }
+            updateDisplay();
+        }
+
+        // Input random
+        function inputRandom() {
+            currentInput = Math.random().toString();
+            if (justCalculated) {
+                expression = '';
+                justCalculated = false;
+            }
+            updateDisplay();
+        }
+
+        // Input percent
+        function inputPercent() {
+            currentInput = (parseFloat(currentInput) / 100).toString();
+            updateDisplay();
+        }
+
+        // Input reciprocal
+        function inputReciprocal() {
+            const val = parseFloat(currentInput);
+            currentInput = val !== 0 ? (1 / val).toString() : 'Error';
+            updateDisplay();
+        }
+
+        // Input square
+        function inputSquare() {
+            currentInput = Math.pow(parseFloat(currentInput), 2).toString();
+            updateDisplay();
+        }
+
+        // Toggle sign
+        function toggleSign() {
+            if (currentInput !== '0') {
+                currentInput = currentInput.startsWith('-') ? currentInput.slice(1) : '-' + currentInput;
+            }
+            updateDisplay();
+        }
+
+        // Factorial function
+        function factorial(n) {
+            if (n < 0) return NaN;
+            if (n === 0 || n === 1) return 1;
+            if (n > 170) return Infinity;
+            let result = 1;
+            for (let i = 2; i <= n; i++) result *= i;
+            return result;
+        }
+
+        // Calculate result
+        function calculate() {
+            try {
+                let expr = expression + currentInput;
+                let displayExpr = expr;
+
+                // Replace symbols and functions
+                expr = expr.replace(/×/g, '*')
+                    .replace(/÷/g, '/')
+                    .replace(/−/g, '-')
+                    .replace(/\^/g, '**')
+                    .replace(/sin\(/g, 'Math.sin(')
+                    .replace(/cos\(/g, 'Math.cos(')
+                    .replace(/tan\(/g, 'Math.tan(')
+                    .replace(/asin\(/g, 'Math.asin(')
+                    .replace(/acos\(/g, 'Math.acos(')
+                    .replace(/atan\(/g, 'Math.atan(')
+                    .replace(/log\(/g, 'Math.log10(')
+                    .replace(/ln\(/g, 'Math.log(')
+                    .replace(/sqrt\(/g, 'Math.sqrt(')
+                    .replace(/cbrt\(/g, 'Math.cbrt(')
+                    .replace(/abs\(/g, 'Math.abs(')
+                    .replace(/floor\(/g, 'Math.floor(')
+                    .replace(/ceil\(/g, 'Math.ceil(')
+                    .replace(/round\(/g, 'Math.round(')
+                    .replace(/exp\(/g, 'Math.exp(')
+                    .replace(/factorial\(/g, 'factorial(');
+
+                const result = eval(expr);
+
+                if (result === undefined || isNaN(result)) {
+                    currentInput = 'Error';
+                } else {
+                    // Add to history
+                    addToHistory(displayExpr, result);
+                    currentInput = result.toString();
+                }
+
+                expression = '';
+                justCalculated = true;
+            } catch (e) {
+                currentInput = 'Error';
+                expression = '';
+                justCalculated = true;
+            }
+            updateDisplay();
+        }
+
+        // Clear all
+        function clearAll() {
+            currentInput = '0';
+            expression = '';
+            justCalculated = false;
+            updateDisplay();
+        }
+
+        // Clear entry
+        function clearEntry() {
+            currentInput = '0';
+            justCalculated = false;
+            updateDisplay();
+        }
+
+        // Backspace
+        function backspace() {
+            if (currentInput.length > 1) {
+                currentInput = currentInput.slice(0, -1);
+            } else {
+                currentInput = '0';
+            }
+            justCalculated = false;
+            updateDisplay();
+        }
+
+        // Memory functions
+        function memoryClear() {
+            memory = 0;
+            updateDisplay();
+        }
+
+        function memoryRecall() {
+            currentInput = memory.toString();
+            updateDisplay();
+        }
+
+        function memoryAdd() {
+            memory += parseFloat(currentInput) || 0;
+            updateDisplay();
+        }
+
+        function memorySubtract() {
+            memory -= parseFloat(currentInput) || 0;
+            updateDisplay();
+        }
+
+        function memoryStore() {
+            memory = parseFloat(currentInput) || 0;
+            updateDisplay();
+        }
+
+        // History functions
+        function addToHistory(expr, result) {
+            history.unshift({ expression: expr, result: result });
+            if (history.length > 10) history.pop();
+            renderHistory();
+        }
+
+        function renderHistory() {
+            if (history.length === 0) {
+                historyEl.innerHTML = '<p class="text-white/40 text-sm text-center py-4">No calculations yet</p>';
+                return;
+            }
+
+            historyEl.innerHTML = history.map(item => `
+                <div class="history-item bg-white/10 rounded-lg p-2 cursor-pointer hover:bg-white/20 transition-colors" 
+                     onclick="useHistoryItem('${item.result}')">
+                    <div class="text-white/60 text-xs">${item.expression}</div>
+                    <div class="text-white font-medium">= ${formatNumber(item.result.toString())}</div>
+                </div>
+            `).join('');
+        }
+
+        function useHistoryItem(result) {
+            currentInput = result;
+            expression = '';
+            updateDisplay();
+        }
+
+        function clearHistory() {
+            history = [];
+            renderHistory();
+        }
+
+        // Mode switching
+        function setMode(newMode) {
+            mode = newMode;
+            document.getElementById('basicTab').className = `mode-toggle px-4 py-2 rounded-xl font-medium ${mode === 'basic' ? 'text-white bg-white/20' : 'text-white/60 hover:text-white'}`;
+            document.getElementById('scientificTab').className = `mode-toggle px-4 py-2 rounded-xl font-medium ${mode === 'scientific' ? 'text-white bg-white/20' : 'text-white/60 hover:text-white'}`;
+            scientificPanel.classList.toggle('hidden', mode !== 'scientific');
+        }
+
+        // Theme toggle
+        const themeToggle = document.getElementById('themeToggle');
+        const sunIcon = document.getElementById('sunIcon');
+        const moonIcon = document.getElementById('moonIcon');
+
+        themeToggle.addEventListener('click', () => {
+            document.body.classList.toggle('dark');
+            sunIcon.classList.toggle('hidden');
+            moonIcon.classList.toggle('hidden');
+        });
+
+        // Keyboard support
+        document.addEventListener('keydown', (e) => {
+            const key = e.key;
+
+            if (/[0-9]/.test(key)) {
+                inputNumber(key);
+            } else if (key === '.') {
+                inputDecimal();
+            } else if (key === '+') {
+                inputOperator('+');
+            } else if (key === '-') {
+                inputOperator('-');
+            } else if (key === '*') {
+                inputOperator('*');
+            } else if (key === '/') {
+                e.preventDefault();
+                inputOperator('/');
+            } else if (key === '%') {
+                inputPercent();
+            } else if (key === 'Enter' || key === '=') {
+                e.preventDefault();
+                calculate();
+            } else if (key === 'Escape') {
+                clearAll();
+            } else if (key === 'Backspace') {
+                backspace();
+            } else if (key === '(' || key === ')') {
+                inputParenthesis(key);
+            } else if (key === '^') {
+                inputOperator('^');
+            }
+        });
+
+        // Initialize
+        updateDisplay();
+        renderHistory();
+    </script>
+</body>
+
+</html>
