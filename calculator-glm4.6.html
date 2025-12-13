@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Professional Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            transition: background-color 0.3s ease;
+        }
+
+        .dark {
+            background-color: #0f172a;
+        }
+
+        .calculator-btn {
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .calculator-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.5);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .calculator-btn:active::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .calculator-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .history-item {
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .display-text {
+            font-family: 'Courier New', monospace;
+            letter-spacing: 2px;
+        }
+
+        .mode-transition {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .tooltip {
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .tooltip-parent:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .scientific-panel {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .scientific-panel.active {
+            max-height: 500px;
+        }
+
+        .memory-indicator {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .dark .gradient-bg {
+            background: linear-gradient(135deg, #1e3a8a 0%, #581c87 100%);
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-purple-50 to-blue-50">
+    <div class="w-full max-w-6xl">
+        <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden mode-transition">
+            <!-- Header -->
+            <div class="gradient-bg p-6 text-white">
+                <div class="flex justify-between items-center">
+                    <h1 class="text-3xl font-bold flex items-center gap-3">
+                        <i class="fas fa-calculator"></i>
+                        Professional Calculator
+                    </h1>
+                    <div class="flex gap-3">
+                        <button onclick="toggleScientific()"
+                            class="px-4 py-2 bg-white/20 rounded-lg hover:bg-white/30 transition tooltip-parent">
+                            <i class="fas fa-flask"></i>
+                            <span
+                                class="tooltip absolute -bottom-8 right-0 bg-gray-800 text-white text-xs px-2 py-1 rounded">Scientific
+                                Mode</span>
+                        </button>
+                        <button onclick="toggleTheme()"
+                            class="px-4 py-2 bg-white/20 rounded-lg hover:bg-white/30 transition">
+                            <i class="fas fa-moon" id="themeIcon"></i>
+                        </button>
+                        <button onclick="toggleHistory()"
+                            class="px-4 py-2 bg-white/20 rounded-lg hover:bg-white/30 transition">
+                            <i class="fas fa-history"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-col lg:flex-row">
+                <!-- Calculator Main -->
+                <div class="flex-1 p-6">
+                    <!-- Display -->
+                    <div class="bg-gray-100 dark:bg-gray-900 rounded-2xl p-6 mb-6 mode-transition">
+                        <div class="text-right">
+                            <div class="text-gray-500 dark:text-gray-400 text-sm h-6" id="expression"></div>
+                            <div class="text-4xl font-bold text-gray-800 dark:text-white display-text overflow-x-auto"
+                                id="display">0</div>
+                        </div>
+                        <div class="flex justify-between mt-3 text-xs">
+                            <div class="flex gap-4">
+                                <span class="text-gray-500 dark:text-gray-400">Memory: <span id="memoryDisplay"
+                                        class="font-mono">0</span></span>
+                                <span id="memoryIndicator" class="text-green-500 hidden memory-indicator">M</span>
+                            </div>
+                            <div class="text-gray-500 dark:text-gray-400">
+                                <span id="angleMode">DEG</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Scientific Panel -->
+                    <div id="scientificPanel" class="scientific-panel mb-4">
+                        <div class="grid grid-cols-5 gap-2">
+                            <button onclick="appendFunction('sin(')"
+                                class="calculator-btn bg-purple-500 hover:bg-purple-600 text-white p-3 rounded-xl font-semibold">
+                                sin
+                            </button>
+                            <button onclick="appendFunction('cos(')"
+                                class="calculator-btn bg-purple-500 hover:bg-purple-600 text-white p-3 rounded-xl font-semibold">
+                                cos
+                            </button>
+                            <button onclick="appendFunction('tan(')"
+                                class="calculator-btn bg-purple-500 hover:bg-purple-600 text-white p-3 rounded-xl font-semibold">
+                                tan
+                            </button>
+                            <button onclick="appendFunction('log(')"
+                                class="calculator-btn bg-purple-500 hover:bg-purple-600 text-white p-3 rounded-xl font-semibold">
+                                log
+                            </button>
+                            <button onclick="appendFunction('ln(')"
+                                class="calculator-btn bg-purple-500 hover:bg-purple-600 text-white p-3 rounded-xl font-semibold">
+                                ln
+                            </button>
+                            <button onclick="appendFunction('sqrt(')"
+                                class="calculator-btn bg-purple-500 hover:bg-purple-600 text-white p-3 rounded-xl font-semibold">
+                                √
+                            </button>
+                            <button onclick="appendFunction('^')"
+                                class="calculator-btn bg-purple-500 hover:bg-purple-600 text-white p-3 rounded-xl font-semibold">
+                                x^y
+                            </button>
+                            <button onclick="appendFunction('Math.PI')"
+                                class="calculator-btn bg-purple-500 hover:bg-purple-600 text-white p-3 rounded-xl font-semibold">
+                                π
+                            </button>
+                            <button onclick="appendFunction('Math.E')"
+                                class="calculator-btn bg-purple-500 hover:bg-purple-600 text-white p-3 rounded-xl font-semibold">
+                                e
+                            </button>
+                            <button onclick="factorial()"
+                                class="calculator-btn bg-purple-500 hover:bg-purple-600 text-white p-3 rounded-xl font-semibold">
+                                x!
+                            </button>
+                            <button onclick="appendFunction('Math.sinh(')"
+                                class="calculator-btn bg-purple-500 hover:bg-purple-600 text-white p-3 rounded-xl font-semibold">
+                                sinh
+                            </button>
+                            <button onclick="appendFunction('Math.cosh(')"
+                                class="calculator-btn bg-purple-500 hover:bg-purple-600 text-white p-3 rounded-xl font-semibold">
+                                cosh
+                            </button>
+                            <button onclick="appendFunction('Math.tanh(')"
+                                class="calculator-btn bg-purple-500 hover:bg-purple-600 text-white p-3 rounded-xl font-semibold">
+                                tanh
+                            </button>
+                            <button onclick="appendFunction('Math.abs(')"
+                                class="calculator-btn bg-purple-500 hover:bg-purple-600 text-white p-3 rounded-xl font-semibold">
+                                |x|
+                            </button>
+                            <button onclick="appendFunction('1/')"
+                                class="calculator-btn bg-purple-500 hover:bg-purple-600 text-white p-3 rounded-xl font-semibold">
+                                1/x
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Memory Buttons -->
+                    <div class="grid grid-cols-5 gap-2 mb-4">
+                        <button onclick="memoryRecall()"
+                            class="calculator-btn bg-gray-500 hover:bg-gray-600 text-white p-3 rounded-xl font-semibold">
+                            MR
+                        </button>
+                        <button onclick="memoryAdd()"
+                            class="calculator-btn bg-gray-500 hover:bg-gray-600 text-white p-3 rounded-xl font-semibold">
+                            M+
+                        </button>
+                        <button onclick="memorySubtract()"
+                            class="calculator-btn bg-gray-500 hover:bg-gray-600 text-white p-3 rounded-xl font-semibold">
+                            M-
+                        </button>
+                        <button onclick="memoryClear()"
+                            class="calculator-btn bg-gray-500 hover:bg-gray-600 text-white p-3 rounded-xl font-semibold">
+                            MC
+                        </button>
+                        <button onclick="memoryStore()"
+                            class="calculator-btn bg-gray-500 hover:bg-gray-600 text-white p-3 rounded-xl font-semibold">
+                            MS
+                        </button>
+                    </div>
+
+                    <!-- Main Calculator Buttons -->
+                    <div class="grid grid-cols-4 gap-2">
+                        <button onclick="clearAll()"
+                            class="calculator-btn bg-red-500 hover:bg-red-600 text-white p-4 rounded-xl font-semibold text-lg">
+                            AC
+                        </button>
+                        <button onclick="clearEntry()"
+                            class="calculator-btn bg-orange-500 hover:bg-orange-600 text-white p-4 rounded-xl font-semibold text-lg">
+                            CE
+                        </button>
+                        <button onclick="backspace()"
+                            class="calculator-btn bg-orange-500 hover:bg-orange-600 text-white p-4 rounded-xl font-semibold text-lg">
+                            <i class="fas fa-backspace"></i>
+                        </button>
+                        <button onclick="appendOperator('/')"
+                            class="calculator-btn bg-blue-500 hover:bg-blue-600 text-white p-4 rounded-xl font-semibold text-lg">
+                            ÷
+                        </button>
+
+                        <button onclick="appendNumber('7')"
+                            class="calculator-btn bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white p-4 rounded-xl font-semibold text-lg">
+                            7
+                        </button>
+                        <button onclick="appendNumber('8')"
+                            class="calculator-btn bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white p-4 rounded-xl font-semibold text-lg">
+                            8
+                        </button>
+                        <button onclick="appendNumber('9')"
+                            class="calculator-btn bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white p-4 rounded-xl font-semibold text-lg">
+                            9
+                        </button>
+                        <button onclick="appendOperator('*')"
+                            class="calculator-btn bg-blue-500 hover:bg-blue-600 text-white p-4 rounded-xl font-semibold text-lg">
+                            ×
+                        </button>
+
+                        <button onclick="appendNumber('4')"
+                            class="calculator-btn bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white p-4 rounded-xl font-semibold text-lg">
+                            4
+                        </button>
+                        <button onclick="appendNumber('5')"
+                            class="calculator-btn bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white p-4 rounded-xl font-semibold text-lg">
+                            5
+                        </button>
+                        <button onclick="appendNumber('6')"
+                            class="calculator-btn bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white p-4 rounded-xl font-semibold text-lg">
+                            6
+                        </button>
+                        <button onclick="appendOperator('-')"
+                            class="calculator-btn bg-blue-500 hover:bg-blue-600 text-white p-4 rounded-xl font-semibold text-lg">
+                            −
+                        </button>
+
+                        <button onclick="appendNumber('1')"
+                            class="calculator-btn bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white p-4 rounded-xl font-semibold text-lg">
+                            1
+                        </button>
+                        <button onclick="appendNumber('2')"
+                            class="calculator-btn bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white p-4 rounded-xl font-semibold text-lg">
+                            2
+                        </button>
+                        <button onclick="appendNumber('3')"
+                            class="calculator-btn bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white p-4 rounded-xl font-semibold text-lg">
+                            3
+                        </button>
+                        <button onclick="appendOperator('+')"
+                            class="calculator-btn bg-blue-500 hover:bg-blue-600 text-white p-4 rounded-xl font-semibold text-lg">
+                            +
+                        </button>
+
+                        <button onclick="toggleSign()"
+                            class="calculator-btn bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white p-4 rounded-xl font-semibold text-lg">
+                            +/−
+                        </button>
+                        <button onclick="appendNumber('0')"
+                            class="calculator-btn bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white p-4 rounded-xl font-semibold text-lg">
+                            0
+                        </button>
+                        <button onclick="appendDecimal()"
+                            class="calculator-btn bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white p-4 rounded-xl font-semibold text-lg">
+                            .
+                        </button>
+                        <button onclick="calculate()"
+                            class="calculator-btn bg-green-500 hover:bg-green-600 text-white p-4 rounded-xl font-semibold text-lg">
+                            =
+                        </button>
+                    </div>
+
+                    <!-- Additional Functions -->
+                    <div class="grid grid-cols-4 gap-2 mt-4">
+                        <button onclick="appendOperator('(')"
+                            class="calculator-btn bg-indigo-500 hover:bg-indigo-600 text-white p-3 rounded-xl font-semibold">
+                            (
+                        </button>
+                        <button onclick="appendOperator(')')"
+                            class="calculator-btn bg-indigo-500 hover:bg-indigo-600 text-white p-3 rounded-xl font-semibold">
+                            )
+                        </button>
+                        <button onclick="percentage()"
+                            class="calculator-btn bg-indigo-500 hover:bg-indigo-600 text-white p-3 rounded-xl font-semibold">
+                            %
+                        </button>
+                        <button onclick="toggleAngleMode()"
+                            class="calculator-btn bg-indigo-500 hover:bg-indigo-600 text-white p-3 rounded-xl font-semibold">
+                            DEG/RAD
+                        </button>
+                    </div>
+                </div>
+
+                <!-- History Panel -->
+                <div id="historyPanel"
+                    class="w-full lg:w-80 bg-gray-50 dark:bg-gray-900 p-6 border-l border-gray-200 dark:border-gray-700 hidden lg:block">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold text-gray-800 dark:text-white">History</h2>
+                        <button onclick="clearHistory()" class="text-red-500 hover:text-red-600">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                    <div id="historyList" class="space-y-2 max-h-96 overflow-y-auto">
+                        <!-- History items will be added here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentInput = '0';
+        let expression = '';
+        let memory = 0;
+        let history = [];
+        let angleMode = 'DEG';
+        let scientificMode = false;
+        let darkMode = false;
+
+        const display = document.getElementById('display');
+        const expressionDisplay = document.getElementById('expression');
+        const memoryDisplay = document.getElementById('memoryDisplay');
+        const memoryIndicator = document.getElementById('memoryIndicator');
+        const historyList = document.getElementById('historyList');
+        const scientificPanel = document.getElementById('scientificPanel');
+        const angleModeDisplay = document.getElementById('angleMode');
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadHistory();
+            loadSettings();
+            updateDisplay();
+        });
+
+        // Keyboard support
+        document.addEventListener('keydown', (e) => {
+            e.preventDefault();
+            if (e.key >= '0' && e.key <= '9') {
+                appendNumber(e.key);
+            } else if (e.key === '.') {
+                appendDecimal();
+            } else if (e.key === '+' || e.key === '-' || e.key === '*' || e.key === '/') {
+                appendOperator(e.key);
+            } else if (e.key === 'Enter' || e.key === '=') {
+                calculate();
+            } else if (e.key === 'Escape') {
+                clearAll();
+            } else if (e.key === 'Backspace') {
+                backspace();
+            } else if (e.key === '(' || e.key === ')') {
+                appendOperator(e.key);
+            } else if (e.key === '%') {
+                percentage();
+            }
+        });
+
+        function updateDisplay() {
+            display.textContent = currentInput;
+            expressionDisplay.textContent = expression;
+            memoryDisplay.textContent = memory;
+
+            if (memory !== 0) {
+                memoryIndicator.classList.remove('hidden');
+            } else {
+                memoryIndicator.classList.add('hidden');
+            }
+        }
+
+        function appendNumber(num) {
+            if (currentInput === '0') {
+                currentInput = num;
+            } else {
+                currentInput += num;
+            }
+            expression += num;
+            updateDisplay();
+        }
+
+        function appendOperator(op) {
+            if (currentInput !== '' && !isOperator(currentInput.slice(-1))) {
+                expression += op;
+                currentInput = '';
+            } else if (currentInput === '' && expression === '') {
+                expression = '0' + op;
+            }
+            updateDisplay();
+        }
+
+        function appendFunction(func) {
+            expression += func;
+            currentInput = '';
+            updateDisplay();
+        }
+
+        function appendDecimal() {
+            if (!currentInput.includes('.')) {
+                currentInput += '.';
+                expression += '.';
+                updateDisplay();
+            }
+        }
+
+        function clearAll() {
+            currentInput = '0';
+            expression = '';
+            updateDisplay();
+        }
+
+        function clearEntry() {
+            currentInput = '0';
+            updateDisplay();
+        }
+
+        function backspace() {
+            if (currentInput.length > 1) {
+                currentInput = currentInput.slice(0, -1);
+                expression = expression.slice(0, -1);
+            } else {
+                currentInput = '0';
+            }
+            updateDisplay();
+        }
+
+        function calculate() {
+            if (expression === '') return;
+
+            try {
+                // Replace display operators with JavaScript operators
+                let evalExpression = expression
+                    .replace(/×/g, '*')
+                    .replace(/÷/g, '/')
+                    .replace(/−/g, '-')
+                    .replace(/Math\.PI/g, Math.PI)
+                    .replace(/Math\.E/g, Math.E);
+
+                // Handle trigonometric functions with angle mode
+                if (angleMode === 'DEG') {
+                    evalExpression = evalExpression
+                        .replace(/sin\(/g, 'Math.sin(Math.PI/180*')
+                        .replace(/cos\(/g, 'Math.cos(Math.PI/180*')
+                        .replace(/tan\(/g, 'Math.tan(Math.PI/180*');
+                }
+
+                let result = eval(evalExpression);
+
+                if (!isFinite(result)) {
+                    throw new Error('Invalid result');
+                }
+
+                // Round to avoid floating point errors
+                result = Math.round(result * 100000000) / 100000000;
+
+                addToHistory(expression, result);
+                currentInput = result.toString();
+                expression = currentInput;
+                updateDisplay();
+            } catch (error) {
+                display.textContent = 'Error';
+                setTimeout(() => {
+                    currentInput = '0';
+                    expression = '';
+                    updateDisplay();
+                }, 1500);
+            }
+        }
+
+        function isOperator(char) {
+            return ['+', '-', '*', '/', '×', '÷', '−', '(', ')'].includes(char);
+        }
+
+        function percentage() {
+            try {
+                let value = parseFloat(currentInput);
+                currentInput = (value / 100).toString();
+                expression = currentInput;
+                updateDisplay();
+            } catch (error) {
+                display.textContent = 'Error';
+            }
+        }
+
+        function toggleSign() {
+            if (currentInput !== '0') {
+                if (currentInput.startsWith('-')) {
+                    currentInput = currentInput.slice(1);
+                } else {
+                    currentInput = '-' + currentInput;
+                }
+                updateDisplay();
+            }
+        }
+
+        function factorial() {
+            try {
+                let n = parseInt(currentInput);
+                if (n < 0) {
+                    throw new Error('Negative number');
+                }
+                let result = 1;
+                for (let i = 2; i <= n; i++) {
+                    result *= i;
+                }
+                currentInput = result.toString();
+                expression = currentInput;
+                updateDisplay();
+            } catch (error) {
+                display.textContent = 'Error';
+            }
+        }
+
+        // Memory functions
+        function memoryStore() {
+            memory = parseFloat(currentInput);
+            updateDisplay();
+        }
+
+        function memoryRecall() {
+            currentInput = memory.toString();
+            expression = currentInput;
+            updateDisplay();
+        }
+
+        function memoryAdd() {
+            memory += parseFloat(currentInput);
+            updateDisplay();
+        }
+
+        function memorySubtract() {
+            memory -= parseFloat(currentInput);
+            updateDisplay();
+        }
+
+        function memoryClear() {
+            memory = 0;
+            updateDisplay();
+        }
+
+        // History functions
+        function addToHistory(expr, result) {
+            history.unshift({
+                expression: expr,
+                result: result,
+                timestamp: new Date().toLocaleTimeString()
+            });
+
+            if (history.length > 50) {
+                history = history.slice(0, 50);
+            }
+
+            saveHistory();
+            renderHistory();
+        }
+
+        function renderHistory() {
+            historyList.innerHTML = '';
+
+            if (history.length === 0) {
+                historyList.innerHTML = '<div class="text-gray-500 dark:text-gray-400 text-center py-4">No history yet</div>';
+                return;
+            }
+
+            history.forEach((item, index) => {
+                const historyItem = document.createElement('div');
+                historyItem.className = 'history-item bg-white dark:bg-gray-800 p-3 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700';
+                historyItem.innerHTML = `
+                    <div class="text-xs text-gray-500 dark:text-gray-400">${item.timestamp}</div>
+                    <div class="text-sm text-gray-700 dark:text-gray-300">${item.expression}</div>
+                    <div class="text-lg font-semibold text-gray-900 dark:text-white">= ${item.result}</div>
+                `;
+                historyItem.onclick = () => {
+                    currentInput = item.result.toString();
+                    expression = currentInput;
+                    updateDisplay();
+                };
+                historyList.appendChild(historyItem);
+            });
+        }
+
+        function clearHistory() {
+            history = [];
+            saveHistory();
+            renderHistory();
+        }
+
+        function saveHistory() {
+            localStorage.setItem('calculatorHistory', JSON.stringify(history));
+        }
+
+        function loadHistory() {
+            const saved = localStorage.getItem('calculatorHistory');
+            if (saved) {
+                history = JSON.parse(saved);
+                renderHistory();
+            }
+        }
+
+        // Settings functions
+        function toggleTheme() {
+            darkMode = !darkMode;
+            document.body.classList.toggle('dark');
+            document.getElementById('themeIcon').className = darkMode ? 'fas fa-sun' : 'fas fa-moon';
+            localStorage.setItem('calculatorDarkMode', darkMode);
+        }
+
+        function toggleScientific() {
+            scientificMode = !scientificMode;
+            scientificPanel.classList.toggle('active');
+            localStorage.setItem('calculatorScientificMode', scientificMode);
+        }
+
+        function toggleAngleMode() {
+            angleMode = angleMode === 'DEG' ? 'RAD' : 'DEG';
+            angleModeDisplay.textContent = angleMode;
+            localStorage.setItem('calculatorAngleMode', angleMode);
+        }
+
+        function toggleHistory() {
+            const panel = document.getElementById('historyPanel');
+            panel.classList.toggle('hidden');
+        }
+
+        function loadSettings() {
+            const savedDarkMode = localStorage.getItem('calculatorDarkMode');
+            const savedScientificMode = localStorage.getItem('calculatorScientificMode');
+            const savedAngleMode = localStorage.getItem('calculatorAngleMode');
+
+            if (savedDarkMode === 'true') {
+                darkMode = true;
+                document.body.classList.add('dark');
+                document.getElementById('themeIcon').className = 'fas fa-sun';
+            }
+
+            if (savedScientificMode === 'true') {
+                scientificMode = true;
+                scientificPanel.classList.add('active');
+            }
+
+            if (savedAngleMode) {
+                angleMode = savedAngleMode;
+                angleModeDisplay.textContent = angleMode;
+            }
+        }
+    </script>
+</body>
+
+</html>
