@@ -1,0 +1,2761 @@
+<!doctype html>
+<html lang="en" class="h-full">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Flashy — Flashcards that stick</title>
+    <meta name="description"
+        content="A modern, beautiful flashcard app with spaced repetition, decks, stats, import/export, and more." />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        :root {
+            color-scheme: light;
+        }
+
+        html.dark {
+            color-scheme: dark;
+        }
+
+        /* 3D flip */
+        .flip3d {
+            perspective: 1200px;
+        }
+
+        .flip3d-inner {
+            transform-style: preserve-3d;
+            transition: transform 450ms cubic-bezier(.2, .8, .2, 1);
+        }
+
+        .flip3d.flipped .flip3d-inner {
+            transform: rotateY(180deg);
+        }
+
+        .flip3d-face {
+            backface-visibility: hidden;
+        }
+
+        .flip3d-back {
+            transform: rotateY(180deg);
+        }
+
+        /* subtle scrollbars */
+        .scrollbar::-webkit-scrollbar {
+            height: 10px;
+            width: 10px;
+        }
+
+        .scrollbar::-webkit-scrollbar-thumb {
+            background: color-mix(in oklab, currentColor 25%, transparent);
+            border-radius: 999px;
+        }
+
+        .scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        /* shimmer skeleton */
+        .shimmer {
+            background: linear-gradient(90deg, color-mix(in oklab, currentColor 6%, transparent), color-mix(in oklab, currentColor 12%, transparent), color-mix(in oklab, currentColor 6%, transparent));
+            background-size: 200% 100%;
+            animation: shimmer 1.2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: 200% 0;
+            }
+
+            100% {
+                background-position: -200% 0;
+            }
+        }
+
+        dialog::backdrop {
+            background: color-mix(in oklab, black 55%, transparent);
+            backdrop-filter: blur(6px);
+        }
+
+        dialog {
+            border: none;
+            padding: 0;
+            background: transparent;
+        }
+
+        /* nicer focus */
+        :focus-visible {
+            outline: 2px solid color-mix(in oklab, #60a5fa 70%, white);
+            outline-offset: 2px;
+        }
+
+        /* reduce motion */
+        @media (prefers-reduced-motion: reduce) {
+            .flip3d-inner {
+                transition: none;
+            }
+
+            .shimmer {
+                animation: none;
+            }
+        }
+    </style>
+</head>
+
+<body
+    class="h-full bg-gradient-to-br from-slate-50 via-white to-sky-50 text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-100">
+    <div class="absolute inset-0 -z-10 overflow-hidden">
+        <div
+            class="pointer-events-none absolute -top-20 -left-20 h-80 w-80 rounded-full bg-gradient-to-br from-sky-400/20 to-indigo-400/10 blur-3xl">
+        </div>
+        <div
+            class="pointer-events-none absolute -bottom-24 -right-24 h-96 w-96 rounded-full bg-gradient-to-br from-fuchsia-400/10 to-amber-400/10 blur-3xl">
+        </div>
+    </div>
+
+    <div class="h-full flex flex-col">
+        <!-- Top bar -->
+        <header
+            class="sticky top-0 z-30 border-b border-slate-200/60 bg-white/70 backdrop-blur-xl dark:border-slate-800/60 dark:bg-slate-950/55">
+            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div class="flex h-16 items-center justify-between gap-3">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div
+                            class="grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white shadow-sm">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <path d="M7 6.5h10M7 10h6" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" />
+                                <path
+                                    d="M6.5 4.5h11A2.5 2.5 0 0 1 20 7v10a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17V7a2.5 2.5 0 0 1 2.5-2.5Z"
+                                    stroke="currentColor" stroke-width="2" />
+                            </svg>
+                        </div>
+                        <div class="min-w-0">
+                            <div class="flex items-baseline gap-2">
+                                <h1 class="truncate text-lg font-semibold tracking-tight">Flashy</h1>
+                                <span
+                                    class="hidden sm:inline text-xs font-medium text-slate-500 dark:text-slate-400">spaced
+                                    repetition · offline · beautiful</span>
+                            </div>
+                            <div class="hidden md:flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                                <span id="topHint" class="truncate">Press <kbd
+                                        class="rounded bg-slate-900/5 px-1.5 py-0.5 text-[11px] dark:bg-white/10">Space</kbd>
+                                    to flip · <kbd
+                                        class="rounded bg-slate-900/5 px-1.5 py-0.5 text-[11px] dark:bg-white/10">1–4</kbd>
+                                    to grade</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button id="btnQuickAdd"
+                            class="hidden sm:inline-flex items-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" />
+                            </svg>
+                            Add card
+                        </button>
+
+                        <button id="btnExport"
+                            class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm font-medium text-slate-900 hover:bg-white dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-100 dark:hover:bg-slate-950"
+                            title="Export data">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <path d="M12 3v11" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                                <path d="M8 10l4 4 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                                <path d="M5 21h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            </svg>
+                            <span class="hidden sm:inline">Export</span>
+                        </button>
+
+                        <button id="btnImport"
+                            class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm font-medium text-slate-900 hover:bg-white dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-100 dark:hover:bg-slate-950"
+                            title="Import data">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <path d="M12 21V10" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                                <path d="M8 14l4-4 4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                                <path d="M5 3h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            </svg>
+                            <span class="hidden sm:inline">Import</span>
+                        </button>
+
+                        <button id="btnTheme"
+                            class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm font-medium text-slate-900 hover:bg-white dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-100 dark:hover:bg-slate-950"
+                            title="Toggle theme">
+                            <span id="themeIcon" aria-hidden="true"></span>
+                            <span class="hidden sm:inline">Theme</span>
+                        </button>
+
+                        <button id="btnHelp"
+                            class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm font-medium text-slate-900 hover:bg-white dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-100 dark:hover:bg-slate-950"
+                            title="Help & shortcuts">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <path d="M12 18h.01" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+                                <path d="M9.5 9a2.5 2.5 0 1 1 4.3 1.7c-.9.9-1.8 1.4-1.8 2.8" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                <path d="M12 22c5.5 0 10-4.5 10-10S17.5 2 12 2 2 6.5 2 12s4.5 10 10 10Z"
+                                    stroke="currentColor" stroke-width="2" />
+                            </svg>
+                            <span class="hidden sm:inline">Help</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- App content -->
+        <div class="mx-auto flex w-full max-w-7xl flex-1 gap-4 px-4 py-4 sm:px-6 lg:px-8">
+            <!-- Sidebar (decks) -->
+            <aside class="hidden lg:flex w-80 flex-col gap-3">
+                <div
+                    class="rounded-2xl border border-slate-200/70 bg-white/70 p-4 shadow-sm backdrop-blur-xl dark:border-slate-800/70 dark:bg-slate-950/55">
+                    <div class="flex items-center justify-between gap-2">
+                        <div>
+                            <h2 class="text-sm font-semibold">Decks</h2>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">Pick a deck, then study.</p>
+                        </div>
+                        <button id="btnNewDeck"
+                            class="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-500">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" />
+                            </svg>
+                            New
+                        </button>
+                    </div>
+
+                    <div class="mt-3 flex gap-2">
+                        <div class="relative flex-1">
+                            <svg class="pointer-events-none absolute left-3 top-2.5" width="18" height="18"
+                                viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" />
+                                <path d="M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z" stroke="currentColor"
+                                    stroke-width="2" />
+                            </svg>
+                            <input id="deckSearch"
+                                class="w-full rounded-xl border border-slate-200 bg-white/70 py-2 pl-10 pr-3 text-sm outline-none placeholder:text-slate-400 focus:border-sky-300 dark:border-slate-800 dark:bg-slate-950/60"
+                                placeholder="Search decks" />
+                        </div>
+                        <button id="btnDeckMenu"
+                            class="rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm font-medium hover:bg-white dark:border-slate-800 dark:bg-slate-950/60 dark:hover:bg-slate-950"
+                            title="Deck actions">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <path d="M6 12h.01M12 12h.01M18 12h.01" stroke="currentColor" stroke-width="3"
+                                    stroke-linecap="round" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div id="deckList" class="scrollbar mt-3 max-h-[calc(100vh-240px)] space-y-2 overflow-auto pr-1">
+                    </div>
+                </div>
+
+                <div
+                    class="rounded-2xl border border-slate-200/70 bg-white/70 p-4 shadow-sm backdrop-blur-xl dark:border-slate-800/70 dark:bg-slate-950/55">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm font-semibold">Today</h3>
+                        <span id="todayLabel" class="text-xs text-slate-500 dark:text-slate-400"></span>
+                    </div>
+                    <div class="mt-3 grid grid-cols-3 gap-2">
+                        <div
+                            class="rounded-xl border border-slate-200/70 bg-white/70 p-3 dark:border-slate-800/70 dark:bg-slate-950/40">
+                            <div class="text-xs text-slate-500 dark:text-slate-400">Due</div>
+                            <div id="statDue" class="mt-1 text-lg font-semibold">0</div>
+                        </div>
+                        <div
+                            class="rounded-xl border border-slate-200/70 bg-white/70 p-3 dark:border-slate-800/70 dark:bg-slate-950/40">
+                            <div class="text-xs text-slate-500 dark:text-slate-400">Reviewed</div>
+                            <div id="statReviewed" class="mt-1 text-lg font-semibold">0</div>
+                        </div>
+                        <div
+                            class="rounded-xl border border-slate-200/70 bg-white/70 p-3 dark:border-slate-800/70 dark:bg-slate-950/40">
+                            <div class="text-xs text-slate-500 dark:text-slate-400">Streak</div>
+                            <div id="statStreak" class="mt-1 text-lg font-semibold">0</div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Main -->
+            <main class="flex-1 min-w-0">
+                <!-- Mobile deck picker + tabs -->
+                <div class="lg:hidden space-y-3 mb-3">
+                    <div
+                        class="rounded-2xl border border-slate-200/70 bg-white/70 p-3 shadow-sm backdrop-blur-xl dark:border-slate-800/70 dark:bg-slate-950/55">
+                        <div class="flex items-center gap-2">
+                            <div class="flex-1 min-w-0">
+                                <label class="block text-xs text-slate-500 dark:text-slate-400">Current deck</label>
+                                <select id="deckSelectMobile"
+                                    class="mt-1 w-full rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950/60"></select>
+                            </div>
+                            <button id="btnNewDeckMobile"
+                                class="mt-5 inline-flex items-center justify-center rounded-xl bg-sky-600 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-500"
+                                title="New deck">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                    <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div
+                    class="rounded-2xl border border-slate-200/70 bg-white/70 shadow-sm backdrop-blur-xl dark:border-slate-800/70 dark:bg-slate-950/55">
+                    <div
+                        class="flex items-center justify-between gap-3 border-b border-slate-200/60 px-4 py-3 dark:border-slate-800/60">
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <h2 id="currentDeckName" class="truncate text-base font-semibold">—</h2>
+                                <span id="deckPill"
+                                    class="hidden sm:inline-flex items-center gap-2 rounded-full border border-slate-200/70 bg-white/60 px-2.5 py-1 text-xs text-slate-600 dark:border-slate-800/70 dark:bg-slate-950/50 dark:text-slate-300">
+                                    <span id="deckMeta" class="truncate">0 cards</span>
+                                </span>
+                            </div>
+                            <p id="currentDeckDesc"
+                                class="mt-0.5 line-clamp-1 text-xs text-slate-500 dark:text-slate-400"></p>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <div
+                                class="hidden sm:flex items-center gap-1 rounded-xl border border-slate-200 bg-white/70 p-1 dark:border-slate-800 dark:bg-slate-950/60">
+                                <button class="tabBtn px-3 py-1.5 text-sm font-medium rounded-lg"
+                                    data-tab="study">Study</button>
+                                <button class="tabBtn px-3 py-1.5 text-sm font-medium rounded-lg"
+                                    data-tab="cards">Cards</button>
+                                <button class="tabBtn px-3 py-1.5 text-sm font-medium rounded-lg"
+                                    data-tab="stats">Stats</button>
+                                <button class="tabBtn px-3 py-1.5 text-sm font-medium rounded-lg"
+                                    data-tab="settings">Settings</button>
+                            </div>
+
+                            <button id="btnDeckEdit"
+                                class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm font-medium hover:bg-white dark:border-slate-800 dark:bg-slate-950/60 dark:hover:bg-slate-950"
+                                title="Edit deck">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                    <path d="M4 20h4l10.5-10.5a2 2 0 0 0 0-3L16.5 4.5a2 2 0 0 0-3 0L3 15v5Z"
+                                        stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+                                    <path d="M13.5 6.5l4 4" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" />
+                                </svg>
+                                <span class="hidden sm:inline">Deck</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Mobile tabs -->
+                    <div class="sm:hidden border-b border-slate-200/60 px-3 py-2 dark:border-slate-800/60">
+                        <div class="grid grid-cols-4 gap-2">
+                            <button class="tabBtn px-2 py-2 text-xs font-semibold rounded-xl"
+                                data-tab="study">Study</button>
+                            <button class="tabBtn px-2 py-2 text-xs font-semibold rounded-xl"
+                                data-tab="cards">Cards</button>
+                            <button class="tabBtn px-2 py-2 text-xs font-semibold rounded-xl"
+                                data-tab="stats">Stats</button>
+                            <button class="tabBtn px-2 py-2 text-xs font-semibold rounded-xl"
+                                data-tab="settings">Settings</button>
+                        </div>
+                    </div>
+
+                    <div class="p-4">
+                        <!-- STUDY -->
+                        <section id="viewStudy" class="space-y-4">
+                            <div class="flex flex-wrap items-center justify-between gap-3">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <div
+                                        class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950/60">
+                                        <span class="text-slate-500 dark:text-slate-400">Mode</span>
+                                        <select id="studyMode"
+                                            class="bg-transparent text-sm font-semibold outline-none">
+                                            <option value="flip">Flip</option>
+                                            <option value="mcq">Multiple choice</option>
+                                        </select>
+                                    </div>
+
+                                    <button id="btnShuffle"
+                                        class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm font-medium hover:bg-white dark:border-slate-800 dark:bg-slate-950/60 dark:hover:bg-slate-950"
+                                        title="Shuffle queue">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                            <path d="M16 3h5v5" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" />
+                                            <path d="M21 3l-6 6" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" />
+                                            <path d="M4 7h4l2 2" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" />
+                                            <path d="M16 21h5v-5" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" />
+                                            <path d="M21 21l-6-6" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" />
+                                            <path d="M4 17h4l6-6" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" />
+                                        </svg>
+                                        Shuffle
+                                    </button>
+
+                                    <label
+                                        class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm font-medium dark:border-slate-800 dark:bg-slate-950/60">
+                                        <input id="toggleStudyAhead" type="checkbox"
+                                            class="h-4 w-4 rounded border-slate-300 text-sky-600" />
+                                        <span>Study ahead</span>
+                                    </label>
+
+                                    <label
+                                        class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm font-medium dark:border-slate-800 dark:bg-slate-950/60">
+                                        <input id="toggleMarkdown" type="checkbox"
+                                            class="h-4 w-4 rounded border-slate-300 text-sky-600" />
+                                        <span>Markdown</span>
+                                    </label>
+
+                                    <label
+                                        class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm font-medium dark:border-slate-800 dark:bg-slate-950/60">
+                                        <input id="toggleAutoSpeak" type="checkbox"
+                                            class="h-4 w-4 rounded border-slate-300 text-sky-600" />
+                                        <span>Auto-speak</span>
+                                    </label>
+                                </div>
+
+                                <div class="flex items-center gap-2">
+                                    <div
+                                        class="hidden sm:flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                                        <span id="queueLabel">0 due</span>
+                                        <span class="text-slate-300 dark:text-slate-700">•</span>
+                                        <span id="progressLabel">0/0</span>
+                                    </div>
+                                    <button id="btnResetSession"
+                                        class="inline-flex items-center gap-2 rounded-xl border border-rose-200/60 bg-rose-50/70 px-3 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50 dark:border-rose-900/40 dark:bg-rose-950/40 dark:text-rose-200"
+                                        title="Reset session">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                            <path d="M3 12a9 9 0 0 1 15.5-6.4" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" />
+                                            <path d="M18 3v5h-5" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round" />
+                                            <path d="M21 12a9 9 0 0 1-15.5 6.4" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" />
+                                            <path d="M6 21v-5h5" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                        Reset
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div
+                                class="rounded-2xl border border-slate-200/70 bg-white/70 p-4 dark:border-slate-800/70 dark:bg-slate-950/45">
+                                <div class="flex items-center justify-between gap-3">
+                                    <div class="min-w-0">
+                                        <div class="flex items-center gap-2">
+                                            <span
+                                                class="inline-flex items-center rounded-full bg-sky-600/10 px-2 py-1 text-xs font-semibold text-sky-700 dark:bg-sky-400/10 dark:text-sky-200">Study</span>
+                                            <span id="cardBadge"
+                                                class="text-xs text-slate-500 dark:text-slate-400 truncate">—</span>
+                                        </div>
+                                        <div class="mt-2 h-2 w-full rounded-full bg-slate-900/5 dark:bg-white/10">
+                                            <div id="progressBar"
+                                                class="h-2 rounded-full bg-gradient-to-r from-sky-500 to-indigo-500"
+                                                style="width: 0%"></div>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <button id="btnSpeakFront"
+                                            class="hidden sm:inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm font-medium hover:bg-white dark:border-slate-800 dark:bg-slate-950/60 dark:hover:bg-slate-950"
+                                            title="Speak front">
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                                                aria-hidden="true">
+                                                <path d="M11 5L6 9H3v6h3l5 4V5Z" stroke="currentColor" stroke-width="2"
+                                                    stroke-linejoin="round" />
+                                                <path d="M15.5 8.5a4.5 4.5 0 0 1 0 7" stroke="currentColor"
+                                                    stroke-width="2" stroke-linecap="round" />
+                                                <path d="M18 6a8 8 0 0 1 0 12" stroke="currentColor" stroke-width="2"
+                                                    stroke-linecap="round" />
+                                            </svg>
+                                            Front
+                                        </button>
+                                        <button id="btnSpeakBack"
+                                            class="hidden sm:inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm font-medium hover:bg-white dark:border-slate-800 dark:bg-slate-950/60 dark:hover:bg-slate-950"
+                                            title="Speak back">
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                                                aria-hidden="true">
+                                                <path d="M11 5L6 9H3v6h3l5 4V5Z" stroke="currentColor" stroke-width="2"
+                                                    stroke-linejoin="round" />
+                                                <path d="M15.5 8.5a4.5 4.5 0 0 1 0 7" stroke="currentColor"
+                                                    stroke-width="2" stroke-linecap="round" />
+                                                <path d="M18 6a8 8 0 0 1 0 12" stroke="currentColor" stroke-width="2"
+                                                    stroke-linecap="round" />
+                                            </svg>
+                                            Back
+                                        </button>
+                                        <button id="btnEditCurrent"
+                                            class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm font-medium hover:bg-white dark:border-slate-800 dark:bg-slate-950/60 dark:hover:bg-slate-950"
+                                            title="Edit this card">
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                                                aria-hidden="true">
+                                                <path d="M4 20h4l10.5-10.5a2 2 0 0 0 0-3L16.5 4.5a2 2 0 0 0-3 0L3 15v5Z"
+                                                    stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+                                                <path d="M13.5 6.5l4 4" stroke="currentColor" stroke-width="2"
+                                                    stroke-linecap="round" />
+                                            </svg>
+                                            Edit
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Card area -->
+                                <div id="studyPanel" class="mt-4">
+                                    <div id="emptyState"
+                                        class="hidden rounded-2xl border border-dashed border-slate-300/70 bg-white/60 p-8 text-center dark:border-slate-700/70 dark:bg-slate-950/40">
+                                        <div
+                                            class="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-sky-600/10 text-sky-700 dark:bg-sky-400/10 dark:text-sky-200">
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                                aria-hidden="true">
+                                                <path d="M7 6.5h10M7 10h6" stroke="currentColor" stroke-width="2"
+                                                    stroke-linecap="round" />
+                                                <path
+                                                    d="M6.5 4.5h11A2.5 2.5 0 0 1 20 7v10a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17V7a2.5 2.5 0 0 1 2.5-2.5Z"
+                                                    stroke="currentColor" stroke-width="2" />
+                                            </svg>
+                                        </div>
+                                        <h3 class="mt-3 text-base font-semibold">Nothing due right now</h3>
+                                        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Add cards, enable
+                                            “Study ahead”, or come back later.</p>
+                                        <div class="mt-4 flex flex-wrap justify-center gap-2">
+                                            <button id="btnAddFromEmpty"
+                                                class="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100">
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                                                    aria-hidden="true">
+                                                    <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2"
+                                                        stroke-linecap="round" />
+                                                </svg>
+                                                Add card
+                                            </button>
+                                            <button id="btnStudyAheadFromEmpty"
+                                                class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm font-semibold hover:bg-white dark:border-slate-800 dark:bg-slate-950/60 dark:hover:bg-slate-950">
+                                                Study ahead
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div id="flipCard" class="flip3d">
+                                        <div class="flip3d-inner">
+                                            <div class="flip3d-face">
+                                                <button id="cardFront"
+                                                    class="group relative w-full rounded-2xl border border-slate-200/70 bg-white/70 p-6 text-left shadow-sm transition hover:shadow-md dark:border-slate-800/70 dark:bg-slate-950/45">
+                                                    <div class="flex items-center justify-between gap-3">
+                                                        <div class="min-w-0">
+                                                            <div
+                                                                class="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                                                Front</div>
+                                                            <div id="frontText"
+                                                                class="mt-2 text-lg font-semibold leading-relaxed">
+                                                            </div>
+                                                        </div>
+                                                        <div class="shrink-0">
+                                                            <div
+                                                                class="grid h-10 w-10 place-items-center rounded-xl bg-slate-900/5 text-slate-700 transition group-hover:bg-slate-900/10 dark:bg-white/10 dark:text-slate-200 dark:group-hover:bg-white/15">
+                                                                <svg width="20" height="20" viewBox="0 0 24 24"
+                                                                    fill="none" aria-hidden="true">
+                                                                    <path d="M9 5l7 7-7 7" stroke="currentColor"
+                                                                        stroke-width="2" stroke-linecap="round"
+                                                                        stroke-linejoin="round" />
+                                                                </svg>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="mt-4 text-xs text-slate-500 dark:text-slate-400">Click
+                                                        or press <kbd
+                                                            class="rounded bg-slate-900/5 px-1.5 py-0.5 dark:bg-white/10">Space</kbd>
+                                                        to reveal</div>
+                                                </button>
+                                            </div>
+
+                                            <div class="flip3d-face flip3d-back">
+                                                <div
+                                                    class="relative w-full rounded-2xl border border-slate-200/70 bg-white/70 p-6 shadow-sm dark:border-slate-800/70 dark:bg-slate-950/45">
+                                                    <div class="flex items-center justify-between gap-3">
+                                                        <div class="min-w-0">
+                                                            <div
+                                                                class="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                                                Back</div>
+                                                            <div id="backText"
+                                                                class="mt-2 text-lg font-semibold leading-relaxed">
+                                                            </div>
+                                                        </div>
+                                                        <div class="shrink-0">
+                                                            <div
+                                                                class="grid h-10 w-10 place-items-center rounded-xl bg-emerald-500/10 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-200">
+                                                                <svg width="20" height="20" viewBox="0 0 24 24"
+                                                                    fill="none" aria-hidden="true">
+                                                                    <path d="M20 6L9 17l-5-5" stroke="currentColor"
+                                                                        stroke-width="2" stroke-linecap="round"
+                                                                        stroke-linejoin="round" />
+                                                                </svg>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div id="mcqArea" class="mt-4 hidden">
+                                                        <div
+                                                            class="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                                            Choose the correct answer</div>
+                                                        <div id="mcqOptions" class="mt-2 grid gap-2"></div>
+                                                        <div id="mcqFeedback" class="mt-3 text-sm"></div>
+                                                    </div>
+
+                                                    <div class="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                                        <button
+                                                            class="gradeBtn rounded-xl bg-rose-600 px-3 py-2 text-sm font-semibold text-white hover:bg-rose-500"
+                                                            data-grade="0" title="Again (1)">
+                                                            Again <span class="opacity-80">1</span>
+                                                        </button>
+                                                        <button
+                                                            class="gradeBtn rounded-xl bg-amber-600 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-500"
+                                                            data-grade="1" title="Hard (2)">
+                                                            Hard <span class="opacity-80">2</span>
+                                                        </button>
+                                                        <button
+                                                            class="gradeBtn rounded-xl bg-sky-600 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-500"
+                                                            data-grade="2" title="Good (3)">
+                                                            Good <span class="opacity-80">3</span>
+                                                        </button>
+                                                        <button
+                                                            class="gradeBtn rounded-xl bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-500"
+                                                            data-grade="3" title="Easy (4)">
+                                                            Easy <span class="opacity-80">4</span>
+                                                        </button>
+                                                    </div>
+
+                                                    <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
+                                                        <div class="text-xs text-slate-500 dark:text-slate-400">
+                                                            Tip: use <kbd
+                                                                class="rounded bg-slate-900/5 px-1.5 py-0.5 dark:bg-white/10">1</kbd>–<kbd
+                                                                class="rounded bg-slate-900/5 px-1.5 py-0.5 dark:bg-white/10">4</kbd>
+                                                            to grade.
+                                                        </div>
+                                                        <div class="flex items-center gap-2">
+                                                            <button id="btnFlipBack"
+                                                                class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm font-medium hover:bg-white dark:border-slate-800 dark:bg-slate-950/60 dark:hover:bg-slate-950"
+                                                                title="Hide answer">
+                                                                <svg width="18" height="18" viewBox="0 0 24 24"
+                                                                    fill="none" aria-hidden="true">
+                                                                    <path d="M15 19l-7-7 7-7" stroke="currentColor"
+                                                                        stroke-width="2" stroke-linecap="round"
+                                                                        stroke-linejoin="round" />
+                                                                </svg>
+                                                                Hide
+                                                            </button>
+                                                            <button id="btnNext"
+                                                                class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm font-medium hover:bg-white dark:border-slate-800 dark:bg-slate-950/60 dark:hover:bg-slate-950"
+                                                                title="Next (N)">
+                                                                Next
+                                                                <svg width="18" height="18" viewBox="0 0 24 24"
+                                                                    fill="none" aria-hidden="true">
+                                                                    <path d="M9 5l7 7-7 7" stroke="currentColor"
+                                                                        stroke-width="2" stroke-linecap="round"
+                                                                        stroke-linejoin="round" />
+                                                                </svg>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    <div id="srsHint"
+                                                        class="mt-4 text-xs text-slate-500 dark:text-slate-400"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- CARDS -->
+                        <section id="viewCards" class="hidden space-y-4">
+                            <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                                <div class="flex-1">
+                                    <label class="block text-xs text-slate-500 dark:text-slate-400">Search</label>
+                                    <div class="relative mt-1">
+                                        <svg class="pointer-events-none absolute left-3 top-2.5" width="18" height="18"
+                                            viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                            <path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" />
+                                            <path d="M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z" stroke="currentColor"
+                                                stroke-width="2" />
+                                        </svg>
+                                        <input id="cardSearch"
+                                            class="w-full rounded-xl border border-slate-200 bg-white/70 py-2 pl-10 pr-3 text-sm outline-none placeholder:text-slate-400 focus:border-sky-300 dark:border-slate-800 dark:bg-slate-950/60"
+                                            placeholder="Search front/back/tags" />
+                                    </div>
+                                </div>
+
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <select id="cardSort"
+                                        class="rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950/60">
+                                        <option value="due">Sort: Due first</option>
+                                        <option value="created">Sort: Newest</option>
+                                        <option value="updated">Sort: Recently edited</option>
+                                        <option value="front">Sort: Front (A→Z)</option>
+                                    </select>
+                                    <button id="btnAddCard"
+                                        class="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                            <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" />
+                                        </svg>
+                                        Add
+                                    </button>
+                                    <button id="btnBulkAdd"
+                                        class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm font-semibold hover:bg-white dark:border-slate-800 dark:bg-slate-950/60 dark:hover:bg-slate-950">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                            <path d="M8 6h13M8 12h13M8 18h13" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" />
+                                            <path d="M3 6h.01M3 12h.01M3 18h.01" stroke="currentColor" stroke-width="3"
+                                                stroke-linecap="round" />
+                                        </svg>
+                                        Bulk
+                                    </button>
+                                    <button id="btnExportDeck"
+                                        class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm font-semibold hover:bg-white dark:border-slate-800 dark:bg-slate-950/60 dark:hover:bg-slate-950"
+                                        title="Export current deck (CSV)">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                            <path d="M12 3v11" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" />
+                                            <path d="M8 10l4 4 4-4" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round" />
+                                            <path d="M5 21h14" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" />
+                                        </svg>
+                                        CSV
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div
+                                class="rounded-2xl border border-slate-200/70 bg-white/70 shadow-sm dark:border-slate-800/70 dark:bg-slate-950/45">
+                                <div
+                                    class="flex items-center justify-between gap-2 border-b border-slate-200/60 px-4 py-3 dark:border-slate-800/60">
+                                    <div class="text-sm font-semibold">Cards</div>
+                                    <div class="text-xs text-slate-500 dark:text-slate-400"><span
+                                            id="cardsCount">0</span> total</div>
+                                </div>
+                                <div id="cardsList" class="scrollbar max-h-[55vh] overflow-auto p-2"></div>
+                            </div>
+                        </section>
+
+                        <!-- STATS -->
+                        <section id="viewStats" class="hidden space-y-4">
+                            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                <div
+                                    class="rounded-2xl border border-slate-200/70 bg-white/70 p-4 shadow-sm dark:border-slate-800/70 dark:bg-slate-950/45">
+                                    <div class="text-xs text-slate-500 dark:text-slate-400">Deck cards</div>
+                                    <div id="statsCards" class="mt-1 text-2xl font-semibold">0</div>
+                                </div>
+                                <div
+                                    class="rounded-2xl border border-slate-200/70 bg-white/70 p-4 shadow-sm dark:border-slate-800/70 dark:bg-slate-950/45">
+                                    <div class="text-xs text-slate-500 dark:text-slate-400">Due now</div>
+                                    <div id="statsDue" class="mt-1 text-2xl font-semibold">0</div>
+                                </div>
+                                <div
+                                    class="rounded-2xl border border-slate-200/70 bg-white/70 p-4 shadow-sm dark:border-slate-800/70 dark:bg-slate-950/45">
+                                    <div class="text-xs text-slate-500 dark:text-slate-400">Avg. ease</div>
+                                    <div id="statsEase" class="mt-1 text-2xl font-semibold">—</div>
+                                </div>
+                                <div
+                                    class="rounded-2xl border border-slate-200/70 bg-white/70 p-4 shadow-sm dark:border-slate-800/70 dark:bg-slate-950/45">
+                                    <div class="text-xs text-slate-500 dark:text-slate-400">Mature cards</div>
+                                    <div id="statsMature" class="mt-1 text-2xl font-semibold">0</div>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                                <div
+                                    class="rounded-2xl border border-slate-200/70 bg-white/70 p-4 shadow-sm dark:border-slate-800/70 dark:bg-slate-950/45">
+                                    <div class="flex items-center justify-between">
+                                        <h3 class="text-sm font-semibold">Upcoming due (14 days)</h3>
+                                        <button id="btnRecalcStats"
+                                            class="rounded-xl border border-slate-200 bg-white/60 px-3 py-1.5 text-xs font-semibold hover:bg-white dark:border-slate-800 dark:bg-slate-950/60 dark:hover:bg-slate-950">Recalc</button>
+                                    </div>
+                                    <canvas id="dueChart" class="mt-3 w-full" height="180"></canvas>
+                                    <div class="mt-2 text-xs text-slate-500 dark:text-slate-400">Tip: spaced repetition
+                                        shines when you keep the due bar low and steady.</div>
+                                </div>
+
+                                <div
+                                    class="rounded-2xl border border-slate-200/70 bg-white/70 p-4 shadow-sm dark:border-slate-800/70 dark:bg-slate-950/45">
+                                    <h3 class="text-sm font-semibold">Session insights</h3>
+                                    <div class="mt-3 grid grid-cols-2 gap-2">
+                                        <div
+                                            class="rounded-xl border border-slate-200/70 bg-white/60 p-3 dark:border-slate-800/70 dark:bg-slate-950/40">
+                                            <div class="text-xs text-slate-500 dark:text-slate-400">Reviewed today</div>
+                                            <div id="statsReviewedToday" class="mt-1 text-lg font-semibold">0</div>
+                                        </div>
+                                        <div
+                                            class="rounded-xl border border-slate-200/70 bg-white/60 p-3 dark:border-slate-800/70 dark:bg-slate-950/40">
+                                            <div class="text-xs text-slate-500 dark:text-slate-400">Study streak</div>
+                                            <div id="statsStreak" class="mt-1 text-lg font-semibold">0</div>
+                                        </div>
+                                        <div
+                                            class="rounded-xl border border-slate-200/70 bg-white/60 p-3 dark:border-slate-800/70 dark:bg-slate-950/40">
+                                            <div class="text-xs text-slate-500 dark:text-slate-400">This session</div>
+                                            <div id="statsSession" class="mt-1 text-lg font-semibold">0</div>
+                                        </div>
+                                        <div
+                                            class="rounded-xl border border-slate-200/70 bg-white/60 p-3 dark:border-slate-800/70 dark:bg-slate-950/40">
+                                            <div class="text-xs text-slate-500 dark:text-slate-400">Accuracy</div>
+                                            <div id="statsAccuracy" class="mt-1 text-lg font-semibold">—</div>
+                                        </div>
+                                    </div>
+
+                                    <div
+                                        class="mt-4 rounded-xl border border-slate-200/70 bg-white/60 p-3 text-xs text-slate-600 dark:border-slate-800/70 dark:bg-slate-950/40 dark:text-slate-300">
+                                        <div class="font-semibold">How scheduling works</div>
+                                        <div class="mt-1 leading-relaxed">
+                                            Flashy uses a lightweight SM-2 style algorithm. Your grading updates the
+                                            card’s interval and next due date.
+                                            You can always export your data.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- SETTINGS -->
+                        <section id="viewSettings" class="hidden space-y-4">
+                            <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                                <div
+                                    class="rounded-2xl border border-slate-200/70 bg-white/70 p-4 shadow-sm dark:border-slate-800/70 dark:bg-slate-950/45">
+                                    <h3 class="text-sm font-semibold">Preferences</h3>
+                                    <div class="mt-3 space-y-2">
+                                        <label
+                                            class="flex items-center justify-between gap-3 rounded-xl border border-slate-200/70 bg-white/60 px-3 py-3 dark:border-slate-800/70 dark:bg-slate-950/40">
+                                            <div>
+                                                <div class="text-sm font-semibold">Dark mode</div>
+                                                <div class="text-xs text-slate-500 dark:text-slate-400">Toggle theme
+                                                    (also in top bar).</div>
+                                            </div>
+                                            <input id="settingsTheme" type="checkbox"
+                                                class="h-5 w-5 rounded border-slate-300 text-sky-600" />
+                                        </label>
+
+                                        <label
+                                            class="flex items-center justify-between gap-3 rounded-xl border border-slate-200/70 bg-white/60 px-3 py-3 dark:border-slate-800/70 dark:bg-slate-950/40">
+                                            <div>
+                                                <div class="text-sm font-semibold">Auto-speak</div>
+                                                <div class="text-xs text-slate-500 dark:text-slate-400">Speak front/back
+                                                    when shown (uses browser TTS).</div>
+                                            </div>
+                                            <input id="settingsAutoSpeak" type="checkbox"
+                                                class="h-5 w-5 rounded border-slate-300 text-sky-600" />
+                                        </label>
+
+                                        <label
+                                            class="flex items-center justify-between gap-3 rounded-xl border border-slate-200/70 bg-white/60 px-3 py-3 dark:border-slate-800/70 dark:bg-slate-950/40">
+                                            <div>
+                                                <div class="text-sm font-semibold">Render Markdown</div>
+                                                <div class="text-xs text-slate-500 dark:text-slate-400">**bold**,
+                                                    *italic*, `code`, line breaks.</div>
+                                            </div>
+                                            <input id="settingsMarkdown" type="checkbox"
+                                                class="h-5 w-5 rounded border-slate-300 text-sky-600" />
+                                        </label>
+
+                                        <label
+                                            class="flex items-center justify-between gap-3 rounded-xl border border-slate-200/70 bg-white/60 px-3 py-3 dark:border-slate-800/70 dark:bg-slate-950/40">
+                                            <div>
+                                                <div class="text-sm font-semibold">Study ahead by default</div>
+                                                <div class="text-xs text-slate-500 dark:text-slate-400">If no cards are
+                                                    due, queue upcoming ones.</div>
+                                            </div>
+                                            <input id="settingsStudyAhead" type="checkbox"
+                                                class="h-5 w-5 rounded border-slate-300 text-sky-600" />
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div
+                                    class="rounded-2xl border border-slate-200/70 bg-white/70 p-4 shadow-sm dark:border-slate-800/70 dark:bg-slate-950/45">
+                                    <h3 class="text-sm font-semibold">Data</h3>
+                                    <div class="mt-3 space-y-2">
+                                        <button id="btnExportAllSettings"
+                                            class="w-full rounded-xl border border-slate-200 bg-white/70 px-3 py-3 text-left text-sm font-semibold hover:bg-white dark:border-slate-800 dark:bg-slate-950/60 dark:hover:bg-slate-950">Export
+                                            all decks (JSON)</button>
+                                        <button id="btnImportSettings"
+                                            class="w-full rounded-xl border border-slate-200 bg-white/70 px-3 py-3 text-left text-sm font-semibold hover:bg-white dark:border-slate-800 dark:bg-slate-950/60 dark:hover:bg-slate-950">Import
+                                            JSON backup</button>
+                                        <button id="btnResetData"
+                                            class="w-full rounded-xl border border-rose-200/60 bg-rose-50/70 px-3 py-3 text-left text-sm font-semibold text-rose-700 hover:bg-rose-50 dark:border-rose-900/40 dark:bg-rose-950/40 dark:text-rose-200">Reset
+                                            app data</button>
+                                    </div>
+
+                                    <div
+                                        class="mt-4 rounded-xl border border-slate-200/70 bg-white/60 p-3 text-xs text-slate-600 dark:border-slate-800/70 dark:bg-slate-950/40 dark:text-slate-300">
+                                        <div class="font-semibold">Privacy</div>
+                                        <div class="mt-1 leading-relaxed">Your cards live in your browser
+                                            (localStorage). Export regularly if you care about backups.</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div
+                                class="rounded-2xl border border-slate-200/70 bg-white/70 p-4 shadow-sm dark:border-slate-800/70 dark:bg-slate-950/45">
+                                <h3 class="text-sm font-semibold">Keyboard shortcuts</h3>
+                                <div class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                                    <div
+                                        class="rounded-xl border border-slate-200/70 bg-white/60 p-3 text-sm dark:border-slate-800/70 dark:bg-slate-950/40">
+                                        <kbd class="rounded bg-slate-900/5 px-2 py-1 dark:bg-white/10">Space</kbd> flip
+                                    </div>
+                                    <div
+                                        class="rounded-xl border border-slate-200/70 bg-white/60 p-3 text-sm dark:border-slate-800/70 dark:bg-slate-950/40">
+                                        <kbd class="rounded bg-slate-900/5 px-2 py-1 dark:bg-white/10">1</kbd> Again
+                                    </div>
+                                    <div
+                                        class="rounded-xl border border-slate-200/70 bg-white/60 p-3 text-sm dark:border-slate-800/70 dark:bg-slate-950/40">
+                                        <kbd class="rounded bg-slate-900/5 px-2 py-1 dark:bg-white/10">2</kbd> Hard
+                                    </div>
+                                    <div
+                                        class="rounded-xl border border-slate-200/70 bg-white/60 p-3 text-sm dark:border-slate-800/70 dark:bg-slate-950/40">
+                                        <kbd class="rounded bg-slate-900/5 px-2 py-1 dark:bg-white/10">3</kbd> Good
+                                    </div>
+                                    <div
+                                        class="rounded-xl border border-slate-200/70 bg-white/60 p-3 text-sm dark:border-slate-800/70 dark:bg-slate-950/40">
+                                        <kbd class="rounded bg-slate-900/5 px-2 py-1 dark:bg-white/10">4</kbd> Easy
+                                    </div>
+                                    <div
+                                        class="rounded-xl border border-slate-200/70 bg-white/60 p-3 text-sm dark:border-slate-800/70 dark:bg-slate-950/40">
+                                        <kbd class="rounded bg-slate-900/5 px-2 py-1 dark:bg-white/10">N</kbd> next
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+
+                <footer class="mt-3 text-center text-xs text-slate-500 dark:text-slate-400">
+                    Built in a single HTML file · Works offline after first load · Export your data
+                </footer>
+            </main>
+        </div>
+    </div>
+
+    <!-- Toasts -->
+    <div id="toasts" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
+
+    <!-- Dialog: Deck -->
+    <dialog id="dlgDeck" class="w-full max-w-xl">
+        <div
+            class="rounded-2xl border border-slate-200/70 bg-white/90 shadow-xl backdrop-blur-xl dark:border-slate-800/70 dark:bg-slate-950/85">
+            <div
+                class="flex items-center justify-between gap-3 border-b border-slate-200/60 px-5 py-4 dark:border-slate-800/60">
+                <div>
+                    <h3 id="dlgDeckTitle" class="text-base font-semibold">New deck</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Organize your cards. You can export anytime.
+                    </p>
+                </div>
+                <button
+                    class="dlgClose grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-white/70 hover:bg-white dark:border-slate-800 dark:bg-slate-950/60 dark:hover:bg-slate-950"
+                    data-close="dlgDeck" aria-label="Close">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                </button>
+            </div>
+            <form id="deckForm" class="p-5 space-y-3">
+                <input type="hidden" id="deckId" />
+                <div>
+                    <label class="block text-xs text-slate-500 dark:text-slate-400">Name</label>
+                    <input id="deckName" required
+                        class="mt-1 w-full rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950/60"
+                        placeholder="e.g., Spanish verbs" />
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-500 dark:text-slate-400">Description</label>
+                    <textarea id="deckDesc" rows="3"
+                        class="mt-1 w-full rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950/60"
+                        placeholder="Optional"></textarea>
+                </div>
+                <div class="flex flex-wrap items-center justify-between gap-2 pt-2">
+                    <button id="btnDeleteDeck" type="button"
+                        class="hidden rounded-xl border border-rose-200/60 bg-rose-50/70 px-3 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50 dark:border-rose-900/40 dark:bg-rose-950/40 dark:text-rose-200">Delete
+                        deck</button>
+                    <div class="ml-auto flex gap-2">
+                        <button type="button"
+                            class="dlgClose rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm font-semibold hover:bg-white dark:border-slate-800 dark:bg-slate-950/60 dark:hover:bg-slate-950"
+                            data-close="dlgDeck">Cancel</button>
+                        <button type="submit"
+                            class="rounded-xl bg-sky-600 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-500">Save</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </dialog>
+
+    <!-- Dialog: Card -->
+    <dialog id="dlgCard" class="w-full max-w-2xl">
+        <div
+            class="rounded-2xl border border-slate-200/70 bg-white/90 shadow-xl backdrop-blur-xl dark:border-slate-800/70 dark:bg-slate-950/85">
+            <div
+                class="flex items-center justify-between gap-3 border-b border-slate-200/60 px-5 py-4 dark:border-slate-800/60">
+                <div>
+                    <h3 id="dlgCardTitle" class="text-base font-semibold">Add card</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Tip: use tags like <span
+                            class="font-semibold">grammar, biology, #exam</span>.</p>
+                </div>
+                <button
+                    class="dlgClose grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-white/70 hover:bg-white dark:border-slate-800 dark:bg-slate-950/60 dark:hover:bg-slate-950"
+                    data-close="dlgCard" aria-label="Close">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                </button>
+            </div>
+            <form id="cardForm" class="p-5 space-y-3">
+                <input type="hidden" id="cardId" />
+                <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                    <div>
+                        <label class="block text-xs text-slate-500 dark:text-slate-400">Front</label>
+                        <textarea id="cardFrontInput" required rows="6"
+                            class="mt-1 w-full rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950/60"
+                            placeholder="Question / prompt"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-500 dark:text-slate-400">Back</label>
+                        <textarea id="cardBackInput" required rows="6"
+                            class="mt-1 w-full rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950/60"
+                            placeholder="Answer"></textarea>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-500 dark:text-slate-400">Tags (comma separated)</label>
+                    <input id="cardTagsInput"
+                        class="mt-1 w-full rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950/60"
+                        placeholder="e.g., verbs, irregular, week1" />
+                </div>
+
+                <details
+                    class="rounded-xl border border-slate-200/70 bg-white/60 p-3 dark:border-slate-800/70 dark:bg-slate-950/40">
+                    <summary class="cursor-pointer text-sm font-semibold">Advanced (SRS)</summary>
+                    <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div>
+                            <label class="block text-xs text-slate-500 dark:text-slate-400">Ease</label>
+                            <input id="srsEase" type="number" step="0.05" min="1.3" max="3.5"
+                                class="mt-1 w-full rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950/60" />
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-500 dark:text-slate-400">Interval (days)</label>
+                            <input id="srsInterval" type="number" step="1" min="0"
+                                class="mt-1 w-full rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950/60" />
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-500 dark:text-slate-400">Repetitions</label>
+                            <input id="srsReps" type="number" step="1" min="0"
+                                class="mt-1 w-full rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950/60" />
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-500 dark:text-slate-400">Due date</label>
+                            <input id="srsDue" type="date"
+                                class="mt-1 w-full rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950/60" />
+                        </div>
+                    </div>
+                </details>
+
+                <div class="flex flex-wrap items-center justify-between gap-2 pt-2">
+                    <button id="btnDeleteCard" type="button"
+                        class="hidden rounded-xl border border-rose-200/60 bg-rose-50/70 px-3 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50 dark:border-rose-900/40 dark:bg-rose-950/40 dark:text-rose-200">Delete
+                        card</button>
+                    <div class="ml-auto flex gap-2">
+                        <button type="button"
+                            class="dlgClose rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm font-semibold hover:bg-white dark:border-slate-800 dark:bg-slate-950/60 dark:hover:bg-slate-950"
+                            data-close="dlgCard">Cancel</button>
+                        <button type="submit"
+                            class="rounded-xl bg-sky-600 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-500">Save</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </dialog>
+
+    <!-- Dialog: Bulk add -->
+    <dialog id="dlgBulk" class="w-full max-w-3xl">
+        <div
+            class="rounded-2xl border border-slate-200/70 bg-white/90 shadow-xl backdrop-blur-xl dark:border-slate-800/70 dark:bg-slate-950/85">
+            <div
+                class="flex items-center justify-between gap-3 border-b border-slate-200/60 px-5 py-4 dark:border-slate-800/60">
+                <div>
+                    <h3 class="text-base font-semibold">Bulk add</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">One per line: <span
+                            class="font-semibold">front \t back</span> or <span class="font-semibold">front ::
+                            back</span>. Optional tags after <span class="font-semibold">#</span>.</p>
+                </div>
+                <button
+                    class="dlgClose grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-white/70 hover:bg-white dark:border-slate-800 dark:bg-slate-950/60 dark:hover:bg-slate-950"
+                    data-close="dlgBulk" aria-label="Close">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                </button>
+            </div>
+            <form id="bulkForm" class="p-5 space-y-3">
+                <textarea id="bulkInput" rows="10"
+                    class="w-full rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-950/60"
+                    placeholder="What is the capital of France?\tParis\n2+2? :: 4 #math, basics"></textarea>
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div class="text-xs text-slate-500 dark:text-slate-400">We’ll skip invalid lines and show a summary.
+                    </div>
+                    <div class="flex gap-2">
+                        <button type="button"
+                            class="dlgClose rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm font-semibold hover:bg-white dark:border-slate-800 dark:bg-slate-950/60 dark:hover:bg-slate-950"
+                            data-close="dlgBulk">Cancel</button>
+                        <button type="submit"
+                            class="rounded-xl bg-sky-600 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-500">Add
+                            cards</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </dialog>
+
+    <!-- Dialog: Import -->
+    <dialog id="dlgImport" class="w-full max-w-xl">
+        <div
+            class="rounded-2xl border border-slate-200/70 bg-white/90 shadow-xl backdrop-blur-xl dark:border-slate-800/70 dark:bg-slate-950/85">
+            <div
+                class="flex items-center justify-between gap-3 border-b border-slate-200/60 px-5 py-4 dark:border-slate-800/60">
+                <div>
+                    <h3 class="text-base font-semibold">Import</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Import a JSON backup exported from Flashy.</p>
+                </div>
+                <button
+                    class="dlgClose grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-white/70 hover:bg-white dark:border-slate-800 dark:bg-slate-950/60 dark:hover:bg-slate-950"
+                    data-close="dlgImport" aria-label="Close">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                </button>
+            </div>
+            <form id="importForm" class="p-5 space-y-3">
+                <input id="importFile" type="file" accept="application/json" class="block w-full text-sm" />
+                <label class="flex items-center gap-2 text-sm">
+                    <input id="importMerge" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-sky-600"
+                        checked />
+                    <span>Merge into existing data (recommended)</span>
+                </label>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button"
+                        class="dlgClose rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm font-semibold hover:bg-white dark:border-slate-800 dark:bg-slate-950/60 dark:hover:bg-slate-950"
+                        data-close="dlgImport">Cancel</button>
+                    <button type="submit"
+                        class="rounded-xl bg-sky-600 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-500">Import</button>
+                </div>
+            </form>
+        </div>
+    </dialog>
+
+    <!-- Dialog: Help -->
+    <dialog id="dlgHelp" class="w-full max-w-2xl">
+        <div
+            class="rounded-2xl border border-slate-200/70 bg-white/90 shadow-xl backdrop-blur-xl dark:border-slate-800/70 dark:bg-slate-950/85">
+            <div
+                class="flex items-center justify-between gap-3 border-b border-slate-200/60 px-5 py-4 dark:border-slate-800/60">
+                <div>
+                    <h3 class="text-base font-semibold">Help</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">A few power tips to get the most out of spaced
+                        repetition.</p>
+                </div>
+                <button
+                    class="dlgClose grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-white/70 hover:bg-white dark:border-slate-800 dark:bg-slate-950/60 dark:hover:bg-slate-950"
+                    data-close="dlgHelp" aria-label="Close">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                </button>
+            </div>
+            <div class="p-5 space-y-4">
+                <div
+                    class="rounded-xl border border-slate-200/70 bg-white/60 p-4 text-sm dark:border-slate-800/70 dark:bg-slate-950/40">
+                    <div class="font-semibold">Study flow</div>
+                    <ol class="mt-2 list-decimal pl-5 space-y-1 text-slate-700 dark:text-slate-200">
+                        <li>Pick a deck.</li>
+                        <li>Flip to reveal the answer.</li>
+                        <li>Grade honestly: <span class="font-semibold">Again / Hard / Good / Easy</span>.</li>
+                    </ol>
+                </div>
+                <div
+                    class="rounded-xl border border-slate-200/70 bg-white/60 p-4 text-sm dark:border-slate-800/70 dark:bg-slate-950/40">
+                    <div class="font-semibold">Best practices</div>
+                    <ul class="mt-2 list-disc pl-5 space-y-1 text-slate-700 dark:text-slate-200">
+                        <li>Keep cards atomic (one fact per card).</li>
+                        <li>Prefer recall (questions) over recognition.</li>
+                        <li>Review daily to keep the due pile small.</li>
+                    </ul>
+                </div>
+                <div
+                    class="rounded-xl border border-slate-200/70 bg-white/60 p-4 text-sm dark:border-slate-800/70 dark:bg-slate-950/40">
+                    <div class="font-semibold">Shortcuts</div>
+                    <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <div><kbd class="rounded bg-slate-900/5 px-2 py-1 dark:bg-white/10">Space</kbd> flip</div>
+                        <div><kbd class="rounded bg-slate-900/5 px-2 py-1 dark:bg-white/10">N</kbd> next</div>
+                        <div><kbd class="rounded bg-slate-900/5 px-2 py-1 dark:bg-white/10">1–4</kbd> grade</div>
+                        <div><kbd class="rounded bg-slate-900/5 px-2 py-1 dark:bg-white/10">Esc</kbd> close dialogs
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-end">
+                    <button type="button"
+                        class="dlgClose rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
+                        data-close="dlgHelp">Got it</button>
+                </div>
+            </div>
+        </div>
+    </dialog>
+
+    <script>
+        // ============================
+        // Flashy — single-file app
+        // ============================
+
+        const LS_KEY = 'flashy.v1';
+
+        const $ = (sel, root = document) => root.querySelector(sel);
+        const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+        const now = () => new Date();
+        const startOfDay = (d = new Date()) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        const isoDay = (d = new Date()) => startOfDay(d).toISOString().slice(0, 10);
+        const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+
+        const uid = () => {
+            try { return crypto.randomUUID(); } catch { return 'id_' + Math.random().toString(16).slice(2) + '_' + Date.now().toString(16); }
+        };
+
+        function toast(message, type = 'info', ms = 2600) {
+            const el = document.createElement('div');
+            const colors = {
+                info: 'border-slate-200/70 bg-white/80 text-slate-900 dark:border-slate-800/70 dark:bg-slate-950/80 dark:text-slate-100',
+                ok: 'border-emerald-200/70 bg-emerald-50/80 text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/55 dark:text-emerald-100',
+                warn: 'border-amber-200/70 bg-amber-50/80 text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/55 dark:text-amber-100',
+                err: 'border-rose-200/70 bg-rose-50/80 text-rose-900 dark:border-rose-900/40 dark:bg-rose-950/55 dark:text-rose-100'
+            };
+            el.className = `max-w-sm rounded-2xl border px-4 py-3 text-sm shadow-lg backdrop-blur-xl ${colors[type] || colors.info}`;
+            el.textContent = message;
+            $('#toasts').appendChild(el);
+            setTimeout(() => {
+                el.style.transition = 'opacity 180ms ease, transform 180ms ease';
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(6px)';
+                setTimeout(() => el.remove(), 220);
+            }, ms);
+        }
+
+        function escapeHtml(str = '') {
+            const div = document.createElement('div');
+            div.textContent = String(str);
+            return div.innerHTML;
+        }
+
+        function renderMarkdownLite(text = '') {
+            // very small markdown: **bold**, *italic*, `code`, line breaks
+            let s = escapeHtml(text);
+            s = s.replace(/\r\n/g, '\n');
+            s = s.replace(/`([^`]+)`/g, '<code class="rounded bg-slate-900/5 px-1 py-0.5 text-[0.92em] dark:bg-white/10">$1</code>');
+            s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            // italic: avoid interfering with bold already handled
+            s = s.replace(/(^|[^*])\*([^*]+)\*(?!\*)/g, '$1<em>$2</em>');
+            s = s.replace(/\n/g, '<br>');
+            return s;
+        }
+
+        function formatRelDue(dueISO) {
+            if (!dueISO) return '—';
+            const due = startOfDay(new Date(dueISO));
+            const today = startOfDay(now());
+            const diffDays = Math.round((due - today) / 86400000);
+            if (diffDays === 0) return 'due today';
+            if (diffDays === 1) return 'due tomorrow';
+            if (diffDays === -1) return 'due yesterday';
+            if (diffDays > 1) return `due in ${diffDays} days`;
+            return `${Math.abs(diffDays)} days overdue`;
+        }
+
+        function download(filename, content, mime = 'application/json') {
+            const blob = new Blob([content], { type: mime });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 500);
+        }
+
+        function toCSV(deck) {
+            const rows = [['front', 'back', 'tags', 'due', 'interval', 'repetitions', 'ease']];
+            for (const c of (deck.cards || [])) {
+                const srs = normalizeSRS(c.srs);
+                rows.push([c.front || '', c.back || '', (c.tags || []).join(','), (srs.due || ''), String(srs.interval || 0), String(srs.repetitions || 0), String(srs.ease || 2.5)]);
+            }
+            const esc = (v) => {
+                const s = String(v ?? '');
+                if (/[",\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+                return s;
+            };
+            return rows.map(r => r.map(esc).join(',')).join('\n');
+        }
+
+        function normalizeSRS(srs) {
+            const base = { interval: 0, repetitions: 0, ease: 2.5, due: isoDay(now()), lapses: 0 };
+            return { ...base, ...(srs || {}) };
+        }
+
+        function isDue(card, dayISO = isoDay(now())) {
+            const srs = normalizeSRS(card.srs);
+            const due = srs.due || isoDay(now());
+            return due <= dayISO;
+        }
+
+        function computeSM2(srs, grade) {
+            // grade: 0 again, 1 hard, 2 good, 3 easy
+            // A compact SM-2-ish algorithm.
+            let { interval, repetitions, ease, lapses } = normalizeSRS(srs);
+            ease = clamp(Number(ease || 2.5), 1.3, 3.5);
+            interval = Math.max(0, Number(interval || 0));
+            repetitions = Math.max(0, Number(repetitions || 0));
+            lapses = Math.max(0, Number(lapses || 0));
+
+            if (grade === 0) {
+                // Again: reset
+                repetitions = 0;
+                interval = 1;
+                ease = clamp(ease - 0.2, 1.3, 3.5);
+                lapses += 1;
+            } else if (grade === 1) {
+                // Hard: small growth
+                repetitions += 1;
+                if (interval < 1) interval = 1;
+                interval = Math.max(1, Math.round(interval * 1.2));
+                ease = clamp(ease - 0.05, 1.3, 3.5);
+            } else if (grade === 2) {
+                // Good: normal SM-2 steps
+                repetitions += 1;
+                if (repetitions === 1) interval = 1;
+                else if (repetitions === 2) interval = 6;
+                else interval = Math.round(interval * ease);
+            } else if (grade === 3) {
+                // Easy: faster
+                repetitions += 1;
+                if (repetitions === 1) interval = 2;
+                else if (repetitions === 2) interval = 8;
+                else interval = Math.round(interval * ease * 1.3);
+                ease = clamp(ease + 0.15, 1.3, 3.5);
+            }
+
+            const dueDate = startOfDay(now());
+            dueDate.setDate(dueDate.getDate() + interval);
+            const due = isoDay(dueDate);
+
+            return { interval, repetitions, ease, due, lapses };
+        }
+
+        function shuffleInPlace(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        function inInput() {
+            const el = document.activeElement;
+            if (!el) return false;
+            const tag = el.tagName?.toLowerCase();
+            return tag === 'input' || tag === 'textarea' || tag === 'select' || el.isContentEditable;
+        }
+
+        const app = {
+            data: null,
+            currentDeckId: null,
+            currentTab: 'study',
+            study: {
+                queue: [],
+                cursor: 0,
+                flipped: false,
+                gradedThisCard: false,
+                session: { reviewed: 0, again: 0, hard: 0, good: 0, easy: 0 },
+                mcq: { chosen: null, correct: null }
+            }
+        };
+
+        function defaultData() {
+            const today = isoDay(now());
+            const sampleDeckId = uid();
+            const mk = (front, back, tags = []) => ({
+                id: uid(), front, back, tags,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                srs: { interval: 0, repetitions: 0, ease: 2.5, due: today, lapses: 0 }
+            });
+
+            return {
+                version: 1,
+                preferences: {
+                    theme: 'system',
+                    markdown: true,
+                    studyAhead: true,
+                    autoSpeak: false,
+                    stats: { lastDay: null, reviewedToday: 0, streak: 0 }
+                },
+                decks: [
+                    {
+                        id: sampleDeckId,
+                        name: 'Quick start',
+                        description: 'A tiny deck to demo Flashy. Edit or delete it anytime.',
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
+                        cards: [
+                            mk('What does **spaced repetition** optimize?', 'Long-term memory retention by scheduling reviews.', ['learning']),
+                            mk('Keyboard: which key flips the card?', 'Space', ['shortcuts']),
+                            mk('SM-2: What does “Ease” roughly represent?', 'How easily you remember the card (higher = longer intervals).', ['srs']),
+                            mk('Write a bulk-add line example', 'front\tback  (or)  front :: back #tags', ['tips'])
+                        ]
+                    }
+                ]
+            };
+        }
+
+        function load() {
+            const raw = localStorage.getItem(LS_KEY);
+            if (!raw) {
+                app.data = defaultData();
+                app.currentDeckId = app.data.decks[0]?.id || null;
+                save();
+                return;
+            }
+            try {
+                const parsed = JSON.parse(raw);
+                app.data = parsed && typeof parsed === 'object' ? parsed : defaultData();
+            } catch {
+                app.data = defaultData();
+            }
+            if (!app.data.decks?.length) {
+                app.data = defaultData();
+            }
+            app.currentDeckId = app.data.decks[0]?.id || null;
+        }
+
+        let saveTimer = null;
+        function save() {
+            clearTimeout(saveTimer);
+            saveTimer = setTimeout(() => {
+                try { localStorage.setItem(LS_KEY, JSON.stringify(app.data)); }
+                catch (e) { toast('Storage is full or blocked. Try exporting a backup.', 'warn', 4000); }
+            }, 80);
+        }
+
+        function applyTheme() {
+            const pref = app.data?.preferences?.theme || 'system';
+            const systemDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const isDark = pref === 'dark' || (pref === 'system' && systemDark);
+            document.documentElement.classList.toggle('dark', !!isDark);
+
+            const icon = isDark
+                ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M21 13.2A7.5 7.5 0 1 1 10.8 3 6 6 0 0 0 21 13.2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>'
+                : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z" stroke="currentColor" stroke-width="2"/><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5 19 19M19 5l-1.5 1.5M5 19l1.5-1.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+            $('#themeIcon').innerHTML = icon;
+
+            $('#settingsTheme').checked = pref === 'dark' || (pref === 'system' && systemDark);
+        }
+
+        function setTheme(mode) {
+            app.data.preferences.theme = mode;
+            save();
+            applyTheme();
+        }
+
+        function getDeck(id) {
+            return app.data.decks.find(d => d.id === id) || null;
+        }
+
+        function getCurrentDeck() {
+            return getDeck(app.currentDeckId);
+        }
+
+        function ensureStatsDay() {
+            const stats = app.data.preferences.stats || (app.data.preferences.stats = { lastDay: null, reviewedToday: 0, streak: 0 });
+            const today = isoDay(now());
+            if (stats.lastDay === today) return;
+            // day changed
+            const yesterday = new Date(startOfDay(now()));
+            yesterday.setDate(yesterday.getDate() - 1);
+            const y = isoDay(yesterday);
+            const hadYesterday = stats.lastDay === y && stats.reviewedToday > 0;
+            const hadTodayBefore = false;
+            // reset daily count
+            stats.reviewedToday = 0;
+            if (stats.lastDay === null) {
+                stats.streak = 0;
+            } else {
+                // maintain streak if yesterday was studied
+                stats.streak = hadYesterday ? stats.streak : 0;
+            }
+            stats.lastDay = today;
+            save();
+        }
+
+        function bumpStreakAndReviewed() {
+            ensureStatsDay();
+            const stats = app.data.preferences.stats;
+            if (stats.reviewedToday === 0) {
+                // starting today
+                stats.streak = (stats.streak || 0) + 1;
+            }
+            stats.reviewedToday = (stats.reviewedToday || 0) + 1;
+            save();
+        }
+
+        function deckDueCount(deck, dayISO = isoDay(now())) {
+            return (deck.cards || []).filter(c => isDue(c, dayISO)).length;
+        }
+
+        function updateSidebarStats() {
+            ensureStatsDay();
+            const deck = getCurrentDeck();
+            const due = deck ? deckDueCount(deck) : 0;
+            $('#statDue').textContent = String(due);
+            $('#statReviewed').textContent = String(app.data.preferences.stats?.reviewedToday || 0);
+            $('#statStreak').textContent = String(app.data.preferences.stats?.streak || 0);
+            $('#todayLabel').textContent = new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+        }
+
+        function setTab(tab) {
+            app.currentTab = tab;
+            const map = {
+                study: '#viewStudy',
+                cards: '#viewCards',
+                stats: '#viewStats',
+                settings: '#viewSettings'
+            };
+            for (const [k, sel] of Object.entries(map)) {
+                $(sel).classList.toggle('hidden', k !== tab);
+            }
+            $$('.tabBtn').forEach(btn => {
+                const active = btn.dataset.tab === tab;
+                btn.classList.toggle('bg-slate-900', active);
+                btn.classList.toggle('text-white', active);
+                btn.classList.toggle('dark:bg-white', active);
+                btn.classList.toggle('dark:text-slate-900', active);
+                btn.classList.toggle('hover:bg-slate-900/5', !active);
+                btn.classList.toggle('dark:hover:bg-white/10', !active);
+            });
+            if (tab === 'cards') renderCards();
+            if (tab === 'stats') renderStats();
+            if (tab === 'study') startOrRefreshSession({ soft: true });
+        }
+
+        function renderDeckHeader() {
+            const deck = getCurrentDeck();
+            if (!deck) {
+                $('#currentDeckName').textContent = 'No deck';
+                $('#currentDeckDesc').textContent = 'Create a deck to begin.';
+                $('#deckMeta').textContent = '0 cards';
+                return;
+            }
+            $('#currentDeckName').textContent = deck.name;
+            $('#currentDeckDesc').textContent = deck.description || '';
+            const due = deckDueCount(deck);
+            $('#deckMeta').textContent = `${deck.cards.length} cards · ${due} due`;
+        }
+
+        function renderDeckList() {
+            const list = $('#deckList');
+            if (!list) return;
+
+            const q = ($('#deckSearch')?.value || '').trim().toLowerCase();
+            const decks = (app.data.decks || []).slice().sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+            list.innerHTML = '';
+
+            const filtered = q ? decks.filter(d => (d.name || '').toLowerCase().includes(q) || (d.description || '').toLowerCase().includes(q)) : decks;
+
+            if (filtered.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'rounded-xl border border-dashed border-slate-300/70 bg-white/60 p-4 text-sm text-slate-600 dark:border-slate-700/70 dark:bg-slate-950/40 dark:text-slate-300';
+                empty.textContent = q ? 'No matching decks.' : 'No decks yet.';
+                list.appendChild(empty);
+                return;
+            }
+
+            for (const d of filtered) {
+                const due = deckDueCount(d);
+                const active = d.id === app.currentDeckId;
+                const btn = document.createElement('button');
+                btn.className = `w-full rounded-2xl border px-3 py-3 text-left transition hover:shadow-sm ${active ? 'border-sky-300/70 bg-sky-50/70 dark:border-sky-600/40 dark:bg-sky-950/30' : 'border-slate-200/70 bg-white/60 dark:border-slate-800/70 dark:bg-slate-950/40'}`;
+                btn.dataset.deckId = d.id;
+                btn.innerHTML = `
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <div class="truncate text-sm font-semibold">${escapeHtml(d.name || 'Untitled')}</div>
+              <div class="mt-0.5 line-clamp-1 text-xs text-slate-500 dark:text-slate-400">${escapeHtml(d.description || '')}</div>
+              <div class="mt-2 flex flex-wrap gap-1.5">
+                <span class="rounded-full border border-slate-200/70 bg-white/60 px-2 py-0.5 text-[11px] text-slate-600 dark:border-slate-800/70 dark:bg-slate-950/40 dark:text-slate-300">${d.cards?.length || 0} cards</span>
+                <span class="rounded-full border border-slate-200/70 bg-white/60 px-2 py-0.5 text-[11px] text-slate-600 dark:border-slate-800/70 dark:bg-slate-950/40 dark:text-slate-300">${due} due</span>
+              </div>
+            </div>
+            <div class="shrink-0">
+              ${due > 0 ? '<span class="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-rose-600 px-2 text-xs font-semibold text-white">' + due + '</span>' : '<span class="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-slate-900/5 px-2 text-xs font-semibold text-slate-600 dark:bg-white/10 dark:text-slate-300">✓</span>'}
+            </div>
+          </div>
+        `;
+                list.appendChild(btn);
+            }
+        }
+
+        function renderDeckSelectMobile() {
+            const sel = $('#deckSelectMobile');
+            if (!sel) return;
+            sel.innerHTML = '';
+            for (const d of (app.data.decks || [])) {
+                const opt = document.createElement('option');
+                opt.value = d.id;
+                opt.textContent = d.name || 'Untitled';
+                sel.appendChild(opt);
+            }
+            sel.value = app.currentDeckId || '';
+        }
+
+        function currentCard() {
+            return app.study.queue[app.study.cursor] || null;
+        }
+
+        function buildQueue(deck, { studyAhead = false } = {}) {
+            const today = isoDay(now());
+            const cards = (deck.cards || []).slice();
+            // ensure srs exists
+            for (const c of cards) { c.srs = normalizeSRS(c.srs); }
+
+            const due = cards.filter(c => isDue(c, today)).sort((a, b) => (a.srs.due || '').localeCompare(b.srs.due || ''));
+            if (due.length > 0) return due;
+            if (!studyAhead) return [];
+            // Study ahead: next 20 upcoming
+            return cards
+                .slice()
+                .sort((a, b) => (a.srs.due || '').localeCompare(b.srs.due || ''))
+                .slice(0, 20);
+        }
+
+        function setFlipped(on) {
+            app.study.flipped = !!on;
+            $('#flipCard').classList.toggle('flipped', !!on);
+            if (on) {
+                if (app.data.preferences.autoSpeak) {
+                    const c = currentCard();
+                    if (c) speakText(c.back);
+                }
+            } else {
+                if (app.data.preferences.autoSpeak) {
+                    const c = currentCard();
+                    if (c) speakText(c.front);
+                }
+            }
+        }
+
+        function renderStudyCard() {
+            const deck = getCurrentDeck();
+            const c = currentCard();
+            const mode = $('#studyMode')?.value || 'flip';
+
+            const queueLen = app.study.queue.length;
+            const dueNow = deck ? deckDueCount(deck) : 0;
+            $('#queueLabel').textContent = `${dueNow} due` + (app.data.preferences.studyAhead ? ' (ahead on)' : '');
+            $('#progressLabel').textContent = `${Math.min(app.study.cursor + 1, queueLen)}/${queueLen}`;
+            const pct = queueLen ? ((app.study.cursor) / queueLen) * 100 : 0;
+            $('#progressBar').style.width = `${clamp(pct, 0, 100)}%`;
+
+            $('#mcqArea').classList.toggle('hidden', mode !== 'mcq');
+
+            if (!deck || queueLen === 0 || !c) {
+                $('#emptyState').classList.remove('hidden');
+                $('#flipCard').classList.add('hidden');
+                $('#cardBadge').textContent = deck ? 'No due cards' : 'No deck selected';
+                return;
+            }
+
+            $('#emptyState').classList.add('hidden');
+            $('#flipCard').classList.remove('hidden');
+
+            const useMd = !!app.data.preferences.markdown;
+            const frontHTML = useMd ? renderMarkdownLite(c.front || '') : escapeHtml(c.front || '').replace(/\n/g, '<br>');
+            const backHTML = useMd ? renderMarkdownLite(c.back || '') : escapeHtml(c.back || '').replace(/\n/g, '<br>');
+            $('#frontText').innerHTML = frontHTML || '<span class="text-slate-400">(empty)</span>';
+            $('#backText').innerHTML = backHTML || '<span class="text-slate-400">(empty)</span>';
+
+            const tags = (c.tags || []).slice(0, 4);
+            const tagLabel = tags.length ? (' • ' + tags.map(t => `#${t.replace(/^#/, '')}`).join(' ')) : '';
+            $('#cardBadge').textContent = `${formatRelDue(c.srs?.due)}${tagLabel}`;
+
+            $('#srsHint').innerHTML = `Next due: <span class="font-semibold">${escapeHtml(c.srs?.due || '—')}</span> · Interval: <span class="font-semibold">${c.srs?.interval || 0}d</span> · Ease: <span class="font-semibold">${Number(c.srs?.ease || 2.5).toFixed(2)}</span> · Reps: <span class="font-semibold">${c.srs?.repetitions || 0}</span>`;
+
+            app.study.gradedThisCard = false;
+            app.study.mcq = { chosen: null, correct: null };
+
+            // Auto speak front when shown
+            if (app.data.preferences.autoSpeak) {
+                speakText(c.front);
+            }
+
+            // MCQ generation
+            if (mode === 'mcq') {
+                const options = generateMCQOptions(deck, c);
+                renderMCQ(options, c);
+                // force show back side for MCQ? We’ll show it after user chooses. Start unflipped.
+                setFlipped(false);
+            }
+
+            // In flip mode, start unflipped
+            if (mode === 'flip') setFlipped(false);
+
+            $('#btnEditCurrent').disabled = false;
+        }
+
+        function renderMCQ(options, card) {
+            const wrap = $('#mcqOptions');
+            const fb = $('#mcqFeedback');
+            wrap.innerHTML = '';
+            fb.textContent = '';
+            fb.className = 'mt-3 text-sm';
+
+            const correct = options.find(o => o.correct);
+            app.study.mcq.correct = correct?.value ?? null;
+
+            for (const opt of options) {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'w-full rounded-xl border border-slate-200/70 bg-white/70 px-3 py-2 text-left text-sm font-semibold hover:bg-white dark:border-slate-800/70 dark:bg-slate-950/60 dark:hover:bg-slate-950';
+                b.innerHTML = `<div class="line-clamp-2">${(app.data.preferences.markdown ? renderMarkdownLite(opt.value) : escapeHtml(opt.value).replace(/\n/g, '<br>'))}</div>`;
+                b.addEventListener('click', () => {
+                    if (app.study.mcq.chosen != null) return;
+                    app.study.mcq.chosen = opt.value;
+                    const ok = opt.correct;
+                    fb.className = ok
+                        ? 'mt-3 text-sm font-semibold text-emerald-700 dark:text-emerald-200'
+                        : 'mt-3 text-sm font-semibold text-rose-700 dark:text-rose-200';
+                    fb.textContent = ok ? 'Correct. Now grade your recall.' : 'Not quite. The correct answer is shown above—grade honestly.';
+                    // Show back side to reveal full answer and grading UI
+                    setFlipped(true);
+                });
+                wrap.appendChild(b);
+            }
+
+            // Hide MCQ area until flipped? We keep it on back view, but user chooses there.
+            // When flipped, back shows answer + options + feedback.
+        }
+
+        function generateMCQOptions(deck, card) {
+            const cards = (deck.cards || []).filter(c => c.id !== card.id && (c.back || '').trim().length > 0);
+            const wrong = shuffleInPlace(cards.slice()).slice(0, 3).map(c => ({ value: c.back, correct: false }));
+            const opts = wrong.concat([{ value: card.back || '', correct: true }]);
+            return shuffleInPlace(opts);
+        }
+
+        function startOrRefreshSession({ soft = false } = {}) {
+            const deck = getCurrentDeck();
+            if (!deck) {
+                app.study.queue = [];
+                app.study.cursor = 0;
+                setFlipped(false);
+                renderStudyCard();
+                return;
+            }
+
+            const studyAhead = !!app.data.preferences.studyAhead;
+            const nextQueue = buildQueue(deck, { studyAhead });
+
+            if (soft) {
+                // preserve current card if still present
+                const cur = currentCard();
+                app.study.queue = nextQueue;
+                if (cur) {
+                    const idx = nextQueue.findIndex(x => x.id === cur.id);
+                    app.study.cursor = idx >= 0 ? idx : Math.min(app.study.cursor, Math.max(0, nextQueue.length - 1));
+                } else {
+                    app.study.cursor = 0;
+                }
+            } else {
+                app.study.queue = nextQueue;
+                app.study.cursor = 0;
+                app.study.session = { reviewed: 0, again: 0, hard: 0, good: 0, easy: 0 };
+            }
+            setFlipped(false);
+            renderStudyCard();
+            updateSidebarStats();
+        }
+
+        function nextCard() {
+            if (app.study.queue.length === 0) return;
+            app.study.cursor = Math.min(app.study.cursor + 1, app.study.queue.length - 1);
+            setFlipped(false);
+            renderStudyCard();
+        }
+
+        function prevCard() {
+            if (app.study.queue.length === 0) return;
+            app.study.cursor = Math.max(app.study.cursor - 1, 0);
+            setFlipped(false);
+            renderStudyCard();
+        }
+
+        function gradeCurrent(grade) {
+            const deck = getCurrentDeck();
+            const c = currentCard();
+            if (!deck || !c) return;
+            if (!app.study.flipped) {
+                // Force reveal before grading in flip mode
+                setFlipped(true);
+                return;
+            }
+            if (app.study.gradedThisCard) return;
+
+            // update SRS
+            c.srs = computeSM2(c.srs, grade);
+            c.updatedAt = new Date().toISOString();
+            bumpStreakAndReviewed();
+
+            app.study.gradedThisCard = true;
+            app.study.session.reviewed += 1;
+            if (grade === 0) app.study.session.again += 1;
+            if (grade === 1) app.study.session.hard += 1;
+            if (grade === 2) app.study.session.good += 1;
+            if (grade === 3) app.study.session.easy += 1;
+
+            save();
+            updateSidebarStats();
+
+            const gName = ['Again', 'Hard', 'Good', 'Easy'][grade] || 'Saved';
+            toast(`${gName}: next due ${c.srs.due} (${c.srs.interval}d)`, grade === 0 ? 'warn' : 'ok', 1800);
+
+            // Refresh queue (card may no longer be due)
+            startOrRefreshSession({ soft: true });
+
+            // Advance if possible
+            if (app.study.queue.length) {
+                // keep cursor if same card moved away
+                // if current card still in queue, move to next
+                const after = currentCard();
+                if (after && after.id === c.id) {
+                    nextCard();
+                }
+            }
+
+            // stats update if stats tab visible
+            if (app.currentTab === 'stats') renderStats();
+        }
+
+        function openDialog(id) {
+            const dlg = document.getElementById(id);
+            if (!dlg) return;
+            try { dlg.showModal(); } catch { dlg.setAttribute('open', ''); }
+        }
+        function closeDialog(id) {
+            const dlg = document.getElementById(id);
+            if (!dlg) return;
+            try { dlg.close(); } catch { dlg.removeAttribute('open'); }
+        }
+
+        function parseTags(str) {
+            return String(str || '')
+                .split(',')
+                .map(s => s.trim())
+                .filter(Boolean)
+                .map(s => s.replace(/^#/, ''))
+                .filter((v, i, a) => a.indexOf(v) === i);
+        }
+
+        function openNewDeck() {
+            $('#dlgDeckTitle').textContent = 'New deck';
+            $('#deckId').value = '';
+            $('#deckName').value = '';
+            $('#deckDesc').value = '';
+            $('#btnDeleteDeck').classList.add('hidden');
+            openDialog('dlgDeck');
+            setTimeout(() => $('#deckName').focus(), 50);
+        }
+
+        function openEditDeck() {
+            const deck = getCurrentDeck();
+            if (!deck) { toast('No deck selected.', 'warn'); return; }
+            $('#dlgDeckTitle').textContent = 'Edit deck';
+            $('#deckId').value = deck.id;
+            $('#deckName').value = deck.name || '';
+            $('#deckDesc').value = deck.description || '';
+            $('#btnDeleteDeck').classList.remove('hidden');
+            openDialog('dlgDeck');
+        }
+
+        function upsertDeck({ id, name, description }) {
+            const nowISO = new Date().toISOString();
+            if (id) {
+                const d = getDeck(id);
+                if (!d) return;
+                d.name = name;
+                d.description = description;
+                d.updatedAt = nowISO;
+                toast('Deck saved.', 'ok');
+            } else {
+                const newDeck = { id: uid(), name, description, createdAt: nowISO, updatedAt: nowISO, cards: [] };
+                app.data.decks.unshift(newDeck);
+                app.currentDeckId = newDeck.id;
+                toast('Deck created.', 'ok');
+            }
+            save();
+            rerenderAll();
+            startOrRefreshSession({ soft: false });
+        }
+
+        function deleteDeck(id) {
+            const idx = app.data.decks.findIndex(d => d.id === id);
+            if (idx < 0) return;
+            const name = app.data.decks[idx].name || 'deck';
+            app.data.decks.splice(idx, 1);
+            app.currentDeckId = app.data.decks[0]?.id || null;
+            save();
+            toast(`Deleted ${name}.`, 'ok');
+            rerenderAll();
+            startOrRefreshSession({ soft: false });
+        }
+
+        function openNewCard() {
+            const deck = getCurrentDeck();
+            if (!deck) { toast('Create a deck first.', 'warn'); openNewDeck(); return; }
+            $('#dlgCardTitle').textContent = 'Add card';
+            $('#cardId').value = '';
+            $('#cardFrontInput').value = '';
+            $('#cardBackInput').value = '';
+            $('#cardTagsInput').value = '';
+            $('#btnDeleteCard').classList.add('hidden');
+
+            const srs = normalizeSRS(null);
+            $('#srsEase').value = String(srs.ease);
+            $('#srsInterval').value = String(srs.interval);
+            $('#srsReps').value = String(srs.repetitions);
+            $('#srsDue').value = srs.due;
+
+            openDialog('dlgCard');
+            setTimeout(() => $('#cardFrontInput').focus(), 50);
+        }
+
+        function openEditCard(cardId) {
+            const deck = getCurrentDeck();
+            if (!deck) return;
+            const c = (deck.cards || []).find(x => x.id === cardId);
+            if (!c) return;
+
+            $('#dlgCardTitle').textContent = 'Edit card';
+            $('#cardId').value = c.id;
+            $('#cardFrontInput').value = c.front || '';
+            $('#cardBackInput').value = c.back || '';
+            $('#cardTagsInput').value = (c.tags || []).join(', ');
+            $('#btnDeleteCard').classList.remove('hidden');
+
+            const srs = normalizeSRS(c.srs);
+            $('#srsEase').value = String(Number(srs.ease || 2.5).toFixed(2));
+            $('#srsInterval').value = String(srs.interval || 0);
+            $('#srsReps').value = String(srs.repetitions || 0);
+            $('#srsDue').value = (srs.due || isoDay(now()));
+
+            openDialog('dlgCard');
+            setTimeout(() => $('#cardFrontInput').focus(), 50);
+        }
+
+        function upsertCard({ id, front, back, tags, srs }) {
+            const deck = getCurrentDeck();
+            if (!deck) return;
+            const nowISO = new Date().toISOString();
+            const srsNorm = normalizeSRS(srs);
+
+            if (id) {
+                const c = deck.cards.find(x => x.id === id);
+                if (!c) return;
+                c.front = front;
+                c.back = back;
+                c.tags = tags;
+                c.srs = srsNorm;
+                c.updatedAt = nowISO;
+                toast('Card saved.', 'ok');
+            } else {
+                deck.cards.unshift({ id: uid(), front, back, tags, createdAt: nowISO, updatedAt: nowISO, srs: srsNorm });
+                toast('Card added.', 'ok');
+            }
+            deck.updatedAt = nowISO;
+            save();
+            rerenderAll();
+            startOrRefreshSession({ soft: true });
+            if (app.currentTab === 'cards') renderCards();
+        }
+
+        function deleteCard(cardId) {
+            const deck = getCurrentDeck();
+            if (!deck) return;
+            const idx = deck.cards.findIndex(c => c.id === cardId);
+            if (idx < 0) return;
+            deck.cards.splice(idx, 1);
+            deck.updatedAt = new Date().toISOString();
+            save();
+            toast('Card deleted.', 'ok');
+            rerenderAll();
+            startOrRefreshSession({ soft: true });
+            if (app.currentTab === 'cards') renderCards();
+        }
+
+        function renderCards() {
+            const deck = getCurrentDeck();
+            const list = $('#cardsList');
+            if (!list) return;
+            if (!deck) {
+                list.innerHTML = '<div class="p-4 text-sm text-slate-600 dark:text-slate-300">No deck selected.</div>';
+                $('#cardsCount').textContent = '0';
+                return;
+            }
+
+            const q = ($('#cardSearch').value || '').trim().toLowerCase();
+            const sort = $('#cardSort').value;
+
+            let cards = (deck.cards || []).slice();
+            for (const c of cards) { c.srs = normalizeSRS(c.srs); }
+
+            if (q) {
+                cards = cards.filter(c => {
+                    const hay = `${c.front || ''}\n${c.back || ''}\n${(c.tags || []).join(',')}`.toLowerCase();
+                    return hay.includes(q);
+                });
+            }
+
+            if (sort === 'due') {
+                cards.sort((a, b) => (a.srs.due || '').localeCompare(b.srs.due || ''));
+            } else if (sort === 'created') {
+                cards.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+            } else if (sort === 'updated') {
+                cards.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+            } else if (sort === 'front') {
+                cards.sort((a, b) => (a.front || '').localeCompare(b.front || '', undefined, { sensitivity: 'base' }));
+            }
+
+            $('#cardsCount').textContent = String(deck.cards.length || 0);
+
+            list.innerHTML = '';
+            if (cards.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'm-2 rounded-xl border border-dashed border-slate-300/70 bg-white/60 p-6 text-center text-sm text-slate-600 dark:border-slate-700/70 dark:bg-slate-950/40 dark:text-slate-300';
+                empty.innerHTML = q ? 'No matching cards.' : 'No cards yet. Add one!';
+                list.appendChild(empty);
+                return;
+            }
+
+            for (const c of cards) {
+                const due = c.srs?.due || isoDay(now());
+                const dueChip = isDue(c) ? 'bg-rose-600 text-white' : 'bg-slate-900/5 text-slate-700 dark:bg-white/10 dark:text-slate-200';
+
+                const row = document.createElement('div');
+                row.className = 'group m-2 rounded-2xl border border-slate-200/70 bg-white/60 p-4 shadow-sm transition hover:shadow-md dark:border-slate-800/70 dark:bg-slate-950/40';
+                row.innerHTML = `
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${dueChip}">${escapeHtml(due)}</span>
+                <span class="text-xs text-slate-500 dark:text-slate-400">${escapeHtml(formatRelDue(due))}</span>
+                <span class="text-xs text-slate-300 dark:text-slate-700">•</span>
+                <span class="text-xs text-slate-500 dark:text-slate-400">ease ${Number(normalizeSRS(c.srs).ease).toFixed(2)}</span>
+              </div>
+              <div class="mt-2 grid grid-cols-1 gap-2 lg:grid-cols-2">
+                <div>
+                  <div class="text-xs font-semibold text-slate-500 dark:text-slate-400">Front</div>
+                  <div class="mt-1 line-clamp-3 text-sm font-semibold">${escapeHtml(c.front || '')}</div>
+                </div>
+                <div>
+                  <div class="text-xs font-semibold text-slate-500 dark:text-slate-400">Back</div>
+                  <div class="mt-1 line-clamp-3 text-sm">${escapeHtml(c.back || '')}</div>
+                </div>
+              </div>
+              <div class="mt-2 flex flex-wrap gap-1.5">
+                ${(c.tags || []).slice(0, 8).map(t => `<span class="rounded-full border border-slate-200/70 bg-white/60 px-2 py-0.5 text-[11px] text-slate-600 dark:border-slate-800/70 dark:bg-slate-950/40 dark:text-slate-300">#${escapeHtml(t)}</span>`).join('')}
+              </div>
+            </div>
+            <div class="shrink-0 flex flex-col gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition">
+              <button class="cardEdit rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm font-semibold hover:bg-white dark:border-slate-800 dark:bg-slate-950/60 dark:hover:bg-slate-950" data-card-id="${c.id}">Edit</button>
+              <button class="cardSpeak rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm font-semibold hover:bg-white dark:border-slate-800 dark:bg-slate-950/60 dark:hover:bg-slate-950" data-card-id="${c.id}" title="Speak front">Speak</button>
+            </div>
+          </div>
+        `;
+                list.appendChild(row);
+            }
+
+            // list events
+            $$('.cardEdit', list).forEach(b => b.addEventListener('click', () => openEditCard(b.dataset.cardId)));
+            $$('.cardSpeak', list).forEach(b => {
+                b.addEventListener('click', () => {
+                    const deck = getCurrentDeck();
+                    const c = deck?.cards?.find(x => x.id === b.dataset.cardId);
+                    if (c) speakText(c.front);
+                });
+            });
+        }
+
+        function renderStats() {
+            const deck = getCurrentDeck();
+            if (!deck) {
+                $('#statsCards').textContent = '0';
+                $('#statsDue').textContent = '0';
+                $('#statsEase').textContent = '—';
+                $('#statsMature').textContent = '0';
+                drawDueChart([]);
+                return;
+            }
+
+            const cards = (deck.cards || []).map(c => ({ ...c, srs: normalizeSRS(c.srs) }));
+            const due = cards.filter(c => isDue(c)).length;
+            const avgEase = cards.length ? (cards.reduce((a, c) => a + (Number(c.srs.ease) || 2.5), 0) / cards.length) : null;
+            const mature = cards.filter(c => (c.srs.interval || 0) >= 21).length;
+
+            $('#statsCards').textContent = String(cards.length);
+            $('#statsDue').textContent = String(due);
+            $('#statsEase').textContent = avgEase == null ? '—' : avgEase.toFixed(2);
+            $('#statsMature').textContent = String(mature);
+
+            ensureStatsDay();
+            const st = app.data.preferences.stats;
+            $('#statsReviewedToday').textContent = String(st.reviewedToday || 0);
+            $('#statsStreak').textContent = String(st.streak || 0);
+            $('#statsSession').textContent = String(app.study.session.reviewed || 0);
+            const totalGrades = app.study.session.reviewed;
+            if (totalGrades > 0) {
+                const ok = app.study.session.good + app.study.session.easy;
+                $('#statsAccuracy').textContent = `${Math.round((ok / totalGrades) * 100)}%`;
+            } else {
+                $('#statsAccuracy').textContent = '—';
+            }
+
+            drawDueChart(upcomingDueCounts(deck, 14));
+        }
+
+        function upcomingDueCounts(deck, days = 14) {
+            const today = startOfDay(now());
+            const arr = Array.from({ length: days }, (_, i) => ({
+                day: new Date(today.getFullYear(), today.getMonth(), today.getDate() + i),
+                count: 0
+            }));
+
+            for (const c of (deck.cards || [])) {
+                const due = startOfDay(new Date(normalizeSRS(c.srs).due));
+                const diff = Math.round((due - today) / 86400000);
+                if (diff >= 0 && diff < days) { arr[diff].count += 1; }
+            }
+            return arr;
+        }
+
+        function drawDueChart(series) {
+            const canvas = $('#dueChart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width = canvas.clientWidth * devicePixelRatio;
+            const h = canvas.height = canvas.height * devicePixelRatio;
+
+            ctx.clearRect(0, 0, w, h);
+
+            const pad = 18 * devicePixelRatio;
+            const innerW = w - pad * 2;
+            const innerH = h - pad * 2;
+
+            const counts = series.map(s => s.count);
+            const max = Math.max(1, ...counts);
+
+            // Colors according to theme
+            const isDark = document.documentElement.classList.contains('dark');
+            const grid = isDark ? 'rgba(255,255,255,0.10)' : 'rgba(15,23,42,0.08)';
+            const text = isDark ? 'rgba(226,232,240,0.85)' : 'rgba(51,65,85,0.85)';
+            const barA = isDark ? 'rgba(56,189,248,0.95)' : 'rgba(14,165,233,0.95)';
+            const barB = isDark ? 'rgba(99,102,241,0.95)' : 'rgba(79,70,229,0.95)';
+
+            // grid lines
+            ctx.strokeStyle = grid;
+            ctx.lineWidth = 1 * devicePixelRatio;
+            for (let i = 0; i <= 3; i++) {
+                const y = pad + innerH * (i / 3);
+                ctx.beginPath();
+                ctx.moveTo(pad, y);
+                ctx.lineTo(pad + innerW, y);
+                ctx.stroke();
+            }
+
+            // bars
+            const n = Math.max(1, series.length);
+            const gap = 6 * devicePixelRatio;
+            const barW = (innerW - gap * (n - 1)) / n;
+
+            for (let i = 0; i < series.length; i++) {
+                const v = series[i].count;
+                const bh = (v / max) * innerH;
+                const x = pad + i * (barW + gap);
+                const y = pad + innerH - bh;
+
+                const grad = ctx.createLinearGradient(x, y, x, y + bh);
+                grad.addColorStop(0, barA);
+                grad.addColorStop(1, barB);
+                ctx.fillStyle = grad;
+                roundRect(ctx, x, y, barW, bh, 10 * devicePixelRatio);
+                ctx.fill();
+            }
+
+            // labels (every few days)
+            ctx.fillStyle = text;
+            ctx.font = `${11 * devicePixelRatio}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto`;
+            const labelEvery = series.length > 10 ? 3 : 2;
+            for (let i = 0; i < series.length; i += labelEvery) {
+                const d = series[i].day;
+                const lab = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                const x = pad + i * (barW + gap) + barW / 2;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'top';
+                ctx.fillText(lab, x, pad + innerH + 6 * devicePixelRatio);
+            }
+
+            // max label
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`max ${max}`, pad, pad + 2 * devicePixelRatio);
+
+            if (series.length === 0) {
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('No data', w / 2, h / 2);
+            }
+        }
+
+        function roundRect(ctx, x, y, w, h, r) {
+            const rr = Math.min(r, w / 2, h / 2);
+            ctx.beginPath();
+            ctx.moveTo(x + rr, y);
+            ctx.arcTo(x + w, y, x + w, y + h, rr);
+            ctx.arcTo(x + w, y + h, x, y + h, rr);
+            ctx.arcTo(x, y + h, x, y, rr);
+            ctx.arcTo(x, y, x + w, y, rr);
+            ctx.closePath();
+        }
+
+        function rerenderAll() {
+            renderDeckHeader();
+            renderDeckList();
+            renderDeckSelectMobile();
+            updateSidebarStats();
+            // reflect preferences
+            $('#toggleMarkdown').checked = !!app.data.preferences.markdown;
+            $('#toggleStudyAhead').checked = !!app.data.preferences.studyAhead;
+            $('#toggleAutoSpeak').checked = !!app.data.preferences.autoSpeak;
+            $('#settingsMarkdown').checked = !!app.data.preferences.markdown;
+            $('#settingsStudyAhead').checked = !!app.data.preferences.studyAhead;
+            $('#settingsAutoSpeak').checked = !!app.data.preferences.autoSpeak;
+        }
+
+        // Speech synthesis
+        function speakText(text) {
+            try {
+                if (!('speechSynthesis' in window)) {
+                    toast('Text-to-speech not supported in this browser.', 'warn');
+                    return;
+                }
+                const s = String(text || '').trim();
+                if (!s) { toast('Nothing to speak.', 'warn'); return; }
+                window.speechSynthesis.cancel();
+                const u = new SpeechSynthesisUtterance(s);
+                u.rate = 1.0;
+                u.pitch = 1.0;
+                u.volume = 1.0;
+                window.speechSynthesis.speak(u);
+            } catch (e) {
+                toast('Could not speak text.', 'warn');
+            }
+        }
+
+        // Import / export
+        function exportAll() {
+            const payload = {
+                ...app.data,
+                exportedAt: new Date().toISOString(),
+                app: 'Flashy'
+            };
+            download(`flashy-backup-${isoDay(now())}.json`, JSON.stringify(payload, null, 2), 'application/json');
+            toast('Exported JSON backup.', 'ok');
+        }
+
+        function importData(obj, { merge = true } = {}) {
+            if (!obj || typeof obj !== 'object' || !Array.isArray(obj.decks)) throw new Error('Invalid file');
+            // Normalize
+            const incoming = {
+                version: 1,
+                preferences: { ...(app.data.preferences || {}), ...(obj.preferences || {}) },
+                decks: obj.decks.map(d => ({
+                    id: d.id || uid(),
+                    name: d.name || 'Untitled',
+                    description: d.description || '',
+                    createdAt: d.createdAt || new Date().toISOString(),
+                    updatedAt: d.updatedAt || new Date().toISOString(),
+                    cards: (d.cards || []).map(c => ({
+                        id: c.id || uid(),
+                        front: c.front || '',
+                        back: c.back || '',
+                        tags: Array.isArray(c.tags) ? c.tags.map(t => String(t).replace(/^#/, '')).filter(Boolean) : [],
+                        createdAt: c.createdAt || new Date().toISOString(),
+                        updatedAt: c.updatedAt || new Date().toISOString(),
+                        srs: normalizeSRS(c.srs)
+                    }))
+                }))
+            };
+
+            if (merge) {
+                // Merge by deck id if matching, else add new. Merge cards by id.
+                const existingById = new Map(app.data.decks.map(d => [d.id, d]));
+                for (const nd of incoming.decks) {
+                    const ed = existingById.get(nd.id);
+                    if (!ed) {
+                        app.data.decks.unshift(nd);
+                        continue;
+                    }
+                    ed.name = nd.name || ed.name;
+                    ed.description = nd.description || ed.description;
+                    ed.updatedAt = new Date().toISOString();
+                    const cardById = new Map((ed.cards || []).map(c => [c.id, c]));
+                    for (const nc of (nd.cards || [])) {
+                        const ec = cardById.get(nc.id);
+                        if (!ec) { ed.cards.unshift(nc); }
+                        else {
+                            // keep latest updatedAt
+                            const newer = (nc.updatedAt || '') > (ec.updatedAt || '');
+                            if (newer) {
+                                ec.front = nc.front;
+                                ec.back = nc.back;
+                                ec.tags = nc.tags;
+                                ec.srs = normalizeSRS(nc.srs);
+                                ec.updatedAt = nc.updatedAt;
+                            }
+                        }
+                    }
+                }
+                // Preferences
+                app.data.preferences = { ...app.data.preferences, ...incoming.preferences };
+            } else {
+                app.data = incoming;
+            }
+
+            // Select first deck if current missing
+            if (!getDeck(app.currentDeckId)) app.currentDeckId = app.data.decks[0]?.id || null;
+
+            save();
+            applyTheme();
+            rerenderAll();
+            startOrRefreshSession({ soft: false });
+        }
+
+        // Bulk add
+        function parseBulkLines(text) {
+            const lines = String(text || '').replace(/\r\n/g, '\n').split('\n');
+            const out = [];
+            let skipped = 0;
+            for (const lineRaw of lines) {
+                const line = lineRaw.trim();
+                if (!line) { continue; }
+                // tags after #...
+                let tags = [];
+                let body = line;
+                const hashIdx = line.indexOf('#');
+                if (hashIdx >= 0) {
+                    body = line.slice(0, hashIdx).trim();
+                    const tagPart = line.slice(hashIdx + 1).trim();
+                    tags = tagPart.split(/[;,]/).map(s => s.trim()).filter(Boolean).map(s => s.replace(/^#/, ''));
+                }
+
+                let front = '', back = '';
+                if (body.includes('\t')) {
+                    const [a, ...rest] = body.split('\t');
+                    front = (a || '').trim();
+                    back = rest.join('\t').trim();
+                } else if (body.includes('::')) {
+                    const [a, ...rest] = body.split('::');
+                    front = (a || '').trim();
+                    back = rest.join('::').trim();
+                }
+
+                if (front && back) {
+                    out.push({ front, back, tags: Array.from(new Set(tags)) });
+                } else {
+                    skipped++;
+                }
+            }
+            return { cards: out, skipped };
+        }
+
+        // Events
+        function wireEvents() {
+            // Deck list click
+            $('#deckList')?.addEventListener('click', (e) => {
+                const btn = e.target.closest('button[data-deck-id]');
+                if (!btn) return;
+                app.currentDeckId = btn.dataset.deckId;
+                rerenderAll();
+                startOrRefreshSession({ soft: false });
+            });
+
+            // Search decks
+            $('#deckSearch')?.addEventListener('input', () => renderDeckList());
+
+            // Mobile select
+            $('#deckSelectMobile')?.addEventListener('change', (e) => {
+                app.currentDeckId = e.target.value;
+                rerenderAll();
+                startOrRefreshSession({ soft: false });
+            });
+
+            // Tabs
+            $$('.tabBtn').forEach(btn => btn.addEventListener('click', () => setTab(btn.dataset.tab)));
+
+            // Deck modal
+            $('#btnNewDeck')?.addEventListener('click', openNewDeck);
+            $('#btnNewDeckMobile')?.addEventListener('click', openNewDeck);
+            $('#btnDeckEdit')?.addEventListener('click', openEditDeck);
+            $('#deckForm')?.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const id = $('#deckId').value.trim() || null;
+                const name = $('#deckName').value.trim();
+                const description = $('#deckDesc').value.trim();
+                if (!name) { toast('Deck name is required.', 'warn'); return; }
+                upsertDeck({ id, name, description });
+                closeDialog('dlgDeck');
+            });
+            $('#btnDeleteDeck')?.addEventListener('click', () => {
+                const id = $('#deckId').value.trim();
+                const deck = getDeck(id);
+                if (!deck) return;
+                if (confirm(`Delete deck “${deck.name}” and all its cards? This cannot be undone.`)) {
+                    deleteDeck(id);
+                    closeDialog('dlgDeck');
+                }
+            });
+
+            // Dialog close buttons
+            $$('.dlgClose').forEach(b => b.addEventListener('click', () => closeDialog(b.dataset.close)));
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    // Close the topmost open dialog
+                    const openDlg = $$('dialog[open]').at(-1);
+                    if (openDlg) {
+                        e.preventDefault();
+                        try { openDlg.close(); } catch { openDlg.removeAttribute('open'); }
+                    }
+                }
+            });
+
+            // Card modal
+            $('#btnAddCard')?.addEventListener('click', openNewCard);
+            $('#btnAddFromEmpty')?.addEventListener('click', openNewCard);
+            $('#btnQuickAdd')?.addEventListener('click', openNewCard);
+            $('#btnEditCurrent')?.addEventListener('click', () => {
+                const c = currentCard();
+                if (!c) return;
+                openEditCard(c.id);
+            });
+            $('#cardForm')?.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const id = $('#cardId').value.trim() || null;
+                const front = $('#cardFrontInput').value.trim();
+                const back = $('#cardBackInput').value.trim();
+                const tags = parseTags($('#cardTagsInput').value);
+                if (!front || !back) { toast('Front and back are required.', 'warn'); return; }
+
+                const srs = {
+                    ease: clamp(Number($('#srsEase').value || 2.5), 1.3, 3.5),
+                    interval: Math.max(0, Number($('#srsInterval').value || 0)),
+                    repetitions: Math.max(0, Number($('#srsReps').value || 0)),
+                    due: $('#srsDue').value || isoDay(now()),
+                    lapses: normalizeSRS(null).lapses
+                };
+
+                upsertCard({ id, front, back, tags, srs });
+                closeDialog('dlgCard');
+            });
+            $('#btnDeleteCard')?.addEventListener('click', () => {
+                const id = $('#cardId').value.trim();
+                if (!id) return;
+                if (confirm('Delete this card?')) {
+                    deleteCard(id);
+                    closeDialog('dlgCard');
+                }
+            });
+
+            // Cards view interactions
+            $('#cardSearch')?.addEventListener('input', () => renderCards());
+            $('#cardSort')?.addEventListener('change', () => renderCards());
+
+            // Bulk add
+            $('#btnBulkAdd')?.addEventListener('click', () => {
+                const deck = getCurrentDeck();
+                if (!deck) { toast('Create a deck first.', 'warn'); return; }
+                $('#bulkInput').value = '';
+                openDialog('dlgBulk');
+                setTimeout(() => $('#bulkInput').focus(), 50);
+            });
+            $('#bulkForm')?.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const deck = getCurrentDeck();
+                if (!deck) return;
+                const { cards, skipped } = parseBulkLines($('#bulkInput').value);
+                if (cards.length === 0) { toast('No valid lines found.', 'warn'); return; }
+                const nowISO = new Date().toISOString();
+                for (const c of cards) {
+                    deck.cards.unshift({
+                        id: uid(),
+                        front: c.front,
+                        back: c.back,
+                        tags: c.tags || [],
+                        createdAt: nowISO,
+                        updatedAt: nowISO,
+                        srs: normalizeSRS({ due: isoDay(now()) })
+                    });
+                }
+                deck.updatedAt = nowISO;
+                save();
+                closeDialog('dlgBulk');
+                toast(`Added ${cards.length} cards${skipped ? ` (skipped ${skipped})` : ''}.`, 'ok');
+                rerenderAll();
+                startOrRefreshSession({ soft: true });
+                if (app.currentTab === 'cards') renderCards();
+            });
+
+            // Study actions
+            $('#cardFront')?.addEventListener('click', () => {
+                const mode = $('#studyMode').value;
+                if (mode === 'mcq') {
+                    // MCQ expects user to select on back; still allow flip
+                    setFlipped(!app.study.flipped);
+                } else {
+                    setFlipped(true);
+                }
+            });
+            $('#btnFlipBack')?.addEventListener('click', () => setFlipped(false));
+            $('#btnNext')?.addEventListener('click', () => nextCard());
+            $$('.gradeBtn').forEach(b => b.addEventListener('click', () => gradeCurrent(Number(b.dataset.grade))));
+            $('#btnShuffle')?.addEventListener('click', () => {
+                if (app.study.queue.length <= 1) { toast('Not enough cards to shuffle.', 'warn'); return; }
+                shuffleInPlace(app.study.queue);
+                app.study.cursor = 0;
+                setFlipped(false);
+                renderStudyCard();
+                toast('Shuffled.', 'ok');
+            });
+            $('#btnResetSession')?.addEventListener('click', () => {
+                if (confirm('Reset session progress? (Does not undo scheduling changes.)')) {
+                    startOrRefreshSession({ soft: false });
+                    toast('Session reset.', 'ok');
+                }
+            });
+
+            // Study prefs toggles
+            $('#toggleStudyAhead')?.addEventListener('change', (e) => {
+                app.data.preferences.studyAhead = !!e.target.checked;
+                $('#settingsStudyAhead').checked = !!e.target.checked;
+                save();
+                startOrRefreshSession({ soft: false });
+            });
+            $('#btnStudyAheadFromEmpty')?.addEventListener('click', () => {
+                app.data.preferences.studyAhead = true;
+                $('#toggleStudyAhead').checked = true;
+                $('#settingsStudyAhead').checked = true;
+                save();
+                startOrRefreshSession({ soft: false });
+            });
+            $('#toggleMarkdown')?.addEventListener('change', (e) => {
+                app.data.preferences.markdown = !!e.target.checked;
+                $('#settingsMarkdown').checked = !!e.target.checked;
+                save();
+                renderStudyCard();
+                if (app.currentTab === 'cards') renderCards();
+            });
+            $('#toggleAutoSpeak')?.addEventListener('change', (e) => {
+                app.data.preferences.autoSpeak = !!e.target.checked;
+                $('#settingsAutoSpeak').checked = !!e.target.checked;
+                save();
+                toast(e.target.checked ? 'Auto-speak on.' : 'Auto-speak off.', 'ok');
+            });
+
+            // Study mode change
+            $('#studyMode')?.addEventListener('change', () => {
+                renderStudyCard();
+            });
+
+            // Speak buttons
+            $('#btnSpeakFront')?.addEventListener('click', () => {
+                const c = currentCard();
+                if (c) speakText(c.front);
+            });
+            $('#btnSpeakBack')?.addEventListener('click', () => {
+                const c = currentCard();
+                if (c) speakText(c.back);
+            });
+
+            // Export / import
+            $('#btnExport')?.addEventListener('click', exportAll);
+            $('#btnExportAllSettings')?.addEventListener('click', exportAll);
+            $('#btnImport')?.addEventListener('click', () => openDialog('dlgImport'));
+            $('#btnImportSettings')?.addEventListener('click', () => openDialog('dlgImport'));
+            $('#importForm')?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const file = $('#importFile').files?.[0];
+                if (!file) { toast('Choose a JSON file first.', 'warn'); return; }
+                try {
+                    const text = await file.text();
+                    const obj = JSON.parse(text);
+                    const merge = !!$('#importMerge').checked;
+                    importData(obj, { merge });
+                    closeDialog('dlgImport');
+                    toast('Import complete.', 'ok');
+                } catch (err) {
+                    console.error(err);
+                    toast('Import failed. Make sure it is a valid Flashy backup JSON.', 'err', 4200);
+                }
+            });
+
+            // Export deck CSV
+            $('#btnExportDeck')?.addEventListener('click', () => {
+                const deck = getCurrentDeck();
+                if (!deck) { toast('No deck selected.', 'warn'); return; }
+                download(`flashy-${(deck.name || 'deck').toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${isoDay(now())}.csv`, toCSV(deck), 'text/csv');
+                toast('Exported deck CSV.', 'ok');
+            });
+
+            // Theme
+            $('#btnTheme')?.addEventListener('click', () => {
+                const pref = app.data.preferences.theme || 'system';
+                const next = pref === 'dark' ? 'light' : 'dark';
+                setTheme(next);
+                toast(next === 'dark' ? 'Dark mode.' : 'Light mode.', 'ok');
+            });
+            $('#settingsTheme')?.addEventListener('change', (e) => {
+                setTheme(e.target.checked ? 'dark' : 'light');
+            });
+
+            // Settings toggles
+            $('#settingsMarkdown')?.addEventListener('change', (e) => {
+                app.data.preferences.markdown = !!e.target.checked;
+                $('#toggleMarkdown').checked = !!e.target.checked;
+                save();
+                renderStudyCard();
+                if (app.currentTab === 'cards') renderCards();
+            });
+            $('#settingsAutoSpeak')?.addEventListener('change', (e) => {
+                app.data.preferences.autoSpeak = !!e.target.checked;
+                $('#toggleAutoSpeak').checked = !!e.target.checked;
+                save();
+                toast(e.target.checked ? 'Auto-speak on.' : 'Auto-speak off.', 'ok');
+            });
+            $('#settingsStudyAhead')?.addEventListener('change', (e) => {
+                app.data.preferences.studyAhead = !!e.target.checked;
+                $('#toggleStudyAhead').checked = !!e.target.checked;
+                save();
+                startOrRefreshSession({ soft: false });
+            });
+
+            // Reset data
+            $('#btnResetData')?.addEventListener('click', () => {
+                if (confirm('Reset all app data? This will remove all decks and cards.')) {
+                    localStorage.removeItem(LS_KEY);
+                    load();
+                    applyTheme();
+                    rerenderAll();
+                    startOrRefreshSession({ soft: false });
+                    setTab('study');
+                    toast('App data reset.', 'ok');
+                }
+            });
+
+            // Help
+            $('#btnHelp')?.addEventListener('click', () => openDialog('dlgHelp'));
+
+            // Recalc stats
+            $('#btnRecalcStats')?.addEventListener('click', () => renderStats());
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if ($$('dialog[open]').length) return; // don’t interfere with dialogs
+                if (inInput()) return;
+
+                if (e.key === ' ') {
+                    e.preventDefault();
+                    const mode = $('#studyMode').value;
+                    if (mode === 'flip') setFlipped(!app.study.flipped);
+                    else setFlipped(true);
+                    return;
+                }
+                if (e.key === 'n' || e.key === 'N') {
+                    e.preventDefault();
+                    nextCard();
+                    return;
+                }
+                if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    prevCard();
+                    return;
+                }
+                if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    nextCard();
+                    return;
+                }
+                if (['1', '2', '3', '4'].includes(e.key)) {
+                    e.preventDefault();
+                    gradeCurrent(Number(e.key) - 1);
+                    return;
+                }
+                if (e.key === 'a' || e.key === 'A') {
+                    // quick add
+                    e.preventDefault();
+                    openNewCard();
+                    return;
+                }
+            });
+
+            // Resize chart
+            window.addEventListener('resize', () => {
+                if (app.currentTab === 'stats') drawDueChart(upcomingDueCounts(getCurrentDeck() || { cards: [] }, 14));
+            }, { passive: true });
+
+            // System theme changes
+            if (window.matchMedia) {
+                const mq = window.matchMedia('(prefers-color-scheme: dark)');
+                mq.addEventListener?.('change', () => applyTheme());
+            }
+        }
+
+        function init() {
+            load();
+            ensureStatsDay();
+            applyTheme();
+
+            // Preference bindings
+            $('#toggleMarkdown').checked = !!app.data.preferences.markdown;
+            $('#toggleStudyAhead').checked = !!app.data.preferences.studyAhead;
+            $('#toggleAutoSpeak').checked = !!app.data.preferences.autoSpeak;
+            $('#settingsMarkdown').checked = !!app.data.preferences.markdown;
+            $('#settingsStudyAhead').checked = !!app.data.preferences.studyAhead;
+            $('#settingsAutoSpeak').checked = !!app.data.preferences.autoSpeak;
+
+            wireEvents();
+            rerenderAll();
+            setTab('study');
+            startOrRefreshSession({ soft: false });
+
+            // Friendly nudge
+            setTimeout(() => {
+                const deck = getCurrentDeck();
+                if (deck && deck.cards.length <= 4) toast('Tip: try “Bulk” add in the Cards tab to paste many at once.', 'info', 4200);
+            }, 650);
+        }
+
+        init();
+    </script>
+</body>
+
+</html>
