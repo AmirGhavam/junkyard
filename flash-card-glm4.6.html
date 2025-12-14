@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlashMaster - Advanced Flash Card App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .card-flip {
+            transform-style: preserve-3d;
+            transition: transform 0.6s;
+        }
+
+        .card-flip.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .card-front,
+        .card-back {
+            backface-visibility: hidden;
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+
+        .card-back {
+            transform: rotateY(180deg);
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .slide-in {
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(-100%);
+            }
+
+            to {
+                transform: translateX(0);
+            }
+        }
+
+        .progress-ring {
+            transform: rotate(-90deg);
+        }
+
+        .dark {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        }
+
+        .light {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        }
+
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .dark .glass-effect {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .hover-scale {
+            transition: transform 0.2s;
+        }
+
+        .hover-scale:hover {
+            transform: scale(1.05);
+        }
+
+        .streak-fire {
+            animation: fire 1s ease-in-out infinite;
+        }
+
+        @keyframes fire {
+
+            0%,
+            100% {
+                transform: scale(1) rotate(0deg);
+            }
+
+            25% {
+                transform: scale(1.1) rotate(-5deg);
+            }
+
+            75% {
+                transform: scale(1.1) rotate(5deg);
+            }
+        }
+
+        .pulse-dot {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+            }
+        }
+    </style>
+</head>
+
+<body class="min-h-screen light transition-all duration-300">
+    <div id="app" class="min-h-screen p-4">
+        <!-- Header -->
+        <header class="glass-effect rounded-2xl p-6 mb-6 fade-in">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center space-x-4">
+                    <div
+                        class="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-layer-group text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <h1
+                            class="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                            FlashMaster</h1>
+                        <p class="text-sm opacity-70">Master your knowledge with smart flashcards</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2 bg-white/20 rounded-lg px-4 py-2">
+                        <i class="fas fa-fire text-orange-500 streak-fire"></i>
+                        <span class="font-semibold" id="streakCount">0</span>
+                        <span class="text-sm opacity-70">day streak</span>
+                    </div>
+                    <button onclick="toggleTheme()"
+                        class="w-10 h-10 rounded-lg bg-white/20 hover:bg-white/30 transition-all flex items-center justify-center">
+                        <i id="themeIcon" class="fas fa-moon"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <div class="glass-effect rounded-2xl p-2 mb-6 fade-in">
+            <div class="flex space-x-2">
+                <button onclick="switchTab('dashboard')" id="dashboardTab"
+                    class="tab-btn flex-1 px-4 py-3 rounded-xl font-medium transition-all bg-white/50">
+                    <i class="fas fa-chart-line mr-2"></i>Dashboard
+                </button>
+                <button onclick="switchTab('decks')" id="decksTab"
+                    class="tab-btn flex-1 px-4 py-3 rounded-xl font-medium transition-all hover:bg-white/20">
+                    <i class="fas fa-folder mr-2"></i>Decks
+                </button>
+                <button onclick="switchTab('study')" id="studyTab"
+                    class="tab-btn flex-1 px-4 py-3 rounded-xl font-medium transition-all hover:bg-white/20">
+                    <i class="fas fa-brain mr-2"></i>Study
+                </button>
+                <button onclick="switchTab('quiz')" id="quizTab"
+                    class="tab-btn flex-1 px-4 py-3 rounded-xl font-medium transition-all hover:bg-white/20">
+                    <i class="fas fa-graduation-cap mr-2"></i>Quiz
+                </button>
+            </div>
+        </div>
+
+        <!-- Dashboard Tab -->
+        <div id="dashboardContent" class="tab-content">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div class="glass-effect rounded-2xl p-6 hover-scale">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-layer-group text-blue-500 text-xl"></i>
+                        </div>
+                        <span class="text-3xl font-bold" id="totalDecks">0</span>
+                    </div>
+                    <h3 class="font-semibold mb-1">Total Decks</h3>
+                    <p class="text-sm opacity-70">Organize your learning</p>
+                </div>
+
+                <div class="glass-effect rounded-2xl p-6 hover-scale">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-clone text-green-500 text-xl"></i>
+                        </div>
+                        <span class="text-3xl font-bold" id="totalCards">0</span>
+                    </div>
+                    <h3 class="font-semibold mb-1">Total Cards</h3>
+                    <p class="text-sm opacity-70">Knowledge items</p>
+                </div>
+
+                <div class="glass-effect rounded-2xl p-6 hover-scale">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-check-circle text-purple-500 text-xl"></i>
+                        </div>
+                        <span class="text-3xl font-bold" id="masteredCards">0</span>
+                    </div>
+                    <h3 class="font-semibold mb-1">Mastered</h3>
+                    <p class="text-sm opacity-70">Cards you know well</p>
+                </div>
+            </div>
+
+            <!-- Progress Chart -->
+            <div class="glass-effect rounded-2xl p-6 mb-6">
+                <h3 class="text-xl font-semibold mb-4">Weekly Progress</h3>
+                <div class="flex items-end justify-between h-40">
+                    <div class="flex-1 mx-1">
+                        <div class="bg-blue-500/30 rounded-t-lg" style="height: 60%"></div>
+                        <p class="text-xs text-center mt-2 opacity-70">Mon</p>
+                    </div>
+                    <div class="flex-1 mx-1">
+                        <div class="bg-blue-500/30 rounded-t-lg" style="height: 80%"></div>
+                        <p class="text-xs text-center mt-2 opacity-70">Tue</p>
+                    </div>
+                    <div class="flex-1 mx-1">
+                        <div class="bg-blue-500/30 rounded-t-lg" style="height: 45%"></div>
+                        <p class="text-xs text-center mt-2 opacity-70">Wed</p>
+                    </div>
+                    <div class="flex-1 mx-1">
+                        <div class="bg-blue-500/30 rounded-t-lg" style="height: 90%"></div>
+                        <p class="text-xs text-center mt-2 opacity-70">Thu</p>
+                    </div>
+                    <div class="flex-1 mx-1">
+                        <div class="bg-blue-500/30 rounded-t-lg" style="height: 70%"></div>
+                        <p class="text-xs text-center mt-2 opacity-70">Fri</p>
+                    </div>
+                    <div class="flex-1 mx-1">
+                        <div class="bg-blue-500/30 rounded-t-lg" style="height: 85%"></div>
+                        <p class="text-xs text-center mt-2 opacity-70">Sat</p>
+                    </div>
+                    <div class="flex-1 mx-1">
+                        <div class="bg-blue-500 rounded-t-lg pulse-dot" style="height: 95%"></div>
+                        <p class="text-xs text-center mt-2 font-semibold">Today</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="glass-effect rounded-2xl p-6">
+                <h3 class="text-xl font-semibold mb-4">Recent Activity</h3>
+                <div id="recentActivity" class="space-y-3">
+                    <div class="flex items-center justify-between p-3 bg-white/10 rounded-lg">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 bg-green-500/20 rounded-full flex items-center justify-center">
+                                <i class="fas fa-check text-green-500 text-sm"></i>
+                            </div>
+                            <div>
+                                <p class="font-medium">Completed Study Session</p>
+                                <p class="text-xs opacity-70">2 hours ago</p>
+                            </div>
+                        </div>
+                        <span class="text-sm font-semibold">+15 cards</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Decks Tab -->
+        <div id="decksContent" class="tab-content hidden">
+            <div class="flex justify-between items-center mb-6">
+                <div class="flex-1 max-w-md">
+                    <div class="relative">
+                        <input type="text" id="searchDecks" placeholder="Search decks..."
+                            class="w-full px-4 py-3 pl-12 rounded-xl bg-white/20 backdrop-blur border border-white/20 focus:outline-none focus:border-blue-500 transition-all">
+                        <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 opacity-70"></i>
+                    </div>
+                </div>
+                <button onclick="openDeckModal()"
+                    class="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-medium hover:shadow-lg transition-all hover-scale">
+                    <i class="fas fa-plus mr-2"></i>New Deck
+                </button>
+            </div>
+
+            <div id="decksGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Decks will be dynamically added here -->
+            </div>
+        </div>
+
+        <!-- Study Tab -->
+        <div id="studyContent" class="tab-content hidden">
+            <div class="max-w-4xl mx-auto">
+                <div class="glass-effect rounded-2xl p-6 mb-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold">Study Mode</h2>
+                        <div class="flex items-center space-x-4">
+                            <select id="studyDeckSelect"
+                                class="px-4 py-2 rounded-lg bg-white/20 backdrop-blur border border-white/20 focus:outline-none">
+                                <option value="">Select a deck</option>
+                            </select>
+                            <button onclick="startStudy()"
+                                class="px-6 py-2 bg-gradient-to-r from-green-500 to-teal-600 text-white rounded-xl font-medium hover:shadow-lg transition-all">
+                                <i class="fas fa-play mr-2"></i>Start
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex space-x-4">
+                        <button onclick="setStudyMode('normal')"
+                            class="study-mode-btn flex-1 px-4 py-2 rounded-lg bg-white/20 font-medium transition-all">
+                            <i class="fas fa-book mr-2"></i>Normal
+                        </button>
+                        <button onclick="setStudyMode('spaced')"
+                            class="study-mode-btn flex-1 px-4 py-2 rounded-lg bg-white/20 font-medium transition-all">
+                            <i class="fas fa-clock mr-2"></i>Spaced Repetition
+                        </button>
+                        <button onclick="setStudyMode('random')"
+                            class="study-mode-btn flex-1 px-4 py-2 rounded-lg bg-white/20 font-medium transition-all">
+                            <i class="fas fa-random mr-2"></i>Random
+                        </button>
+                    </div>
+                </div>
+
+                <div id="studyArea" class="hidden">
+                    <div class="glass-effect rounded-2xl p-8 mb-6">
+                        <div class="flex justify-between items-center mb-6">
+                            <div class="flex items-center space-x-4">
+                                <span class="text-sm opacity-70">Card</span>
+                                <span class="text-xl font-bold" id="cardProgress">1/10</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <button onclick="previousCard()"
+                                    class="w-10 h-10 rounded-lg bg-white/20 hover:bg-white/30 transition-all flex items-center justify-center">
+                                    <i class="fas fa-chevron-left"></i>
+                                </button>
+                                <button onclick="flipCard()"
+                                    class="px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-medium hover:shadow-lg transition-all">
+                                    <i class="fas fa-sync-alt mr-2"></i>Flip
+                                </button>
+                                <button onclick="nextCard()"
+                                    class="w-10 h-10 rounded-lg bg-white/20 hover:bg-white/30 transition-all flex items-center justify-center">
+                                    <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="relative h-96 mb-6">
+                            <div id="flashcard" class="card-flip w-full h-full">
+                                <div class="card-front glass-effect rounded-2xl p-8 flex items-center justify-center">
+                                    <div class="text-center">
+                                        <h3 class="text-2xl font-bold mb-4" id="cardFront">Question</h3>
+                                        <p class="opacity-70">Click flip to see answer</p>
+                                    </div>
+                                </div>
+                                <div class="card-back glass-effect rounded-2xl p-8 flex items-center justify-center">
+                                    <div class="text-center">
+                                        <h3 class="text-2xl font-bold mb-4" id="cardBack">Answer</h3>
+                                        <div class="flex justify-center space-x-4 mt-6">
+                                            <button onclick="markCard('hard')"
+                                                class="px-4 py-2 bg-red-500/20 text-red-500 rounded-lg hover:bg-red-500/30 transition-all">
+                                                <i class="fas fa-times mr-2"></i>Hard
+                                            </button>
+                                            <button onclick="markCard('medium')"
+                                                class="px-4 py-2 bg-yellow-500/20 text-yellow-500 rounded-lg hover:bg-yellow-500/30 transition-all">
+                                                <i class="fas fa-minus mr-2"></i>Medium
+                                            </button>
+                                            <button onclick="markCard('easy')"
+                                                class="px-4 py-2 bg-green-500/20 text-green-500 rounded-lg hover:bg-green-500/30 transition-all">
+                                                <i class="fas fa-check mr-2"></i>Easy
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-center space-x-2">
+                            <div class="w-2 h-2 rounded-full bg-blue-500"></div>
+                            <div class="w-2 h-2 rounded-full bg-white/30"></div>
+                            <div class="w-2 h-2 rounded-full bg-white/30"></div>
+                            <div class="w-2 h-2 rounded-full bg-white/30"></div>
+                            <div class="w-2 h-2 rounded-full bg-white/30"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quiz Tab -->
+        <div id="quizContent" class="tab-content hidden">
+            <div class="max-w-4xl mx-auto">
+                <div class="glass-effect rounded-2xl p-6 mb-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold">Quiz Mode</h2>
+                        <div class="flex items-center space-x-4">
+                            <select id="quizDeckSelect"
+                                class="px-4 py-2 rounded-lg bg-white/20 backdrop-blur border border-white/20 focus:outline-none">
+                                <option value="">Select a deck</option>
+                            </select>
+                            <button onclick="startQuiz()"
+                                class="px-6 py-2 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-xl font-medium hover:shadow-lg transition-all">
+                                <i class="fas fa-graduation-cap mr-2"></i>Start Quiz
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="quizArea" class="hidden">
+                    <div class="glass-effect rounded-2xl p-8 mb-6">
+                        <div class="flex justify-between items-center mb-6">
+                            <div class="flex items-center space-x-4">
+                                <span class="text-sm opacity-70">Question</span>
+                                <span class="text-xl font-bold" id="quizProgress">1/10</span>
+                            </div>
+                            <div class="flex items-center space-x-4">
+                                <div class="flex items-center space-x-2">
+                                    <i class="fas fa-clock text-blue-500"></i>
+                                    <span id="quizTimer">00:00</span>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <i class="fas fa-star text-yellow-500"></i>
+                                    <span id="quizScore">0</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-8">
+                            <h3 class="text-xl font-bold mb-6" id="quizQuestion">Question goes here</h3>
+                            <div id="quizOptions" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <!-- Options will be dynamically added -->
+                            </div>
+                        </div>
+
+                        <div class="flex justify-between items-center">
+                            <button onclick="skipQuestion()"
+                                class="px-4 py-2 bg-gray-500/20 text-gray-500 rounded-lg hover:bg-gray-500/30 transition-all">
+                                <i class="fas fa-forward mr-2"></i>Skip
+                            </button>
+                            <div class="flex space-x-2">
+                                <div class="w-2 h-2 rounded-full bg-blue-500"></div>
+                                <div class="w-2 h-2 rounded-full bg-white/30"></div>
+                                <div class="w-2 h-2 rounded-full bg-white/30"></div>
+                                <div class="w-2 h-2 rounded-full bg-white/30"></div>
+                                <div class="w-2 h-2 rounded-full bg-white/30"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="quizResults" class="hidden glass-effect rounded-2xl p-8">
+                    <div class="text-center">
+                        <div class="w-32 h-32 mx-auto mb-6 relative">
+                            <svg class="w-32 h-32 progress-ring">
+                                <circle cx="64" cy="64" r="56" stroke="currentColor" stroke-width="8" fill="none"
+                                    class="text-gray-300"></circle>
+                                <circle id="scoreCircle" cx="64" cy="64" r="56" stroke="currentColor" stroke-width="8"
+                                    fill="none" class="text-blue-500" stroke-dasharray="351.86"
+                                    stroke-dashoffset="351.86" style="transition: stroke-dashoffset 1s ease-in-out">
+                                </circle>
+                            </svg>
+                            <div class="absolute inset-0 flex items-center justify-center">
+                                <span class="text-3xl font-bold" id="finalScore">0%</span>
+                            </div>
+                        </div>
+                        <h3 class="text-2xl font-bold mb-2">Quiz Complete!</h3>
+                        <p class="opacity-70 mb-6">Great job on completing the quiz</p>
+                        <div class="grid grid-cols-3 gap-4 mb-6">
+                            <div class="bg-green-500/20 rounded-lg p-4">
+                                <p class="text-2xl font-bold text-green-500" id="correctCount">0</p>
+                                <p class="text-sm opacity-70">Correct</p>
+                            </div>
+                            <div class="bg-red-500/20 rounded-lg p-4">
+                                <p class="text-2xl font-bold text-red-500" id="incorrectCount">0</p>
+                                <p class="text-sm opacity-70">Incorrect</p>
+                            </div>
+                            <div class="bg-blue-500/20 rounded-lg p-4">
+                                <p class="text-2xl font-bold text-blue-500" id="timeTaken">00:00</p>
+                                <p class="text-sm opacity-70">Time</p>
+                            </div>
+                        </div>
+                        <button onclick="restartQuiz()"
+                            class="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-medium hover:shadow-lg transition-all">
+                            <i class="fas fa-redo mr-2"></i>Try Again
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Deck Modal -->
+    <div id="deckModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50">
+        <div class="glass-effect rounded-2xl p-8 max-w-md w-full mx-4">
+            <h3 class="text-2xl font-bold mb-6">Create New Deck</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-2">Deck Name</label>
+                    <input type="text" id="deckName"
+                        class="w-full px-4 py-3 rounded-lg bg-white/20 backdrop-blur border border-white/20 focus:outline-none focus:border-blue-500 transition-all"
+                        placeholder="Enter deck name">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2">Description</label>
+                    <textarea id="deckDescription"
+                        class="w-full px-4 py-3 rounded-lg bg-white/20 backdrop-blur border border-white/20 focus:outline-none focus:border-blue-500 transition-all"
+                        rows="3" placeholder="Enter description (optional)"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2">Category</label>
+                    <select id="deckCategory"
+                        class="w-full px-4 py-3 rounded-lg bg-white/20 backdrop-blur border border-white/20 focus:outline-none focus:border-blue-500 transition-all">
+                        <option value="general">General</option>
+                        <option value="language">Language</option>
+                        <option value="science">Science</option>
+                        <option value="history">History</option>
+                        <option value="math">Mathematics</option>
+                        <option value="programming">Programming</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex space-x-4 mt-6">
+                <button onclick="closeDeckModal()"
+                    class="flex-1 px-6 py-3 bg-gray-500/20 text-gray-500 rounded-xl font-medium hover:bg-gray-500/30 transition-all">
+                    Cancel
+                </button>
+                <button onclick="createDeck()"
+                    class="flex-1 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-medium hover:shadow-lg transition-all">
+                    Create Deck
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card Modal -->
+    <div id="cardModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50">
+        <div class="glass-effect rounded-2xl p-8 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <h3 class="text-2xl font-bold mb-6">Manage Cards</h3>
+            <div class="space-y-4 mb-6">
+                <div>
+                    <label class="block text-sm font-medium mb-2">Front (Question)</label>
+                    <input type="text" id="cardFront"
+                        class="w-full px-4 py-3 rounded-lg bg-white/20 backdrop-blur border border-white/20 focus:outline-none focus:border-blue-500 transition-all"
+                        placeholder="Enter question">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2">Back (Answer)</label>
+                    <textarea id="cardBack"
+                        class="w-full px-4 py-3 rounded-lg bg-white/20 backdrop-blur border border-white/20 focus:outline-none focus:border-blue-500 transition-all"
+                        rows="3" placeholder="Enter answer"></textarea>
+                </div>
+                <button onclick="addCard()"
+                    class="w-full px-6 py-3 bg-gradient-to-r from-green-500 to-teal-600 text-white rounded-xl font-medium hover:shadow-lg transition-all">
+                    <i class="fas fa-plus mr-2"></i>Add Card
+                </button>
+            </div>
+
+            <div class="border-t border-white/20 pt-6">
+                <h4 class="font-semibold mb-4">Existing Cards</h4>
+                <div id="cardsList" class="space-y-2 max-h-60 overflow-y-auto">
+                    <!-- Cards will be listed here -->
+                </div>
+            </div>
+
+            <div class="flex space-x-4 mt-6">
+                <button onclick="closeCardModal()"
+                    class="flex-1 px-6 py-3 bg-gray-500/20 text-gray-500 rounded-xl font-medium hover:bg-gray-500/30 transition-all">
+                    Close
+                </button>
+                <button onclick="importCards()"
+                    class="flex-1 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-xl font-medium hover:shadow-lg transition-all">
+                    <i class="fas fa-file-import mr-2"></i>Import CSV
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // App State
+        let appState = {
+            decks: [],
+            currentTab: 'dashboard',
+            currentDeck: null,
+            studyMode: 'normal',
+            studyCards: [],
+            currentCardIndex: 0,
+            quizCards: [],
+            currentQuizIndex: 0,
+            quizScore: 0,
+            quizStartTime: null,
+            isDarkMode: false,
+            streak: 0,
+            stats: {
+                totalCards: 0,
+                masteredCards: 0,
+                weeklyProgress: [0, 0, 0, 0, 0, 0, 0]
+            }
+        };
+
+        // Initialize app
+        function initApp() {
+            loadFromLocalStorage();
+            updateDashboard();
+            renderDecks();
+            updateSelects();
+            checkStreak();
+        }
+
+        // Local Storage
+        function saveToLocalStorage() {
+            localStorage.setItem('flashmaster_state', JSON.stringify(appState));
+        }
+
+        function loadFromLocalStorage() {
+            const saved = localStorage.getItem('flashmaster_state');
+            if (saved) {
+                appState = JSON.parse(saved);
+            }
+        }
+
+        // Theme Toggle
+        function toggleTheme() {
+            appState.isDarkMode = !appState.isDarkMode;
+            const body = document.body;
+            const themeIcon = document.getElementById('themeIcon');
+
+            if (appState.isDarkMode) {
+                body.classList.remove('light');
+                body.classList.add('dark');
+                themeIcon.classList.remove('fa-moon');
+                themeIcon.classList.add('fa-sun');
+            } else {
+                body.classList.remove('dark');
+                body.classList.add('light');
+                themeIcon.classList.remove('fa-sun');
+                themeIcon.classList.add('fa-moon');
+            }
+            saveToLocalStorage();
+        }
+
+        // Tab Switching
+        function switchTab(tab) {
+            appState.currentTab = tab;
+
+            // Update tab buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('bg-white/50');
+                btn.classList.add('hover:bg-white/20');
+            });
+            document.getElementById(tab + 'Tab').classList.add('bg-white/50');
+            document.getElementById(tab + 'Tab').classList.remove('hover:bg-white/20');
+
+            // Show/hide content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            document.getElementById(tab + 'Content').classList.remove('hidden');
+
+            saveToLocalStorage();
+        }
+
+        // Dashboard
+        function updateDashboard() {
+            document.getElementById('totalDecks').textContent = appState.decks.length;
+            document.getElementById('totalCards').textContent = appState.stats.totalCards;
+            document.getElementById('masteredCards').textContent = appState.stats.masteredCards;
+            document.getElementById('streakCount').textContent = appState.streak;
+        }
+
+        // Deck Management
+        function openDeckModal() {
+            document.getElementById('deckModal').style.display = 'flex';
+        }
+
+        function closeDeckModal() {
+            document.getElementById('deckModal').style.display = 'none';
+            document.getElementById('deckName').value = '';
+            document.getElementById('deckDescription').value = '';
+        }
+
+        function createDeck() {
+            const name = document.getElementById('deckName').value;
+            const description = document.getElementById('deckDescription').value;
+            const category = document.getElementById('deckCategory').value;
+
+            if (!name) {
+                alert('Please enter a deck name');
+                return;
+            }
+
+            const deck = {
+                id: Date.now(),
+                name,
+                description,
+                category,
+                cards: [],
+                createdAt: new Date().toISOString(),
+                lastStudied: null
+            };
+
+            appState.decks.push(deck);
+            saveToLocalStorage();
+            renderDecks();
+            updateSelects();
+            updateDashboard();
+            closeDeckModal();
+        }
+
+        function renderDecks() {
+            const grid = document.getElementById('decksGrid');
+            const searchTerm = document.getElementById('searchDecks').value.toLowerCase();
+
+            const filteredDecks = appState.decks.filter(deck =>
+                deck.name.toLowerCase().includes(searchTerm) ||
+                deck.description.toLowerCase().includes(searchTerm)
+            );
+
+            grid.innerHTML = filteredDecks.map(deck => `
+                <div class="glass-effect rounded-2xl p-6 hover-scale">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-folder text-white text-xl"></i>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button onclick="openCardModal(${deck.id})" class="w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 transition-all flex items-center justify-center">
+                                <i class="fas fa-plus text-sm"></i>
+                            </button>
+                            <button onclick="deleteDeck(${deck.id})" class="w-8 h-8 rounded-lg bg-red-500/20 hover:bg-red-500/30 transition-all flex items-center justify-center">
+                                <i class="fas fa-trash text-sm text-red-500"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <h3 class="text-lg font-semibold mb-2">${deck.name}</h3>
+                    <p class="text-sm opacity-70 mb-4">${deck.description || 'No description'}</p>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm opacity-70">
+                            <i class="fas fa-clone mr-1"></i>${deck.cards.length} cards
+                        </span>
+                        <span class="px-2 py-1 bg-white/20 rounded-lg text-xs">
+                            ${deck.category}
+                        </span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function deleteDeck(deckId) {
+            if (confirm('Are you sure you want to delete this deck?')) {
+                appState.decks = appState.decks.filter(deck => deck.id !== deckId);
+                saveToLocalStorage();
+                renderDecks();
+                updateSelects();
+                updateDashboard();
+            }
+        }
+
+        // Card Management
+        function openCardModal(deckId) {
+            appState.currentDeck = appState.decks.find(deck => deck.id === deckId);
+            document.getElementById('cardModal').style.display = 'flex';
+            renderCards();
+        }
+
+        function closeCardModal() {
+            document.getElementById('cardModal').style.display = 'none';
+            document.getElementById('cardFront').value = '';
+            document.getElementById('cardBack').value = '';
+            renderCards();
+            updateDashboard();
+        }
+
+        function addCard() {
+            const front = document.getElementById('cardFront').value;
+            const back = document.getElementById('cardBack').value;
+
+            if (!front || !back) {
+                alert('Please enter both front and back');
+                return;
+            }
+
+            const card = {
+                id: Date.now(),
+                front,
+                back,
+                difficulty: 'medium',
+                lastReviewed: null,
+                reviewCount: 0
+            };
+
+            appState.currentDeck.cards.push(card);
+            appState.stats.totalCards++;
+
+            document.getElementById('cardFront').value = '';
+            document.getElementById('cardBack').value = '';
+
+            renderCards();
+            saveToLocalStorage();
+            updateDashboard();
+        }
+
+        function renderCards() {
+            const list = document.getElementById('cardsList');
+            if (!appState.currentDeck) return;
+
+            list.innerHTML = appState.currentDeck.cards.map(card => `
+                <div class="flex items-center justify-between p-3 bg-white/10 rounded-lg">
+                    <div class="flex-1">
+                        <p class="font-medium">${card.front}</p>
+                        <p class="text-sm opacity-70">${card.back}</p>
+                    </div>
+                    <button onclick="deleteCard(${card.id})" class="w-8 h-8 rounded-lg bg-red-500/20 hover:bg-red-500/30 transition-all flex items-center justify-center">
+                        <i class="fas fa-trash text-sm text-red-500"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function deleteCard(cardId) {
+            appState.currentDeck.cards = appState.currentDeck.cards.filter(card => card.id !== cardId);
+            appState.stats.totalCards--;
+            renderCards();
+            saveToLocalStorage();
+            updateDashboard();
+        }
+
+        function importCards() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.csv';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const lines = event.target.result.split('\n');
+                    lines.forEach(line => {
+                        const [front, back] = line.split(',');
+                        if (front && back) {
+                            appState.currentDeck.cards.push({
+                                id: Date.now() + Math.random(),
+                                front: front.trim(),
+                                back: back.trim(),
+                                difficulty: 'medium',
+                                lastReviewed: null,
+                                reviewCount: 0
+                            });
+                            appState.stats.totalCards++;
+                        }
+                    });
+                    renderCards();
+                    saveToLocalStorage();
+                    updateDashboard();
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+
+        // Study Mode
+        function setStudyMode(mode) {
+            appState.studyMode = mode;
+            document.querySelectorAll('.study-mode-btn').forEach(btn => {
+                btn.classList.remove('bg-white/50');
+                btn.classList.add('bg-white/20');
+            });
+            event.target.classList.remove('bg-white/20');
+            event.target.classList.add('bg-white/50');
+        }
+
+        function startStudy() {
+            const deckId = document.getElementById('studyDeckSelect').value;
+            if (!deckId) {
+                alert('Please select a deck');
+                return;
+            }
+
+            const deck = appState.decks.find(d => d.id == deckId);
+            if (deck.cards.length === 0) {
+                alert('This deck has no cards');
+                return;
+            }
+
+            appState.studyCards = [...deck.cards];
+
+            // Apply study mode
+            if (appState.studyMode === 'random') {
+                appState.studyCards.sort(() => Math.random() - 0.5);
+            } else if (appState.studyMode === 'spaced') {
+                appState.studyCards.sort((a, b) => {
+                    if (!a.lastReviewed) return -1;
+                    if (!b.lastReviewed) return 1;
+                    return new Date(a.lastReviewed) - new Date(b.lastReviewed);
+                });
+            }
+
+            appState.currentCardIndex = 0;
+            document.getElementById('studyArea').classList.remove('hidden');
+            showCurrentCard();
+        }
+
+        function showCurrentCard() {
+            const card = appState.studyCards[appState.currentCardIndex];
+            document.getElementById('cardFront').textContent = card.front;
+            document.getElementById('cardBack').textContent = card.back;
+            document.getElementById('cardProgress').textContent = `${appState.currentCardIndex + 1}/${appState.studyCards.length}`;
+
+            // Reset flip state
+            document.getElementById('flashcard').classList.remove('flipped');
+        }
+
+        function flipCard() {
+            document.getElementById('flashcard').classList.toggle('flipped');
+        }
+
+        function nextCard() {
+            if (appState.currentCardIndex < appState.studyCards.length - 1) {
+                appState.currentCardIndex++;
+                showCurrentCard();
+            }
+        }
+
+        function previousCard() {
+            if (appState.currentCardIndex > 0) {
+                appState.currentCardIndex--;
+                showCurrentCard();
+            }
+        }
+
+        function markCard(difficulty) {
+            const card = appState.studyCards[appState.currentCardIndex];
+            card.difficulty = difficulty;
+            card.lastReviewed = new Date().toISOString();
+            card.reviewCount++;
+
+            if (difficulty === 'easy' && card.reviewCount >= 3) {
+                appState.stats.masteredCards++;
+            }
+
+            saveToLocalStorage();
+            updateDashboard();
+
+            if (appState.currentCardIndex < appState.studyCards.length - 1) {
+                nextCard();
+            } else {
+                alert('Study session complete!');
+                document.getElementById('studyArea').classList.add('hidden');
+            }
+        }
+
+        // Quiz Mode
+        function startQuiz() {
+            const deckId = document.getElementById('quizDeckSelect').value;
+            if (!deckId) {
+                alert('Please select a deck');
+                return;
+            }
+
+            const deck = appState.decks.find(d => d.id == deckId);
+            if (deck.cards.length < 4) {
+                alert('Deck needs at least 4 cards for quiz mode');
+                return;
+            }
+
+            appState.quizCards = [...deck.cards].sort(() => Math.random() - 0.5).slice(0, 10);
+            appState.currentQuizIndex = 0;
+            appState.quizScore = 0;
+            appState.quizStartTime = Date.now();
+
+            document.getElementById('quizArea').classList.remove('hidden');
+            document.getElementById('quizResults').classList.add('hidden');
+
+            showQuizQuestion();
+            startQuizTimer();
+        }
+
+        function showQuizQuestion() {
+            const card = appState.quizCards[appState.currentQuizIndex];
+            document.getElementById('quizQuestion').textContent = card.front;
+            document.getElementById('quizProgress').textContent = `${appState.currentQuizIndex + 1}/${appState.quizCards.length}`;
+
+            // Generate options
+            const options = [card.back];
+            const otherCards = appState.quizCards.filter(c => c.id !== card.id);
+
+            while (options.length < 4 && otherCards.length > 0) {
+                const randomCard = otherCards[Math.floor(Math.random() * otherCards.length)];
+                if (!options.includes(randomCard.back)) {
+                    options.push(randomCard.back);
+                }
+            }
+
+            options.sort(() => Math.random() - 0.5);
+
+            document.getElementById('quizOptions').innerHTML = options.map((option, index) => `
+                <button onclick="checkAnswer('${option}', '${card.back}')" class="quiz-option p-4 bg-white/20 rounded-lg hover:bg-white/30 transition-all text-left">
+                    <span class="font-medium">${String.fromCharCode(65 + index)}.</span> ${option}
+                </button>
+            `).join('');
+        }
+
+        function checkAnswer(selected, correct) {
+            const options = document.querySelectorAll('.quiz-option');
+            options.forEach(option => {
+                option.disabled = true;
+                if (option.textContent.includes(correct)) {
+                    option.classList.add('bg-green-500/30', 'border-green-500');
+                } else if (option.textContent.includes(selected) && selected !== correct) {
+                    option.classList.add('bg-red-500/30', 'border-red-500');
+                }
+            });
+
+            if (selected === correct) {
+                appState.quizScore++;
+            }
+
+            setTimeout(() => {
+                if (appState.currentQuizIndex < appState.quizCards.length - 1) {
+                    appState.currentQuizIndex++;
+                    showQuizQuestion();
+                } else {
+                    endQuiz();
+                }
+            }, 1500);
+        }
+
+        function skipQuestion() {
+            if (appState.currentQuizIndex < appState.quizCards.length - 1) {
+                appState.currentQuizIndex++;
+                showQuizQuestion();
+            } else {
+                endQuiz();
+            }
+        }
+
+        function startQuizTimer() {
+            const timer = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - appState.quizStartTime) / 1000);
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = elapsed % 60;
+                document.getElementById('quizTimer').textContent =
+                    `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+                if (appState.currentQuizIndex >= appState.quizCards.length) {
+                    clearInterval(timer);
+                }
+            }, 1000);
+        }
+
+        function endQuiz() {
+            const elapsed = Math.floor((Date.now() - appState.quizStartTime) / 1000);
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
+            const percentage = Math.round((appState.quizScore / appState.quizCards.length) * 100);
+
+            document.getElementById('quizArea').classList.add('hidden');
+            document.getElementById('quizResults').classList.remove('hidden');
+
+            document.getElementById('finalScore').textContent = `${percentage}%`;
+            document.getElementById('correctCount').textContent = appState.quizScore;
+            document.getElementById('incorrectCount').textContent = appState.quizCards.length - appState.quizScore;
+            document.getElementById('timeTaken').textContent =
+                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+            // Animate progress circle
+            const circle = document.getElementById('scoreCircle');
+            const circumference = 2 * Math.PI * 56;
+            const offset = circumference - (percentage / 100) * circumference;
+            setTimeout(() => {
+                circle.style.strokeDashoffset = offset;
+            }, 100);
+        }
+
+        function restartQuiz() {
+            document.getElementById('quizResults').classList.add('hidden');
+            startQuiz();
+        }
+
+        // Utility Functions
+        function updateSelects() {
+            const studySelect = document.getElementById('studyDeckSelect');
+            const quizSelect = document.getElementById('quizDeckSelect');
+
+            const options = appState.decks.map(deck =>
+                `<option value="${deck.id}">${deck.name}</option>`
+            ).join('');
+
+            studySelect.innerHTML = '<option value="">Select a deck</option>' + options;
+            quizSelect.innerHTML = '<option value="">Select a deck</option>' + options;
+        }
+
+        function checkStreak() {
+            const lastStreak = localStorage.getItem('lastStreakDate');
+            const today = new Date().toDateString();
+
+            if (lastStreak !== today) {
+                const yesterday = new Date();
+                yesterday.setDate(yesterday.getDate() - 1);
+
+                if (lastStreak === yesterday.toDateString()) {
+                    appState.streak++;
+                } else if (lastStreak !== today) {
+                    appState.streak = 1;
+                }
+
+                localStorage.setItem('lastStreakDate', today);
+                saveToLocalStorage();
+            }
+        }
+
+        // Keyboard Shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (appState.currentTab === 'study' && !document.getElementById('studyArea').classList.contains('hidden')) {
+                if (e.key === ' ') {
+                    e.preventDefault();
+                    flipCard();
+                } else if (e.key === 'ArrowRight') {
+                    nextCard();
+                } else if (e.key === 'ArrowLeft') {
+                    previousCard();
+                } else if (e.key === '1') {
+                    markCard('hard');
+                } else if (e.key === '2') {
+                    markCard('medium');
+                } else if (e.key === '3') {
+                    markCard('easy');
+                }
+            }
+        });
+
+        // Search functionality
+        document.getElementById('searchDecks').addEventListener('input', renderDecks);
+
+        // Initialize on load
+        window.addEventListener('load', initApp);
+    </script>
+</body>
+
+</html>
