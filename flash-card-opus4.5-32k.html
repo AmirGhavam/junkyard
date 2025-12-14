@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlashMaster - Modern Flashcard App</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .dark {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+        }
+
+        .light {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --text-primary: #0f172a;
+            --text-secondary: #64748b;
+        }
+
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .glass-dark {
+            background: rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .card-container {
+            perspective: 1000px;
+        }
+
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-style: preserve-3d;
+        }
+
+        .card-inner.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .card-front,
+        .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            border-radius: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .card-back {
+            transform: rotateY(180deg);
+        }
+
+        .gradient-1 {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .gradient-2 {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .gradient-3 {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .gradient-4 {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+
+        .gradient-5 {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+
+        .gradient-6 {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        }
+
+        .btn-glow:hover {
+            box-shadow: 0 0 30px rgba(99, 102, 241, 0.5);
+        }
+
+        .progress-ring {
+            transform: rotate(-90deg);
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
+        .float-animation {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes confetti {
+            0% {
+                transform: translateY(0) rotate(0deg);
+                opacity: 1;
+            }
+
+            100% {
+                transform: translateY(-500px) rotate(720deg);
+                opacity: 0;
+            }
+        }
+
+        .confetti {
+            animation: confetti 1.5s ease-out forwards;
+        }
+
+        .slide-in {
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-overlay {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #6366f1;
+            border-radius: 4px;
+        }
+
+        .tooltip {
+            position: relative;
+        }
+
+        .tooltip::after {
+            content: attr(data-tip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 0.5rem 1rem;
+            background: #1e293b;
+            color: white;
+            border-radius: 0.5rem;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+
+        .tooltip:hover::after {
+            opacity: 1;
+        }
+    </style>
+</head>
+
+<body class="dark min-h-screen">
+    <div id="app" class="min-h-screen">
+        <!-- Header -->
+        <header class="p-4 md:p-6 flex justify-between items-center max-w-7xl mx-auto">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl gradient-1 flex items-center justify-center">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                        </path>
+                    </svg>
+                </div>
+                <h1
+                    class="text-xl md:text-2xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
+                    FlashMaster</h1>
+            </div>
+            <div class="flex items-center gap-2 md:gap-4">
+                <button onclick="showShortcuts()" class="tooltip p-2 rounded-lg hover:bg-white/10 transition"
+                    data-tip="Keyboard Shortcuts">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707">
+                        </path>
+                    </svg>
+                </button>
+                <button onclick="toggleTheme()" class="p-2 rounded-lg hover:bg-white/10 transition">
+                    <svg id="themeIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z">
+                        </path>
+                    </svg>
+                </button>
+                <button onclick="showImportExport()"
+                    class="hidden md:flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                    </svg>
+                    <span class="text-sm">Import/Export</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="max-w-7xl mx-auto px-4 md:px-6 pb-8">
+            <!-- Stats Bar -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div class="glass rounded-2xl p-4 text-center">
+                    <p class="text-2xl md:text-3xl font-bold text-indigo-400" id="totalDecks">0</p>
+                    <p class="text-xs md:text-sm text-gray-400">Decks</p>
+                </div>
+                <div class="glass rounded-2xl p-4 text-center">
+                    <p class="text-2xl md:text-3xl font-bold text-purple-400" id="totalCards">0</p>
+                    <p class="text-xs md:text-sm text-gray-400">Cards</p>
+                </div>
+                <div class="glass rounded-2xl p-4 text-center">
+                    <p class="text-2xl md:text-3xl font-bold text-green-400" id="masteredCards">0</p>
+                    <p class="text-xs md:text-sm text-gray-400">Mastered</p>
+                </div>
+                <div class="glass rounded-2xl p-4 text-center">
+                    <p class="text-2xl md:text-3xl font-bold text-yellow-400" id="studyStreak">0</p>
+                    <p class="text-xs md:text-sm text-gray-400">Day Streak 🔥</p>
+                </div>
+            </div>
+
+            <!-- View Toggle -->
+            <div class="flex flex-wrap gap-4 mb-6 items-center justify-between">
+                <div class="flex gap-2">
+                    <button onclick="setView('decks')" id="decksViewBtn"
+                        class="px-4 py-2 rounded-lg bg-indigo-600 text-white transition">
+                        📚 Decks
+                    </button>
+                    <button onclick="setView('study')" id="studyViewBtn"
+                        class="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition">
+                        📖 Study
+                    </button>
+                </div>
+                <div class="flex gap-2">
+                    <input type="text" id="searchInput" placeholder="Search cards..."
+                        class="px-4 py-2 rounded-lg bg-white/10 border border-white/20 focus:border-indigo-500 focus:outline-none transition w-40 md:w-60"
+                        onkeyup="searchCards()">
+                </div>
+            </div>
+
+            <!-- Decks View -->
+            <div id="decksView">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold">Your Decks</h2>
+                    <button onclick="showCreateDeck()"
+                        class="flex items-center gap-2 px-4 py-2 rounded-lg gradient-1 text-white font-medium hover:opacity-90 transition btn-glow">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4">
+                            </path>
+                        </svg>
+                        New Deck
+                    </button>
+                </div>
+                <div id="decksList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Decks will be rendered here -->
+                </div>
+            </div>
+
+            <!-- Study View -->
+            <div id="studyView" class="hidden">
+                <div id="deckSelector" class="mb-6">
+                    <select id="studyDeckSelect" onchange="selectStudyDeck()"
+                        class="w-full md:w-auto px-4 py-3 rounded-xl bg-white/10 border border-white/20 focus:border-indigo-500 focus:outline-none transition">
+                        <option value="">Select a deck to study...</option>
+                    </select>
+                </div>
+
+                <div id="studyArea" class="hidden">
+                    <!-- Study Progress -->
+                    <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+                        <div class="flex items-center gap-4">
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm text-gray-400">Progress:</span>
+                                <span id="studyProgress" class="font-bold text-indigo-400">0/0</span>
+                            </div>
+                            <div class="w-40 h-2 bg-white/10 rounded-full overflow-hidden">
+                                <div id="progressBar" class="h-full gradient-1 transition-all duration-300"
+                                    style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="shuffleCards()"
+                                class="tooltip p-2 rounded-lg bg-white/10 hover:bg-white/20 transition"
+                                data-tip="Shuffle">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                                    </path>
+                                </svg>
+                            </button>
+                            <button onclick="resetStudy()"
+                                class="tooltip p-2 rounded-lg bg-white/10 hover:bg-white/20 transition"
+                                data-tip="Reset">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                                    </path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Flashcard -->
+                    <div class="flex justify-center mb-8">
+                        <div class="card-container w-full max-w-2xl h-80 md:h-96 cursor-pointer" onclick="flipCard()">
+                            <div id="flashcard" class="card-inner">
+                                <div class="card-front gradient-1 text-white shadow-2xl">
+                                    <div class="text-center">
+                                        <p class="text-xs uppercase tracking-wider mb-4 opacity-70">Question</p>
+                                        <p id="cardFront" class="text-xl md:text-2xl font-semibold"></p>
+                                    </div>
+                                </div>
+                                <div class="card-back gradient-3 text-white shadow-2xl">
+                                    <div class="text-center">
+                                        <p class="text-xs uppercase tracking-wider mb-4 opacity-70">Answer</p>
+                                        <p id="cardBack" class="text-xl md:text-2xl font-semibold"></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Study Controls -->
+                    <div class="flex justify-center gap-4">
+                        <button onclick="prevCard()"
+                            class="flex items-center gap-2 px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 transition">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15 19l-7-7 7-7"></path>
+                            </svg>
+                            Previous
+                        </button>
+                        <button onclick="markKnown()"
+                            class="flex items-center gap-2 px-6 py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white transition">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            Know It
+                        </button>
+                        <button onclick="markUnknown()"
+                            class="flex items-center gap-2 px-6 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white transition">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                            Review
+                        </button>
+                        <button onclick="nextCard()"
+                            class="flex items-center gap-2 px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 transition">
+                            Next
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7">
+                                </path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <p class="text-center text-gray-400 text-sm mt-4">Press <kbd
+                            class="px-2 py-1 bg-white/10 rounded">Space</kbd> to flip, <kbd
+                            class="px-2 py-1 bg-white/10 rounded">←</kbd> <kbd
+                            class="px-2 py-1 bg-white/10 rounded">→</kbd> to navigate</p>
+                </div>
+
+                <!-- Completion Screen -->
+                <div id="completionScreen" class="hidden text-center py-12">
+                    <div class="text-6xl mb-4">🎉</div>
+                    <h3 class="text-3xl font-bold mb-2">Congratulations!</h3>
+                    <p class="text-gray-400 mb-6">You've completed this deck!</p>
+                    <div class="flex justify-center gap-4 mb-8">
+                        <div class="glass rounded-2xl p-6">
+                            <p class="text-3xl font-bold text-green-400" id="knownCount">0</p>
+                            <p class="text-sm text-gray-400">Mastered</p>
+                        </div>
+                        <div class="glass rounded-2xl p-6">
+                            <p class="text-3xl font-bold text-red-400" id="unknownCount">0</p>
+                            <p class="text-sm text-gray-400">Need Review</p>
+                        </div>
+                    </div>
+                    <button onclick="restartDeck()"
+                        class="px-6 py-3 rounded-xl gradient-1 text-white font-medium hover:opacity-90 transition">
+                        Study Again
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Create/Edit Deck Modal -->
+    <div id="deckModal" class="fixed inset-0 modal-overlay hidden items-center justify-center z-50 p-4">
+        <div class="glass rounded-3xl p-6 w-full max-w-md slide-in">
+            <h3 id="deckModalTitle" class="text-xl font-bold mb-4">Create New Deck</h3>
+            <input type="hidden" id="editDeckId">
+            <div class="mb-4">
+                <label class="block text-sm text-gray-400 mb-2">Deck Name</label>
+                <input type="text" id="deckName" placeholder="e.g., Spanish Vocabulary"
+                    class="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 focus:border-indigo-500 focus:outline-none transition">
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm text-gray-400 mb-2">Description</label>
+                <textarea id="deckDesc" placeholder="What's this deck about?" rows="2"
+                    class="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 focus:border-indigo-500 focus:outline-none transition resize-none"></textarea>
+            </div>
+            <div class="mb-6">
+                <label class="block text-sm text-gray-400 mb-2">Color Theme</label>
+                <div class="flex gap-2">
+                    <button onclick="selectColor(1)"
+                        class="w-10 h-10 rounded-full gradient-1 ring-2 ring-transparent hover:ring-white/50 transition color-btn"
+                        data-color="1"></button>
+                    <button onclick="selectColor(2)"
+                        class="w-10 h-10 rounded-full gradient-2 ring-2 ring-transparent hover:ring-white/50 transition color-btn"
+                        data-color="2"></button>
+                    <button onclick="selectColor(3)"
+                        class="w-10 h-10 rounded-full gradient-3 ring-2 ring-transparent hover:ring-white/50 transition color-btn"
+                        data-color="3"></button>
+                    <button onclick="selectColor(4)"
+                        class="w-10 h-10 rounded-full gradient-4 ring-2 ring-transparent hover:ring-white/50 transition color-btn"
+                        data-color="4"></button>
+                    <button onclick="selectColor(5)"
+                        class="w-10 h-10 rounded-full gradient-5 ring-2 ring-transparent hover:ring-white/50 transition color-btn"
+                        data-color="5"></button>
+                    <button onclick="selectColor(6)"
+                        class="w-10 h-10 rounded-full gradient-6 ring-2 ring-transparent hover:ring-white/50 transition color-btn"
+                        data-color="6"></button>
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="closeDeckModal()"
+                    class="flex-1 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 transition">Cancel</button>
+                <button onclick="saveDeck()"
+                    class="flex-1 px-4 py-3 rounded-xl gradient-1 text-white font-medium hover:opacity-90 transition">Save
+                    Deck</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card Modal -->
+    <div id="cardModal" class="fixed inset-0 modal-overlay hidden items-center justify-center z-50 p-4">
+        <div class="glass rounded-3xl p-6 w-full max-w-md slide-in">
+            <h3 id="cardModalTitle" class="text-xl font-bold mb-4">Add New Card</h3>
+            <input type="hidden" id="editCardId">
+            <input type="hidden" id="cardDeckId">
+            <div class="mb-4">
+                <label class="block text-sm text-gray-400 mb-2">Front (Question)</label>
+                <textarea id="cardFrontInput" placeholder="Enter the question or term" rows="3"
+                    class="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 focus:border-indigo-500 focus:outline-none transition resize-none"></textarea>
+            </div>
+            <div class="mb-6">
+                <label class="block text-sm text-gray-400 mb-2">Back (Answer)</label>
+                <textarea id="cardBackInput" placeholder="Enter the answer or definition" rows="3"
+                    class="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 focus:border-indigo-500 focus:outline-none transition resize-none"></textarea>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="closeCardModal()"
+                    class="flex-1 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 transition">Cancel</button>
+                <button onclick="saveCard()"
+                    class="flex-1 px-4 py-3 rounded-xl gradient-1 text-white font-medium hover:opacity-90 transition">Save
+                    Card</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Deck Detail Modal -->
+    <div id="deckDetailModal"
+        class="fixed inset-0 modal-overlay hidden items-center justify-center z-50 p-4 overflow-y-auto">
+        <div class="glass rounded-3xl p-6 w-full max-w-2xl my-8 slide-in">
+            <div class="flex justify-between items-start mb-6">
+                <div>
+                    <h3 id="deckDetailTitle" class="text-2xl font-bold mb-1"></h3>
+                    <p id="deckDetailDesc" class="text-gray-400"></p>
+                </div>
+                <button onclick="closeDeckDetail()" class="p-2 hover:bg-white/10 rounded-lg transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+            <input type="hidden" id="currentDeckId">
+            <div class="flex flex-wrap gap-3 mb-6">
+                <button onclick="addCardToDeck()"
+                    class="flex items-center gap-2 px-4 py-2 rounded-lg gradient-1 text-white font-medium hover:opacity-90 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    Add Card
+                </button>
+                <button onclick="studyThisDeck()"
+                    class="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white font-medium hover:bg-green-700 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z">
+                        </path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Study
+                </button>
+            </div>
+            <div id="cardsList" class="space-y-3 max-h-96 overflow-y-auto">
+                <!-- Cards will be rendered here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Import/Export Modal -->
+    <div id="importExportModal" class="fixed inset-0 modal-overlay hidden items-center justify-center z-50 p-4">
+        <div class="glass rounded-3xl p-6 w-full max-w-lg slide-in">
+            <h3 class="text-xl font-bold mb-4">Import / Export Data</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm text-gray-400 mb-2">Export your data</label>
+                    <button onclick="exportData()"
+                        class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-green-600 text-white font-medium hover:bg-green-700 transition">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                        </svg>
+                        Download JSON File
+                    </button>
+                </div>
+                <div class="border-t border-white/10 pt-4">
+                    <label class="block text-sm text-gray-400 mb-2">Import data from file</label>
+                    <input type="file" id="importFile" accept=".json" onchange="importData(event)" class="hidden">
+                    <button onclick="document.getElementById('importFile').click()"
+                        class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                        </svg>
+                        Upload JSON File
+                    </button>
+                </div>
+            </div>
+            <button onclick="closeImportExport()"
+                class="w-full mt-6 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 transition">Close</button>
+        </div>
+    </div>
+
+    <!-- Shortcuts Modal -->
+    <div id="shortcutsModal" class="fixed inset-0 modal-overlay hidden items-center justify-center z-50 p-4">
+        <div class="glass rounded-3xl p-6 w-full max-w-md slide-in">
+            <h3 class="text-xl font-bold mb-4">⌨️ Keyboard Shortcuts</h3>
+            <div class="space-y-3">
+                <div class="flex justify-between items-center">
+                    <span>Flip card</span>
+                    <kbd class="px-3 py-1 bg-white/10 rounded-lg text-sm">Space</kbd>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span>Previous card</span>
+                    <kbd class="px-3 py-1 bg-white/10 rounded-lg text-sm">←</kbd>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span>Next card</span>
+                    <kbd class="px-3 py-1 bg-white/10 rounded-lg text-sm">→</kbd>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span>Mark as known</span>
+                    <kbd class="px-3 py-1 bg-white/10 rounded-lg text-sm">K</kbd>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span>Mark for review</span>
+                    <kbd class="px-3 py-1 bg-white/10 rounded-lg text-sm">R</kbd>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span>Shuffle cards</span>
+                    <kbd class="px-3 py-1 bg-white/10 rounded-lg text-sm">S</kbd>
+                </div>
+            </div>
+            <button onclick="closeShortcuts()"
+                class="w-full mt-6 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 transition">Close</button>
+        </div>
+    </div>
+
+    <!-- Confetti Container -->
+    <div id="confettiContainer" class="fixed inset-0 pointer-events-none z-50 overflow-hidden"></div>
+
+    <script>
+        // Data Management
+        let data = {
+            decks: [],
+            settings: { theme: 'dark', streak: 0, lastStudy: null },
+            stats: { totalReviews: 0, mastered: 0 }
+        };
+
+        let currentView = 'decks';
+        let currentStudyDeck = null;
+        let currentCardIndex = 0;
+        let studyCards = [];
+        let knownCards = new Set();
+        let unknownCards = new Set();
+        let selectedColor = 1;
+
+        // Initialize
+        function init() {
+            loadData();
+            renderDecks();
+            updateStats();
+            updateStudyDeckSelect();
+            checkStreak();
+
+            // Apply theme
+            document.body.className = data.settings.theme;
+            updateThemeIcon();
+        }
+
+        // LocalStorage
+        function loadData() {
+            const saved = localStorage.getItem('flashmaster_data');
+            if (saved) {
+                data = JSON.parse(saved);
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('flashmaster_data', JSON.stringify(data));
+            updateStats();
+        }
+
+        // Theme Toggle
+        function toggleTheme() {
+            data.settings.theme = data.settings.theme === 'dark' ? 'light' : 'dark';
+            document.body.className = data.settings.theme;
+            updateThemeIcon();
+            saveData();
+        }
+
+        function updateThemeIcon() {
+            const icon = document.getElementById('themeIcon');
+            if (data.settings.theme === 'dark') {
+                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>';
+            } else {
+                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>';
+            }
+        }
+
+        // View Management
+        function setView(view) {
+            currentView = view;
+            document.getElementById('decksView').classList.toggle('hidden', view !== 'decks');
+            document.getElementById('studyView').classList.toggle('hidden', view !== 'study');
+            document.getElementById('decksViewBtn').classList.toggle('bg-indigo-600', view === 'decks');
+            document.getElementById('decksViewBtn').classList.toggle('bg-white/10', view !== 'decks');
+            document.getElementById('studyViewBtn').classList.toggle('bg-indigo-600', view === 'study');
+            document.getElementById('studyViewBtn').classList.toggle('bg-white/10', view !== 'study');
+        }
+
+        // Stats
+        function updateStats() {
+            document.getElementById('totalDecks').textContent = data.decks.length;
+            const totalCards = data.decks.reduce((sum, deck) => sum + deck.cards.length, 0);
+            document.getElementById('totalCards').textContent = totalCards;
+            document.getElementById('masteredCards').textContent = data.stats.mastered;
+            document.getElementById('studyStreak').textContent = data.settings.streak;
+        }
+
+        function checkStreak() {
+            const today = new Date().toDateString();
+            const lastStudy = data.settings.lastStudy;
+
+            if (lastStudy) {
+                const lastDate = new Date(lastStudy);
+                const yesterday = new Date();
+                yesterday.setDate(yesterday.getDate() - 1);
+
+                if (lastDate.toDateString() !== today && lastDate.toDateString() !== yesterday.toDateString()) {
+                    data.settings.streak = 0;
+                    saveData();
+                }
+            }
+        }
+
+        function updateStreak() {
+            const today = new Date().toDateString();
+            if (data.settings.lastStudy !== today) {
+                data.settings.streak++;
+                data.settings.lastStudy = today;
+                saveData();
+            }
+        }
+
+        // Deck Management
+        function renderDecks() {
+            const container = document.getElementById('decksList');
+            if (data.decks.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full text-center py-12">
+                        <div class="text-6xl mb-4">📚</div>
+                        <h3 class="text-xl font-semibold mb-2">No decks yet</h3>
+                        <p class="text-gray-400 mb-4">Create your first deck to start learning!</p>
+                        <button onclick="showCreateDeck()" class="px-6 py-3 rounded-xl gradient-1 text-white font-medium hover:opacity-90 transition">
+                            Create Deck
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = data.decks.map(deck => `
+                <div class="glass rounded-2xl p-5 hover:scale-105 transition-all duration-300 cursor-pointer group" onclick="openDeckDetail('${deck.id}')">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="w-12 h-12 rounded-xl gradient-${deck.color} flex items-center justify-center text-2xl">
+                            ${deck.icon || '📖'}
+                        </div>
+                        <div class="opacity-0 group-hover:opacity-100 transition flex gap-1">
+                            <button onclick="event.stopPropagation(); editDeck('${deck.id}')" class="p-2 hover:bg-white/10 rounded-lg">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                </svg>
+                            </button>
+                            <button onclick="event.stopPropagation(); deleteDeck('${deck.id}')" class="p-2 hover:bg-red-500/20 rounded-lg text-red-400">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <h3 class="font-semibold text-lg mb-1">${deck.name}</h3>
+                    <p class="text-sm text-gray-400 mb-3">${deck.description || 'No description'}</p>
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-400">${deck.cards.length} cards</span>
+                        <div class="flex items-center gap-1">
+                            <div class="w-2 h-2 rounded-full bg-green-400"></div>
+                            <span class="text-xs text-green-400">${deck.mastered || 0} mastered</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function showCreateDeck() {
+            document.getElementById('deckModalTitle').textContent = 'Create New Deck';
+            document.getElementById('editDeckId').value = '';
+            document.getElementById('deckName').value = '';
+            document.getElementById('deckDesc').value = '';
+            selectedColor = 1;
+            updateColorSelection();
+            document.getElementById('deckModal').classList.remove('hidden');
+            document.getElementById('deckModal').classList.add('flex');
+        }
+
+        function editDeck(id) {
+            const deck = data.decks.find(d => d.id === id);
+            if (!deck) return;
+
+            document.getElementById('deckModalTitle').textContent = 'Edit Deck';
+            document.getElementById('editDeckId').value = id;
+            document.getElementById('deckName').value = deck.name;
+            document.getElementById('deckDesc').value = deck.description || '';
+            selectedColor = deck.color;
+            updateColorSelection();
+            document.getElementById('deckModal').classList.remove('hidden');
+            document.getElementById('deckModal').classList.add('flex');
+        }
+
+        function closeDeckModal() {
+            document.getElementById('deckModal').classList.add('hidden');
+            document.getElementById('deckModal').classList.remove('flex');
+        }
+
+        function selectColor(color) {
+            selectedColor = color;
+            updateColorSelection();
+        }
+
+        function updateColorSelection() {
+            document.querySelectorAll('.color-btn').forEach(btn => {
+                const isSelected = parseInt(btn.dataset.color) === selectedColor;
+                btn.classList.toggle('ring-white', isSelected);
+                btn.classList.toggle('ring-transparent', !isSelected);
+            });
+        }
+
+        function saveDeck() {
+            const name = document.getElementById('deckName').value.trim();
+            if (!name) {
+                alert('Please enter a deck name');
+                return;
+            }
+
+            const editId = document.getElementById('editDeckId').value;
+            const description = document.getElementById('deckDesc').value.trim();
+
+            if (editId) {
+                const deck = data.decks.find(d => d.id === editId);
+                if (deck) {
+                    deck.name = name;
+                    deck.description = description;
+                    deck.color = selectedColor;
+                }
+            } else {
+                data.decks.push({
+                    id: Date.now().toString(),
+                    name,
+                    description,
+                    color: selectedColor,
+                    cards: [],
+                    mastered: 0,
+                    created: new Date().toISOString()
+                });
+            }
+
+            saveData();
+            renderDecks();
+            updateStudyDeckSelect();
+            closeDeckModal();
+        }
+
+        function deleteDeck(id) {
+            if (confirm('Are you sure you want to delete this deck?')) {
+                data.decks = data.decks.filter(d => d.id !== id);
+                saveData();
+                renderDecks();
+                updateStudyDeckSelect();
+            }
+        }
+
+        // Deck Detail
+        function openDeckDetail(id) {
+            const deck = data.decks.find(d => d.id === id);
+            if (!deck) return;
+
+            document.getElementById('currentDeckId').value = id;
+            document.getElementById('deckDetailTitle').textContent = deck.name;
+            document.getElementById('deckDetailDesc').textContent = deck.description || 'No description';
+            renderCardsList(deck);
+
+            document.getElementById('deckDetailModal').classList.remove('hidden');
+            document.getElementById('deckDetailModal').classList.add('flex');
+        }
+
+        function closeDeckDetail() {
+            document.getElementById('deckDetailModal').classList.add('hidden');
+            document.getElementById('deckDetailModal').classList.remove('flex');
+        }
+
+        function renderCardsList(deck) {
+            const container = document.getElementById('cardsList');
+            if (deck.cards.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8">
+                        <p class="text-gray-400">No cards in this deck yet.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = deck.cards.map((card, index) => `
+                <div class="glass rounded-xl p-4 flex justify-between items-start gap-4">
+                    <div class="flex-1">
+                        <p class="font-medium mb-1">${card.front}</p>
+                        <p class="text-sm text-gray-400">${card.back}</p>
+                    </div>
+                    <div class="flex gap-1">
+                        <button onclick="editCard('${deck.id}', '${card.id}')" class="p-2 hover:bg-white/10 rounded-lg transition">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                            </svg>
+                        </button>
+                        <button onclick="deleteCard('${deck.id}', '${card.id}')" class="p-2 hover:bg-red-500/20 rounded-lg text-red-400 transition">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Card Management
+        function addCardToDeck() {
+            const deckId = document.getElementById('currentDeckId').value;
+            document.getElementById('cardModalTitle').textContent = 'Add New Card';
+            document.getElementById('editCardId').value = '';
+            document.getElementById('cardDeckId').value = deckId;
+            document.getElementById('cardFrontInput').value = '';
+            document.getElementById('cardBackInput').value = '';
+            document.getElementById('cardModal').classList.remove('hidden');
+            document.getElementById('cardModal').classList.add('flex');
+        }
+
+        function editCard(deckId, cardId) {
+            const deck = data.decks.find(d => d.id === deckId);
+            const card = deck?.cards.find(c => c.id === cardId);
+            if (!card) return;
+
+            document.getElementById('cardModalTitle').textContent = 'Edit Card';
+            document.getElementById('editCardId').value = cardId;
+            document.getElementById('cardDeckId').value = deckId;
+            document.getElementById('cardFrontInput').value = card.front;
+            document.getElementById('cardBackInput').value = card.back;
+            document.getElementById('cardModal').classList.remove('hidden');
+            document.getElementById('cardModal').classList.add('flex');
+        }
+
+        function closeCardModal() {
+            document.getElementById('cardModal').classList.add('hidden');
+            document.getElementById('cardModal').classList.remove('flex');
+        }
+
+        function saveCard() {
+            const front = document.getElementById('cardFrontInput').value.trim();
+            const back = document.getElementById('cardBackInput').value.trim();
+            const deckId = document.getElementById('cardDeckId').value;
+            const editId = document.getElementById('editCardId').value;
+
+            if (!front || !back) {
+                alert('Please fill in both sides of the card');
+                return;
+            }
+
+            const deck = data.decks.find(d => d.id === deckId);
+            if (!deck) return;
+
+            if (editId) {
+                const card = deck.cards.find(c => c.id === editId);
+                if (card) {
+                    card.front = front;
+                    card.back = back;
+                }
+            } else {
+                deck.cards.push({
+                    id: Date.now().toString(),
+                    front,
+                    back,
+                    mastered: false,
+                    reviews: 0
+                });
+            }
+
+            saveData();
+            renderCardsList(deck);
+            renderDecks();
+            updateStudyDeckSelect();
+            closeCardModal();
+        }
+
+        function deleteCard(deckId, cardId) {
+            if (confirm('Delete this card?')) {
+                const deck = data.decks.find(d => d.id === deckId);
+                if (deck) {
+                    deck.cards = deck.cards.filter(c => c.id !== cardId);
+                    saveData();
+                    renderCardsList(deck);
+                    renderDecks();
+                    updateStudyDeckSelect();
+                }
+            }
+        }
+
+        // Study Mode
+        function updateStudyDeckSelect() {
+            const select = document.getElementById('studyDeckSelect');
+            select.innerHTML = '<option value="">Select a deck to study...</option>' +
+                data.decks.filter(d => d.cards.length > 0).map(deck =>
+                    `<option value="${deck.id}">${deck.name} (${deck.cards.length} cards)</option>`
+                ).join('');
+        }
+
+        function selectStudyDeck() {
+            const deckId = document.getElementById('studyDeckSelect').value;
+            if (!deckId) {
+                document.getElementById('studyArea').classList.add('hidden');
+                document.getElementById('completionScreen').classList.add('hidden');
+                return;
+            }
+
+            const deck = data.decks.find(d => d.id === deckId);
+            if (!deck) return;
+
+            currentStudyDeck = deck;
+            studyCards = [...deck.cards];
+            currentCardIndex = 0;
+            knownCards = new Set();
+            unknownCards = new Set();
+
+            document.getElementById('studyArea').classList.remove('hidden');
+            document.getElementById('completionScreen').classList.add('hidden');
+            displayCurrentCard();
+            updateStudyProgress();
+        }
+
+        function studyThisDeck() {
+            const deckId = document.getElementById('currentDeckId').value;
+            closeDeckDetail();
+            setView('study');
+            document.getElementById('studyDeckSelect').value = deckId;
+            selectStudyDeck();
+        }
+
+        function displayCurrentCard() {
+            if (!studyCards.length) return;
+
+            const card = studyCards[currentCardIndex];
+            document.getElementById('cardFront').textContent = card.front;
+            document.getElementById('cardBack').textContent = card.back;
+            document.getElementById('flashcard').classList.remove('flipped');
+        }
+
+        function flipCard() {
+            document.getElementById('flashcard').classList.toggle('flipped');
+        }
+
+        function prevCard() {
+            if (currentCardIndex > 0) {
+                currentCardIndex--;
+                displayCurrentCard();
+                updateStudyProgress();
+            }
+        }
+
+        function nextCard() {
+            if (currentCardIndex < studyCards.length - 1) {
+                currentCardIndex++;
+                displayCurrentCard();
+                updateStudyProgress();
+            } else {
+                showCompletion();
+            }
+        }
+
+        function markKnown() {
+            const card = studyCards[currentCardIndex];
+            knownCards.add(card.id);
+            unknownCards.delete(card.id);
+            card.mastered = true;
+            data.stats.mastered++;
+            updateStreak();
+            saveData();
+            updateStats();
+            nextCard();
+        }
+
+        function markUnknown() {
+            const card = studyCards[currentCardIndex];
+            unknownCards.add(card.id);
+            knownCards.delete(card.id);
+            card.mastered = false;
+            nextCard();
+        }
+
+        function updateStudyProgress() {
+            const progress = document.getElementById('studyProgress');
+            const bar = document.getElementById('progressBar');
+            progress.textContent = `${currentCardIndex + 1}/${studyCards.length}`;
+            bar.style.width = `${((currentCardIndex + 1) / studyCards.length) * 100}%`;
+        }
+
+        function shuffleCards() {
+            for (let i = studyCards.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [studyCards[i], studyCards[j]] = [studyCards[j], studyCards[i]];
+            }
+            currentCardIndex = 0;
+            displayCurrentCard();
+            updateStudyProgress();
+        }
+
+        function resetStudy() {
+            currentCardIndex = 0;
+            knownCards = new Set();
+            unknownCards = new Set();
+            displayCurrentCard();
+            updateStudyProgress();
+            document.getElementById('studyArea').classList.remove('hidden');
+            document.getElementById('completionScreen').classList.add('hidden');
+        }
+
+        function showCompletion() {
+            document.getElementById('studyArea').classList.add('hidden');
+            document.getElementById('completionScreen').classList.remove('hidden');
+            document.getElementById('knownCount').textContent = knownCards.size;
+            document.getElementById('unknownCount').textContent = unknownCards.size;
+
+            // Update deck mastered count
+            if (currentStudyDeck) {
+                currentStudyDeck.mastered = knownCards.size;
+                saveData();
+                renderDecks();
+            }
+
+            triggerConfetti();
+        }
+
+        function restartDeck() {
+            resetStudy();
+        }
+
+        // Search
+        function searchCards() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            if (!query) {
+                renderDecks();
+                return;
+            }
+
+            const filtered = data.decks.filter(deck =>
+                deck.name.toLowerCase().includes(query) ||
+                deck.cards.some(card =>
+                    card.front.toLowerCase().includes(query) ||
+                    card.back.toLowerCase().includes(query)
+                )
+            );
+
+            const container = document.getElementById('decksList');
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full text-center py-12">
+                        <p class="text-gray-400">No results found for "${query}"</p>
+                    </div>
+                `;
+            } else {
+                // Re-render with filtered decks
+                const tempDecks = data.decks;
+                data.decks = filtered;
+                renderDecks();
+                data.decks = tempDecks;
+            }
+        }
+
+        // Import/Export
+        function showImportExport() {
+            document.getElementById('importExportModal').classList.remove('hidden');
+            document.getElementById('importExportModal').classList.add('flex');
+        }
+
+        function closeImportExport() {
+            document.getElementById('importExportModal').classList.add('hidden');
+            document.getElementById('importExportModal').classList.remove('flex');
+        }
+
+        function exportData() {
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `flashmaster_backup_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (imported.decks) {
+                        data = imported;
+                        saveData();
+                        renderDecks();
+                        updateStudyDeckSelect();
+                        updateStats();
+                        closeImportExport();
+                        alert('Data imported successfully!');
+                    } else {
+                        alert('Invalid file format');
+                    }
+                } catch (err) {
+                    alert('Error reading file');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        // Shortcuts Modal
+        function showShortcuts() {
+            document.getElementById('shortcutsModal').classList.remove('hidden');
+            document.getElementById('shortcutsModal').classList.add('flex');
+        }
+
+        function closeShortcuts() {
+            document.getElementById('shortcutsModal').classList.add('hidden');
+            document.getElementById('shortcutsModal').classList.remove('flex');
+        }
+
+        // Confetti
+        function triggerConfetti() {
+            const container = document.getElementById('confettiContainer');
+            const colors = ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#43e97b', '#fee140'];
+
+            for (let i = 0; i < 50; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.cssText = `
+                    position: absolute;
+                    bottom: 0;
+                    left: ${Math.random() * 100}%;
+                    width: 10px;
+                    height: 10px;
+                    background: ${colors[Math.floor(Math.random() * colors.length)]};
+                    border-radius: ${Math.random() > 0.5 ? '50%' : '0'};
+                    animation-delay: ${Math.random() * 0.5}s;
+                `;
+                container.appendChild(confetti);
+                setTimeout(() => confetti.remove(), 2000);
+            }
+        }
+
+        // Keyboard Shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (currentView !== 'study' || !currentStudyDeck) return;
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            switch (e.code) {
+                case 'Space':
+                    e.preventDefault();
+                    flipCard();
+                    break;
+                case 'ArrowLeft':
+                    prevCard();
+                    break;
+                case 'ArrowRight':
+                    nextCard();
+                    break;
+                case 'KeyK':
+                    markKnown();
+                    break;
+                case 'KeyR':
+                    markUnknown();
+                    break;
+                case 'KeyS':
+                    shuffleCards();
+                    break;
+            }
+        });
+
+        // Close modals on outside click
+        document.querySelectorAll('.modal-overlay').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.add('hidden');
+                    modal.classList.remove('flex');
+                }
+            });
+        });
+
+        // Initialize app
+        init();
+    </script>
+</body>
+
+</html>
