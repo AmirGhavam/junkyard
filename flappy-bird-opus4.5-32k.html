@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flappy Bird Clone</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: linear-gradient(to bottom, #4dc9e6, #87ceeb);
+        }
+
+        #gameCanvas {
+            display: block;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+
+<body class="flex items-center justify-center min-h-screen">
+    <div class="relative">
+        <canvas id="gameCanvas" width="400" height="600"></canvas>
+
+        <!-- Start Screen Overlay -->
+        <div id="startScreen" class="absolute inset-0 flex flex-col items-center justify-center bg-black/40 rounded-lg">
+            <h1 class="text-5xl font-bold text-white mb-4 drop-shadow-lg">Flappy Bird</h1>
+            <p class="text-white text-xl mb-8 drop-shadow">Press SPACE or Click to Start</p>
+            <div class="text-yellow-300 text-lg">🐦 Tap to fly!</div>
+        </div>
+
+        <!-- Game Over Overlay -->
+        <div id="gameOverScreen"
+            class="absolute inset-0 flex flex-col items-center justify-center bg-black/50 rounded-lg hidden">
+            <h1 class="text-5xl font-bold text-red-500 mb-4 drop-shadow-lg">Game Over</h1>
+            <p id="finalScore" class="text-white text-2xl mb-2">Score: 0</p>
+            <p id="bestScore" class="text-yellow-300 text-xl mb-8">Best: 0</p>
+            <p class="text-white text-lg">Press SPACE or Click to Restart</p>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const startScreen = document.getElementById('startScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const finalScoreEl = document.getElementById('finalScore');
+        const bestScoreEl = document.getElementById('bestScore');
+
+        // Game constants
+        const GRAVITY = 0.5;
+        const JUMP_FORCE = -9;
+        const PIPE_WIDTH = 70;
+        const PIPE_GAP = 160;
+        const PIPE_SPEED = 3;
+        const PIPE_SPAWN_RATE = 90;
+
+        // Game state
+        let gameState = 'start'; // 'start', 'playing', 'gameover'
+        let score = 0;
+        let bestScore = localStorage.getItem('flappyBestScore') || 0;
+        let frameCount = 0;
+
+        // Bird object
+        const bird = {
+            x: 80,
+            y: 300,
+            width: 40,
+            height: 30,
+            velocity: 0,
+            rotation: 0
+        };
+
+        // Pipes array
+        let pipes = [];
+
+        // Ground
+        const ground = {
+            y: 550,
+            height: 50
+        };
+
+        function resetGame() {
+            bird.y = 300;
+            bird.velocity = 0;
+            bird.rotation = 0;
+            pipes = [];
+            score = 0;
+            frameCount = 0;
+        }
+
+        function jump() {
+            if (gameState === 'start') {
+                gameState = 'playing';
+                startScreen.classList.add('hidden');
+                resetGame();
+            } else if (gameState === 'playing') {
+                bird.velocity = JUMP_FORCE;
+            } else if (gameState === 'gameover') {
+                gameState = 'playing';
+                gameOverScreen.classList.add('hidden');
+                resetGame();
+            }
+        }
+
+        function spawnPipe() {
+            const minHeight = 80;
+            const maxHeight = ground.y - PIPE_GAP - minHeight;
+            const topHeight = Math.random() * (maxHeight - minHeight) + minHeight;
+
+            pipes.push({
+                x: canvas.width,
+                topHeight: topHeight,
+                bottomY: topHeight + PIPE_GAP,
+                passed: false
+            });
+        }
+
+        function update() {
+            if (gameState !== 'playing') return;
+
+            frameCount++;
+
+            // Bird physics
+            bird.velocity += GRAVITY;
+            bird.y += bird.velocity;
+
+            // Bird rotation based on velocity
+            bird.rotation = Math.min(Math.max(bird.velocity * 3, -30), 90);
+
+            // Spawn pipes
+            if (frameCount % PIPE_SPAWN_RATE === 0) {
+                spawnPipe();
+            }
+
+            // Update pipes
+            for (let i = pipes.length - 1; i >= 0; i--) {
+                pipes[i].x -= PIPE_SPEED;
+
+                // Score when passing pipe
+                if (!pipes[i].passed && pipes[i].x + PIPE_WIDTH < bird.x) {
+                    pipes[i].passed = true;
+                    score++;
+                }
+
+                // Remove off-screen pipes
+                if (pipes[i].x + PIPE_WIDTH < 0) {
+                    pipes.splice(i, 1);
+                }
+            }
+
+            // Collision detection
+            checkCollisions();
+        }
+
+        function checkCollisions() {
+            // Ground and ceiling collision
+            if (bird.y + bird.height > ground.y || bird.y < 0) {
+                gameOver();
+                return;
+            }
+
+            // Pipe collision
+            for (const pipe of pipes) {
+                // Check if bird is in pipe's x range
+                if (bird.x + bird.width > pipe.x && bird.x < pipe.x + PIPE_WIDTH) {
+                    // Check if bird hits top or bottom pipe
+                    if (bird.y < pipe.topHeight || bird.y + bird.height > pipe.bottomY) {
+                        gameOver();
+                        return;
+                    }
+                }
+            }
+        }
+
+        function gameOver() {
+            gameState = 'gameover';
+            if (score > bestScore) {
+                bestScore = score;
+                localStorage.setItem('flappyBestScore', bestScore);
+            }
+            finalScoreEl.textContent = `Score: ${score}`;
+            bestScoreEl.textContent = `Best: ${bestScore}`;
+            gameOverScreen.classList.remove('hidden');
+        }
+
+        function drawBird() {
+            ctx.save();
+            ctx.translate(bird.x + bird.width / 2, bird.y + bird.height / 2);
+            ctx.rotate(bird.rotation * Math.PI / 180);
+
+            // Bird body (yellow)
+            ctx.fillStyle = '#FFD700';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, bird.width / 2, bird.height / 2, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#DAA520';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Wing
+            ctx.fillStyle = '#FFA500';
+            ctx.beginPath();
+            ctx.ellipse(-5, 5, 12, 8, -0.3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Eye
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(10, -5, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = 'black';
+            ctx.beginPath();
+            ctx.arc(12, -5, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Beak
+            ctx.fillStyle = '#FF6347';
+            ctx.beginPath();
+            ctx.moveTo(18, 0);
+            ctx.lineTo(28, 3);
+            ctx.lineTo(18, 8);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawPipes() {
+            for (const pipe of pipes) {
+                // Pipe gradient
+                const gradient = ctx.createLinearGradient(pipe.x, 0, pipe.x + PIPE_WIDTH, 0);
+                gradient.addColorStop(0, '#2ECC71');
+                gradient.addColorStop(0.5, '#58D68D');
+                gradient.addColorStop(1, '#27AE60');
+
+                // Top pipe
+                ctx.fillStyle = gradient;
+                ctx.fillRect(pipe.x, 0, PIPE_WIDTH, pipe.topHeight);
+
+                // Top pipe cap
+                ctx.fillStyle = '#27AE60';
+                ctx.fillRect(pipe.x - 5, pipe.topHeight - 30, PIPE_WIDTH + 10, 30);
+                ctx.strokeStyle = '#1E8449';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(pipe.x - 5, pipe.topHeight - 30, PIPE_WIDTH + 10, 30);
+
+                // Bottom pipe
+                ctx.fillStyle = gradient;
+                ctx.fillRect(pipe.x, pipe.bottomY, PIPE_WIDTH, ground.y - pipe.bottomY);
+
+                // Bottom pipe cap
+                ctx.fillStyle = '#27AE60';
+                ctx.fillRect(pipe.x - 5, pipe.bottomY, PIPE_WIDTH + 10, 30);
+                ctx.strokeStyle = '#1E8449';
+                ctx.strokeRect(pipe.x - 5, pipe.bottomY, PIPE_WIDTH + 10, 30);
+            }
+        }
+
+        function drawGround() {
+            // Ground
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(0, ground.y, canvas.width, ground.height);
+
+            // Grass on top
+            ctx.fillStyle = '#228B22';
+            ctx.fillRect(0, ground.y, canvas.width, 15);
+
+            // Grass details
+            ctx.fillStyle = '#32CD32';
+            for (let i = 0; i < canvas.width; i += 20) {
+                ctx.beginPath();
+                ctx.moveTo(i, ground.y + 15);
+                ctx.lineTo(i + 10, ground.y);
+                ctx.lineTo(i + 20, ground.y + 15);
+                ctx.fill();
+            }
+        }
+
+        function drawBackground() {
+            // Sky gradient
+            const skyGradient = ctx.createLinearGradient(0, 0, 0, ground.y);
+            skyGradient.addColorStop(0, '#87CEEB');
+            skyGradient.addColorStop(1, '#E0F6FF');
+            ctx.fillStyle = skyGradient;
+            ctx.fillRect(0, 0, canvas.width, ground.y);
+
+            // Clouds
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            drawCloud(50, 80, 40);
+            drawCloud(200, 120, 35);
+            drawCloud(320, 60, 45);
+            drawCloud(150, 200, 30);
+        }
+
+        function drawCloud(x, y, size) {
+            ctx.beginPath();
+            ctx.arc(x, y, size, 0, Math.PI * 2);
+            ctx.arc(x + size * 0.8, y - size * 0.2, size * 0.7, 0, Math.PI * 2);
+            ctx.arc(x + size * 1.4, y, size * 0.8, 0, Math.PI * 2);
+            ctx.arc(x + size * 0.7, y + size * 0.3, size * 0.6, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawScore() {
+            if (gameState === 'playing') {
+                ctx.fillStyle = 'white';
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 4;
+                ctx.font = 'bold 48px Arial';
+                ctx.textAlign = 'center';
+                ctx.strokeText(score, canvas.width / 2, 80);
+                ctx.fillText(score, canvas.width / 2, 80);
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            drawBackground();
+            drawPipes();
+            drawGround();
+            drawBird();
+            drawScore();
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Event listeners
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                jump();
+            }
+        });
+
+        canvas.addEventListener('click', jump);
+        document.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            jump();
+        });
+
+        // Start the game loop
+        gameLoop();
+    </script>
+</body>
+
+</html>
