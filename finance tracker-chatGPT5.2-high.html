@@ -1,0 +1,1420 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Personal Finance Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        /* Small helpers */
+        :root {
+            color-scheme: light;
+        }
+
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+
+        dialog::backdrop {
+            background: rgba(0, 0, 0, .35);
+        }
+    </style>
+</head>
+
+<body class="bg-zinc-50 text-zinc-900">
+    <header class="sticky top-0 z-30 border-b bg-white/80 backdrop-blur">
+        <div class="mx-auto max-w-7xl px-4 py-3">
+            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-fuchsia-500"></div>
+                    <div>
+                        <h1 class="text-lg font-semibold leading-tight">Personal Finance Tracker</h1>
+                        <p class="text-xs text-zinc-600">Track income & expenses, budgets, breakdowns, and trends —
+                            saved locally in your browser.</p>
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <div class="flex items-center gap-2">
+                        <label class="text-sm text-zinc-700" for="monthPicker">Month</label>
+                        <input id="monthPicker" type="month"
+                            class="w-40 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100" />
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button id="exportBtn"
+                            class="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium shadow-sm hover:bg-zinc-50">Export</button>
+                        <label
+                            class="cursor-pointer rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium shadow-sm hover:bg-zinc-50">
+                            Import
+                            <input id="importFile" type="file" accept="application/json" class="hidden" />
+                        </label>
+                        <button id="clearBtn"
+                            class="rounded-xl bg-zinc-900 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-zinc-800">Clear
+                            Data</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="toast" class="pointer-events-none mt-3 hidden">
+                <div
+                    class="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm shadow">
+                    <span id="toastDot" class="h-2 w-2 rounded-full bg-emerald-500"></span>
+                    <span id="toastText" class="text-zinc-800">Saved</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="mx-auto max-w-7xl px-4 py-6">
+        <section class="grid gap-4 md:grid-cols-4">
+            <div class="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+                <div class="text-xs font-medium uppercase tracking-wide text-zinc-500">Income (month)</div>
+                <div id="incomeTotal" class="mt-1 text-2xl font-semibold">$0</div>
+                <div class="mt-2 text-xs text-zinc-600">Transactions counted in selected month.</div>
+            </div>
+            <div class="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+                <div class="text-xs font-medium uppercase tracking-wide text-zinc-500">Expenses (month)</div>
+                <div id="expenseTotal" class="mt-1 text-2xl font-semibold">$0</div>
+                <div class="mt-2 text-xs text-zinc-600">Category breakdown updates automatically.</div>
+            </div>
+            <div class="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+                <div class="text-xs font-medium uppercase tracking-wide text-zinc-500">Net (month)</div>
+                <div id="netTotal" class="mt-1 text-2xl font-semibold">$0</div>
+                <div id="netHint" class="mt-2 text-xs text-zinc-600">Income − expenses.</div>
+            </div>
+            <div class="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+                <div class="text-xs font-medium uppercase tracking-wide text-zinc-500">Savings rate</div>
+                <div id="savingsRate" class="mt-1 text-2xl font-semibold">0%</div>
+                <div class="mt-2 text-xs text-zinc-600">(Net / Income) for the selected month.</div>
+            </div>
+        </section>
+
+        <section class="mt-6 grid gap-4 lg:grid-cols-12">
+            <div class="lg:col-span-4">
+                <div class="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-base font-semibold">Add transaction</h2>
+                        <div class="text-xs text-zinc-500">Saved locally</div>
+                    </div>
+
+                    <form id="txForm" class="mt-4 space-y-3">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-sm text-zinc-700" for="txType">Type</label>
+                                <select id="txType"
+                                    class="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100">
+                                    <option value="expense">Expense</option>
+                                    <option value="income">Income</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-sm text-zinc-700" for="txAmount">Amount</label>
+                                <input id="txAmount" type="number" inputmode="decimal" min="0" step="0.01"
+                                    placeholder="0.00"
+                                    class="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                                    required />
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex items-end justify-between">
+                                <label class="text-sm text-zinc-700" for="txCategory">Category</label>
+                                <button id="manageCategoriesBtn" type="button"
+                                    class="text-xs font-medium text-indigo-600 hover:text-indigo-700">Manage</button>
+                            </div>
+                            <div class="mt-1 flex gap-2">
+                                <select id="txCategory"
+                                    class="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"></select>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-sm text-zinc-700" for="txDate">Date</label>
+                                <input id="txDate" type="date"
+                                    class="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                                    required />
+                            </div>
+                            <div>
+                                <label class="text-sm text-zinc-700" for="txNote">Note</label>
+                                <input id="txNote" type="text" maxlength="80" placeholder="Optional"
+                                    class="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100" />
+                            </div>
+                        </div>
+
+                        <button
+                            class="w-full rounded-xl bg-indigo-600 px-3 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700"
+                            type="submit">Add</button>
+                    </form>
+
+                    <div class="mt-4 rounded-xl bg-zinc-50 p-3 text-xs text-zinc-700">
+                        <div class="font-medium text-zinc-800">Tips</div>
+                        <ul class="mt-1 list-disc space-y-1 pl-4">
+                            <li>Use the month picker at the top to switch dashboards.</li>
+                            <li>Budgets are monthly limits per category (and optional overall limit).</li>
+                            <li>Use filters in history to find, edit, or delete transactions.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="mt-4 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-base font-semibold">Budget limits</h2>
+                        <button id="addBudgetCategoryBtn"
+                            class="text-xs font-medium text-indigo-600 hover:text-indigo-700" type="button">Add
+                            category</button>
+                    </div>
+
+                    <div class="mt-3">
+                        <label class="text-sm text-zinc-700" for="overallBudget">Overall monthly budget</label>
+                        <input id="overallBudget" type="number" min="0" step="0.01" placeholder="0.00"
+                            class="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100" />
+                        <p class="mt-1 text-xs text-zinc-600">Tracks total expenses vs. this limit in the selected
+                            month.</p>
+                    </div>
+
+                    <div id="budgetList" class="mt-4 space-y-3"></div>
+
+                    <div class="mt-4">
+                        <button id="saveBudgetsBtn" type="button"
+                            class="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold shadow-sm hover:bg-zinc-50">Save
+                            budgets</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-8">
+                <section class="grid gap-4 md:grid-cols-2">
+                    <div class="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-base font-semibold">Spending breakdown</h2>
+                            <div class="text-xs text-zinc-500">Expenses by category</div>
+                        </div>
+                        <div class="mt-3 h-64">
+                            <canvas id="breakdownChart"></canvas>
+                        </div>
+                        <div id="breakdownLegend" class="mt-3 grid grid-cols-2 gap-2 text-xs"></div>
+                    </div>
+
+                    <div class="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-base font-semibold">Budgets progress</h2>
+                            <div class="text-xs text-zinc-500">Selected month</div>
+                        </div>
+                        <div id="budgetProgress" class="mt-3 space-y-3"></div>
+                    </div>
+                </section>
+
+                <section class="mt-4 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+                    <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <h2 class="text-base font-semibold">Transaction history</h2>
+                            <p class="text-xs text-zinc-600">Filter, edit, and delete transactions.</p>
+                        </div>
+                        <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                            <div class="flex items-center gap-2">
+                                <label class="text-xs text-zinc-600" for="historyScope">Scope</label>
+                                <select id="historyScope"
+                                    class="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100">
+                                    <option value="month">Selected month</option>
+                                    <option value="all">All time</option>
+                                </select>
+                            </div>
+                            <button id="resetFiltersBtn"
+                                class="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium shadow-sm hover:bg-zinc-50"
+                                type="button">Reset filters</button>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 grid gap-3 md:grid-cols-6">
+                        <div class="md:col-span-1">
+                            <label class="text-xs text-zinc-600" for="filterType">Type</label>
+                            <select id="filterType"
+                                class="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100">
+                                <option value="">All</option>
+                                <option value="expense">Expense</option>
+                                <option value="income">Income</option>
+                            </select>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="text-xs text-zinc-600" for="filterCategory">Category</label>
+                            <select id="filterCategory"
+                                class="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100">
+                                <option value="">All</option>
+                            </select>
+                        </div>
+                        <div class="md:col-span-1">
+                            <label class="text-xs text-zinc-600" for="filterMin">Min</label>
+                            <input id="filterMin" type="number" min="0" step="0.01" placeholder="0"
+                                class="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100" />
+                        </div>
+                        <div class="md:col-span-1">
+                            <label class="text-xs text-zinc-600" for="filterMax">Max</label>
+                            <input id="filterMax" type="number" min="0" step="0.01" placeholder="0"
+                                class="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100" />
+                        </div>
+                        <div class="md:col-span-1">
+                            <label class="text-xs text-zinc-600" for="filterSearch">Search</label>
+                            <input id="filterSearch" type="text" placeholder="note/category"
+                                class="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100" />
+                        </div>
+                    </div>
+
+                    <div class="mt-3 grid gap-3 md:grid-cols-6">
+                        <div class="md:col-span-2">
+                            <label class="text-xs text-zinc-600" for="filterStart">Start date</label>
+                            <input id="filterStart" type="date"
+                                class="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100" />
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="text-xs text-zinc-600" for="filterEnd">End date</label>
+                            <input id="filterEnd" type="date"
+                                class="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100" />
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="text-xs text-zinc-600" for="sortBy">Sort</label>
+                            <select id="sortBy"
+                                class="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100">
+                                <option value="date_desc">Date (newest)</option>
+                                <option value="date_asc">Date (oldest)</option>
+                                <option value="amount_desc">Amount (high → low)</option>
+                                <option value="amount_asc">Amount (low → high)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 overflow-x-auto rounded-xl border border-zinc-200">
+                        <table class="min-w-full divide-y divide-zinc-200">
+                            <thead class="bg-zinc-50">
+                                <tr class="text-left text-xs font-semibold uppercase tracking-wide text-zinc-600">
+                                    <th class="px-3 py-2">Date</th>
+                                    <th class="px-3 py-2">Type</th>
+                                    <th class="px-3 py-2">Category</th>
+                                    <th class="px-3 py-2">Note</th>
+                                    <th class="px-3 py-2 text-right">Amount</th>
+                                    <th class="px-3 py-2 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyBody" class="divide-y divide-zinc-100 bg-white"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div id="historyCount" class="text-sm text-zinc-700">0 transactions</div>
+                        <button id="downloadCsvBtn"
+                            class="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium shadow-sm hover:bg-zinc-50"
+                            type="button">Download CSV</button>
+                    </div>
+                </section>
+
+                <section class="mt-4 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-base font-semibold">Monthly trends</h2>
+                            <p class="text-xs text-zinc-600">Income and expenses across the last 12 months.</p>
+                        </div>
+                        <div class="text-xs text-zinc-500">All transactions</div>
+                    </div>
+                    <div class="mt-3 h-72">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </section>
+            </div>
+        </section>
+
+        <footer class="mt-8 pb-10 text-xs text-zinc-500">
+            <div class="rounded-2xl border border-zinc-200 bg-white p-4">
+                <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <div class="font-medium text-zinc-700">Privacy</div>
+                        <div>This app stores data only in your browser (localStorage). Use Export to back it up.</div>
+                    </div>
+                    <div class="text-zinc-500">Built as a single-page app (HTML + Tailwind + JS).</div>
+                </div>
+            </div>
+        </footer>
+    </main>
+
+    <!-- Edit Transaction Dialog -->
+    <dialog id="editDialog" class="w-[min(640px,92vw)] rounded-2xl border border-zinc-200 bg-white p-0 shadow-xl">
+        <form id="editForm" method="dialog" class="p-4">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <h3 class="text-base font-semibold">Edit transaction</h3>
+                    <p class="text-xs text-zinc-600">Changes are saved immediately.</p>
+                </div>
+                <button type="button" id="closeEdit"
+                    class="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium hover:bg-zinc-50">Close</button>
+            </div>
+
+            <input type="hidden" id="editId" />
+
+            <div class="mt-4 grid gap-3 md:grid-cols-2">
+                <div>
+                    <label class="text-sm text-zinc-700" for="editType">Type</label>
+                    <select id="editType"
+                        class="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100">
+                        <option value="expense">Expense</option>
+                        <option value="income">Income</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-sm text-zinc-700" for="editAmount">Amount</label>
+                    <input id="editAmount" type="number" min="0" step="0.01"
+                        class="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                        required />
+                </div>
+                <div>
+                    <label class="text-sm text-zinc-700" for="editCategory">Category</label>
+                    <select id="editCategory"
+                        class="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"></select>
+                </div>
+                <div>
+                    <label class="text-sm text-zinc-700" for="editDate">Date</label>
+                    <input id="editDate" type="date"
+                        class="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                        required />
+                </div>
+                <div class="md:col-span-2">
+                    <label class="text-sm text-zinc-700" for="editNote">Note</label>
+                    <input id="editNote" type="text" maxlength="80"
+                        class="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100" />
+                </div>
+            </div>
+
+            <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <button id="saveEdit" type="submit"
+                    class="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700">Save</button>
+            </div>
+        </form>
+    </dialog>
+
+    <!-- Category Manager Dialog -->
+    <dialog id="categoryDialog" class="w-[min(720px,92vw)] rounded-2xl border border-zinc-200 bg-white p-0 shadow-xl">
+        <form method="dialog" class="p-4">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <h3 class="text-base font-semibold">Manage categories</h3>
+                    <p class="text-xs text-zinc-600">Categories are shared across income and expense transactions.</p>
+                </div>
+                <button id="closeCategory" type="button"
+                    class="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium hover:bg-zinc-50">Close</button>
+            </div>
+
+            <div class="mt-4 grid gap-3 md:grid-cols-3">
+                <div class="md:col-span-2">
+                    <label class="text-sm text-zinc-700" for="newCategory">New category</label>
+                    <input id="newCategory" type="text" placeholder="e.g., Coffee"
+                        class="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100" />
+                </div>
+                <div class="flex items-end">
+                    <button id="addCategoryBtn" type="button"
+                        class="w-full rounded-xl bg-zinc-900 px-3 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-zinc-800">Add</button>
+                </div>
+            </div>
+
+            <div class="mt-4 overflow-hidden rounded-xl border border-zinc-200">
+                <div class="bg-zinc-50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-600">Categories
+                </div>
+                <div id="categoryList" class="max-h-72 overflow-auto bg-white"></div>
+            </div>
+
+            <div class="mt-4 text-xs text-zinc-600">
+                Removing a category will not delete existing transactions; they’ll keep the old category label.
+            </div>
+        </form>
+    </dialog>
+
+    <!-- Add Budget Category Dialog -->
+    <dialog id="budgetCategoryDialog"
+        class="w-[min(520px,92vw)] rounded-2xl border border-zinc-200 bg-white p-0 shadow-xl">
+        <form method="dialog" class="p-4">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <h3 class="text-base font-semibold">Add budget category</h3>
+                    <p class="text-xs text-zinc-600">Creates an entry in your budget list (does not add transactions).
+                    </p>
+                </div>
+                <button id="closeBudgetCat" type="button"
+                    class="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium hover:bg-zinc-50">Close</button>
+            </div>
+            <div class="mt-4">
+                <label class="text-sm text-zinc-700" for="budgetCategoryName">Category name</label>
+                <input id="budgetCategoryName" type="text" placeholder="e.g., Groceries"
+                    class="mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100" />
+            </div>
+            <div class="mt-4">
+                <button id="confirmAddBudgetCat" type="button"
+                    class="w-full rounded-xl bg-indigo-600 px-3 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700">Add</button>
+            </div>
+        </form>
+    </dialog>
+
+    <script>
+        // -----------------------------
+        // Storage + state
+        // -----------------------------
+        const STORAGE_KEYS = {
+            transactions: 'pft_transactions_v1',
+            budgets: 'pft_budgets_v1',
+            categories: 'pft_categories_v1',
+            prefs: 'pft_prefs_v1'
+        };
+
+        const DEFAULT_CATEGORIES = [
+            'Housing', 'Utilities', 'Groceries', 'Dining', 'Transport', 'Health', 'Insurance',
+            'Shopping', 'Entertainment', 'Travel', 'Education', 'Gifts', 'Subscriptions',
+            'Savings', 'Investments', 'Income', 'Salary', 'Bonus', 'Other'
+        ];
+
+        /** @type {{id:string,type:'income'|'expense',amount:number,category:string,date:string,note:string,createdAt:number}[]} */
+        let transactions = [];
+
+        /** @type {{overall:number, byCategory: Record<string, number>}} */
+        let budgets = { overall: 0, byCategory: {} };
+
+        /** @type {string[]} */
+        let categories = [];
+
+        /** @type {{currency:string}} */
+        let prefs = { currency: 'USD' };
+
+        // Charts
+        let breakdownChart = null;
+        let trendChart = null;
+
+        // -----------------------------
+        // Utilities
+        // -----------------------------
+        const $ = (id) => document.getElementById(id);
+
+        function uid() {
+            if (window.crypto?.randomUUID) return crypto.randomUUID();
+            return 'id_' + Math.random().toString(16).slice(2) + '_' + Date.now();
+        }
+
+        function clamp(n, min, max) {
+            return Math.max(min, Math.min(max, n));
+        }
+
+        function toISODate(d) {
+            const pad = (x) => String(x).padStart(2, '0');
+            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        }
+
+        function monthKeyFromISO(isoDate) {
+            // isoDate is YYYY-MM-DD
+            return isoDate.slice(0, 7);
+        }
+
+        function parseNum(val) {
+            const n = Number(val);
+            return Number.isFinite(n) ? n : 0;
+        }
+
+        function formatCurrency(amount) {
+            const currency = prefs.currency || 'USD';
+            try {
+                return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount);
+            } catch {
+                return '$' + amount.toFixed(2);
+            }
+        }
+
+        function formatPercent(x) {
+            if (!Number.isFinite(x)) return '0%';
+            return `${Math.round(x * 100)}%`;
+        }
+
+        function escapeHtml(str) {
+            return String(str)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+        }
+
+        function showToast(message, kind = 'success') {
+            const toast = $('toast');
+            const text = $('toastText');
+            const dot = $('toastDot');
+            text.textContent = message;
+            dot.className = 'h-2 w-2 rounded-full ' + (kind === 'danger' ? 'bg-rose-500' : kind === 'warn' ? 'bg-amber-500' : 'bg-emerald-500');
+            toast.classList.remove('hidden');
+            clearTimeout(showToast._t);
+            showToast._t = setTimeout(() => toast.classList.add('hidden'), 1800);
+        }
+
+        function safeLoad(key, fallback) {
+            try {
+                const raw = localStorage.getItem(key);
+                if (!raw) return fallback;
+                return JSON.parse(raw);
+            } catch {
+                return fallback;
+            }
+        }
+
+        function saveAll() {
+            localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify(transactions));
+            localStorage.setItem(STORAGE_KEYS.budgets, JSON.stringify(budgets));
+            localStorage.setItem(STORAGE_KEYS.categories, JSON.stringify(categories));
+            localStorage.setItem(STORAGE_KEYS.prefs, JSON.stringify(prefs));
+        }
+
+        function normalizeCategory(name) {
+            return String(name || '').trim();
+        }
+
+        function ensureCategoryExists(name) {
+            const c = normalizeCategory(name);
+            if (!c) return;
+            if (!categories.some(x => x.toLowerCase() === c.toLowerCase())) {
+                categories.push(c);
+                categories.sort((a, b) => a.localeCompare(b));
+            }
+        }
+
+        function isWithinRange(isoDate, start, end) {
+            if (start && isoDate < start) return false;
+            if (end && isoDate > end) return false;
+            return true;
+        }
+
+        function getSelectedMonth() {
+            return $('monthPicker').value; // YYYY-MM
+        }
+
+        function setSelectedMonth(ym) {
+            $('monthPicker').value = ym;
+            localStorage.setItem(STORAGE_KEYS.prefs, JSON.stringify({ ...prefs, lastMonth: ym }));
+        }
+
+        function last12Months(fromYM) {
+            const [y, m] = fromYM.split('-').map(Number);
+            const d = new Date(y, m - 1, 1);
+            const arr = [];
+            for (let i = 11; i >= 0; i--) {
+                const dd = new Date(d);
+                dd.setMonth(dd.getMonth() - i);
+                const ym = dd.toISOString().slice(0, 7);
+                arr.push(ym);
+            }
+            return arr;
+        }
+
+        // -----------------------------
+        // Derived calculations
+        // -----------------------------
+        function txForMonth(ym) {
+            return transactions.filter(t => monthKeyFromISO(t.date) === ym);
+        }
+
+        function sumByType(list) {
+            let income = 0;
+            let expense = 0;
+            for (const t of list) {
+                if (t.type === 'income') income += t.amount;
+                else expense += t.amount;
+            }
+            return { income, expense, net: income - expense };
+        }
+
+        function expenseBreakdownByCategory(list) {
+            /** @type {Record<string, number>} */
+            const map = {};
+            for (const t of list) {
+                if (t.type !== 'expense') continue;
+                const cat = t.category || 'Uncategorized';
+                map[cat] = (map[cat] || 0) + t.amount;
+            }
+            return map;
+        }
+
+        function spentByCategoryForMonth(ym) {
+            const list = txForMonth(ym);
+            return expenseBreakdownByCategory(list);
+        }
+
+        function currentBudgetCategories() {
+            // Union of categories, budget entries, and categories used in transactions
+            const set = new Set([...(categories || [])]);
+            for (const k of Object.keys(budgets.byCategory || {})) set.add(k);
+            for (const t of transactions) set.add(t.category);
+            const arr = [...set].filter(Boolean).sort((a, b) => a.localeCompare(b));
+            return arr;
+        }
+
+        // -----------------------------
+        // Rendering
+        // -----------------------------
+        function renderCategoryOptions() {
+            const catSelect = $('txCategory');
+            const editSelect = $('editCategory');
+            const filterSelect = $('filterCategory');
+
+            const allCats = currentBudgetCategories();
+
+            const optionsHtml = allCats.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+            catSelect.innerHTML = optionsHtml;
+            editSelect.innerHTML = optionsHtml;
+
+            // Filter options with an All option at top
+            const filterVal = filterSelect.value;
+            filterSelect.innerHTML = `<option value="">All</option>` + optionsHtml;
+            if ([...filterSelect.options].some(o => o.value === filterVal)) filterSelect.value = filterVal;
+        }
+
+        function renderBudgetEditor() {
+            $('overallBudget').value = budgets.overall ? String(budgets.overall) : '';
+
+            const cats = currentBudgetCategories();
+            const rows = cats.map((cat) => {
+                const val = budgets.byCategory?.[cat] ?? '';
+                const isCustom = !(DEFAULT_CATEGORIES.some(x => x.toLowerCase() === cat.toLowerCase()));
+                return `
+          <div class="rounded-xl border border-zinc-200 p-3">
+            <div class="flex items-center justify-between gap-3">
+              <div class="min-w-0">
+                <div class="truncate text-sm font-semibold text-zinc-900">${escapeHtml(cat)}</div>
+                <div class="text-xs text-zinc-600">Monthly limit</div>
+              </div>
+              <div class="flex items-center gap-2">
+                <input data-budget-cat="${escapeHtml(cat)}" type="number" min="0" step="0.01" placeholder="0.00" value="${val === '' ? '' : escapeHtml(val)}" class="w-32 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100" />
+                ${isCustom ? `<button type="button" data-remove-budget-cat="${escapeHtml(cat)}" class="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold hover:bg-zinc-50">Remove</button>` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+            }).join('');
+
+            $('budgetList').innerHTML = rows || `<div class="text-sm text-zinc-600">No categories yet.</div>`;
+
+            // Hook removal buttons
+            document.querySelectorAll('[data-remove-budget-cat]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const cat = btn.getAttribute('data-remove-budget-cat');
+                    delete budgets.byCategory[cat];
+                    // Also remove from categories list if it's not used by any transaction
+                    const used = transactions.some(t => (t.category || '').toLowerCase() === String(cat).toLowerCase());
+                    if (!used) categories = categories.filter(c => c.toLowerCase() !== String(cat).toLowerCase());
+                    saveAll();
+                    renderCategoryOptions();
+                    renderBudgetEditor();
+                    renderAll();
+                    showToast('Budget category removed', 'warn');
+                });
+            });
+        }
+
+        function budgetBar(pct) {
+            const p = clamp(pct, 0, 1);
+            const color = p < 0.6 ? 'bg-emerald-500' : p < 0.9 ? 'bg-amber-500' : 'bg-rose-500';
+            return `<div class="h-2 w-full overflow-hidden rounded-full bg-zinc-100"><div class="h-full ${color}" style="width:${(p * 100).toFixed(1)}%"></div></div>`;
+        }
+
+        function renderBudgetProgress(ym) {
+            const spent = spentByCategoryForMonth(ym);
+            const cats = currentBudgetCategories();
+
+            // Overall
+            const monthTx = txForMonth(ym);
+            const totals = sumByType(monthTx);
+            const overallLimit = parseNum(budgets.overall);
+            let overallBlock = '';
+            if (overallLimit > 0) {
+                const pct = totals.expense / overallLimit;
+                overallBlock = `
+          <div class="rounded-xl border border-zinc-200 p-3">
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="text-sm font-semibold">Overall</div>
+                <div class="text-xs text-zinc-600">${formatCurrency(totals.expense)} of ${formatCurrency(overallLimit)}</div>
+              </div>
+              <div class="text-xs font-semibold text-zinc-700">${formatPercent(clamp(pct, 0, 10))}</div>
+            </div>
+            <div class="mt-2">${budgetBar(pct)}</div>
+          </div>
+        `;
+            }
+
+            // Per-category (only those with a budget set)
+            const budgetCats = Object.entries(budgets.byCategory || {})
+                .filter(([_, limit]) => parseNum(limit) > 0)
+                .map(([cat, limit]) => ({ cat, limit: parseNum(limit) }))
+                .sort((a, b) => a.cat.localeCompare(b.cat));
+
+            const perCat = budgetCats.map(({ cat, limit }) => {
+                const s = spent[cat] || 0;
+                const pct = s / limit;
+                return `
+          <div class="rounded-xl border border-zinc-200 p-3">
+            <div class="flex items-center justify-between gap-3">
+              <div class="min-w-0">
+                <div class="truncate text-sm font-semibold">${escapeHtml(cat)}</div>
+                <div class="text-xs text-zinc-600">${formatCurrency(s)} of ${formatCurrency(limit)}</div>
+              </div>
+              <div class="text-xs font-semibold text-zinc-700">${formatPercent(clamp(pct, 0, 10))}</div>
+            </div>
+            <div class="mt-2">${budgetBar(pct)}</div>
+          </div>
+        `;
+            }).join('');
+
+            $('budgetProgress').innerHTML = (overallBlock + perCat) || `
+        <div class="rounded-xl border border-dashed border-zinc-200 p-4 text-sm text-zinc-600">
+          No budgets set yet. Add limits on the left to see progress.
+        </div>
+      `;
+        }
+
+        function renderSummary(ym) {
+            const monthTx = txForMonth(ym);
+            const totals = sumByType(monthTx);
+
+            $('incomeTotal').textContent = formatCurrency(totals.income);
+            $('expenseTotal').textContent = formatCurrency(totals.expense);
+            $('netTotal').textContent = formatCurrency(totals.net);
+
+            const hint = $('netHint');
+            hint.textContent = totals.net >= 0 ? 'Positive net for the month.' : 'Net is negative for the month.';
+            hint.className = 'mt-2 text-xs ' + (totals.net >= 0 ? 'text-emerald-700' : 'text-rose-700');
+
+            const sr = totals.income > 0 ? (totals.net / totals.income) : 0;
+            $('savingsRate').textContent = totals.income > 0 ? formatPercent(clamp(sr, -1, 1)) : '—';
+        }
+
+        function renderBreakdownChart(ym) {
+            const monthTx = txForMonth(ym);
+            const breakdown = expenseBreakdownByCategory(monthTx);
+            const entries = Object.entries(breakdown).sort((a, b) => b[1] - a[1]);
+
+            const labels = entries.map(([k]) => k);
+            const data = entries.map(([_, v]) => Number(v.toFixed(2)));
+
+            const palette = [
+                '#6366F1', '#A855F7', '#EC4899', '#F97316', '#F59E0B', '#84CC16', '#22C55E', '#14B8A6', '#06B6D4', '#0EA5E9',
+                '#64748B', '#8B5CF6', '#D946EF', '#FB7185', '#FDBA74', '#FDE047', '#BEF264', '#86EFAC', '#5EEAD4', '#67E8F9'
+            ];
+            const colors = labels.map((_, i) => palette[i % palette.length]);
+
+            const ctx = document.getElementById('breakdownChart');
+            if (breakdownChart) breakdownChart.destroy();
+
+            breakdownChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels,
+                    datasets: [{
+                        data,
+                        backgroundColor: colors,
+                        borderColor: '#ffffff',
+                        borderWidth: 2,
+                        hoverOffset: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (item) => {
+                                    const val = item.parsed;
+                                    const total = item.dataset.data.reduce((a, b) => a + b, 0);
+                                    const pct = total > 0 ? val / total : 0;
+                                    return `${item.label}: ${formatCurrency(val)} (${formatPercent(pct)})`;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '68%'
+                }
+            });
+
+            // Legend
+            const totalExpense = data.reduce((a, b) => a + b, 0);
+            const legend = entries.slice(0, 10).map(([cat, val], i) => {
+                const pct = totalExpense > 0 ? val / totalExpense : 0;
+                return `
+          <div class="flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-2 py-1">
+            <span class="h-2.5 w-2.5 rounded-sm" style="background:${colors[i]}"></span>
+            <div class="min-w-0">
+              <div class="truncate font-semibold text-zinc-800">${escapeHtml(cat)}</div>
+              <div class="text-[11px] text-zinc-600">${formatCurrency(val)} · ${formatPercent(pct)}</div>
+            </div>
+          </div>
+        `;
+            }).join('');
+
+            $('breakdownLegend').innerHTML = entries.length
+                ? legend
+                : `<div class="text-sm text-zinc-600">No expenses in this month yet.</div>`;
+        }
+
+        function renderTrendChart(selectedMonth) {
+            const months = last12Months(selectedMonth);
+            const incomeSeries = [];
+            const expenseSeries = [];
+
+            for (const ym of months) {
+                const list = txForMonth(ym);
+                const totals = sumByType(list);
+                incomeSeries.push(Number(totals.income.toFixed(2)));
+                expenseSeries.push(Number(totals.expense.toFixed(2)));
+            }
+
+            const ctx = document.getElementById('trendChart');
+            if (trendChart) trendChart.destroy();
+
+            trendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: months,
+                    datasets: [
+                        {
+                            label: 'Income',
+                            data: incomeSeries,
+                            borderColor: '#22C55E',
+                            backgroundColor: 'rgba(34,197,94,0.12)',
+                            fill: true,
+                            tension: 0.3,
+                            pointRadius: 3
+                        },
+                        {
+                            label: 'Expenses',
+                            data: expenseSeries,
+                            borderColor: '#F97316',
+                            backgroundColor: 'rgba(249,115,22,0.12)',
+                            fill: true,
+                            tension: 0.3,
+                            pointRadius: 3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { display: true, labels: { boxWidth: 12 } },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => `${ctx.dataset.label}: ${formatCurrency(ctx.parsed.y)}`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            ticks: {
+                                callback: (v) => {
+                                    const n = Number(v);
+                                    if (!Number.isFinite(n)) return v;
+                                    try {
+                                        return new Intl.NumberFormat(undefined, { notation: 'compact' }).format(n);
+                                    } catch { return v; }
+                                }
+                            },
+                            grid: { color: 'rgba(0,0,0,0.06)' }
+                        },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        function filteredHistoryList() {
+            const scope = $('historyScope').value;
+            const ym = getSelectedMonth();
+
+            const type = $('filterType').value;
+            const category = $('filterCategory').value;
+            const min = parseNum($('filterMin').value);
+            const maxRaw = $('filterMax').value;
+            const max = maxRaw === '' ? null : parseNum(maxRaw);
+            const search = $('filterSearch').value.trim().toLowerCase();
+            const start = $('filterStart').value;
+            const end = $('filterEnd').value;
+
+            let list = transactions.slice();
+            if (scope === 'month') list = list.filter(t => monthKeyFromISO(t.date) === ym);
+            if (type) list = list.filter(t => t.type === type);
+            if (category) list = list.filter(t => (t.category || '') === category);
+            if (min > 0) list = list.filter(t => t.amount >= min);
+            if (max !== null && Number.isFinite(max)) list = list.filter(t => t.amount <= max);
+            if (start || end) list = list.filter(t => isWithinRange(t.date, start, end));
+            if (search) {
+                list = list.filter(t => {
+                    const hay = `${t.category || ''} ${t.note || ''}`.toLowerCase();
+                    return hay.includes(search);
+                });
+            }
+
+            // Sort
+            const sort = $('sortBy').value;
+            const byDate = (a, b) => a.date.localeCompare(b.date);
+            const byAmount = (a, b) => a.amount - b.amount;
+
+            if (sort === 'date_asc') list.sort(byDate);
+            else if (sort === 'date_desc') list.sort((a, b) => byDate(b, a));
+            else if (sort === 'amount_asc') list.sort(byAmount);
+            else if (sort === 'amount_desc') list.sort((a, b) => byAmount(b, a));
+
+            return list;
+        }
+
+        function renderHistory() {
+            const list = filteredHistoryList();
+            const body = $('historyBody');
+
+            if (!list.length) {
+                body.innerHTML = `
+          <tr>
+            <td colspan="6" class="px-3 py-6 text-center text-sm text-zinc-600">No transactions match your filters.</td>
+          </tr>
+        `;
+                $('historyCount').textContent = '0 transactions';
+                return;
+            }
+
+            body.innerHTML = list.map(t => {
+                const pill = t.type === 'income'
+                    ? '<span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">Income</span>'
+                    : '<span class="inline-flex items-center rounded-full bg-rose-50 px-2 py-0.5 text-xs font-semibold text-rose-700">Expense</span>';
+                const amtClass = t.type === 'income' ? 'text-emerald-700' : 'text-rose-700';
+                const sign = t.type === 'income' ? '+' : '−';
+
+                return `
+          <tr class="hover:bg-zinc-50">
+            <td class="px-3 py-2 text-sm text-zinc-800">${escapeHtml(t.date)}</td>
+            <td class="px-3 py-2">${pill}</td>
+            <td class="px-3 py-2 text-sm text-zinc-800">${escapeHtml(t.category || 'Uncategorized')}</td>
+            <td class="px-3 py-2 text-sm text-zinc-700">${escapeHtml(t.note || '')}</td>
+            <td class="px-3 py-2 text-right text-sm font-semibold ${amtClass}">${sign} ${formatCurrency(t.amount)}</td>
+            <td class="px-3 py-2 text-right">
+              <div class="inline-flex gap-2">
+                <button data-edit="${escapeHtml(t.id)}" class="rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs font-semibold hover:bg-zinc-50">Edit</button>
+                <button data-del="${escapeHtml(t.id)}" class="rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs font-semibold hover:bg-zinc-50">Delete</button>
+              </div>
+            </td>
+          </tr>
+        `;
+            }).join('');
+
+            $('historyCount').textContent = `${list.length} transaction${list.length === 1 ? '' : 's'}`;
+
+            // Wire actions
+            body.querySelectorAll('[data-del]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.getAttribute('data-del');
+                    const tx = transactions.find(x => x.id === id);
+                    if (!tx) return;
+                    const ok = confirm(`Delete this transaction?\n\n${tx.date} · ${tx.type} · ${tx.category} · ${formatCurrency(tx.amount)}`);
+                    if (!ok) return;
+                    transactions = transactions.filter(x => x.id !== id);
+                    saveAll();
+                    renderAll();
+                    showToast('Transaction deleted', 'warn');
+                });
+            });
+
+            body.querySelectorAll('[data-edit]').forEach(btn => {
+                btn.addEventListener('click', () => openEditDialog(btn.getAttribute('data-edit')));
+            });
+        }
+
+        function renderAll() {
+            const ym = getSelectedMonth();
+            renderCategoryOptions();
+            renderSummary(ym);
+            renderBudgetEditor();
+            renderBudgetProgress(ym);
+            renderBreakdownChart(ym);
+            renderTrendChart(ym);
+            renderHistory();
+        }
+
+        // -----------------------------
+        // Actions
+        // -----------------------------
+        function openEditDialog(id) {
+            const tx = transactions.find(t => t.id === id);
+            if (!tx) return;
+
+            $('editId').value = tx.id;
+            $('editType').value = tx.type;
+            $('editAmount').value = String(tx.amount);
+            $('editCategory').value = tx.category;
+            $('editDate').value = tx.date;
+            $('editNote').value = tx.note || '';
+
+            $('editDialog').showModal();
+        }
+
+        function resetFilters() {
+            $('filterType').value = '';
+            $('filterCategory').value = '';
+            $('filterMin').value = '';
+            $('filterMax').value = '';
+            $('filterSearch').value = '';
+            $('filterStart').value = '';
+            $('filterEnd').value = '';
+            $('sortBy').value = 'date_desc';
+            renderHistory();
+        }
+
+        function download(filename, content, mime = 'application/octet-stream') {
+            const blob = new Blob([content], { type: mime });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        }
+
+        function toCSV(list) {
+            const header = ['id', 'date', 'type', 'category', 'note', 'amount'];
+            const rows = list.map(t => [
+                t.id,
+                t.date,
+                t.type,
+                t.category,
+                (t.note || '').replaceAll('\n', ' '),
+                String(t.amount)
+            ]);
+            const esc = (v) => {
+                const s = String(v ?? '');
+                if (s.includes(',') || s.includes('"') || s.includes('\n')) return '"' + s.replaceAll('"', '""') + '"';
+                return s;
+            };
+            return [header, ...rows].map(r => r.map(esc).join(',')).join('\n');
+        }
+
+        // -----------------------------
+        // Init + event wiring
+        // -----------------------------
+        function init() {
+            transactions = safeLoad(STORAGE_KEYS.transactions, []);
+            budgets = safeLoad(STORAGE_KEYS.budgets, { overall: 0, byCategory: {} });
+            categories = safeLoad(STORAGE_KEYS.categories, DEFAULT_CATEGORIES.slice());
+            prefs = { ...prefs, ...safeLoad(STORAGE_KEYS.prefs, {}) };
+
+            // Normalize loaded data
+            if (!Array.isArray(transactions)) transactions = [];
+            if (!budgets || typeof budgets !== 'object') budgets = { overall: 0, byCategory: {} };
+            if (!budgets.byCategory || typeof budgets.byCategory !== 'object') budgets.byCategory = {};
+            if (!Array.isArray(categories)) categories = DEFAULT_CATEGORIES.slice();
+
+            // Ensure categories include those used by transactions
+            for (const t of transactions) ensureCategoryExists(t.category);
+
+            // Default month picker
+            const now = new Date();
+            const currentYM = now.toISOString().slice(0, 7);
+            const lastMonth = safeLoad(STORAGE_KEYS.prefs, {}).lastMonth;
+            setSelectedMonth(lastMonth || currentYM);
+
+            // Default tx date = today
+            $('txDate').value = toISODate(now);
+
+            // Wire events
+            $('monthPicker').addEventListener('change', () => renderAll());
+
+            $('txForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+
+                const type = $('txType').value;
+                const amount = parseNum($('txAmount').value);
+                const category = $('txCategory').value || 'Other';
+                const date = $('txDate').value;
+                const note = $('txNote').value.trim();
+
+                if (!date) return;
+                if (!(amount > 0)) {
+                    showToast('Enter an amount greater than 0', 'warn');
+                    return;
+                }
+
+                ensureCategoryExists(category);
+
+                const tx = {
+                    id: uid(),
+                    type,
+                    amount: Number(amount.toFixed(2)),
+                    category,
+                    date,
+                    note,
+                    createdAt: Date.now()
+                };
+
+                transactions.unshift(tx);
+                saveAll();
+
+                // Reset quick fields
+                $('txAmount').value = '';
+                $('txNote').value = '';
+
+                // Keep month in sync if adding outside selected month: switch to that month
+                const ym = monthKeyFromISO(date);
+                if (ym !== getSelectedMonth()) setSelectedMonth(ym);
+
+                renderAll();
+                showToast('Transaction added');
+            });
+
+            // Filters
+            const filterIds = ['historyScope', 'filterType', 'filterCategory', 'filterMin', 'filterMax', 'filterSearch', 'filterStart', 'filterEnd', 'sortBy'];
+            for (const id of filterIds) $(id).addEventListener('input', () => renderHistory());
+            $('resetFiltersBtn').addEventListener('click', () => resetFilters());
+
+            // Budgets save
+            $('saveBudgetsBtn').addEventListener('click', () => {
+                budgets.overall = Number(parseNum($('overallBudget').value).toFixed(2));
+                const inputs = document.querySelectorAll('[data-budget-cat]');
+                for (const input of inputs) {
+                    const cat = input.getAttribute('data-budget-cat');
+                    const val = input.value.trim();
+                    if (val === '') {
+                        delete budgets.byCategory[cat];
+                    } else {
+                        budgets.byCategory[cat] = Number(parseNum(val).toFixed(2));
+                    }
+                }
+                saveAll();
+                renderAll();
+                showToast('Budgets saved');
+            });
+
+            // Export/import/clear
+            $('exportBtn').addEventListener('click', () => {
+                const payload = {
+                    version: 1,
+                    exportedAt: new Date().toISOString(),
+                    transactions,
+                    budgets,
+                    categories,
+                    prefs
+                };
+                download(`finance-tracker-export_${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(payload, null, 2), 'application/json');
+                showToast('Export downloaded');
+            });
+
+            $('importFile').addEventListener('change', async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                try {
+                    const text = await file.text();
+                    const data = JSON.parse(text);
+                    if (!data || typeof data !== 'object') throw new Error('Invalid file');
+
+                    const importedTx = Array.isArray(data.transactions) ? data.transactions : [];
+                    const importedBudgets = data.budgets && typeof data.budgets === 'object' ? data.budgets : { overall: 0, byCategory: {} };
+                    const importedCats = Array.isArray(data.categories) ? data.categories : categories;
+                    const importedPrefs = data.prefs && typeof data.prefs === 'object' ? data.prefs : {};
+
+                    // Basic sanitize
+                    transactions = importedTx
+                        .filter(t => t && typeof t === 'object')
+                        .map(t => ({
+                            id: String(t.id || uid()),
+                            type: t.type === 'income' ? 'income' : 'expense',
+                            amount: Number(parseNum(t.amount).toFixed(2)),
+                            category: normalizeCategory(t.category) || 'Other',
+                            date: String(t.date || toISODate(new Date())),
+                            note: String(t.note || ''),
+                            createdAt: Number(t.createdAt || Date.now())
+                        }));
+
+                    budgets = {
+                        overall: Number(parseNum(importedBudgets.overall).toFixed(2)),
+                        byCategory: { ...(importedBudgets.byCategory || {}) }
+                    };
+                    // sanitize byCategory values
+                    for (const [k, v] of Object.entries(budgets.byCategory)) {
+                        budgets.byCategory[k] = Number(parseNum(v).toFixed(2));
+                        if (!(budgets.byCategory[k] > 0)) delete budgets.byCategory[k];
+                    }
+
+                    categories = importedCats.map(normalizeCategory).filter(Boolean);
+                    prefs = { ...prefs, ...importedPrefs };
+
+                    // Ensure category union
+                    for (const t of transactions) ensureCategoryExists(t.category);
+
+                    saveAll();
+                    renderAll();
+                    showToast('Import complete');
+                } catch (err) {
+                    console.error(err);
+                    showToast('Import failed (invalid JSON)', 'danger');
+                } finally {
+                    e.target.value = '';
+                }
+            });
+
+            $('clearBtn').addEventListener('click', () => {
+                const ok = confirm('Clear ALL data (transactions, budgets, categories) stored in this browser?');
+                if (!ok) return;
+                transactions = [];
+                budgets = { overall: 0, byCategory: {} };
+                categories = DEFAULT_CATEGORIES.slice();
+                prefs = { currency: 'USD' };
+                saveAll();
+                renderAll();
+                showToast('Data cleared', 'warn');
+            });
+
+            // CSV
+            $('downloadCsvBtn').addEventListener('click', () => {
+                const list = filteredHistoryList();
+                const csv = toCSV(list);
+                download(`transactions_${new Date().toISOString().slice(0, 10)}.csv`, csv, 'text/csv');
+                showToast('CSV downloaded');
+            });
+
+            // Edit dialog
+            $('closeEdit').addEventListener('click', () => $('editDialog').close());
+            $('editForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const id = $('editId').value;
+                const tx = transactions.find(t => t.id === id);
+                if (!tx) return;
+
+                const type = $('editType').value;
+                const amount = parseNum($('editAmount').value);
+                const category = $('editCategory').value || 'Other';
+                const date = $('editDate').value;
+                const note = $('editNote').value.trim();
+
+                if (!date) return;
+                if (!(amount > 0)) {
+                    showToast('Enter an amount > 0', 'warn');
+                    return;
+                }
+
+                ensureCategoryExists(category);
+
+                tx.type = type;
+                tx.amount = Number(amount.toFixed(2));
+                tx.category = category;
+                tx.date = date;
+                tx.note = note;
+
+                saveAll();
+
+                // If edited to different month: keep current month (don’t auto switch)
+                $('editDialog').close();
+                renderAll();
+                showToast('Transaction updated');
+            });
+
+            // Category manager
+            $('manageCategoriesBtn').addEventListener('click', () => {
+                renderCategoryManager();
+                $('categoryDialog').showModal();
+            });
+            $('closeCategory').addEventListener('click', () => $('categoryDialog').close());
+            $('addCategoryBtn').addEventListener('click', () => {
+                const name = normalizeCategory($('newCategory').value);
+                if (!name) return;
+                ensureCategoryExists(name);
+                $('newCategory').value = '';
+                saveAll();
+                renderCategoryManager();
+                renderCategoryOptions();
+                renderBudgetEditor();
+                renderAll();
+                showToast('Category added');
+            });
+
+            // Budget category dialog
+            $('addBudgetCategoryBtn').addEventListener('click', () => {
+                $('budgetCategoryName').value = '';
+                $('budgetCategoryDialog').showModal();
+                setTimeout(() => $('budgetCategoryName').focus(), 0);
+            });
+            $('closeBudgetCat').addEventListener('click', () => $('budgetCategoryDialog').close());
+            $('confirmAddBudgetCat').addEventListener('click', () => {
+                const name = normalizeCategory($('budgetCategoryName').value);
+                if (!name) return;
+                ensureCategoryExists(name);
+                if (!(name in budgets.byCategory)) budgets.byCategory[name] = 0;
+                saveAll();
+                $('budgetCategoryDialog').close();
+                renderCategoryOptions();
+                renderBudgetEditor();
+                renderAll();
+                showToast('Budget category added');
+            });
+
+            // Initial render
+            renderAll();
+        }
+
+        function renderCategoryManager() {
+            const list = $('categoryList');
+            const cats = currentBudgetCategories();
+
+            list.innerHTML = cats.map(cat => {
+                const used = transactions.some(t => (t.category || '') === cat);
+                const locked = DEFAULT_CATEGORIES.some(x => x.toLowerCase() === cat.toLowerCase());
+                const canRemove = !locked;
+
+                return `
+          <div class="flex items-center justify-between gap-3 border-t border-zinc-100 px-3 py-2">
+            <div class="min-w-0">
+              <div class="truncate text-sm font-semibold text-zinc-900">${escapeHtml(cat)}</div>
+              <div class="text-xs text-zinc-600">${locked ? 'Default' : 'Custom'} · ${used ? 'Used by transactions' : 'Not used'}</div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button type="button" data-cat-remove="${escapeHtml(cat)}" ${canRemove ? '' : 'disabled'}
+                class="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50">
+                Remove
+              </button>
+            </div>
+          </div>
+        `;
+            }).join('');
+
+            list.querySelectorAll('[data-cat-remove]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const cat = btn.getAttribute('data-cat-remove');
+                    if (!cat) return;
+
+                    const locked = DEFAULT_CATEGORIES.some(x => x.toLowerCase() === cat.toLowerCase());
+                    if (locked) return;
+
+                    const ok = confirm(`Remove category "${cat}" from lists? Existing transactions will keep their category label.`);
+                    if (!ok) return;
+
+                    categories = categories.filter(c => c.toLowerCase() !== cat.toLowerCase());
+                    delete budgets.byCategory[cat];
+                    saveAll();
+
+                    renderCategoryManager();
+                    renderCategoryOptions();
+                    renderBudgetEditor();
+                    renderAll();
+                    showToast('Category removed', 'warn');
+                });
+            });
+        }
+
+        init();
+    </script>
+</body>
+
+</html>
