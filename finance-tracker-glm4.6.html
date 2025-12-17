@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personal Finance Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .progress-ring {
+            transform: rotate(-90deg);
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50">
+    <div class="min-h-screen">
+        <!-- Header -->
+        <header class="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg">
+            <div class="container mx-auto px-4 py-6">
+                <div class="flex justify-between items-center">
+                    <h1 class="text-3xl font-bold flex items-center">
+                        <svg class="w-8 h-8 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+                            </path>
+                        </svg>
+                        Personal Finance Tracker
+                    </h1>
+                    <div class="text-right">
+                        <p class="text-sm opacity-90">Current Month</p>
+                        <p class="text-xl font-semibold" id="currentMonth"></p>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="container mx-auto px-4 py-8">
+            <!-- Overview Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-500 text-sm">Total Income</p>
+                            <p class="text-2xl font-bold text-green-600" id="totalIncome">$0.00</p>
+                        </div>
+                        <div class="bg-green-100 p-3 rounded-full">
+                            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M7 11l5-5m0 0l5 5m-5-5v12"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-500 text-sm">Total Expenses</p>
+                            <p class="text-2xl font-bold text-red-600" id="totalExpenses">$0.00</p>
+                        </div>
+                        <div class="bg-red-100 p-3 rounded-full">
+                            <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M17 13l-5 5m0 0l-5-5m5 5V6"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-500 text-sm">Net Balance</p>
+                            <p class="text-2xl font-bold" id="netBalance">$0.00</p>
+                        </div>
+                        <div class="bg-blue-100 p-3 rounded-full">
+                            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z">
+                                </path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-500 text-sm">Savings Rate</p>
+                            <p class="text-2xl font-bold text-purple-600" id="savingsRate">0%</p>
+                        </div>
+                        <div class="bg-purple-100 p-3 rounded-full">
+                            <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z">
+                                </path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add Transaction Form -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+                <h2 class="text-xl font-semibold mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    Add Transaction
+                </h2>
+                <form id="transactionForm" class="grid grid-cols-1 md:grid-cols-6 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                        <select id="transactionType"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="expense">Expense</option>
+                            <option value="income">Income</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Amount</label>
+                        <input type="number" id="amount" step="0.01" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                        <select id="category"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="Food">Food</option>
+                            <option value="Transport">Transport</option>
+                            <option value="Shopping">Shopping</option>
+                            <option value="Entertainment">Entertainment</option>
+                            <option value="Bills">Bills</option>
+                            <option value="Healthcare">Healthcare</option>
+                            <option value="Education">Education</option>
+                            <option value="Salary">Salary</option>
+                            <option value="Freelance">Freelance</option>
+                            <option value="Investment">Investment</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                        <input type="date" id="date" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <input type="text" id="description" placeholder="Optional"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="flex items-end">
+                        <button type="submit"
+                            class="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
+                            Add Transaction
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                <!-- Category Breakdown Chart -->
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h2 class="text-xl font-semibold mb-4">Spending by Category</h2>
+                    <div class="chart-container">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                </div>
+                <!-- Monthly Trends Chart -->
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h2 class="text-xl font-semibold mb-4">Monthly Trends</h2>
+                    <div class="chart-container">
+                        <canvas id="trendsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Budget Limits Section -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold">Budget Limits</h2>
+                    <button onclick="openBudgetModal()" class="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                        Edit Budgets
+                    </button>
+                </div>
+                <div id="budgetProgress" class="space-y-4">
+                    <!-- Budget progress bars will be inserted here -->
+                </div>
+            </div>
+
+            <!-- Transaction History -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold">Transaction History</h2>
+                    <div class="flex gap-2">
+                        <select id="filterType" class="px-3 py-1 border border-gray-300 rounded-md text-sm">
+                            <option value="all">All Types</option>
+                            <option value="income">Income</option>
+                            <option value="expense">Expenses</option>
+                        </select>
+                        <select id="filterCategory" class="px-3 py-1 border border-gray-300 rounded-md text-sm">
+                            <option value="all">All Categories</option>
+                            <option value="Food">Food</option>
+                            <option value="Transport">Transport</option>
+                            <option value="Shopping">Shopping</option>
+                            <option value="Entertainment">Entertainment</option>
+                            <option value="Bills">Bills</option>
+                            <option value="Healthcare">Healthcare</option>
+                            <option value="Education">Education</option>
+                            <option value="Salary">Salary</option>
+                            <option value="Freelance">Freelance</option>
+                            <option value="Investment">Investment</option>
+                            <option value="Other">Other</option>
+                        </select>
+                        <input type="month" id="filterMonth"
+                            class="px-3 py-1 border border-gray-300 rounded-md text-sm">
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="border-b">
+                                <th class="text-left py-2 px-2">Date</th>
+                                <th class="text-left py-2 px-2">Type</th>
+                                <th class="text-left py-2 px-2">Category</th>
+                                <th class="text-left py-2 px-2">Description</th>
+                                <th class="text-right py-2 px-2">Amount</th>
+                                <th class="text-center py-2 px-2">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactionTable">
+                            <!-- Transactions will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Budget Modal -->
+    <div id="budgetModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 class="text-xl font-semibold mb-4">Set Budget Limits</h3>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Food</label>
+                    <input type="number" id="budgetFood" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Transport</label>
+                    <input type="number" id="budgetTransport"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Shopping</label>
+                    <input type="number" id="budgetShopping" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Entertainment</label>
+                    <input type="number" id="budgetEntertainment"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Bills</label>
+                    <input type="number" id="budgetBills" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                </div>
+            </div>
+            <div class="flex gap-2 mt-6">
+                <button onclick="saveBudgets()"
+                    class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                    Save
+                </button>
+                <button onclick="closeBudgetModal()"
+                    class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data Management
+        let transactions = JSON.parse(localStorage.getItem('transactions')) || [];
+        let budgets = JSON.parse(localStorage.getItem('budgets')) || {
+            Food: 500,
+            Transport: 200,
+            Shopping: 300,
+            Entertainment: 150,
+            Bills: 800
+        };
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function () {
+            setCurrentMonth();
+            setCurrentDate();
+            updateDashboard();
+            renderTransactions();
+            updateCharts();
+            updateBudgetProgress();
+
+            // Event Listeners
+            document.getElementById('transactionForm').addEventListener('submit', addTransaction);
+            document.getElementById('filterType').addEventListener('change', renderTransactions);
+            document.getElementById('filterCategory').addEventListener('change', renderTransactions);
+            document.getElementById('filterMonth').addEventListener('change', renderTransactions);
+        });
+
+        function setCurrentMonth() {
+            const now = new Date();
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                'July', 'August', 'September', 'October', 'November', 'December'];
+            document.getElementById('currentMonth').textContent =
+                `${monthNames[now.getMonth()]} ${now.getFullYear()}`;
+        }
+
+        function setCurrentDate() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('date').value = today;
+            document.getElementById('filterMonth').value = today.substring(0, 7);
+        }
+
+        function addTransaction(e) {
+            e.preventDefault();
+
+            const transaction = {
+                id: Date.now(),
+                type: document.getElementById('transactionType').value,
+                amount: parseFloat(document.getElementById('amount').value),
+                category: document.getElementById('category').value,
+                date: document.getElementById('date').value,
+                description: document.getElementById('description').value
+            };
+
+            transactions.push(transaction);
+            localStorage.setItem('transactions', JSON.stringify(transactions));
+
+            document.getElementById('transactionForm').reset();
+            setCurrentDate();
+
+            updateDashboard();
+            renderTransactions();
+            updateCharts();
+            updateBudgetProgress();
+        }
+
+        function deleteTransaction(id) {
+            transactions = transactions.filter(t => t.id !== id);
+            localStorage.setItem('transactions', JSON.stringify(transactions));
+            updateDashboard();
+            renderTransactions();
+            updateCharts();
+            updateBudgetProgress();
+        }
+
+        function updateDashboard() {
+            const currentMonth = new Date().toISOString().substring(0, 7);
+            const monthTransactions = transactions.filter(t => t.date.substring(0, 7) === currentMonth);
+
+            const income = monthTransactions
+                .filter(t => t.type === 'income')
+                .reduce((sum, t) => sum + t.amount, 0);
+
+            const expenses = monthTransactions
+                .filter(t => t.type === 'expense')
+                .reduce((sum, t) => sum + t.amount, 0);
+
+            const balance = income - expenses;
+            const savingsRate = income > 0 ? ((balance / income) * 100).toFixed(1) : 0;
+
+            document.getElementById('totalIncome').textContent = `$${income.toFixed(2)}`;
+            document.getElementById('totalExpenses').textContent = `$${expenses.toFixed(2)}`;
+            document.getElementById('netBalance').textContent = `$${balance.toFixed(2)}`;
+            document.getElementById('netBalance').className = `text-2xl font-bold ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`;
+            document.getElementById('savingsRate').textContent = `${savingsRate}%`;
+        }
+
+        function renderTransactions() {
+            const filterType = document.getElementById('filterType').value;
+            const filterCategory = document.getElementById('filterCategory').value;
+            const filterMonth = document.getElementById('filterMonth').value;
+
+            let filtered = transactions;
+
+            if (filterType !== 'all') {
+                filtered = filtered.filter(t => t.type === filterType);
+            }
+
+            if (filterCategory !== 'all') {
+                filtered = filtered.filter(t => t.category === filterCategory);
+            }
+
+            if (filterMonth) {
+                filtered = filtered.filter(t => t.date.substring(0, 7) === filterMonth);
+            }
+
+            filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            const tbody = document.getElementById('transactionTable');
+            tbody.innerHTML = '';
+
+            filtered.forEach(transaction => {
+                const row = document.createElement('tr');
+                row.className = 'border-b hover:bg-gray-50 fade-in';
+                row.innerHTML = `
+                    <td class="py-2 px-2">${transaction.date}</td>
+                    <td class="py-2 px-2">
+                        <span class="px-2 py-1 text-xs rounded-full ${transaction.type === 'income'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
+                    }">
+                            ${transaction.type}
+                        </span>
+                    </td>
+                    <td class="py-2 px-2">${transaction.category}</td>
+                    <td class="py-2 px-2">${transaction.description || '-'}</td>
+                    <td class="py-2 px-2 text-right font-medium ${transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
+                    }">
+                        ${transaction.type === 'income' ? '+' : '-'}$${transaction.amount.toFixed(2)}
+                    </td>
+                    <td class="py-2 px-2 text-center">
+                        <button onclick="deleteTransaction(${transaction.id})" 
+                                class="text-red-600 hover:text-red-800">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-gray-500">No transactions found</td></tr>';
+            }
+        }
+
+        function updateCharts() {
+            updateCategoryChart();
+            updateTrendsChart();
+        }
+
+        function updateCategoryChart() {
+            const currentMonth = new Date().toISOString().substring(0, 7);
+            const monthTransactions = transactions.filter(t =>
+                t.type === 'expense' && t.date.substring(0, 7) === currentMonth
+            );
+
+            const categoryData = {};
+            monthTransactions.forEach(t => {
+                categoryData[t.category] = (categoryData[t.category] || 0) + t.amount;
+            });
+
+            const ctx = document.getElementById('categoryChart').getContext('2d');
+
+            if (window.categoryChartInstance) {
+                window.categoryChartInstance.destroy();
+            }
+
+            window.categoryChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(categoryData),
+                    datasets: [{
+                        data: Object.values(categoryData),
+                        backgroundColor: [
+                            '#EF4444', '#F59E0B', '#10B981', '#3B82F6',
+                            '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateTrendsChart() {
+            const last6Months = [];
+            const incomeData = [];
+            const expenseData = [];
+
+            for (let i = 5; i >= 0; i--) {
+                const date = new Date();
+                date.setMonth(date.getMonth() - i);
+                const monthStr = date.toISOString().substring(0, 7);
+                const monthName = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+
+                last6Months.push(monthName);
+
+                const monthTransactions = transactions.filter(t => t.date.substring(0, 7) === monthStr);
+
+                const income = monthTransactions
+                    .filter(t => t.type === 'income')
+                    .reduce((sum, t) => sum + t.amount, 0);
+
+                const expenses = monthTransactions
+                    .filter(t => t.type === 'expense')
+                    .reduce((sum, t) => sum + t.amount, 0);
+
+                incomeData.push(income);
+                expenseData.push(expenses);
+            }
+
+            const ctx = document.getElementById('trendsChart').getContext('2d');
+
+            if (window.trendsChartInstance) {
+                window.trendsChartInstance.destroy();
+            }
+
+            window.trendsChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: last6Months,
+                    datasets: [
+                        {
+                            label: 'Income',
+                            data: incomeData,
+                            borderColor: '#10B981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Expenses',
+                            data: expenseData,
+                            borderColor: '#EF4444',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateBudgetProgress() {
+            const currentMonth = new Date().toISOString().substring(0, 7);
+            const monthTransactions = transactions.filter(t =>
+                t.type === 'expense' && t.date.substring(0, 7) === currentMonth
+            );
+
+            const spending = {};
+            monthTransactions.forEach(t => {
+                spending[t.category] = (spending[t.category] || 0) + t.amount;
+            });
+
+            const container = document.getElementById('budgetProgress');
+            container.innerHTML = '';
+
+            Object.entries(budgets).forEach(([category, limit]) => {
+                const spent = spending[category] || 0;
+                const percentage = limit > 0 ? (spent / limit) * 100 : 0;
+                const isOverBudget = percentage > 100;
+
+                const div = document.createElement('div');
+                div.className = 'fade-in';
+                div.innerHTML = `
+                    <div class="flex justify-between mb-1">
+                        <span class="text-sm font-medium">${category}</span>
+                        <span class="text-sm text-gray-600">$${spent.toFixed(2)} / $${limit.toFixed(2)}</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2.5">
+                        <div class="h-2.5 rounded-full transition-all duration-500 ${isOverBudget ? 'bg-red-600' : percentage > 80 ? 'bg-yellow-500' : 'bg-green-600'
+                    }" style="width: ${Math.min(percentage, 100)}%"></div>
+                    </div>
+                    ${isOverBudget ? '<p class="text-xs text-red-600 mt-1">Over budget!</p>' : ''}
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function openBudgetModal() {
+            document.getElementById('budgetModal').classList.remove('hidden');
+            document.getElementById('budgetFood').value = budgets.Food || '';
+            document.getElementById('budgetTransport').value = budgets.Transport || '';
+            document.getElementById('budgetShopping').value = budgets.Shopping || '';
+            document.getElementById('budgetEntertainment').value = budgets.Entertainment || '';
+            document.getElementById('budgetBills').value = budgets.Bills || '';
+        }
+
+        function closeBudgetModal() {
+            document.getElementById('budgetModal').classList.add('hidden');
+        }
+
+        function saveBudgets() {
+            budgets = {
+                Food: parseFloat(document.getElementById('budgetFood').value) || 0,
+                Transport: parseFloat(document.getElementById('budgetTransport').value) || 0,
+                Shopping: parseFloat(document.getElementById('budgetShopping').value) || 0,
+                Entertainment: parseFloat(document.getElementById('budgetEntertainment').value) || 0,
+                Bills: parseFloat(document.getElementById('budgetBills').value) || 0
+            };
+
+            localStorage.setItem('budgets', JSON.stringify(budgets));
+            closeBudgetModal();
+            updateBudgetProgress();
+        }
+    </script>
+</body>
+
+</html>
