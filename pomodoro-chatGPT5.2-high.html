@@ -1,0 +1,2091 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Minimal Pomodoro</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        :root {
+            --accent: #6366F1;
+            /* indigo-500 */
+            --accent-soft: rgba(99, 102, 241, 0.18);
+            --card: rgba(255, 255, 255, 0.70);
+            --cardBorder: rgba(0, 0, 0, 0.06);
+            --muted: rgba(0, 0, 0, 0.56);
+            --shadow: 0 20px 60px rgba(0, 0, 0, .12);
+        }
+
+        html.dark {
+            --card: rgba(24, 24, 27, 0.72);
+            --cardBorder: rgba(255, 255, 255, 0.08);
+            --muted: rgba(255, 255, 255, 0.62);
+            --shadow: 0 20px 60px rgba(0, 0, 0, .48);
+        }
+
+        /* Crisp number rendering */
+        .tabular-nums {
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Nice focus ring */
+        .focus-ring:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px var(--accent-soft);
+        }
+
+        /* Smooth modals */
+        .modal-backdrop {
+            backdrop-filter: blur(10px);
+        }
+
+        /* Range thumb styling */
+        input[type="range"] {
+            accent-color: var(--accent);
+        }
+
+        /* Toast animation */
+        @keyframes toastIn {
+            from {
+                transform: translateY(10px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .toast-in {
+            animation: toastIn 180ms ease-out;
+        }
+
+        /* Prefer reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            .toast-in {
+                animation: none !important;
+            }
+        }
+    </style>
+</head>
+
+<body class="h-full bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 selection:bg-[color:var(--accent)]/25">
+    <div class="pointer-events-none fixed inset-0 -z-10">
+        <div
+            class="absolute inset-0 bg-gradient-to-b from-[color:var(--accent)]/10 via-transparent to-transparent dark:from-[color:var(--accent)]/14">
+        </div>
+        <div
+            class="absolute -top-32 left-1/2 h-[28rem] w-[28rem] -translate-x-1/2 rounded-full bg-[color:var(--accent)]/10 blur-3xl dark:bg-[color:var(--accent)]/14">
+        </div>
+    </div>
+
+    <div class="mx-auto flex h-full max-w-6xl flex-col px-4 py-5 sm:px-6">
+        <!-- Header -->
+        <header class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div
+                    class="grid h-10 w-10 place-items-center rounded-2xl bg-[color:var(--accent)]/12 ring-1 ring-[color:var(--cardBorder)]">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M12 7v5l3 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                        <path d="M20 12a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z" stroke="currentColor" stroke-width="2" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-base font-semibold leading-tight">Minimal Pomodoro</h1>
+                    <p id="subtitle" class="text-xs text-[color:var(--muted)]">Focus • Breaks • Tasks • Stats</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <button id="btnFullscreen"
+                    class="focus-ring inline-flex items-center gap-2 rounded-xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] hover:bg-white/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/70"
+                    title="Fullscreen (F)">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path
+                            d="M9 3H5a2 2 0 0 0-2 2v4m18 0V5a2 2 0 0 0-2-2h-4M3 15v4a2 2 0 0 0 2 2h4m12-6v4a2 2 0 0 1-2 2h-4"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                    <span class="hidden sm:inline">Fullscreen</span>
+                </button>
+
+                <button id="btnTheme"
+                    class="focus-ring inline-flex items-center gap-2 rounded-xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] hover:bg-white/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/70"
+                    title="Theme">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M12 3a7 7 0 1 0 9 9A9 9 0 1 1 12 3Z" stroke="currentColor" stroke-width="2"
+                            stroke-linejoin="round" />
+                    </svg>
+                    <span class="hidden sm:inline">Theme</span>
+                </button>
+
+                <button id="btnSettings"
+                    class="focus-ring inline-flex items-center gap-2 rounded-xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] hover:bg-white/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/70"
+                    title="Settings">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" stroke="currentColor" stroke-width="2" />
+                        <path
+                            d="M19.4 15a7.8 7.8 0 0 0 .1-1 7.8 7.8 0 0 0-.1-1l2-1.6a.6.6 0 0 0 .2-.8l-1.9-3.2a.6.6 0 0 0-.7-.3l-2.4 1a7.5 7.5 0 0 0-1.7-1l-.4-2.6a.6.6 0 0 0-.6-.5H10a.6.6 0 0 0-.6.5L9 6.1a7.5 7.5 0 0 0-1.7 1l-2.4-1a.6.6 0 0 0-.7.3L2.3 9.6a.6.6 0 0 0 .2.8L4.5 12a7.8 7.8 0 0 0-.1 1 7.8 7.8 0 0 0 .1 1l-2 1.6a.6.6 0 0 0-.2.8l1.9 3.2a.6.6 0 0 0 .7.3l2.4-1c.5.4 1.1.7 1.7 1l.4 2.6a.6.6 0 0 0 .6.5h4a.6.6 0 0 0 .6-.5l.4-2.6c.6-.3 1.2-.6 1.7-1l2.4 1a.6.6 0 0 0 .7-.3l1.9-3.2a.6.6 0 0 0-.2-.8l-2-1.6Z"
+                            stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+                    </svg>
+                    <span class="hidden sm:inline">Settings</span>
+                </button>
+
+                <button id="btnHistory"
+                    class="focus-ring inline-flex items-center gap-2 rounded-xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] hover:bg-white/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/70"
+                    title="History & export">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M3 12a9 9 0 1 0 3-6.7" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                        <path d="M3 4v4h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                        <path d="M12 7v5l3 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                    </svg>
+                    <span class="hidden sm:inline">History</span>
+                </button>
+            </div>
+        </header>
+
+        <main class="mt-5 grid flex-1 grid-cols-1 gap-4 lg:grid-cols-12">
+            <!-- Timer card -->
+            <section class="lg:col-span-7">
+                <div
+                    class="rounded-3xl bg-[color:var(--card)] p-4 ring-1 ring-[color:var(--cardBorder)] shadow-[var(--shadow)] sm:p-6">
+                    <!-- Mode tabs -->
+                    <div class="flex flex-wrap items-center gap-2">
+                        <div
+                            class="inline-flex rounded-2xl bg-black/5 p-1 ring-1 ring-[color:var(--cardBorder)] dark:bg-white/5">
+                            <button data-mode="focus"
+                                class="modeBtn focus-ring rounded-xl px-4 py-2 text-sm font-medium">Focus</button>
+                            <button data-mode="short"
+                                class="modeBtn focus-ring rounded-xl px-4 py-2 text-sm font-medium">Short</button>
+                            <button data-mode="long"
+                                class="modeBtn focus-ring rounded-xl px-4 py-2 text-sm font-medium">Long</button>
+                        </div>
+
+                        <div class="ml-auto flex items-center gap-2 text-xs text-[color:var(--muted)]">
+                            <span id="statusPill"
+                                class="inline-flex items-center gap-2 rounded-full bg-black/5 px-3 py-1 ring-1 ring-[color:var(--cardBorder)] dark:bg-white/5">
+                                <span id="dot" class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                                <span id="statusText">Ready</span>
+                            </span>
+                            <button id="btnQuickNote"
+                                class="focus-ring rounded-full bg-black/5 px-3 py-1 ring-1 ring-[color:var(--cardBorder)] hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10"
+                                title="Quick note">
+                                Note
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Timer area -->
+                    <div class="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 sm:items-center">
+                        <div class="relative mx-auto grid h-56 w-56 place-items-center">
+                            <svg class="absolute inset-0" viewBox="0 0 120 120" aria-hidden="true">
+                                <defs>
+                                    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+                                        <feGaussianBlur stdDeviation="2.6" result="blur" />
+                                        <feMerge>
+                                            <feMergeNode in="blur" />
+                                            <feMergeNode in="SourceGraphic" />
+                                        </feMerge>
+                                    </filter>
+                                </defs>
+                                <circle cx="60" cy="60" r="50" stroke="rgba(0,0,0,.08)" stroke-width="10" fill="none"
+                                    class="dark:stroke-white/10"></circle>
+                                <circle id="ring" cx="60" cy="60" r="50" stroke="var(--accent)" stroke-width="10"
+                                    fill="none" stroke-linecap="round" transform="rotate(-90 60 60)"
+                                    filter="url(#softGlow)"></circle>
+                            </svg>
+                            <div class="text-center">
+                                <div id="time" class="tabular-nums text-5xl font-semibold tracking-tight">25:00</div>
+                                <div id="subtime" class="mt-1 text-xs text-[color:var(--muted)]">Press Space to
+                                    start/pause</div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div
+                                class="rounded-2xl bg-black/5 p-4 ring-1 ring-[color:var(--cardBorder)] dark:bg-white/5">
+                                <div class="flex items-center justify-between gap-3">
+                                    <div>
+                                        <p class="text-xs text-[color:var(--muted)]">Active task</p>
+                                        <p id="activeTaskName" class="mt-0.5 truncate text-sm font-medium">None selected
+                                        </p>
+                                    </div>
+                                    <button id="btnPickTask"
+                                        class="focus-ring rounded-xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] hover:bg-white/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/70">Pick</button>
+                                </div>
+                                <div class="mt-3 grid grid-cols-3 gap-2 text-xs text-[color:var(--muted)]">
+                                    <div
+                                        class="rounded-xl bg-white/50 p-2 ring-1 ring-[color:var(--cardBorder)] dark:bg-zinc-900/40">
+                                        <div class="text-[10px] uppercase tracking-wide">Cycle</div>
+                                        <div id="cycleText" class="mt-1 font-medium text-zinc-900 dark:text-zinc-100">1
+                                            / 4</div>
+                                    </div>
+                                    <div
+                                        class="rounded-xl bg-white/50 p-2 ring-1 ring-[color:var(--cardBorder)] dark:bg-zinc-900/40">
+                                        <div class="text-[10px] uppercase tracking-wide">Today</div>
+                                        <div id="todayText" class="mt-1 font-medium text-zinc-900 dark:text-zinc-100">0m
+                                        </div>
+                                    </div>
+                                    <div
+                                        class="rounded-xl bg-white/50 p-2 ring-1 ring-[color:var(--cardBorder)] dark:bg-zinc-900/40">
+                                        <div class="text-[10px] uppercase tracking-wide">Goal</div>
+                                        <div id="goalText" class="mt-1 font-medium text-zinc-900 dark:text-zinc-100">0 /
+                                            8</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-2">
+                                <button id="btnStartPause"
+                                    class="focus-ring col-span-2 inline-flex items-center justify-center gap-2 rounded-2xl bg-[color:var(--accent)] px-4 py-3 text-sm font-semibold text-white shadow-sm hover:brightness-110">
+                                    <svg id="iconPlay" class="h-4 w-4" viewBox="0 0 24 24" fill="none"
+                                        aria-hidden="true">
+                                        <path d="M8 5v14l11-7-11-7Z" fill="currentColor" />
+                                    </svg>
+                                    <svg id="iconPause" class="hidden h-4 w-4" viewBox="0 0 24 24" fill="none"
+                                        aria-hidden="true">
+                                        <path d="M7 5h4v14H7zM13 5h4v14h-4z" fill="currentColor" />
+                                    </svg>
+                                    <span id="startPauseText">Start</span>
+                                </button>
+
+                                <button id="btnReset"
+                                    class="focus-ring inline-flex items-center justify-center gap-2 rounded-2xl bg-white/60 px-4 py-3 text-sm font-medium ring-1 ring-[color:var(--cardBorder)] hover:bg-white/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/70"
+                                    title="Reset (R)">
+                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                        <path d="M21 12a9 9 0 1 1-2.64-6.36" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" />
+                                        <path d="M21 3v6h-6" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                    Reset
+                                </button>
+
+                                <button id="btnSkip"
+                                    class="focus-ring inline-flex items-center justify-center gap-2 rounded-2xl bg-white/60 px-4 py-3 text-sm font-medium ring-1 ring-[color:var(--cardBorder)] hover:bg-white/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/70"
+                                    title="Skip (S)">
+                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                        <path d="M6 4v16l10-8L6 4Z" stroke="currentColor" stroke-width="2"
+                                            stroke-linejoin="round" />
+                                        <path d="M18 5v14" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" />
+                                    </svg>
+                                    Skip
+                                </button>
+                            </div>
+
+                            <div class="flex flex-wrap items-center gap-2 text-xs text-[color:var(--muted)]">
+                                <span
+                                    class="inline-flex items-center gap-2 rounded-full bg-black/5 px-3 py-1 ring-1 ring-[color:var(--cardBorder)] dark:bg-white/5">
+                                    <span class="font-medium text-zinc-900 dark:text-zinc-100">Shortcuts</span>
+                                    <span>Space</span><span class="opacity-60">start/pause</span>
+                                    <span class="opacity-40">·</span>
+                                    <span>1/2/3</span><span class="opacity-60">mode</span>
+                                    <span class="opacity-40">·</span>
+                                    <span>R</span><span class="opacity-60">reset</span>
+                                    <span class="opacity-40">·</span>
+                                    <span>S</span><span class="opacity-60">skip</span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Minimal tips / chips -->
+                <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div class="rounded-3xl bg-[color:var(--card)] p-4 ring-1 ring-[color:var(--cardBorder)]">
+                        <div class="flex items-center justify-between">
+                            <p class="text-sm font-medium">Quick presets</p>
+                            <p class="text-xs text-[color:var(--muted)]">one click</p>
+                        </div>
+                        <div class="mt-3 flex flex-wrap gap-2">
+                            <button data-preset="classic"
+                                class="presetBtn focus-ring rounded-2xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] hover:bg-white/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/70">25/5</button>
+                            <button data-preset="deep"
+                                class="presetBtn focus-ring rounded-2xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] hover:bg-white/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/70">50/10</button>
+                            <button data-preset="sprint"
+                                class="presetBtn focus-ring rounded-2xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] hover:bg-white/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/70">15/3</button>
+                            <button data-preset="custom"
+                                class="presetBtn focus-ring rounded-2xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] hover:bg-white/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/70"
+                                title="Opens settings">Custom…</button>
+                        </div>
+                    </div>
+
+                    <div class="rounded-3xl bg-[color:var(--card)] p-4 ring-1 ring-[color:var(--cardBorder)]">
+                        <div class="flex items-center justify-between">
+                            <p class="text-sm font-medium">Focus tools</p>
+                            <p class="text-xs text-[color:var(--muted)]">optional</p>
+                        </div>
+                        <div class="mt-3 flex flex-wrap gap-2">
+                            <button id="btnZen"
+                                class="focus-ring rounded-2xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] hover:bg-white/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/70"
+                                title="Hide side panels">Zen</button>
+                            <button id="btnKeepAwake"
+                                class="focus-ring rounded-2xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] hover:bg-white/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/70"
+                                title="Prevent screen from sleeping">Keep awake</button>
+                            <button id="btnNotify"
+                                class="focus-ring rounded-2xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] hover:bg-white/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/70"
+                                title="Desktop notifications">Notifications</button>
+                            <button id="btnSound"
+                                class="focus-ring rounded-2xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] hover:bg-white/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/70"
+                                title="Sound">Sound</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Side panels -->
+            <aside id="sidePanels" class="lg:col-span-5 space-y-4">
+                <!-- Tasks -->
+                <section
+                    class="rounded-3xl bg-[color:var(--card)] p-4 ring-1 ring-[color:var(--cardBorder)] shadow-[var(--shadow)]">
+                    <div class="flex items-center justify-between gap-2">
+                        <div>
+                            <h2 class="text-sm font-semibold">Tasks</h2>
+                            <p class="text-xs text-[color:var(--muted)]">Track estimates + completed pomodoros</p>
+                        </div>
+                        <button id="btnAddTask"
+                            class="focus-ring inline-flex items-center gap-2 rounded-2xl bg-[color:var(--accent)] px-3 py-2 text-sm font-semibold text-white hover:brightness-110">
+                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" />
+                            </svg>
+                            Add
+                        </button>
+                    </div>
+
+                    <div class="mt-3">
+                        <div class="flex items-center justify-between gap-2">
+                            <input id="taskSearch"
+                                class="focus-ring w-full rounded-2xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] placeholder:text-zinc-400 dark:bg-zinc-900/50 dark:placeholder:text-zinc-500"
+                                placeholder="Search tasks…" />
+                            <button id="btnClearCompleted"
+                                class="focus-ring shrink-0 rounded-2xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] hover:bg-white/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/70"
+                                title="Archive completed tasks">Archive</button>
+                        </div>
+                    </div>
+
+                    <div id="tasksList" class="mt-3 space-y-2"></div>
+
+                    <div id="tasksEmpty"
+                        class="mt-3 hidden rounded-2xl bg-black/5 p-4 text-sm text-[color:var(--muted)] ring-1 ring-[color:var(--cardBorder)] dark:bg-white/5">
+                        No tasks yet. Add one and select it to link completed focus sessions.
+                    </div>
+                </section>
+
+                <!-- Stats -->
+                <section
+                    class="rounded-3xl bg-[color:var(--card)] p-4 ring-1 ring-[color:var(--cardBorder)] shadow-[var(--shadow)]">
+                    <div class="flex items-center justify-between gap-2">
+                        <div>
+                            <h2 class="text-sm font-semibold">Stats</h2>
+                            <p class="text-xs text-[color:var(--muted)]">Last 7 days (focus minutes)</p>
+                        </div>
+                        <button id="btnClearStats"
+                            class="focus-ring rounded-2xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] hover:bg-white/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/70"
+                            title="Clear stats">Reset</button>
+                    </div>
+                    <div class="mt-3 grid grid-cols-3 gap-2">
+                        <div
+                            class="rounded-2xl bg-white/50 p-3 ring-1 ring-[color:var(--cardBorder)] dark:bg-zinc-900/40">
+                            <div class="text-[10px] uppercase tracking-wide text-[color:var(--muted)]">Today focus</div>
+                            <div id="statTodayFocus" class="mt-1 text-lg font-semibold">0m</div>
+                        </div>
+                        <div
+                            class="rounded-2xl bg-white/50 p-3 ring-1 ring-[color:var(--cardBorder)] dark:bg-zinc-900/40">
+                            <div class="text-[10px] uppercase tracking-wide text-[color:var(--muted)]">Sessions</div>
+                            <div id="statTodaySessions" class="mt-1 text-lg font-semibold">0</div>
+                        </div>
+                        <div
+                            class="rounded-2xl bg-white/50 p-3 ring-1 ring-[color:var(--cardBorder)] dark:bg-zinc-900/40">
+                            <div class="text-[10px] uppercase tracking-wide text-[color:var(--muted)]">Streak</div>
+                            <div id="statStreak" class="mt-1 text-lg font-semibold">0d</div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 rounded-2xl bg-black/5 p-3 ring-1 ring-[color:var(--cardBorder)] dark:bg-white/5">
+                        <canvas id="chart" height="120" class="w-full"></canvas>
+                    </div>
+
+                    <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
+                        <div class="text-xs text-[color:var(--muted)]">Tip: Your data stays on this device
+                            (localStorage).</div>
+                        <button id="btnExport"
+                            class="focus-ring rounded-2xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] hover:bg-white/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/70">Export…</button>
+                    </div>
+                </section>
+            </aside>
+        </main>
+
+        <footer
+            class="mt-4 flex flex-col gap-1 text-xs text-[color:var(--muted)] sm:flex-row sm:items-center sm:justify-between">
+            <div>Built for flow. Minimal UI, maximum intent.</div>
+            <div class="sm:text-right">Space • 1/2/3 • R • S • F</div>
+        </footer>
+    </div>
+
+    <!-- Toast container -->
+    <div id="toasts" class="fixed bottom-4 left-1/2 z-50 w-[min(92vw,520px)] -translate-x-1/2 space-y-2"></div>
+
+    <!-- Modal: Settings -->
+    <div id="settingsModal" class="fixed inset-0 z-50 hidden">
+        <div class="modal-backdrop absolute inset-0 bg-black/25 dark:bg-black/50"></div>
+        <div class="absolute inset-0 grid place-items-center p-4">
+            <div
+                class="w-full max-w-2xl rounded-3xl bg-[color:var(--card)] p-4 ring-1 ring-[color:var(--cardBorder)] shadow-[var(--shadow)] sm:p-6">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h3 class="text-base font-semibold">Settings</h3>
+                        <p class="mt-1 text-xs text-[color:var(--muted)]">Customize timing, cycle rules, notifications,
+                            and appearance.</p>
+                    </div>
+                    <button data-close="settingsModal"
+                        class="focus-ring rounded-2xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] hover:bg-white/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/70">Close</button>
+                </div>
+
+                <div class="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div class="rounded-2xl bg-black/5 p-4 ring-1 ring-[color:var(--cardBorder)] dark:bg-white/5">
+                        <div class="text-sm font-semibold">Durations</div>
+                        <div class="mt-3 space-y-3">
+                            <label class="block">
+                                <div class="flex items-center justify-between text-xs text-[color:var(--muted)]">
+                                    <span>Focus (minutes)</span>
+                                    <span id="lblFocus">25</span>
+                                </div>
+                                <input id="setFocus" type="range" min="10" max="90" step="1" class="mt-2 w-full" />
+                            </label>
+                            <label class="block">
+                                <div class="flex items-center justify-between text-xs text-[color:var(--muted)]">
+                                    <span>Short break (minutes)</span>
+                                    <span id="lblShort">5</span>
+                                </div>
+                                <input id="setShort" type="range" min="1" max="20" step="1" class="mt-2 w-full" />
+                            </label>
+                            <label class="block">
+                                <div class="flex items-center justify-between text-xs text-[color:var(--muted)]">
+                                    <span>Long break (minutes)</span>
+                                    <span id="lblLong">15</span>
+                                </div>
+                                <input id="setLong" type="range" min="5" max="45" step="1" class="mt-2 w-full" />
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="rounded-2xl bg-black/5 p-4 ring-1 ring-[color:var(--cardBorder)] dark:bg-white/5">
+                        <div class="text-sm font-semibold">Cycle & goal</div>
+                        <div class="mt-3 space-y-3">
+                            <label class="block">
+                                <div class="flex items-center justify-between text-xs text-[color:var(--muted)]">
+                                    <span>Long break every</span>
+                                    <span id="lblLongEvery">4</span>
+                                </div>
+                                <input id="setLongEvery" type="range" min="2" max="8" step="1" class="mt-2 w-full" />
+                            </label>
+
+                            <label class="block">
+                                <div class="flex items-center justify-between text-xs text-[color:var(--muted)]">
+                                    <span>Daily goal (pomodoros)</span>
+                                    <span id="lblGoal">8</span>
+                                </div>
+                                <input id="setGoal" type="range" min="1" max="20" step="1" class="mt-2 w-full" />
+                            </label>
+
+                            <div class="grid grid-cols-1 gap-2">
+                                <label
+                                    class="inline-flex items-center justify-between gap-3 rounded-2xl bg-white/50 px-3 py-2 ring-1 ring-[color:var(--cardBorder)] dark:bg-zinc-900/40">
+                                    <span class="text-sm">Auto-start breaks</span>
+                                    <input id="setAutoBreak" type="checkbox" class="h-4 w-4" />
+                                </label>
+                                <label
+                                    class="inline-flex items-center justify-between gap-3 rounded-2xl bg-white/50 px-3 py-2 ring-1 ring-[color:var(--cardBorder)] dark:bg-zinc-900/40">
+                                    <span class="text-sm">Auto-start focus</span>
+                                    <input id="setAutoFocus" type="checkbox" class="h-4 w-4" />
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="rounded-2xl bg-black/5 p-4 ring-1 ring-[color:var(--cardBorder)] dark:bg-white/5">
+                        <div class="text-sm font-semibold">Notifications & sound</div>
+                        <div class="mt-3 space-y-3">
+                            <label
+                                class="inline-flex items-center justify-between gap-3 rounded-2xl bg-white/50 px-3 py-2 ring-1 ring-[color:var(--cardBorder)] dark:bg-zinc-900/40">
+                                <span class="text-sm">Desktop notifications</span>
+                                <input id="setNotifications" type="checkbox" class="h-4 w-4" />
+                            </label>
+
+                            <label class="block">
+                                <div class="flex items-center justify-between text-xs text-[color:var(--muted)]">
+                                    <span>Volume</span>
+                                    <span id="lblVolume">70%</span>
+                                </div>
+                                <input id="setVolume" type="range" min="0" max="100" step="1" class="mt-2 w-full" />
+                            </label>
+
+                            <label class="block">
+                                <div class="text-xs text-[color:var(--muted)]">Sound</div>
+                                <select id="setSound"
+                                    class="focus-ring mt-2 w-full rounded-2xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] dark:bg-zinc-900/50">
+                                    <option value="bell">Bell</option>
+                                    <option value="beep">Beep</option>
+                                    <option value="chime">Chime</option>
+                                    <option value="none">None</option>
+                                </select>
+                            </label>
+
+                            <button id="btnTestSound"
+                                class="focus-ring w-full rounded-2xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] hover:bg-white/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/70">Test
+                                sound</button>
+                        </div>
+                    </div>
+
+                    <div class="rounded-2xl bg-black/5 p-4 ring-1 ring-[color:var(--cardBorder)] dark:bg-white/5">
+                        <div class="text-sm font-semibold">Appearance</div>
+                        <div class="mt-3 space-y-3">
+                            <label class="block">
+                                <div class="text-xs text-[color:var(--muted)]">Theme</div>
+                                <select id="setTheme"
+                                    class="focus-ring mt-2 w-full rounded-2xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] dark:bg-zinc-900/50">
+                                    <option value="system">System</option>
+                                    <option value="light">Light</option>
+                                    <option value="dark">Dark</option>
+                                </select>
+                            </label>
+
+                            <label class="block">
+                                <div class="text-xs text-[color:var(--muted)]">Accent</div>
+                                <div class="mt-2 flex flex-wrap gap-2">
+                                    <button data-accent="indigo"
+                                        class="accentBtn focus-ring h-9 w-9 rounded-2xl ring-1 ring-[color:var(--cardBorder)]"
+                                        style="background:#6366F1" title="Indigo"></button>
+                                    <button data-accent="emerald"
+                                        class="accentBtn focus-ring h-9 w-9 rounded-2xl ring-1 ring-[color:var(--cardBorder)]"
+                                        style="background:#10B981" title="Emerald"></button>
+                                    <button data-accent="rose"
+                                        class="accentBtn focus-ring h-9 w-9 rounded-2xl ring-1 ring-[color:var(--cardBorder)]"
+                                        style="background:#F43F5E" title="Rose"></button>
+                                    <button data-accent="sky"
+                                        class="accentBtn focus-ring h-9 w-9 rounded-2xl ring-1 ring-[color:var(--cardBorder)]"
+                                        style="background:#0EA5E9" title="Sky"></button>
+                                    <button data-accent="amber"
+                                        class="accentBtn focus-ring h-9 w-9 rounded-2xl ring-1 ring-[color:var(--cardBorder)]"
+                                        style="background:#F59E0B" title="Amber"></button>
+                                    <button data-accent="violet"
+                                        class="accentBtn focus-ring h-9 w-9 rounded-2xl ring-1 ring-[color:var(--cardBorder)]"
+                                        style="background:#8B5CF6" title="Violet"></button>
+                                </div>
+                            </label>
+
+                            <label
+                                class="inline-flex items-center justify-between gap-3 rounded-2xl bg-white/50 px-3 py-2 ring-1 ring-[color:var(--cardBorder)] dark:bg-zinc-900/40">
+                                <span class="text-sm">Keep screen awake (when running)</span>
+                                <input id="setKeepAwake" type="checkbox" class="h-4 w-4" />
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-5 flex flex-wrap items-center justify-between gap-2">
+                    <button id="btnResetAll"
+                        class="focus-ring rounded-2xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] hover:bg-white/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/70"
+                        title="Clear everything">Reset all data</button>
+                    <div class="text-xs text-[color:var(--muted)]">Changes save automatically.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: History -->
+    <div id="historyModal" class="fixed inset-0 z-50 hidden">
+        <div class="modal-backdrop absolute inset-0 bg-black/25 dark:bg-black/50"></div>
+        <div class="absolute inset-0 grid place-items-center p-4">
+            <div
+                class="w-full max-w-3xl rounded-3xl bg-[color:var(--card)] p-4 ring-1 ring-[color:var(--cardBorder)] shadow-[var(--shadow)] sm:p-6">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h3 class="text-base font-semibold">History</h3>
+                        <p class="mt-1 text-xs text-[color:var(--muted)]">Completed sessions (most recent first). Export
+                            anytime.</p>
+                    </div>
+                    <button data-close="historyModal"
+                        class="focus-ring rounded-2xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] hover:bg-white/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/70">Close</button>
+                </div>
+
+                <div class="mt-4 flex flex-wrap items-center gap-2">
+                    <input id="historySearch"
+                        class="focus-ring flex-1 rounded-2xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] placeholder:text-zinc-400 dark:bg-zinc-900/50 dark:placeholder:text-zinc-500"
+                        placeholder="Filter by task name or mode…" />
+                    <button id="btnCopyJSON"
+                        class="focus-ring rounded-2xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] hover:bg-white/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/70">Copy
+                        JSON</button>
+                    <button id="btnDownloadCSV"
+                        class="focus-ring rounded-2xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] hover:bg-white/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/70">Download
+                        CSV</button>
+                    <button id="btnClearHistory"
+                        class="focus-ring rounded-2xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] hover:bg-white/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/70">Clear</button>
+                </div>
+
+                <div class="mt-4 overflow-hidden rounded-2xl ring-1 ring-[color:var(--cardBorder)]">
+                    <div class="max-h-[52vh] overflow-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead
+                                class="sticky top-0 bg-white/70 text-xs uppercase tracking-wide text-[color:var(--muted)] ring-1 ring-[color:var(--cardBorder)] dark:bg-zinc-900/70">
+                                <tr>
+                                    <th class="px-3 py-2">When</th>
+                                    <th class="px-3 py-2">Mode</th>
+                                    <th class="px-3 py-2">Task</th>
+                                    <th class="px-3 py-2">Minutes</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyTable" class="divide-y divide-black/5 dark:divide-white/10"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="mt-3 text-xs text-[color:var(--muted)]" id="historyMeta"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Export -->
+    <div id="exportModal" class="fixed inset-0 z-50 hidden">
+        <div class="modal-backdrop absolute inset-0 bg-black/25 dark:bg-black/50"></div>
+        <div class="absolute inset-0 grid place-items-center p-4">
+            <div
+                class="w-full max-w-xl rounded-3xl bg-[color:var(--card)] p-4 ring-1 ring-[color:var(--cardBorder)] shadow-[var(--shadow)] sm:p-6">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h3 class="text-base font-semibold">Export</h3>
+                        <p class="mt-1 text-xs text-[color:var(--muted)]">Download or copy your settings, tasks, and
+                            history.</p>
+                    </div>
+                    <button data-close="exportModal"
+                        class="focus-ring rounded-2xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] hover:bg-white/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/70">Close</button>
+                </div>
+
+                <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <button id="btnDownloadJSON"
+                        class="focus-ring rounded-2xl bg-[color:var(--accent)] px-3 py-3 text-sm font-semibold text-white hover:brightness-110">Download
+                        JSON</button>
+                    <button id="btnCopyAllJSON"
+                        class="focus-ring rounded-2xl bg-white/60 px-3 py-3 text-sm font-medium ring-1 ring-[color:var(--cardBorder)] hover:bg-white/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/70">Copy
+                        JSON to clipboard</button>
+                </div>
+
+                <div
+                    class="mt-4 rounded-2xl bg-black/5 p-3 text-xs text-[color:var(--muted)] ring-1 ring-[color:var(--cardBorder)] dark:bg-white/5">
+                    <p class="font-medium text-zinc-900 dark:text-zinc-100">What’s included</p>
+                    <ul class="mt-2 list-disc space-y-1 pl-4">
+                        <li>Timer settings (durations, cycle rules, goal)</li>
+                        <li>Tasks (including estimates + completed count)</li>
+                        <li>Session history + daily stats</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Task picker -->
+    <div id="taskPickerModal" class="fixed inset-0 z-50 hidden">
+        <div class="modal-backdrop absolute inset-0 bg-black/25 dark:bg-black/50"></div>
+        <div class="absolute inset-0 grid place-items-center p-4">
+            <div
+                class="w-full max-w-xl rounded-3xl bg-[color:var(--card)] p-4 ring-1 ring-[color:var(--cardBorder)] shadow-[var(--shadow)] sm:p-6">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h3 class="text-base font-semibold">Pick a task</h3>
+                        <p class="mt-1 text-xs text-[color:var(--muted)]">Completed focus sessions will be credited to
+                            the active task.</p>
+                    </div>
+                    <button data-close="taskPickerModal"
+                        class="focus-ring rounded-2xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] hover:bg-white/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/70">Close</button>
+                </div>
+
+                <div class="mt-4">
+                    <input id="pickerSearch"
+                        class="focus-ring w-full rounded-2xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] placeholder:text-zinc-400 dark:bg-zinc-900/50 dark:placeholder:text-zinc-500"
+                        placeholder="Search…" />
+                </div>
+
+                <div id="pickerList" class="mt-3 max-h-[55vh] space-y-2 overflow-auto pr-1"></div>
+                <div id="pickerEmpty"
+                    class="mt-3 hidden rounded-2xl bg-black/5 p-4 text-sm text-[color:var(--muted)] ring-1 ring-[color:var(--cardBorder)] dark:bg-white/5">
+                    No tasks found.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Quick note -->
+    <div id="noteModal" class="fixed inset-0 z-50 hidden">
+        <div class="modal-backdrop absolute inset-0 bg-black/25 dark:bg-black/50"></div>
+        <div class="absolute inset-0 grid place-items-center p-4">
+            <div
+                class="w-full max-w-xl rounded-3xl bg-[color:var(--card)] p-4 ring-1 ring-[color:var(--cardBorder)] shadow-[var(--shadow)] sm:p-6">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h3 class="text-base font-semibold">Quick note</h3>
+                        <p class="mt-1 text-xs text-[color:var(--muted)]">Capture a thought and get back to focus. Saved
+                            locally.</p>
+                    </div>
+                    <button data-close="noteModal"
+                        class="focus-ring rounded-2xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] hover:bg-white/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/70">Close</button>
+                </div>
+                <textarea id="quickNote" rows="6"
+                    class="focus-ring mt-4 w-full rounded-2xl bg-white/60 p-3 text-sm ring-1 ring-[color:var(--cardBorder)] placeholder:text-zinc-400 dark:bg-zinc-900/50 dark:placeholder:text-zinc-500"
+                    placeholder="Write your note…"></textarea>
+                <div class="mt-3 flex items-center justify-between gap-2">
+                    <button id="btnClearNote"
+                        class="focus-ring rounded-2xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] hover:bg-white/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/70">Clear</button>
+                    <div class="text-xs text-[color:var(--muted)]">Autosaves as you type.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Sound quick settings -->
+    <div id="soundModal" class="fixed inset-0 z-50 hidden">
+        <div class="modal-backdrop absolute inset-0 bg-black/25 dark:bg-black/50"></div>
+        <div class="absolute inset-0 grid place-items-center p-4">
+            <div
+                class="w-full max-w-md rounded-3xl bg-[color:var(--card)] p-4 ring-1 ring-[color:var(--cardBorder)] shadow-[var(--shadow)] sm:p-6">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h3 class="text-base font-semibold">Sound</h3>
+                        <p class="mt-1 text-xs text-[color:var(--muted)]">Quick access. Full options are in Settings.
+                        </p>
+                    </div>
+                    <button data-close="soundModal"
+                        class="focus-ring rounded-2xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] hover:bg-white/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/70">Close</button>
+                </div>
+
+                <div class="mt-4 space-y-3">
+                    <label class="block">
+                        <div class="text-xs text-[color:var(--muted)]">Sound</div>
+                        <select id="soundQuickSelect"
+                            class="focus-ring mt-2 w-full rounded-2xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] dark:bg-zinc-900/50">
+                            <option value="bell">Bell</option>
+                            <option value="beep">Beep</option>
+                            <option value="chime">Chime</option>
+                            <option value="none">None</option>
+                        </select>
+                    </label>
+                    <label class="block">
+                        <div class="flex items-center justify-between text-xs text-[color:var(--muted)]">
+                            <span>Volume</span>
+                            <span id="soundQuickVolumeLbl">70%</span>
+                        </div>
+                        <input id="soundQuickVolume" type="range" min="0" max="100" step="1" class="mt-2 w-full" />
+                    </label>
+                    <button id="btnQuickTestSound"
+                        class="focus-ring w-full rounded-2xl bg-[color:var(--accent)] px-3 py-3 text-sm font-semibold text-white hover:brightness-110">Test</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Add task -->
+    <div id="addTaskModal" class="fixed inset-0 z-50 hidden">
+        <div class="modal-backdrop absolute inset-0 bg-black/25 dark:bg-black/50"></div>
+        <div class="absolute inset-0 grid place-items-center p-4">
+            <div
+                class="w-full max-w-lg rounded-3xl bg-[color:var(--card)] p-4 ring-1 ring-[color:var(--cardBorder)] shadow-[var(--shadow)] sm:p-6">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h3 class="text-base font-semibold">New task</h3>
+                        <p class="mt-1 text-xs text-[color:var(--muted)]">Add an estimate and track progress
+                            automatically.</p>
+                    </div>
+                    <button data-close="addTaskModal"
+                        class="focus-ring rounded-2xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] hover:bg-white/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/70">Close</button>
+                </div>
+
+                <form id="addTaskForm" class="mt-4 space-y-3">
+                    <label class="block">
+                        <div class="text-xs text-[color:var(--muted)]">Name</div>
+                        <input id="newTaskName" required maxlength="80"
+                            class="focus-ring mt-2 w-full rounded-2xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] placeholder:text-zinc-400 dark:bg-zinc-900/50 dark:placeholder:text-zinc-500"
+                            placeholder="e.g., Write report" />
+                    </label>
+                    <label class="block">
+                        <div class="text-xs text-[color:var(--muted)]">Estimated pomodoros</div>
+                        <input id="newTaskEst" type="number" min="1" max="99" value="1"
+                            class="focus-ring mt-2 w-full rounded-2xl bg-white/60 px-3 py-2 text-sm ring-1 ring-[color:var(--cardBorder)] dark:bg-zinc-900/50" />
+                    </label>
+                    <button
+                        class="focus-ring w-full rounded-2xl bg-[color:var(--accent)] px-3 py-3 text-sm font-semibold text-white hover:brightness-110"
+                        type="submit">Add task</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ---------- Utilities ----------
+        const $ = (sel, root = document) => root.querySelector(sel);
+        const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+        const LS = {
+            settings: 'pomodoro_min_v1_settings',
+            tasks: 'pomodoro_min_v1_tasks',
+            activeTaskId: 'pomodoro_min_v1_active_task',
+            history: 'pomodoro_min_v1_history',
+            stats: 'pomodoro_min_v1_stats',
+            cycle: 'pomodoro_min_v1_cycle',
+            note: 'pomodoro_min_v1_note',
+            zen: 'pomodoro_min_v1_zen'
+        };
+
+        const ACCENTS = {
+            indigo: { accent: '#6366F1' },
+            emerald: { accent: '#10B981' },
+            rose: { accent: '#F43F5E' },
+            sky: { accent: '#0EA5E9' },
+            amber: { accent: '#F59E0B' },
+            violet: { accent: '#8B5CF6' },
+        };
+
+        const DEFAULTS = {
+            focusMin: 25,
+            shortMin: 5,
+            longMin: 15,
+            longEvery: 4,
+            autoStartBreaks: true,
+            autoStartFocus: false,
+            notifications: false,
+            sound: 'bell', // bell|beep|chime|none
+            volume: 0.7,
+            theme: 'system', // system|light|dark
+            accent: 'indigo',
+            dailyGoal: 8,
+            keepAwake: true
+        };
+
+        function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+        function pad2(n) { return String(n).padStart(2, '0'); }
+        function formatMMSS(totalSeconds) {
+            totalSeconds = Math.max(0, Math.floor(totalSeconds));
+            const m = Math.floor(totalSeconds / 60);
+            const s = totalSeconds % 60;
+            return `${pad2(m)}:${pad2(s)}`;
+        }
+        function minutesLabel(seconds) {
+            const m = Math.round(seconds / 60);
+            return `${m}m`;
+        }
+        function ymd(d = new Date()) {
+            const yyyy = d.getFullYear();
+            const mm = pad2(d.getMonth() + 1);
+            const dd = pad2(d.getDate());
+            return `${yyyy}-${mm}-${dd}`;
+        }
+        function safeJsonParse(str, fallback) {
+            try { return JSON.parse(str); } catch { return fallback; }
+        }
+        function uid() {
+            return Math.random().toString(16).slice(2) + Date.now().toString(16);
+        }
+        function nowISO() { return new Date().toISOString(); }
+
+        function toast(message, opts = {}) {
+            const el = document.createElement('div');
+            el.className = `toast-in rounded-2xl bg-[color:var(--card)] px-4 py-3 text-sm ring-1 ring-[color:var(--cardBorder)] shadow-[var(--shadow)]`;
+            el.innerHTML = `
+        <div class="flex items-start gap-3">
+          <div class="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full" style="background:${opts.color || 'var(--accent)'}"></div>
+          <div class="min-w-0">
+            <div class="font-medium">${escapeHtml(message)}</div>
+            ${opts.sub ? `<div class="mt-0.5 text-xs text-[color:var(--muted)]">${escapeHtml(opts.sub)}</div>` : ''}
+          </div>
+          <button class="ml-auto shrink-0 rounded-xl bg-black/5 px-2 py-1 text-xs ring-1 ring-[color:var(--cardBorder)] hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10">Dismiss</button>
+        </div>
+      `;
+            const btn = el.querySelector('button');
+            btn.addEventListener('click', () => el.remove());
+            $('#toasts').appendChild(el);
+            const ttl = opts.ttl ?? 4200;
+            if (ttl > 0) setTimeout(() => { if (el.isConnected) el.remove(); }, ttl);
+        }
+
+        function escapeHtml(s) {
+            return String(s)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+        }
+
+        function download(filename, text, mime = 'application/json') {
+            const blob = new Blob([text], { type: mime });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        }
+
+        // ---------- Persistence ----------
+        function loadSettings() {
+            const raw = safeJsonParse(localStorage.getItem(LS.settings), null);
+            return { ...DEFAULTS, ...(raw || {}) };
+        }
+        function saveSettings(s) {
+            localStorage.setItem(LS.settings, JSON.stringify(s));
+        }
+
+        function loadTasks() {
+            const raw = safeJsonParse(localStorage.getItem(LS.tasks), []);
+            return Array.isArray(raw) ? raw : [];
+        }
+        function saveTasks(tasks) {
+            localStorage.setItem(LS.tasks, JSON.stringify(tasks));
+        }
+
+        function loadHistory() {
+            const raw = safeJsonParse(localStorage.getItem(LS.history), []);
+            return Array.isArray(raw) ? raw : [];
+        }
+        function saveHistory(items) {
+            localStorage.setItem(LS.history, JSON.stringify(items.slice(0, 400)));
+        }
+
+        function loadStats() {
+            const raw = safeJsonParse(localStorage.getItem(LS.stats), { byDay: {} });
+            if (!raw || typeof raw !== 'object') return { byDay: {} };
+            if (!raw.byDay || typeof raw.byDay !== 'object') raw.byDay = {};
+            return raw;
+        }
+        function saveStats(stats) {
+            localStorage.setItem(LS.stats, JSON.stringify(stats));
+        }
+
+        function loadCycle() {
+            const raw = safeJsonParse(localStorage.getItem(LS.cycle), { focusCount: 0 });
+            return { focusCount: Number(raw?.focusCount || 0) };
+        }
+        function saveCycle(cycle) {
+            localStorage.setItem(LS.cycle, JSON.stringify({ focusCount: cycle.focusCount | 0 }));
+        }
+
+        function loadActiveTaskId() {
+            return localStorage.getItem(LS.activeTaskId) || '';
+        }
+        function saveActiveTaskId(id) {
+            localStorage.setItem(LS.activeTaskId, id || '');
+        }
+
+        // ---------- Theme ----------
+        function applyTheme(settings) {
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const mode = settings.theme;
+            const shouldDark = mode === 'dark' || (mode === 'system' && prefersDark);
+            document.documentElement.classList.toggle('dark', !!shouldDark);
+
+            const a = ACCENTS[settings.accent] || ACCENTS.indigo;
+            document.documentElement.style.setProperty('--accent', a.accent);
+            document.documentElement.style.setProperty('--accent-soft', hexToRgba(a.accent, 0.18));
+        }
+
+        function hexToRgba(hex, alpha) {
+            const h = hex.replace('#', '').trim();
+            const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+            const n = parseInt(full, 16);
+            const r = (n >> 16) & 255;
+            const g = (n >> 8) & 255;
+            const b = n & 255;
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        }
+
+        // ---------- Sound (WebAudio) ----------
+        let audioCtx = null;
+        function getAudioCtx() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            return audioCtx;
+        }
+
+        function playSound(kind, volume = 0.7) {
+            if (kind === 'none') return;
+            const ctx = getAudioCtx();
+            const v = clamp(volume, 0, 1);
+
+            const now = ctx.currentTime;
+            const out = ctx.createGain();
+            out.gain.value = v;
+            out.connect(ctx.destination);
+
+            function beep(freq, dur, type = 'sine', start = 0, gain = 0.9) {
+                const osc = ctx.createOscillator();
+                const g = ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, now + start);
+                g.gain.setValueAtTime(0.0001, now + start);
+                g.gain.exponentialRampToValueAtTime(gain, now + start + 0.01);
+                g.gain.exponentialRampToValueAtTime(0.0001, now + start + dur);
+                osc.connect(g);
+                g.connect(out);
+                osc.start(now + start);
+                osc.stop(now + start + dur + 0.02);
+            }
+
+            if (kind === 'beep') {
+                beep(880, 0.18, 'square', 0.00, 0.35);
+                beep(660, 0.18, 'square', 0.22, 0.35);
+                return;
+            }
+            if (kind === 'bell') {
+                beep(880, 0.55, 'sine', 0.00, 0.32);
+                beep(1320, 0.35, 'sine', 0.03, 0.22);
+                beep(1760, 0.25, 'sine', 0.06, 0.14);
+                return;
+            }
+            if (kind === 'chime') {
+                beep(523.25, 0.25, 'triangle', 0.00, 0.25);
+                beep(659.25, 0.25, 'triangle', 0.18, 0.25);
+                beep(783.99, 0.35, 'triangle', 0.36, 0.25);
+                return;
+            }
+        }
+
+        // ---------- Notifications ----------
+        async function ensureNotificationPermission() {
+            if (!('Notification' in window)) {
+                toast('Notifications not supported in this browser.', { color: '#ef4444' });
+                return false;
+            }
+            if (Notification.permission === 'granted') return true;
+            if (Notification.permission === 'denied') {
+                toast('Notifications are blocked. Enable them in your browser settings.', { color: '#ef4444' });
+                return false;
+            }
+            const res = await Notification.requestPermission();
+            return res === 'granted';
+        }
+
+        function sendNotification(title, body) {
+            if (!('Notification' in window)) return;
+            if (Notification.permission !== 'granted') return;
+            try {
+                new Notification(title, { body, silent: true });
+            } catch { }
+        }
+
+        // ---------- Wake Lock ----------
+        let wakeLock = null;
+        async function requestWakeLock() {
+            try {
+                if (!('wakeLock' in navigator)) return;
+                wakeLock = await navigator.wakeLock.request('screen');
+                wakeLock.addEventListener('release', () => { /* noop */ });
+            } catch { }
+        }
+        async function releaseWakeLock() {
+            try { await wakeLock?.release(); } catch { }
+            wakeLock = null;
+        }
+
+        // ---------- App State ----------
+        let settings = loadSettings();
+        let tasks = loadTasks();
+        let history = loadHistory();
+        let stats = loadStats();
+        let cycle = loadCycle();
+        let activeTaskId = loadActiveTaskId();
+
+        const state = {
+            mode: 'focus',
+            durationSec: settings.focusMin * 60,
+            remainingSec: settings.focusMin * 60,
+            running: false,
+            tickTimer: null,
+            sessionStart: null, // ms
+            lastTickAt: null,
+            zen: localStorage.getItem(LS.zen) === '1'
+        };
+
+        // ---------- DOM refs ----------
+        const ring = $('#ring');
+        const timeEl = $('#time');
+        const subtimeEl = $('#subtime');
+        const statusText = $('#statusText');
+        const dot = $('#dot');
+        const startPauseText = $('#startPauseText');
+        const iconPlay = $('#iconPlay');
+        const iconPause = $('#iconPause');
+
+        const activeTaskName = $('#activeTaskName');
+        const cycleText = $('#cycleText');
+        const todayText = $('#todayText');
+        const goalText = $('#goalText');
+
+        // ring setup
+        const r = 50;
+        const circumference = 2 * Math.PI * r;
+        ring.style.strokeDasharray = `${circumference}`;
+
+        // ---------- Timer core ----------
+        function setMode(mode, { keepRunning = false } = {}) {
+            if (!['focus', 'short', 'long'].includes(mode)) return;
+
+            // If switching while running, pause (unless explicitly keepRunning)
+            const wasRunning = state.running;
+            if (wasRunning && !keepRunning) pause();
+
+            state.mode = mode;
+            state.durationSec = getDurationForMode(mode);
+            state.remainingSec = state.durationSec;
+            state.sessionStart = null;
+            updateUI();
+
+            if (wasRunning && keepRunning) start();
+        }
+
+        function getDurationForMode(mode) {
+            if (mode === 'focus') return settings.focusMin * 60;
+            if (mode === 'short') return settings.shortMin * 60;
+            return settings.longMin * 60;
+        }
+
+        function start() {
+            if (state.running) return;
+            state.running = true;
+
+            // Resume from remainingSec
+            const elapsed = state.durationSec - state.remainingSec;
+            state.sessionStart = Date.now() - elapsed * 1000;
+            state.lastTickAt = Date.now();
+
+            if (settings.keepAwake) requestWakeLock();
+
+            dot.classList.remove('bg-emerald-500');
+            dot.classList.add('bg-[color:var(--accent)]');
+            statusText.textContent = 'Running';
+
+            iconPlay.classList.add('hidden');
+            iconPause.classList.remove('hidden');
+            startPauseText.textContent = 'Pause';
+
+            state.tickTimer = setInterval(tick, 200);
+            tick();
+            updateDocumentTitle();
+        }
+
+        function pause() {
+            if (!state.running) return;
+            state.running = false;
+            clearInterval(state.tickTimer);
+            state.tickTimer = null;
+
+            releaseWakeLock();
+
+            dot.classList.remove('bg-[color:var(--accent)]');
+            dot.classList.add('bg-emerald-500');
+            statusText.textContent = 'Paused';
+
+            iconPause.classList.add('hidden');
+            iconPlay.classList.remove('hidden');
+            startPauseText.textContent = 'Resume';
+
+            updateUI();
+            updateDocumentTitle();
+        }
+
+        function resetTimer() {
+            const wasRunning = state.running;
+            if (wasRunning) pause();
+            state.remainingSec = state.durationSec;
+            state.sessionStart = null;
+            statusText.textContent = 'Ready';
+            startPauseText.textContent = 'Start';
+            updateUI();
+            updateDocumentTitle();
+        }
+
+        function skip() {
+            if (state.running) pause();
+            completeSession({ skipped: true });
+        }
+
+        function tick() {
+            if (!state.running) return;
+            const elapsedSec = Math.floor((Date.now() - state.sessionStart) / 1000);
+            state.remainingSec = clamp(state.durationSec - elapsedSec, 0, state.durationSec);
+            updateUI();
+            updateDocumentTitle();
+
+            if (state.remainingSec <= 0) {
+                pause();
+                completeSession({ skipped: false });
+            }
+        }
+
+        function nextModeAfter(currentMode) {
+            if (currentMode === 'focus') {
+                const nextCount = (cycle.focusCount + 1);
+                const isLong = (nextCount % settings.longEvery === 0);
+                return isLong ? 'long' : 'short';
+            }
+            return 'focus';
+        }
+
+        function completeSession({ skipped }) {
+            const endedAt = new Date();
+            const endedISO = endedAt.toISOString();
+
+            const plannedSec = state.durationSec;
+            const actualSec = skipped ? (state.durationSec - state.remainingSec) : state.durationSec;
+            const completedFull = !skipped && plannedSec > 0;
+
+            // Update cycle
+            if (state.mode === 'focus' && completedFull) {
+                cycle.focusCount = (cycle.focusCount || 0) + 1;
+                saveCycle(cycle);
+            }
+
+            // Record history
+            if (!skipped && plannedSec > 0) {
+                const task = tasks.find(t => t.id === activeTaskId) || null;
+                history.unshift({
+                    id: uid(),
+                    mode: state.mode,
+                    taskId: task?.id || null,
+                    taskName: task?.name || '',
+                    minutes: Math.round(plannedSec / 60),
+                    endedAt: endedISO
+                });
+                saveHistory(history);
+
+                // Stats by day
+                const key = ymd(endedAt);
+                stats.byDay[key] ||= { focusSec: 0, breakSec: 0, sessions: 0 };
+                if (state.mode === 'focus') stats.byDay[key].focusSec += plannedSec;
+                else stats.byDay[key].breakSec += plannedSec;
+                if (state.mode === 'focus') stats.byDay[key].sessions += 1;
+                saveStats(stats);
+
+                // Task credit
+                if (state.mode === 'focus' && task) {
+                    task.done = (task.done || 0) + 1;
+                    if (task.done >= (task.est || 1)) task.completed = true;
+                    saveTasks(tasks);
+                }
+            }
+
+            // Alerts
+            if (!skipped) {
+                const title = state.mode === 'focus' ? 'Focus complete' : 'Break complete';
+                const body = state.mode === 'focus'
+                    ? 'Time for a break.'
+                    : 'Back to focus.';
+                if (settings.notifications) sendNotification(title, body);
+                playSound(settings.sound, settings.volume);
+                if (navigator.vibrate) { try { navigator.vibrate([40, 30, 40]); } catch { } }
+
+                toast(title, { sub: body, ttl: 3800 });
+            } else {
+                toast('Skipped', { sub: 'Session ended without recording stats.', ttl: 2500 });
+            }
+
+            // Decide next mode
+            const next = nextModeAfter(state.mode);
+            setMode(next);
+
+            // Autostart logic
+            const shouldAuto = (next === 'focus') ? settings.autoStartFocus : settings.autoStartBreaks;
+            if (shouldAuto && !skipped) {
+                setTimeout(() => start(), 350);
+            } else {
+                statusText.textContent = 'Ready';
+                startPauseText.textContent = 'Start';
+                iconPause.classList.add('hidden');
+                iconPlay.classList.remove('hidden');
+                dot.classList.remove('bg-[color:var(--accent)]');
+                dot.classList.add('bg-emerald-500');
+                updateUI();
+                updateDocumentTitle();
+            }
+        }
+
+        // ---------- UI updates ----------
+        function updateDocumentTitle() {
+            const modeLabel = state.mode === 'focus' ? 'Focus' : (state.mode === 'short' ? 'Short break' : 'Long break');
+            const t = formatMMSS(state.remainingSec);
+            document.title = `${t} · ${modeLabel}`;
+        }
+
+        function updateRing() {
+            const progress = 1 - (state.remainingSec / state.durationSec);
+            const offset = circumference * (1 - clamp(progress, 0, 1));
+            ring.style.strokeDashoffset = `${offset}`;
+        }
+
+        function modePillStyles() {
+            $$('.modeBtn').forEach(btn => {
+                const isActive = btn.dataset.mode === state.mode;
+                btn.classList.toggle('bg-white/80', isActive);
+                btn.classList.toggle('dark:bg-zinc-900/70', isActive);
+                btn.classList.toggle('text-zinc-900', isActive);
+                btn.classList.toggle('dark:text-zinc-100', isActive);
+                btn.classList.toggle('text-[color:var(--muted)]', !isActive);
+            });
+        }
+
+        function updateActiveTaskUI() {
+            const task = tasks.find(t => t.id === activeTaskId);
+            activeTaskName.textContent = task ? task.name : 'None selected';
+        }
+
+        function getToday() {
+            return stats.byDay[ymd()] || { focusSec: 0, breakSec: 0, sessions: 0 };
+        }
+
+        function computeStreak() {
+            const keys = Object.keys(stats.byDay || {}).sort();
+            if (!keys.length) return 0;
+            let streak = 0;
+            let d = new Date();
+            // Count backwards: require at least 1 focus session that day
+            for (let i = 0; i < 365; i++) {
+                const key = ymd(d);
+                const day = stats.byDay[key];
+                if (day && (day.sessions || 0) > 0) streak += 1;
+                else break;
+                d.setDate(d.getDate() - 1);
+            }
+            return streak;
+        }
+
+        function updateMiniStats() {
+            const today = getToday();
+            const focusM = Math.round((today.focusSec || 0) / 60);
+            todayText.textContent = `${focusM}m`;
+            $('#statTodayFocus').textContent = `${focusM}m`;
+            $('#statTodaySessions').textContent = `${today.sessions || 0}`;
+            $('#statStreak').textContent = `${computeStreak()}d`;
+
+            const goal = settings.dailyGoal || 8;
+            goalText.textContent = `${today.sessions || 0} / ${goal}`;
+        }
+
+        function updateCycleUI() {
+            const pos = ((cycle.focusCount || 0) % (settings.longEvery || 4)) + 1;
+            cycleText.textContent = `${pos} / ${settings.longEvery}`;
+        }
+
+        function updateUI() {
+            timeEl.textContent = formatMMSS(state.remainingSec);
+            const label = state.mode === 'focus' ? 'Focus' : (state.mode === 'short' ? 'Short break' : 'Long break');
+            subtimeEl.textContent = state.running ? `${label} running…` : `Mode: ${label}`;
+            updateRing();
+            modePillStyles();
+            updateActiveTaskUI();
+            updateMiniStats();
+            updateCycleUI();
+            renderTasks();
+            renderChart();
+        }
+
+        // ---------- Tasks ----------
+        function renderTasks() {
+            const q = ($('#taskSearch').value || '').trim().toLowerCase();
+            const list = $('#tasksList');
+            list.innerHTML = '';
+
+            const filtered = tasks
+                .filter(t => !t.archived)
+                .filter(t => !q || t.name.toLowerCase().includes(q))
+                .sort((a, b) => {
+                    const aActive = a.id === activeTaskId ? -1 : 0;
+                    const bActive = b.id === activeTaskId ? -1 : 0;
+                    if (aActive !== bActive) return aActive - bActive;
+                    const aDone = !!a.completed;
+                    const bDone = !!b.completed;
+                    if (aDone !== bDone) return aDone - bDone;
+                    return (b.createdAt || 0) - (a.createdAt || 0);
+                });
+
+            $('#tasksEmpty').classList.toggle('hidden', filtered.length !== 0);
+
+            filtered.forEach(task => {
+                const est = clamp(Number(task.est || 1), 1, 99);
+                const done = clamp(Number(task.done || 0), 0, 999);
+                const pct = Math.min(100, Math.round((done / est) * 100));
+                const isActive = task.id === activeTaskId;
+
+                const item = document.createElement('div');
+                item.className = `rounded-2xl ring-1 ring-[color:var(--cardBorder)] ${isActive ? 'bg-[color:var(--accent)]/10' : 'bg-white/50 dark:bg-zinc-900/40'} p-3`;
+                item.innerHTML = `
+          <div class="flex items-start gap-3">
+            <button class="pickTaskBtn focus-ring mt-0.5 h-6 w-6 shrink-0 rounded-xl ring-1 ring-[color:var(--cardBorder)] ${isActive ? 'bg-[color:var(--accent)] text-white' : 'bg-white/60 dark:bg-zinc-900/50'}" title="Set active">
+              ${isActive ? '✓' : ''}
+            </button>
+
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center justify-between gap-3">
+                <div class="min-w-0">
+                  <div class="flex items-center gap-2">
+                    <div class="truncate text-sm font-medium">${escapeHtml(task.name)}</div>
+                    ${task.completed ? `<span class="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-500/20 dark:text-emerald-300">DONE</span>` : ''}
+                  </div>
+                  <div class="mt-0.5 text-xs text-[color:var(--muted)]">${done}/${est} pomodoros</div>
+                </div>
+
+                <div class="flex shrink-0 items-center gap-2">
+                  <button class="incTaskBtn focus-ring rounded-xl bg-white/60 px-2 py-1 text-xs ring-1 ring-[color:var(--cardBorder)] hover:bg-white/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/70" title="Add 1 completed">+1</button>
+                  <button class="decTaskBtn focus-ring rounded-xl bg-white/60 px-2 py-1 text-xs ring-1 ring-[color:var(--cardBorder)] hover:bg-white/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/70" title="Remove 1 completed">−1</button>
+                  <button class="moreTaskBtn focus-ring rounded-xl bg-white/60 px-2 py-1 text-xs ring-1 ring-[color:var(--cardBorder)] hover:bg-white/80 dark:bg-zinc-900/50 dark:hover:bg-zinc-900/70" title="More">•••</button>
+                </div>
+              </div>
+
+              <div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-black/5 ring-1 ring-[color:var(--cardBorder)] dark:bg-white/5">
+                <div class="h-full rounded-full bg-[color:var(--accent)]" style="width:${pct}%"></div>
+              </div>
+            </div>
+          </div>
+        `;
+
+                item.querySelector('.pickTaskBtn').addEventListener('click', () => {
+                    activeTaskId = task.id;
+                    saveActiveTaskId(activeTaskId);
+                    updateActiveTaskUI();
+                    renderTasks();
+                    toast('Active task set', { sub: task.name, ttl: 2200 });
+                });
+
+                item.querySelector('.incTaskBtn').addEventListener('click', () => {
+                    task.done = (task.done || 0) + 1;
+                    if (task.done >= (task.est || 1)) task.completed = true;
+                    saveTasks(tasks);
+                    renderTasks();
+                });
+
+                item.querySelector('.decTaskBtn').addEventListener('click', () => {
+                    task.done = Math.max(0, (task.done || 0) - 1);
+                    task.completed = task.done >= (task.est || 1);
+                    saveTasks(tasks);
+                    renderTasks();
+                });
+
+                item.querySelector('.moreTaskBtn').addEventListener('click', () => {
+                    const choice = prompt(
+                        `Task options:\n1) Rename\n2) Change estimate\n3) Toggle done\n4) Delete\n\nType 1-4`,
+                        ''
+                    );
+                    if (!choice) return;
+                    if (choice.trim() === '1') {
+                        const n = prompt('Rename task', task.name);
+                        if (n && n.trim()) task.name = n.trim();
+                    } else if (choice.trim() === '2') {
+                        const e = prompt('Estimated pomodoros', String(task.est || 1));
+                        const v = clamp(Number(e || 1), 1, 99);
+                        task.est = v;
+                    } else if (choice.trim() === '3') {
+                        task.completed = !task.completed;
+                        if (task.completed) task.done = Math.max(task.done || 0, task.est || 1);
+                    } else if (choice.trim() === '4') {
+                        if (!confirm('Delete this task?')) return;
+                        tasks = tasks.filter(t => t.id !== task.id);
+                        if (activeTaskId === task.id) { activeTaskId = ''; saveActiveTaskId(''); }
+                    }
+                    saveTasks(tasks);
+                    renderTasks();
+                    updateActiveTaskUI();
+                });
+
+                list.appendChild(item);
+            });
+        }
+
+        // ---------- Chart ----------
+        function renderChart() {
+            const canvas = $('#chart');
+            const ctx = canvas.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+            const w = canvas.clientWidth;
+            const h = canvas.height;
+            canvas.width = Math.floor(w * dpr);
+            canvas.height = Math.floor(h * dpr);
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+            const days = [];
+            const today = new Date();
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date(today);
+                d.setDate(today.getDate() - i);
+                const key = ymd(d);
+                const focusMin = Math.round(((stats.byDay[key]?.focusSec || 0) / 60));
+                days.push({ key, label: key.slice(5), value: focusMin });
+            }
+            const maxV = Math.max(30, ...days.map(x => x.value));
+
+            ctx.clearRect(0, 0, w, h);
+
+            const isDark = document.documentElement.classList.contains('dark');
+            const grid = isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)';
+            const text = isDark ? 'rgba(255,255,255,0.62)' : 'rgba(0,0,0,0.55)';
+            const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#6366F1';
+
+            // Grid lines
+            ctx.strokeStyle = grid;
+            ctx.lineWidth = 1;
+            for (let i = 1; i <= 3; i++) {
+                const y = Math.round((h * i) / 4) + 0.5;
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(w, y);
+                ctx.stroke();
+            }
+
+            // Bars
+            const pad = 10;
+            const barW = (w - pad * 2) / days.length;
+            days.forEach((d, idx) => {
+                const x = pad + idx * barW + barW * 0.18;
+                const bw = barW * 0.64;
+                const bh = Math.round((d.value / maxV) * (h - 26));
+                const y = h - 18 - bh;
+
+                // background bar
+                ctx.fillStyle = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+                roundRect(ctx, x, h - 18 - (h - 26), bw, (h - 26), 10);
+                ctx.fill();
+
+                // value bar
+                ctx.fillStyle = accent;
+                roundRect(ctx, x, y, bw, bh, 10);
+                ctx.fill();
+
+                // Labels
+                ctx.fillStyle = text;
+                ctx.font = '11px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(d.label, x + bw / 2, h - 4);
+            });
+
+            // Y label (top-right)
+            ctx.fillStyle = text;
+            ctx.font = '11px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
+            ctx.textAlign = 'right';
+            ctx.fillText(`${maxV}m`, w - 2, 12);
+        }
+
+        function roundRect(ctx, x, y, w, h, r) {
+            r = Math.min(r, w / 2, h / 2);
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.arcTo(x + w, y, x + w, y + h, r);
+            ctx.arcTo(x + w, y + h, x, y + h, r);
+            ctx.arcTo(x, y + h, x, y, r);
+            ctx.arcTo(x, y, x + w, y, r);
+            ctx.closePath();
+        }
+
+        // ---------- History rendering ----------
+        function renderHistoryTable() {
+            const q = ($('#historySearch').value || '').trim().toLowerCase();
+            const tbody = $('#historyTable');
+            tbody.innerHTML = '';
+
+            const filtered = history.filter(it => {
+                const hay = `${it.mode} ${it.taskName || ''} ${it.endedAt}`.toLowerCase();
+                return !q || hay.includes(q);
+            });
+
+            const max = 200;
+            filtered.slice(0, max).forEach(it => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-black/5 dark:hover:bg-white/5';
+                const d = new Date(it.endedAt);
+                tr.innerHTML = `
+          <td class="px-3 py-2 whitespace-nowrap">${escapeHtml(d.toLocaleString())}</td>
+          <td class="px-3 py-2">${escapeHtml(it.mode)}</td>
+          <td class="px-3 py-2">${escapeHtml(it.taskName || '')}</td>
+          <td class="px-3 py-2">${escapeHtml(String(it.minutes || ''))}</td>
+        `;
+                tbody.appendChild(tr);
+            });
+
+            $('#historyMeta').textContent = `${filtered.length} sessions${filtered.length > max ? ` (showing first ${max})` : ''}.`;
+        }
+
+        // ---------- Modals ----------
+        function openModal(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+        function closeModal(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+
+        // click outside to close
+        ['settingsModal', 'historyModal', 'exportModal', 'taskPickerModal', 'addTaskModal', 'noteModal', 'soundModal'].forEach(id => {
+            const el = document.getElementById(id);
+            el.addEventListener('mousedown', (e) => {
+                if (e.target === el.firstElementChild) closeModal(id);
+            });
+        });
+
+        $$('[data-close]').forEach(btn => {
+            btn.addEventListener('click', () => closeModal(btn.getAttribute('data-close')));
+        });
+
+        // ---------- Settings UI ----------
+        function syncSettingsUI() {
+            $('#setFocus').value = settings.focusMin;
+            $('#setShort').value = settings.shortMin;
+            $('#setLong').value = settings.longMin;
+            $('#setLongEvery').value = settings.longEvery;
+            $('#setGoal').value = settings.dailyGoal;
+            $('#setAutoBreak').checked = !!settings.autoStartBreaks;
+            $('#setAutoFocus').checked = !!settings.autoStartFocus;
+            $('#setNotifications').checked = !!settings.notifications;
+            $('#setSound').value = settings.sound;
+            $('#setVolume').value = Math.round(settings.volume * 100);
+            $('#setTheme').value = settings.theme;
+            $('#setKeepAwake').checked = !!settings.keepAwake;
+
+            $('#lblFocus').textContent = settings.focusMin;
+            $('#lblShort').textContent = settings.shortMin;
+            $('#lblLong').textContent = settings.longMin;
+            $('#lblLongEvery').textContent = settings.longEvery;
+            $('#lblGoal').textContent = settings.dailyGoal;
+            $('#lblVolume').textContent = `${Math.round(settings.volume * 100)}%`;
+
+            // Sound quick
+            $('#soundQuickSelect').value = settings.sound;
+            $('#soundQuickVolume').value = Math.round(settings.volume * 100);
+            $('#soundQuickVolumeLbl').textContent = `${Math.round(settings.volume * 100)}%`;
+
+            applyTheme(settings);
+        }
+
+        function persistSettings() {
+            saveSettings(settings);
+            applyTheme(settings);
+
+            // If current mode duration changed and we are not running, reset to new duration.
+            if (!state.running) {
+                state.durationSec = getDurationForMode(state.mode);
+                state.remainingSec = clamp(state.remainingSec, 0, state.durationSec);
+                if (state.remainingSec === 0 || state.remainingSec === state.durationSec) {
+                    state.remainingSec = state.durationSec;
+                }
+            }
+
+            updateUI();
+            updateDocumentTitle();
+        }
+
+        // Bind settings controls
+        $('#setFocus').addEventListener('input', (e) => { settings.focusMin = Number(e.target.value); $('#lblFocus').textContent = settings.focusMin; persistSettings(); });
+        $('#setShort').addEventListener('input', (e) => { settings.shortMin = Number(e.target.value); $('#lblShort').textContent = settings.shortMin; persistSettings(); });
+        $('#setLong').addEventListener('input', (e) => { settings.longMin = Number(e.target.value); $('#lblLong').textContent = settings.longMin; persistSettings(); });
+        $('#setLongEvery').addEventListener('input', (e) => { settings.longEvery = Number(e.target.value); $('#lblLongEvery').textContent = settings.longEvery; persistSettings(); });
+        $('#setGoal').addEventListener('input', (e) => { settings.dailyGoal = Number(e.target.value); $('#lblGoal').textContent = settings.dailyGoal; persistSettings(); });
+        $('#setAutoBreak').addEventListener('change', (e) => { settings.autoStartBreaks = e.target.checked; persistSettings(); });
+        $('#setAutoFocus').addEventListener('change', (e) => { settings.autoStartFocus = e.target.checked; persistSettings(); });
+        $('#setNotifications').addEventListener('change', async (e) => {
+            if (e.target.checked) {
+                const ok = await ensureNotificationPermission();
+                settings.notifications = ok;
+                e.target.checked = ok;
+                toast(ok ? 'Notifications enabled' : 'Notifications not enabled', { ttl: 2600 });
+            } else {
+                settings.notifications = false;
+            }
+            persistSettings();
+        });
+        $('#setSound').addEventListener('change', (e) => { settings.sound = e.target.value; persistSettings(); });
+        $('#setVolume').addEventListener('input', (e) => { settings.volume = Number(e.target.value) / 100; $('#lblVolume').textContent = `${e.target.value}%`; persistSettings(); });
+        $('#setTheme').addEventListener('change', (e) => { settings.theme = e.target.value; persistSettings(); });
+        $('#setKeepAwake').addEventListener('change', (e) => { settings.keepAwake = e.target.checked; persistSettings(); });
+
+        $('#btnTestSound').addEventListener('click', () => {
+            playSound(settings.sound, settings.volume);
+            toast('Sound test', { sub: settings.sound === 'none' ? 'Muted' : settings.sound, ttl: 1700 });
+        });
+
+        $$('.accentBtn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                settings.accent = btn.dataset.accent;
+                persistSettings();
+                toast('Accent updated', { sub: settings.accent, ttl: 1800 });
+            });
+        });
+
+        $('#btnResetAll').addEventListener('click', () => {
+            if (!confirm('Reset all local data (settings, tasks, history, stats)?')) return;
+            Object.values(LS).forEach(k => localStorage.removeItem(k));
+            // reload in-place
+            settings = loadSettings();
+            tasks = loadTasks();
+            history = loadHistory();
+            stats = loadStats();
+            cycle = loadCycle();
+            activeTaskId = loadActiveTaskId();
+            state.mode = 'focus';
+            state.durationSec = settings.focusMin * 60;
+            state.remainingSec = state.durationSec;
+            state.running = false;
+            releaseWakeLock();
+            syncSettingsUI();
+            updateUI();
+            toast('Reset complete', { ttl: 2400 });
+        });
+
+        // ---------- Buttons / events ----------
+        $$('.modeBtn').forEach(btn => btn.addEventListener('click', () => setMode(btn.dataset.mode)));
+        $('#btnStartPause').addEventListener('click', () => state.running ? pause() : start());
+        $('#btnReset').addEventListener('click', resetTimer);
+        $('#btnSkip').addEventListener('click', skip);
+
+        $('#btnSettings').addEventListener('click', () => { syncSettingsUI(); openModal('settingsModal'); });
+        $('#btnHistory').addEventListener('click', () => { renderHistoryTable(); openModal('historyModal'); });
+        $('#btnExport').addEventListener('click', () => openModal('exportModal'));
+
+        $('#btnPickTask').addEventListener('click', () => { renderPicker(); openModal('taskPickerModal'); });
+
+        $('#btnAddTask').addEventListener('click', () => {
+            $('#newTaskName').value = '';
+            $('#newTaskEst').value = 1;
+            openModal('addTaskModal');
+            setTimeout(() => $('#newTaskName').focus(), 50);
+        });
+
+        $('#addTaskForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const name = $('#newTaskName').value.trim();
+            const est = clamp(Number($('#newTaskEst').value || 1), 1, 99);
+            if (!name) return;
+            const t = { id: uid(), name, est, done: 0, completed: false, archived: false, createdAt: Date.now() };
+            tasks.unshift(t);
+            saveTasks(tasks);
+            closeModal('addTaskModal');
+            toast('Task added', { sub: name, ttl: 2200 });
+            renderTasks();
+            // Set as active if none
+            if (!activeTaskId) {
+                activeTaskId = t.id;
+                saveActiveTaskId(activeTaskId);
+                updateActiveTaskUI();
+            }
+        });
+
+        $('#taskSearch').addEventListener('input', renderTasks);
+        $('#btnClearCompleted').addEventListener('click', () => {
+            const done = tasks.filter(t => !t.archived && t.completed).length;
+            if (!done) { toast('No completed tasks to archive', { ttl: 1600 }); return; }
+            if (!confirm(`Archive ${done} completed task(s)?`)) return;
+            tasks.forEach(t => { if (t.completed) t.archived = true; });
+            saveTasks(tasks);
+            renderTasks();
+            toast('Archived completed tasks', { ttl: 2200 });
+        });
+
+        $('#btnClearStats').addEventListener('click', () => {
+            if (!confirm('Clear daily stats + cycle counter? (History and tasks will remain)')) return;
+            stats = { byDay: {} };
+            saveStats(stats);
+            cycle = { focusCount: 0 };
+            saveCycle(cycle);
+            updateUI();
+            toast('Stats reset', { ttl: 2000 });
+        });
+
+        // Presets
+        $$('.presetBtn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const p = btn.dataset.preset;
+                if (p === 'custom') { syncSettingsUI(); openModal('settingsModal'); return; }
+                if (p === 'classic') { settings.focusMin = 25; settings.shortMin = 5; settings.longMin = 15; settings.longEvery = 4; }
+                if (p === 'deep') { settings.focusMin = 50; settings.shortMin = 10; settings.longMin = 20; settings.longEvery = 2; }
+                if (p === 'sprint') { settings.focusMin = 15; settings.shortMin = 3; settings.longMin = 10; settings.longEvery = 4; }
+                persistSettings();
+                // If not running, align timer to current mode
+                if (!state.running) {
+                    state.durationSec = getDurationForMode(state.mode);
+                    state.remainingSec = state.durationSec;
+                }
+                updateUI();
+                toast('Preset applied', { sub: btn.textContent, ttl: 2000 });
+            });
+        });
+
+        // Zen mode
+        function applyZen() {
+            $('#sidePanels').classList.toggle('hidden', state.zen);
+            localStorage.setItem(LS.zen, state.zen ? '1' : '0');
+            $('#btnZen').textContent = state.zen ? 'Un-zen' : 'Zen';
+        }
+        $('#btnZen').addEventListener('click', () => {
+            state.zen = !state.zen;
+            applyZen();
+        });
+
+        // Keep awake toggle quick
+        function syncKeepAwakeBtn() {
+            $('#btnKeepAwake').textContent = settings.keepAwake ? 'Keep awake: on' : 'Keep awake: off';
+        }
+        $('#btnKeepAwake').addEventListener('click', async () => {
+            settings.keepAwake = !settings.keepAwake;
+            persistSettings();
+            syncKeepAwakeBtn();
+            if (!settings.keepAwake) await releaseWakeLock();
+            toast('Keep awake', { sub: settings.keepAwake ? 'On' : 'Off', ttl: 1600 });
+        });
+
+        // Notifications quick
+        function syncNotifyBtn() {
+            const supported = ('Notification' in window);
+            const perm = supported ? Notification.permission : 'unsupported';
+            const label = settings.notifications ? 'Notifications: on' : 'Notifications: off';
+            $('#btnNotify').textContent = supported ? label : 'Notifications: n/a';
+            $('#btnNotify').title = supported ? `Permission: ${perm}` : 'Not supported';
+        }
+        $('#btnNotify').addEventListener('click', async () => {
+            if (!('Notification' in window)) { toast('Notifications not supported', { ttl: 1800, color: '#ef4444' }); return; }
+            if (!settings.notifications) {
+                const ok = await ensureNotificationPermission();
+                settings.notifications = ok;
+                if (!ok) toast('Permission not granted', { ttl: 1800, color: '#ef4444' });
+            } else {
+                settings.notifications = false;
+            }
+            persistSettings();
+            syncNotifyBtn();
+        });
+
+        // Sound quick
+        $('#btnSound').addEventListener('click', () => { syncSettingsUI(); openModal('soundModal'); });
+        $('#soundQuickSelect').addEventListener('change', (e) => { settings.sound = e.target.value; persistSettings(); });
+        $('#soundQuickVolume').addEventListener('input', (e) => {
+            settings.volume = Number(e.target.value) / 100;
+            $('#soundQuickVolumeLbl').textContent = `${e.target.value}%`;
+            persistSettings();
+        });
+        $('#btnQuickTestSound').addEventListener('click', () => playSound(settings.sound, settings.volume));
+
+        // Theme cycle quick
+        $('#btnTheme').addEventListener('click', () => {
+            const order = ['system', 'light', 'dark'];
+            settings.theme = order[(order.indexOf(settings.theme) + 1) % order.length];
+            persistSettings();
+            toast('Theme', { sub: settings.theme, ttl: 1600 });
+        });
+
+        // Fullscreen
+        $('#btnFullscreen').addEventListener('click', toggleFullscreen);
+        async function toggleFullscreen() {
+            try {
+                if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+                else await document.exitFullscreen();
+            } catch { }
+        }
+
+        // Note
+        $('#btnQuickNote').addEventListener('click', () => openModal('noteModal'));
+        const noteEl = $('#quickNote');
+        noteEl.value = localStorage.getItem(LS.note) || '';
+        noteEl.addEventListener('input', () => localStorage.setItem(LS.note, noteEl.value));
+        $('#btnClearNote').addEventListener('click', () => {
+            noteEl.value = '';
+            localStorage.setItem(LS.note, '');
+        });
+
+        // History modal buttons
+        $('#historySearch').addEventListener('input', renderHistoryTable);
+        $('#btnClearHistory').addEventListener('click', () => {
+            if (!history.length) { toast('History is empty', { ttl: 1500 }); return; }
+            if (!confirm('Clear all history entries?')) return;
+            history = [];
+            saveHistory(history);
+            renderHistoryTable();
+            toast('History cleared', { ttl: 1700 });
+        });
+        $('#btnCopyJSON').addEventListener('click', async () => {
+            const text = JSON.stringify(history, null, 2);
+            try {
+                await navigator.clipboard.writeText(text);
+                toast('Copied', { sub: 'History JSON copied to clipboard', ttl: 1600 });
+            } catch {
+                toast('Copy failed', { sub: 'Clipboard blocked by browser', ttl: 2200, color: '#ef4444' });
+            }
+        });
+        $('#btnDownloadCSV').addEventListener('click', () => {
+            const rows = [
+                ['endedAt', 'mode', 'taskName', 'minutes'],
+                ...history.map(h => [h.endedAt, h.mode, (h.taskName || '').replaceAll('"', '""'), h.minutes])
+            ];
+            const csv = rows.map(r => r.map(v => `"${String(v ?? '').replaceAll('"', '""')}"`).join(',')).join('\n');
+            download(`pomodoro-history-${ymd()}.csv`, csv, 'text/csv');
+            toast('Downloaded', { sub: 'CSV saved', ttl: 1600 });
+        });
+
+        // Export modal
+        $('#btnDownloadJSON').addEventListener('click', () => {
+            const payload = getExportPayload();
+            download(`pomodoro-export-${ymd()}.json`, JSON.stringify(payload, null, 2), 'application/json');
+            toast('Downloaded', { sub: 'JSON export saved', ttl: 1600 });
+        });
+        $('#btnCopyAllJSON').addEventListener('click', async () => {
+            const payload = getExportPayload();
+            try {
+                await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+                toast('Copied', { sub: 'Full export JSON copied', ttl: 1600 });
+            } catch {
+                toast('Copy failed', { sub: 'Clipboard blocked by browser', ttl: 2200, color: '#ef4444' });
+            }
+        });
+
+        function getExportPayload() {
+            return {
+                exportedAt: nowISO(),
+                version: 1,
+                settings,
+                tasks,
+                activeTaskId,
+                cycle,
+                stats,
+                history
+            };
+        }
+
+        // Task picker modal
+        $('#pickerSearch').addEventListener('input', renderPicker);
+        function renderPicker() {
+            const q = ($('#pickerSearch').value || '').trim().toLowerCase();
+            const list = $('#pickerList');
+            list.innerHTML = '';
+            const filtered = tasks.filter(t => !t.archived).filter(t => !q || t.name.toLowerCase().includes(q));
+            $('#pickerEmpty').classList.toggle('hidden', filtered.length !== 0);
+
+            filtered.forEach(t => {
+                const est = clamp(Number(t.est || 1), 1, 99);
+                const done = clamp(Number(t.done || 0), 0, 999);
+                const isActive = t.id === activeTaskId;
+                const btn = document.createElement('button');
+                btn.className = `focus-ring w-full rounded-2xl p-3 text-left ring-1 ring-[color:var(--cardBorder)] ${isActive ? 'bg-[color:var(--accent)]/10' : 'bg-white/50 dark:bg-zinc-900/40'} hover:bg-white/70 dark:hover:bg-zinc-900/60`;
+                btn.innerHTML = `
+          <div class="flex items-center justify-between gap-3">
+            <div class="min-w-0">
+              <div class="truncate text-sm font-medium">${escapeHtml(t.name)}</div>
+              <div class="mt-0.5 text-xs text-[color:var(--muted)]">${done}/${est} pomodoros${t.completed ? ' · done' : ''}</div>
+            </div>
+            <div class="text-xs text-[color:var(--muted)]">${isActive ? 'Active' : 'Select'}</div>
+          </div>
+        `;
+                btn.addEventListener('click', () => {
+                    activeTaskId = t.id;
+                    saveActiveTaskId(activeTaskId);
+                    closeModal('taskPickerModal');
+                    updateActiveTaskUI();
+                    renderTasks();
+                    toast('Active task set', { sub: t.name, ttl: 1800 });
+                });
+                list.appendChild(btn);
+            });
+        }
+
+        // ---------- Keyboard shortcuts ----------
+        window.addEventListener('keydown', async (e) => {
+            const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
+            const inField = tag === 'input' || tag === 'textarea' || e.target?.isContentEditable;
+            if (inField) return;
+
+            if (e.key === ' ') {
+                e.preventDefault();
+                state.running ? pause() : start();
+            } else if (e.key === 'r' || e.key === 'R') {
+                resetTimer();
+            } else if (e.key === 's' || e.key === 'S') {
+                skip();
+            } else if (e.key === '1') {
+                setMode('focus');
+            } else if (e.key === '2') {
+                setMode('short');
+            } else if (e.key === '3') {
+                setMode('long');
+            } else if (e.key === 'f' || e.key === 'F') {
+                await toggleFullscreen();
+            } else if (e.key === 'Escape') {
+                // Close topmost modal
+                ['soundModal', 'noteModal', 'addTaskModal', 'taskPickerModal', 'exportModal', 'historyModal', 'settingsModal'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el && !el.classList.contains('hidden')) closeModal(id);
+                });
+            }
+        });
+
+        // ---------- Init ----------
+        function init() {
+            applyTheme(settings);
+            syncSettingsUI();
+            syncNotifyBtn();
+            syncKeepAwakeBtn();
+            applyZen();
+
+            // Set initial mode
+            state.mode = 'focus';
+            state.durationSec = getDurationForMode(state.mode);
+            state.remainingSec = state.durationSec;
+
+            // If activeTaskId missing, choose first non-archived task
+            if (activeTaskId && !tasks.some(t => t.id === activeTaskId)) {
+                activeTaskId = '';
+                saveActiveTaskId('');
+            }
+            if (!activeTaskId) {
+                const first = tasks.find(t => !t.archived);
+                if (first) {
+                    activeTaskId = first.id;
+                    saveActiveTaskId(activeTaskId);
+                }
+            }
+
+            // Update status
+            statusText.textContent = 'Ready';
+            dot.classList.add('bg-emerald-500');
+
+            // React to system theme changes when in system mode
+            if (window.matchMedia) {
+                window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+                    if (settings.theme === 'system') applyTheme(settings);
+                    renderChart();
+                });
+            }
+
+            // Resize chart on window size changes
+            window.addEventListener('resize', () => renderChart());
+
+            // Visibility change: re-sync time (if running)
+            document.addEventListener('visibilitychange', () => {
+                if (state.running) tick();
+            });
+
+            updateUI();
+            updateDocumentTitle();
+
+            // Friendly first-run toast
+            const isFirstRun = !localStorage.getItem('pomodoro_min_v1_seen');
+            if (isFirstRun) {
+                localStorage.setItem('pomodoro_min_v1_seen', '1');
+                toast('Welcome', { sub: 'Add a task, press Space, and start a clean focus loop.', ttl: 5200 });
+            }
+        }
+
+        init();
+    </script>
+</body>
+
+</html>
