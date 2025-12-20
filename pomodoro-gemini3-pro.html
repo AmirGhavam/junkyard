@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Pomodoro</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍅</text></svg>">
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Hide scrollbar for Chrome, Safari and Opera */
+        ::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* Hide scrollbar for IE, Edge and Firefox */
+        html {
+            -ms-overflow-style: none;
+            /* IE and Edge */
+            scrollbar-width: none;
+            /* Firefox */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            transition: background-color 0.5s ease, color 0.5s ease;
+        }
+
+        /* Custom progress ring styles */
+        .progress-ring__circle {
+            transition: stroke-dashoffset 0.35s;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+
+        /* Glassmorphism utility */
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+
+        /* Theme colors */
+        .theme-focus {
+            background-color: #ba4949;
+            color: white;
+        }
+
+        .theme-short {
+            background-color: #38858a;
+            color: white;
+        }
+
+        .theme-long {
+            background-color: #397097;
+            color: white;
+        }
+
+        .btn-press {
+            box-shadow: 0px 4px 0px rgba(0, 0, 0, 0.2);
+            transition: all 0.1s;
+        }
+
+        .btn-press:active {
+            transform: translateY(4px);
+            box-shadow: none;
+        }
+
+        /* Task item animation */
+        .task-item {
+            transition: all 0.3s ease;
+            transform: scale(1);
+        }
+
+        .task-item:hover {
+            transform: scale(1.02);
+        }
+
+        .task-item.active-task {
+            border-left-width: 6px;
+            background: rgba(255, 255, 255, 0.25);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        .task-item.completed span {
+            text-decoration: line-through;
+            opacity: 0.6;
+        }
+    </style>
+</head>
+
+<body class="theme-focus min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- Main Container -->
+    <div class="w-full max-w-lg">
+
+        <!-- Header / Logo -->
+        <div class="flex items-center justify-between mb-8">
+            <h1 class="text-2xl font-bold flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Pomofocus
+            </h1>
+            <button id="settingsBtn"
+                class="glass px-3 py-2 rounded-lg text-sm font-medium hover:bg-white/20 transition">
+                Settings
+            </button>
+        </div>
+
+        <!-- Timer Card -->
+        <div class="glass rounded-3xl p-8 mb-8 text-center shadow-xl">
+            <!-- Mode Switcher -->
+            <div class="flex justify-center gap-2 mb-8">
+                <button class="mode-btn px-4 py-1 rounded-full text-sm font-semibold bg-black/20"
+                    data-mode="focus">Pomodoro</button>
+                <button class="mode-btn px-4 py-1 rounded-full text-sm font-semibold hover:bg-black/10 transition"
+                    data-mode="short">Short Break</button>
+                <button class="mode-btn px-4 py-1 rounded-full text-sm font-semibold hover:bg-black/10 transition"
+                    data-mode="long">Long Break</button>
+            </div>
+
+            <!-- Timer Display -->
+            <div class="relative w-64 h-64 mx-auto mb-8 flex items-center justify-center">
+                <!-- SVG Progress Ring -->
+                <svg class="absolute top-0 left-0 w-full h-full" width="256" height="256">
+                    <circle class="text-black/10" stroke-width="8" stroke="currentColor" fill="transparent" r="120"
+                        cx="128" cy="128" />
+                    <circle id="progressRing" class="progress-ring__circle text-white" stroke-width="8"
+                        stroke-dasharray="753.98" stroke-dashoffset="0" stroke-linecap="round" stroke="currentColor"
+                        fill="transparent" r="120" cx="128" cy="128" />
+                </svg>
+
+                <div class="text-7xl font-bold tracking-tight z-10" id="timerDisplay">25:00</div>
+            </div>
+
+            <!-- Controls -->
+            <div class="flex items-center justify-center gap-4">
+                <button id="mainBtn"
+                    class="bg-white text-gray-800 text-xl font-bold py-4 px-12 rounded-2xl uppercase tracking-widest btn-press w-48">
+                    Start
+                </button>
+
+                <button id="skipBtn" class="hidden glass p-4 rounded-2xl btn-press hover:bg-white/20">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Task Section -->
+        <div class="w-full">
+            <div class="flex items-center justify-center mb-4">
+                <p class="text-lg opacity-80" id="currentTaskLabel">Time to focus!</p>
+            </div>
+
+            <div class="glass rounded-xl p-6 mb-4">
+                <div class="flex justify-between items-center mb-4 border-b border-white/20 pb-2">
+                    <h2 class="text-xl font-bold">Tasks</h2>
+                    <button class="glass w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/20"
+                        id="addTaskToggle">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div id="taskList" class="space-y-3">
+                    <!-- Tasks will be injected here -->
+                </div>
+
+                <!-- Add Task Form (Hidden by default) -->
+                <div id="addTaskForm" class="hidden mt-4 pt-4 border-t border-white/10 animate-fade-in">
+                    <input type="text" id="newTaskInput" placeholder="What are you working on?"
+                        class="w-full p-3 rounded-lg bg-white/10 placeholder-white/50 text-white outline-none focus:bg-white/20 mb-2">
+                    <div class="flex justify-end gap-2">
+                        <button id="cancelTaskBtn"
+                            class="px-4 py-2 text-sm font-medium opacity-80 hover:opacity-100">Cancel</button>
+                        <button id="saveTaskBtn"
+                            class="bg-black/20 hover:bg-black/30 px-6 py-2 rounded-lg text-sm font-bold shadow-md">Save</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="text-center text-white/40 text-sm mt-8 pb-4">
+            <p>Made with 🍅 for Focus</p>
+        </footer>
+    </div>
+
+    <!-- Settings Modal (Hidden) -->
+    <div id="settingsModal"
+        class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50 backdrop-blur-sm">
+        <div
+            class="bg-white text-gray-800 rounded-2xl w-full max-w-sm p-6 shadow-2xl transform transition-all scale-100">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h2 class="text-lg font-bold text-gray-600">Settings</h2>
+                <button id="closeSettings" class="text-gray-400 hover:text-gray-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Timer
+                        (minutes)</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="block text-gray-500 text-xs mb-1">Pomodoro</label>
+                            <input type="number" id="settingFocus" value="25"
+                                class="w-full bg-gray-100 p-2 rounded text-gray-700 outline-none focus:ring-2 focus:ring-gray-300">
+                        </div>
+                        <div>
+                            <label class="block text-gray-500 text-xs mb-1">Short Break</label>
+                            <input type="number" id="settingShort" value="5"
+                                class="w-full bg-gray-100 p-2 rounded text-gray-700 outline-none focus:ring-2 focus:ring-gray-300">
+                        </div>
+                        <div>
+                            <label class="block text-gray-500 text-xs mb-1">Long Break</label>
+                            <input type="number" id="settingLong" value="15"
+                                class="w-full bg-gray-100 p-2 rounded text-gray-700 outline-none focus:ring-2 focus:ring-gray-300">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-600 font-medium">Auto-start Breaks</span>
+                    <input type="checkbox" id="settingAutoBreak" class="w-5 h-5 accent-gray-600">
+                </div>
+
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-600 font-medium">Auto-start Pomodoro</span>
+                    <input type="checkbox" id="settingAutoPomo" class="w-5 h-5 accent-gray-600">
+                </div>
+            </div>
+
+            <div class="mt-6 pt-4 border-t flex justify-end">
+                <button id="saveSettingsBtn"
+                    class="bg-gray-800 text-white px-6 py-2 rounded-lg font-bold hover:bg-gray-900 transition">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Audio Context
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioContext();
+
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            if (type === 'click') {
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(800, audioCtx.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.1);
+                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + 0.1);
+            } else if (type === 'alarm') {
+                oscillator.type = 'square';
+                oscillator.frequency.setValueAtTime(600, audioCtx.currentTime);
+                oscillator.frequency.setValueAtTime(800, audioCtx.currentTime + 0.2);
+                oscillator.frequency.setValueAtTime(600, audioCtx.currentTime + 0.4);
+
+                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gainNode.gain.linearRampToValueAtTime(0.1, audioCtx.currentTime + 0.6);
+                gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.8);
+
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + 0.8);
+            }
+        }
+
+        // Notification Helper
+        function requestNotificationPermission() {
+            if ('Notification' in window && Notification.permission !== 'granted') {
+                Notification.requestPermission();
+            }
+        }
+
+        function sendNotification(title, body) {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(title, { body, icon: 'https://cdn-icons-png.flaticon.com/512/3209/3209931.png' });
+            }
+        }
+
+        // State
+        const state = {
+            mode: 'focus', // focus, short, long
+            timeLeft: 25 * 60,
+            isRunning: false,
+            intervalId: null,
+            totalTime: 25 * 60,
+            tasks: [],
+            activeTaskId: null,
+            settings: {
+                focus: 25,
+                short: 5,
+                long: 15,
+                autoBreak: false,
+                autoPomo: false
+            }
+        };
+
+        // DOM Elements
+        const timerDisplay = document.getElementById('timerDisplay');
+        const mainBtn = document.getElementById('mainBtn');
+        const skipBtn = document.getElementById('skipBtn');
+        const progressRing = document.getElementById('progressRing');
+        const modeBtns = document.querySelectorAll('.mode-btn');
+        const body = document.body;
+        const taskListEl = document.getElementById('taskList');
+        const currentTaskLabel = document.getElementById('currentTaskLabel');
+
+        // Circle circumference
+        const radius = progressRing.r.baseVal.value;
+        const circumference = radius * 2 * Math.PI;
+        progressRing.style.strokeDasharray = `${circumference} ${circumference}`;
+        progressRing.style.strokeDashoffset = circumference;
+
+        function setProgress(percent) {
+            const offset = circumference - (percent / 100) * circumference;
+            progressRing.style.strokeDashoffset = offset;
+        }
+
+        // Timer Logic
+        function updateDisplay() {
+            const m = Math.floor(state.timeLeft / 60);
+            const s = state.timeLeft % 60;
+            timerDisplay.textContent = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+
+            // Update Title
+            document.title = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')} - ${state.mode === 'focus' ? 'Focus' : 'Break'}`;
+
+            // Update Progress Ring
+            const percent = ((state.totalTime - state.timeLeft) / state.totalTime) * 100;
+            setProgress(percent);
+        }
+
+        function switchMode(mode) {
+            state.mode = mode;
+            state.timeLeft = state.settings[mode] * 60;
+            state.totalTime = state.timeLeft;
+            stopTimer();
+            updateDisplay();
+            updateTheme();
+            updateUI();
+        }
+
+        function updateTheme() {
+            body.className = `min-h-screen flex flex-col items-center justify-center p-4 transition-colors duration-500 theme-${state.mode}`;
+
+            // Update mode buttons active state
+            modeBtns.forEach(btn => {
+                if (btn.dataset.mode === state.mode) {
+                    btn.classList.add('bg-black/20');
+                    btn.classList.remove('hover:bg-black/10');
+                } else {
+                    btn.classList.remove('bg-black/20');
+                    btn.classList.add('hover:bg-black/10');
+                }
+            });
+        }
+
+        function updateUI() {
+            if (state.isRunning) {
+                mainBtn.textContent = 'PAUSE';
+                mainBtn.classList.remove('btn-press'); // flatten when active? or keeps pressed
+                mainBtn.classList.add('translate-y-[2px]', 'shadow-none'); // Simulate pressed state slightly
+                mainBtn.style.boxShadow = 'none';
+                mainBtn.style.transform = 'translateY(4px)';
+
+                skipBtn.classList.remove('hidden');
+            } else {
+                mainBtn.textContent = 'START';
+                mainBtn.classList.add('btn-press');
+                mainBtn.style.boxShadow = '';
+                mainBtn.style.transform = '';
+
+                skipBtn.classList.add('hidden');
+            }
+        }
+
+        function startTimer() {
+            if (state.isRunning) return;
+            requestNotificationPermission(); // Request on first user interaction
+            state.isRunning = true;
+            playSound('click');
+            updateUI();
+
+            state.intervalId = setInterval(() => {
+                if (state.timeLeft > 0) {
+                    state.timeLeft--;
+                    updateDisplay();
+                } else {
+                    completeTimer();
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            state.isRunning = false;
+            clearInterval(state.intervalId);
+            playSound('click');
+            updateUI();
+        }
+
+        function toggleTimer() {
+            if (state.isRunning) {
+                stopTimer();
+            } else {
+                startTimer();
+            }
+        }
+
+        function completeTimer() {
+            // Stop logic without click sound
+            state.isRunning = false;
+            clearInterval(state.intervalId);
+            updateUI();
+
+            playSound('alarm');
+
+            const prevMode = state.mode;
+
+            // Handle auto transitions
+            if (prevMode === 'focus') {
+                sendNotification("Time's up!", "Focus session completed. Take a break!");
+                switchMode('short');
+                if (state.settings.autoBreak) startTimer();
+
+                // Increment task pomodoro count if active
+                if (state.activeTaskId) {
+                    const task = state.tasks.find(t => t.id === state.activeTaskId);
+                    if (task) {
+                        task.pomodoros++;
+                        renderTasks();
+                    }
+                }
+            } else {
+                sendNotification("Break over!", "Time to focus again!");
+                switchMode('focus');
+                if (state.settings.autoPomo) startTimer();
+            }
+        }
+
+        function skipTimer() {
+            stopTimer();
+            completeTimer(); // Reuse logic but maybe without sound or count? 
+            // For simplicity, just behave as if completed but maybe distinct?
+            // Actually, usually skip just moves to next mode.
+        }
+
+        // Event Listeners
+        mainBtn.addEventListener('click', toggleTimer);
+
+        skipBtn.addEventListener('click', () => {
+            stopTimer();
+            if (state.mode === 'focus') {
+                switchMode('short');
+            } else {
+                switchMode('focus');
+            }
+        });
+
+        modeBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const mode = e.target.dataset.mode;
+                if (state.isRunning) {
+                    if (confirm('The timer is running. Are you sure you want to switch?')) {
+                        switchMode(mode);
+                    }
+                } else {
+                    switchMode(mode);
+                }
+            });
+        });
+
+        // Settings Modal
+        const settingsBtn = document.getElementById('settingsBtn');
+        const settingsModal = document.getElementById('settingsModal');
+        const closeSettings = document.getElementById('closeSettings');
+        const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+
+        settingsBtn.addEventListener('click', () => {
+            settingsModal.classList.remove('hidden');
+            // Load current settings into inputs
+            document.getElementById('settingFocus').value = state.settings.focus;
+            document.getElementById('settingShort').value = state.settings.short;
+            document.getElementById('settingLong').value = state.settings.long;
+            document.getElementById('settingAutoBreak').checked = state.settings.autoBreak;
+            document.getElementById('settingAutoPomo').checked = state.settings.autoPomo;
+        });
+
+        const closeSettingsFn = () => settingsModal.classList.add('hidden');
+        closeSettings.addEventListener('click', closeSettingsFn);
+        settingsModal.addEventListener('click', (e) => {
+            if (e.target === settingsModal) closeSettingsFn();
+        });
+
+        saveSettingsBtn.addEventListener('click', () => {
+            state.settings.focus = parseInt(document.getElementById('settingFocus').value);
+            state.settings.short = parseInt(document.getElementById('settingShort').value);
+            state.settings.long = parseInt(document.getElementById('settingLong').value);
+            state.settings.autoBreak = document.getElementById('settingAutoBreak').checked;
+            state.settings.autoPomo = document.getElementById('settingAutoPomo').checked;
+
+            // If timer not running, update current time based on new settings
+            if (!state.isRunning) {
+                switchMode(state.mode);
+            }
+
+            closeSettingsFn();
+        });
+
+        // Task Management
+        const addTaskToggle = document.getElementById('addTaskToggle');
+        const addTaskForm = document.getElementById('addTaskForm');
+        const cancelTaskBtn = document.getElementById('cancelTaskBtn');
+        const saveTaskBtn = document.getElementById('saveTaskBtn');
+        const newTaskInput = document.getElementById('newTaskInput');
+
+        addTaskToggle.addEventListener('click', () => {
+            addTaskForm.classList.remove('hidden');
+            newTaskInput.focus();
+        });
+
+        cancelTaskBtn.addEventListener('click', () => {
+            addTaskForm.classList.add('hidden');
+            newTaskInput.value = '';
+        });
+
+        saveTaskBtn.addEventListener('click', () => {
+            const title = newTaskInput.value.trim();
+            if (!title) return;
+
+            const newTask = {
+                id: Date.now(),
+                title: title,
+                completed: false,
+                pomodoros: 0
+            };
+
+            state.tasks.push(newTask);
+            // If it's the first task, make it active
+            if (!state.activeTaskId) {
+                setActiveTask(newTask.id);
+            }
+
+            renderTasks();
+            addTaskForm.classList.add('hidden');
+            newTaskInput.value = '';
+        });
+
+        function setActiveTask(id) {
+            state.activeTaskId = id;
+            const task = state.tasks.find(t => t.id === id);
+            currentTaskLabel.textContent = task ? task.title : 'Time to focus!';
+            renderTasks();
+        }
+
+        function deleteTask(id, e) {
+            e.stopPropagation();
+            state.tasks = state.tasks.filter(t => t.id !== id);
+            if (state.activeTaskId === id) {
+                state.activeTaskId = state.tasks.length > 0 ? state.tasks[0].id : null;
+                currentTaskLabel.textContent = state.activeTaskId ? state.tasks[0].title : 'Time to focus!';
+            }
+            renderTasks();
+        }
+
+        function toggleTaskComplete(id, e) {
+            e.stopPropagation();
+            const task = state.tasks.find(t => t.id === id);
+            if (task) {
+                task.completed = !task.completed;
+                renderTasks();
+            }
+        }
+
+        function renderTasks() {
+            taskListEl.innerHTML = '';
+
+            state.tasks.forEach(task => {
+                const isActive = task.id === state.activeTaskId;
+                const div = document.createElement('div');
+                // Use the new CSS class for active state
+                const activeClasses = isActive ? 'active-task border-white' : 'bg-black/10 border-transparent hover:bg-black/20';
+
+                div.className = `task-item relative p-4 rounded-xl cursor-pointer flex items-center justify-between group border-l-4 ${activeClasses}`;
+
+                div.onclick = () => setActiveTask(task.id);
+
+                div.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <button class="w-6 h-6 rounded-full border-2 border-white/40 flex items-center justify-center hover:bg-white/20 transition ${task.completed ? 'bg-white/40' : ''}" onclick="window.toggleTaskComplete(${task.id}, event)">
+                             ${task.completed ? '<svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg>' : ''}
+                        </button>
+                        <span class="font-medium ${task.completed ? 'line-through opacity-60' : ''}">${task.title}</span>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <span class="font-bold opacity-70">${task.pomodoros} <span class="text-xs font-normal opacity-60">/ act</span></span>
+                        <button class="opacity-0 group-hover:opacity-100 hover:text-red-200 transition p-1" onclick="window.deleteTask(${task.id}, event)">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </div>
+                `;
+                taskListEl.appendChild(div);
+            });
+        }
+
+        // Expose functions to window for inline onclick handlers
+        window.deleteTask = deleteTask;
+        window.toggleTaskComplete = toggleTaskComplete;
+
+        // Init
+        updateDisplay();
+        updateTheme();
+        setProgress(0); // Start full
+
+    </script>
+</body>
+
+</html>
