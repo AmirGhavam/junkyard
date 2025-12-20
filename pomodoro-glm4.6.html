@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Focus Flow - Pomodoro Timer</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .glass-morphism {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .dark .glass-morphism {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .progress-ring {
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+
+        .progress-ring-circle {
+            transition: stroke-dashoffset 0.35s;
+            stroke-linecap: round;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+
+        .task-item {
+            transition: all 0.3s ease;
+        }
+
+        .task-item:hover {
+            transform: translateX(5px);
+        }
+
+        .stat-card {
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .notification-toast {
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .settings-panel {
+            transition: all 0.3s ease;
+        }
+
+        body {
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .dark .gradient-bg {
+            background: linear-gradient(135deg, #1a1c3d 0%, #2d1b69 100%);
+        }
+    </style>
+</head>
+
+<body class="min-h-screen transition-all duration-300">
+    <div id="app" class="min-h-screen gradient-bg relative overflow-hidden">
+        <!-- Background Pattern -->
+        <div class="absolute inset-0 opacity-10">
+            <div class="absolute inset-0" style="background-image: url('data:image/svg+xml,%3Csvg width=" 60"
+                height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" %3E%3Cg fill="none"
+                fill-rule="evenodd" %3E%3Cg fill="%23ffffff" fill-opacity="0.4" %3E%3Cpath
+                d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"
+                /%3E%3C/g%3E%3C/g%3E%3C/svg%3E');"></div>
+        </div>
+
+        <!-- Header -->
+        <header class="relative z-10 p-6 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <i class="fas fa-clock text-white text-2xl"></i>
+                <h1 class="text-2xl font-bold text-white">Focus Flow</h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                <button onclick="toggleDarkMode()" class="text-white hover:bg-white/20 p-2 rounded-lg transition">
+                    <i id="themeIcon" class="fas fa-moon text-xl"></i>
+                </button>
+                <button onclick="toggleSettings()" class="text-white hover:bg-white/20 p-2 rounded-lg transition">
+                    <i class="fas fa-cog text-xl"></i>
+                </button>
+                <button onclick="toggleStats()" class="text-white hover:bg-white/20 p-2 rounded-lg transition">
+                    <i class="fas fa-chart-bar text-xl"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="relative z-10 container mx-auto px-6 pb-10">
+            <div class="grid lg:grid-cols-3 gap-6">
+                <!-- Timer Section -->
+                <div class="lg:col-span-2">
+                    <div class="glass-morphism rounded-2xl p-8 text-center">
+                        <!-- Session Type Selector -->
+                        <div class="flex justify-center mb-6 space-x-2">
+                            <button onclick="setSessionType('pomodoro')" id="pomodoroBtn"
+                                class="px-4 py-2 rounded-lg text-white font-medium transition bg-white/20">
+                                <i class="fas fa-fire mr-2"></i>Pomodoro
+                            </button>
+                            <button onclick="setSessionType('shortBreak')" id="shortBreakBtn"
+                                class="px-4 py-2 rounded-lg text-white/70 hover:text-white font-medium transition">
+                                <i class="fas fa-coffee mr-2"></i>Short Break
+                            </button>
+                            <button onclick="setSessionType('longBreak')" id="longBreakBtn"
+                                class="px-4 py-2 rounded-lg text-white/70 hover:text-white font-medium transition">
+                                <i class="fas fa-couch mr-2"></i>Long Break
+                            </button>
+                        </div>
+
+                        <!-- Timer Display -->
+                        <div class="relative inline-block mb-8">
+                            <svg width="280" height="280" class="transform -rotate-90">
+                                <circle cx="140" cy="140" r="130" stroke="rgba(255,255,255,0.2)" stroke-width="8"
+                                    fill="none" />
+                                <circle id="progressRing" cx="140" cy="140" r="130" stroke="white" stroke-width="8"
+                                    fill="none" stroke-dasharray="816.81" stroke-dashoffset="0"
+                                    class="progress-ring-circle" />
+                            </svg>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                <div id="timerDisplay" class="text-6xl font-light text-white mb-2">25:00</div>
+                                <div id="sessionCount" class="text-white/70 text-sm">Session #1</div>
+                            </div>
+                        </div>
+
+                        <!-- Control Buttons -->
+                        <div class="flex justify-center space-x-4 mb-6">
+                            <button onclick="skipSession()"
+                                class="px-6 py-3 bg-white/20 hover:bg-white/30 text-white rounded-lg transition flex items-center">
+                                <i class="fas fa-forward mr-2"></i>Skip
+                            </button>
+                            <button onclick="toggleTimer()" id="startBtn"
+                                class="px-8 py-3 bg-white text-purple-600 hover:bg-white/90 rounded-lg transition font-medium flex items-center">
+                                <i class="fas fa-play mr-2"></i>Start
+                            </button>
+                            <button onclick="resetTimer()"
+                                class="px-6 py-3 bg-white/20 hover:bg-white/30 text-white rounded-lg transition flex items-center">
+                                <i class="fas fa-redo mr-2"></i>Reset
+                            </button>
+                        </div>
+
+                        <!-- Motivational Quote -->
+                        <div class="glass-morphism rounded-lg p-4 mb-6">
+                            <p id="quote" class="text-white/90 text-sm italic">"Focus on being productive instead of
+                                busy."</p>
+                        </div>
+
+                        <!-- Quick Stats -->
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="glass-morphism rounded-lg p-3">
+                                <div class="text-white/70 text-xs">Today</div>
+                                <div id="todayPomodoros" class="text-white text-xl font-semibold">0</div>
+                            </div>
+                            <div class="glass-morphism rounded-lg p-3">
+                                <div class="text-white/70 text-xs">Week</div>
+                                <div id="weekPomodoros" class="text-white text-xl font-semibold">0</div>
+                            </div>
+                            <div class="glass-morphism rounded-lg p-3">
+                                <div class="text-white/70 text-xs">Total</div>
+                                <div id="totalPomodoros" class="text-white text-xl font-semibold">0</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tasks Section -->
+                <div class="lg:col-span-1">
+                    <div class="glass-morphism rounded-2xl p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-xl font-semibold text-white">Tasks</h2>
+                            <button onclick="addTask()" class="text-white hover:bg-white/20 p-2 rounded-lg transition">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+
+                        <!-- Add Task Input -->
+                        <div id="addTaskForm" class="hidden mb-4">
+                            <div class="flex space-x-2">
+                                <input type="text" id="newTaskInput" placeholder="Enter task..."
+                                    class="flex-1 px-3 py-2 bg-white/20 text-white placeholder-white/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-white/50">
+                                <button onclick="saveTask()"
+                                    class="px-3 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                <button onclick="cancelAddTask()"
+                                    class="px-3 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Task List -->
+                        <div id="taskList" class="space-y-2 max-h-96 overflow-y-auto">
+                            <!-- Tasks will be added here dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Settings Panel -->
+        <div id="settingsPanel"
+            class="fixed right-0 top-0 h-full w-80 glass-morphism transform translate-x-full transition-transform duration-300 z-20 p-6 overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-semibold text-white">Settings</h2>
+                <button onclick="toggleSettings()" class="text-white hover:bg-white/20 p-2 rounded-lg transition">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="space-y-6">
+                <!-- Timer Settings -->
+                <div>
+                    <h3 class="text-white font-medium mb-3">Timer Duration</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="text-white/70 text-sm">Pomodoro (minutes)</label>
+                            <input type="number" id="pomodoroDuration" value="25" min="1" max="60"
+                                class="w-full px-3 py-2 bg-white/20 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-white/50">
+                        </div>
+                        <div>
+                            <label class="text-white/70 text-sm">Short Break (minutes)</label>
+                            <input type="number" id="shortBreakDuration" value="5" min="1" max="30"
+                                class="w-full px-3 py-2 bg-white/20 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-white/50">
+                        </div>
+                        <div>
+                            <label class="text-white/70 text-sm">Long Break (minutes)</label>
+                            <input type="number" id="longBreakDuration" value="15" min="1" max="60"
+                                class="w-full px-3 py-2 bg-white/20 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-white/50">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Auto Settings -->
+                <div>
+                    <h3 class="text-white font-medium mb-3">Automation</h3>
+                    <div class="space-y-3">
+                        <label class="flex items-center text-white/70">
+                            <input type="checkbox" id="autoStartBreaks" class="mr-2">
+                            <span>Auto-start breaks</span>
+                        </label>
+                        <label class="flex items-center text-white/70">
+                            <input type="checkbox" id="autoStartPomodoros" class="mr-2">
+                            <span>Auto-start pomodoros</span>
+                        </label>
+                        <div>
+                            <label class="text-white/70 text-sm">Long break after</label>
+                            <input type="number" id="longBreakInterval" value="4" min="2" max="10"
+                                class="w-full px-3 py-2 bg-white/20 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-white/50">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notification Settings -->
+                <div>
+                    <h3 class="text-white font-medium mb-3">Notifications</h3>
+                    <div class="space-y-3">
+                        <label class="flex items-center text-white/70">
+                            <input type="checkbox" id="soundEnabled" checked class="mr-2">
+                            <span>Sound notifications</span>
+                        </label>
+                        <label class="flex items-center text-white/70">
+                            <input type="checkbox" id="desktopNotifications" class="mr-2">
+                            <span>Desktop notifications</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Save Button -->
+                <button onclick="saveSettings()"
+                    class="w-full px-4 py-2 bg-white text-purple-600 rounded-lg hover:bg-white/90 transition font-medium">
+                    Save Settings
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats Panel -->
+        <div id="statsPanel"
+            class="fixed right-0 top-0 h-full w-80 glass-morphism transform translate-x-full transition-transform duration-300 z-20 p-6 overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-semibold text-white">Statistics</h2>
+                <button onclick="toggleStats()" class="text-white hover:bg-white/20 p-2 rounded-lg transition">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="space-y-6">
+                <!-- Daily Stats -->
+                <div class="stat-card glass-morphism rounded-lg p-4">
+                    <h3 class="text-white font-medium mb-3">Today</h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <div class="text-white/70 text-xs">Focus Time</div>
+                            <div id="todayFocusTime" class="text-white text-lg font-semibold">0h 0m</div>
+                        </div>
+                        <div>
+                            <div class="text-white/70 text-xs">Sessions</div>
+                            <div id="todaySessions" class="text-white text-lg font-semibold">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Weekly Chart -->
+                <div class="glass-morphism rounded-lg p-4">
+                    <h3 class="text-white font-medium mb-3">This Week</h3>
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-white/70 text-sm">Mon</span>
+                            <div class="flex-1 mx-3 bg-white/20 rounded-full h-2">
+                                <div class="bg-white h-2 rounded-full" style="width: 60%"></div>
+                            </div>
+                            <span class="text-white text-sm">3</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-white/70 text-sm">Tue</span>
+                            <div class="flex-1 mx-3 bg-white/20 rounded-full h-2">
+                                <div class="bg-white h-2 rounded-full" style="width: 80%"></div>
+                            </div>
+                            <span class="text-white text-sm">4</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-white/70 text-sm">Wed</span>
+                            <div class="flex-1 mx-3 bg-white/20 rounded-full h-2">
+                                <div class="bg-white h-2 rounded-full" style="width: 40%"></div>
+                            </div>
+                            <span class="text-white text-sm">2</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-white/70 text-sm">Thu</span>
+                            <div class="flex-1 mx-3 bg-white/20 rounded-full h-2">
+                                <div class="bg-white h-2 rounded-full" style="width: 100%"></div>
+                            </div>
+                            <span class="text-white text-sm">5</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-white/70 text-sm">Fri</span>
+                            <div class="flex-1 mx-3 bg-white/20 rounded-full h-2">
+                                <div class="bg-white h-2 rounded-full" style="width: 20%"></div>
+                            </div>
+                            <span class="text-white text-sm">1</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- All Time Stats -->
+                <div class="glass-morphism rounded-lg p-4">
+                    <h3 class="text-white font-medium mb-3">All Time</h3>
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span class="text-white/70">Total Pomodoros</span>
+                            <span id="allTimePomodoros" class="text-white font-medium">0</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-white/70">Total Focus Time</span>
+                            <span id="allTimeFocusTime" class="text-white font-medium">0h 0m</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-white/70">Current Streak</span>
+                            <span id="currentStreak" class="text-white font-medium">0 days</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-white/70">Longest Streak</span>
+                            <span id="longestStreak" class="text-white font-medium">0 days</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Clear Data Button -->
+                <button onclick="clearStats()"
+                    class="w-full px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-lg transition font-medium">
+                    Clear All Statistics
+                </button>
+            </div>
+        </div>
+
+        <!-- Notification Toast -->
+        <div id="notificationToast"
+            class="fixed bottom-6 right-6 glass-morphism rounded-lg p-4 text-white hidden notification-toast">
+            <div class="flex items-center">
+                <i id="notificationIcon" class="fas fa-check-circle mr-3 text-xl"></i>
+                <div>
+                    <div id="notificationTitle" class="font-medium">Session Complete!</div>
+                    <div id="notificationMessage" class="text-sm opacity-80">Time for a break</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // App State
+        let state = {
+            isRunning: false,
+            isPaused: false,
+            currentSession: 'pomodoro',
+            timeLeft: 25 * 60,
+            sessionCount: 1,
+            totalSessions: 0,
+            tasks: [],
+            settings: {
+                pomodoroDuration: 25,
+                shortBreakDuration: 5,
+                longBreakDuration: 15,
+                longBreakInterval: 4,
+                autoStartBreaks: false,
+                autoStartPomodoros: false,
+                soundEnabled: true,
+                desktopNotifications: false
+            },
+            stats: {
+                todayPomodoros: 0,
+                weekPomodoros: 0,
+                totalPomodoros: 0,
+                todayFocusTime: 0,
+                allTimeFocusTime: 0,
+                currentStreak: 0,
+                longestStreak: 0
+            },
+            interval: null,
+            darkMode: false
+        };
+
+        // Quotes
+        const quotes = [
+            "Focus on being productive instead of busy.",
+            "The secret of getting ahead is getting started.",
+            "Don't watch the clock; do what it does. Keep going.",
+            "Success is the sum of small efforts repeated day in and day out.",
+            "The way to get started is to quit talking and begin doing.",
+            "You don't have to be great to start, but you have to start to be great.",
+            "Focus on progress, not perfection.",
+            "A year from now you'll wish you had started today.",
+            "The only way to do great work is to love what you do.",
+            "Believe you can and you're halfway there."
+        ];
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadState();
+            updateDisplay();
+            renderTasks();
+            updateStats();
+            setRandomQuote();
+
+            // Request notification permission
+            if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if (e.code === 'Space' && e.target.tagName !== 'INPUT') {
+                    e.preventDefault();
+                    toggleTimer();
+                } else if (e.code === 'KeyR' && e.ctrlKey) {
+                    e.preventDefault();
+                    resetTimer();
+                } else if (e.code === 'KeyS' && e.ctrlKey) {
+                    e.preventDefault();
+                    skipSession();
+                }
+            });
+        });
+
+        // Timer Functions
+        function toggleTimer() {
+            if (state.isRunning) {
+                pauseTimer();
+            } else {
+                startTimer();
+            }
+        }
+
+        function startTimer() {
+            state.isRunning = true;
+            state.isPaused = false;
+            document.getElementById('startBtn').innerHTML = '<i class="fas fa-pause mr-2"></i>Pause';
+
+            state.interval = setInterval(() => {
+                state.timeLeft--;
+                updateDisplay();
+                updateProgressRing();
+
+                if (state.timeLeft <= 0) {
+                    completeSession();
+                }
+            }, 1000);
+        }
+
+        function pauseTimer() {
+            state.isRunning = false;
+            state.isPaused = true;
+            document.getElementById('startBtn').innerHTML = '<i class="fas fa-play mr-2"></i>Resume';
+            clearInterval(state.interval);
+        }
+
+        function resetTimer() {
+            state.isRunning = false;
+            state.isPaused = false;
+            clearInterval(state.interval);
+
+            const duration = getSessionDuration();
+            state.timeLeft = duration * 60;
+            document.getElementById('startBtn').innerHTML = '<i class="fas fa-play mr-2"></i>Start';
+            updateDisplay();
+            updateProgressRing();
+        }
+
+        function skipSession() {
+            clearInterval(state.interval);
+            completeSession(false);
+        }
+
+        function completeSession(showNotification = true) {
+            state.isRunning = false;
+            clearInterval(state.interval);
+
+            // Update stats
+            if (state.currentSession === 'pomodoro') {
+                state.stats.todayPomodoros++;
+                state.stats.weekPomodoros++;
+                state.stats.totalPomodoros++;
+                state.stats.todayFocusTime += state.settings.pomodoroDuration;
+                state.stats.allTimeFocusTime += state.settings.pomodoroDuration;
+                state.totalSessions++;
+            }
+
+            // Play sound
+            if (state.settings.soundEnabled) {
+                playNotificationSound();
+            }
+
+            // Show notification
+            if (showNotification) {
+                showSessionCompleteNotification();
+                if (state.settings.desktopNotifications && 'Notification' in window && Notification.permission === 'granted') {
+                    new Notification('Session Complete!', {
+                        body: state.currentSession === 'pomodoro' ? 'Time for a break!' : 'Ready to focus?',
+                        icon: 'https://cdn-icons-png.flaticon.com/512/3239/3239945.png'
+                    });
+                }
+            }
+
+            // Determine next session
+            if (state.currentSession === 'pomodoro') {
+                if (state.sessionCount % state.settings.longBreakInterval === 0) {
+                    state.currentSession = 'longBreak';
+                } else {
+                    state.currentSession = 'shortBreak';
+                }
+            } else {
+                state.currentSession = 'pomodoro';
+                state.sessionCount++;
+            }
+
+            // Auto-start next session if enabled
+            if ((state.currentSession !== 'pomodoro' && state.settings.autoStartBreaks) ||
+                (state.currentSession === 'pomodoro' && state.settings.autoStartPomodoros)) {
+                setTimeout(() => {
+                    setSessionType(state.currentSession);
+                    startTimer();
+                }, 2000);
+            } else {
+                setSessionType(state.currentSession);
+            }
+
+            saveState();
+            updateStats();
+            setRandomQuote();
+        }
+
+        // Session Type Functions
+        function setSessionType(type) {
+            state.currentSession = type;
+            state.timeLeft = getSessionDuration() * 60;
+            state.isRunning = false;
+            state.isPaused = false;
+            clearInterval(state.interval);
+
+            // Update button styles
+            document.querySelectorAll('#pomodoroBtn, #shortBreakBtn, #longBreakBtn').forEach(btn => {
+                btn.classList.remove('bg-white/20');
+                btn.classList.add('text-white/70');
+            });
+
+            const activeBtn = document.getElementById(type + 'Btn');
+            activeBtn.classList.add('bg-white/20');
+            activeBtn.classList.remove('text-white/70');
+
+            document.getElementById('startBtn').innerHTML = '<i class="fas fa-play mr-2"></i>Start';
+            updateDisplay();
+            updateProgressRing();
+        }
+
+        function getSessionDuration() {
+            switch (state.currentSession) {
+                case 'pomodoro': return state.settings.pomodoroDuration;
+                case 'shortBreak': return state.settings.shortBreakDuration;
+                case 'longBreak': return state.settings.longBreakDuration;
+                default: return 25;
+            }
+        }
+
+        // Display Functions
+        function updateDisplay() {
+            const minutes = Math.floor(state.timeLeft / 60);
+            const seconds = state.timeLeft % 60;
+            document.getElementById('timerDisplay').textContent =
+                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+            document.getElementById('sessionCount').textContent =
+                state.currentSession === 'pomodoro' ? `Session #${state.sessionCount}` :
+                    state.currentSession === 'shortBreak' ? 'Short Break' : 'Long Break';
+        }
+
+        function updateProgressRing() {
+            const duration = getSessionDuration() * 60;
+            const progress = (duration - state.timeLeft) / duration;
+            const circumference = 2 * Math.PI * 130;
+            const offset = circumference - (progress * circumference);
+            document.getElementById('progressRing').style.strokeDashoffset = offset;
+        }
+
+        function updateStats() {
+            document.getElementById('todayPomodoros').textContent = state.stats.todayPomodoros;
+            document.getElementById('weekPomodoros').textContent = state.stats.weekPomodoros;
+            document.getElementById('totalPomodoros').textContent = state.stats.totalPomodoros;
+
+            // Update stats panel
+            document.getElementById('todayFocusTime').textContent = formatTime(state.stats.todayFocusTime);
+            document.getElementById('todaySessions').textContent = state.stats.todayPomodoros;
+            document.getElementById('allTimePomodoros').textContent = state.stats.totalPomodoros;
+            document.getElementById('allTimeFocusTime').textContent = formatTime(state.stats.allTimeFocusTime);
+            document.getElementById('currentStreak').textContent = state.stats.currentStreak + ' days';
+            document.getElementById('longestStreak').textContent = state.stats.longestStreak + ' days';
+        }
+
+        function formatTime(minutes) {
+            const hours = Math.floor(minutes / 60);
+            const mins = minutes % 60;
+            return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+        }
+
+        // Task Functions
+        function addTask() {
+            document.getElementById('addTaskForm').classList.remove('hidden');
+            document.getElementById('newTaskInput').focus();
+        }
+
+        function saveTask() {
+            const input = document.getElementById('newTaskInput');
+            const taskText = input.value.trim();
+
+            if (taskText) {
+                state.tasks.push({
+                    id: Date.now(),
+                    text: taskText,
+                    completed: false,
+                    pomodoros: 0
+                });
+
+                input.value = '';
+                document.getElementById('addTaskForm').classList.add('hidden');
+                renderTasks();
+                saveState();
+            }
+        }
+
+        function cancelAddTask() {
+            document.getElementById('newTaskInput').value = '';
+            document.getElementById('addTaskForm').classList.add('hidden');
+        }
+
+        function toggleTask(id) {
+            const task = state.tasks.find(t => t.id === id);
+            if (task) {
+                task.completed = !task.completed;
+                renderTasks();
+                saveState();
+            }
+        }
+
+        function deleteTask(id) {
+            state.tasks = state.tasks.filter(t => t.id !== id);
+            renderTasks();
+            saveState();
+        }
+
+        function renderTasks() {
+            const taskList = document.getElementById('taskList');
+
+            if (state.tasks.length === 0) {
+                taskList.innerHTML = '<p class="text-white/50 text-center py-4">No tasks yet. Add one to get started!</p>';
+                return;
+            }
+
+            taskList.innerHTML = state.tasks.map(task => `
+                <div class="task-item glass-morphism rounded-lg p-3 flex items-center justify-between">
+                    <div class="flex items-center flex-1">
+                        <input type="checkbox" ${task.completed ? 'checked' : ''} 
+                            onchange="toggleTask(${task.id})"
+                            class="mr-3 w-4 h-4">
+                        <span class="${task.completed ? 'line-through opacity-50' : ''} text-white">${task.text}</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        ${task.pomodoros > 0 ? `<span class="text-white/70 text-xs">${task.pomodoros} 🍅</span>` : ''}
+                        <button onclick="deleteTask(${task.id})" class="text-white/50 hover:text-white">
+                            <i class="fas fa-trash text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Settings Functions
+        function toggleSettings() {
+            const panel = document.getElementById('settingsPanel');
+            panel.classList.toggle('translate-x-full');
+        }
+
+        function toggleStats() {
+            const panel = document.getElementById('statsPanel');
+            panel.classList.toggle('translate-x-full');
+        }
+
+        function saveSettings() {
+            state.settings.pomodoroDuration = parseInt(document.getElementById('pomodoroDuration').value);
+            state.settings.shortBreakDuration = parseInt(document.getElementById('shortBreakDuration').value);
+            state.settings.longBreakDuration = parseInt(document.getElementById('longBreakDuration').value);
+            state.settings.longBreakInterval = parseInt(document.getElementById('longBreakInterval').value);
+            state.settings.autoStartBreaks = document.getElementById('autoStartBreaks').checked;
+            state.settings.autoStartPomodoros = document.getElementById('autoStartPomodoros').checked;
+            state.settings.soundEnabled = document.getElementById('soundEnabled').checked;
+            state.settings.desktopNotifications = document.getElementById('desktopNotifications').checked;
+
+            // Reset timer with new settings
+            resetTimer();
+            saveState();
+            toggleSettings();
+            showNotification('Settings Saved', 'Your preferences have been updated');
+        }
+
+        // Dark Mode
+        function toggleDarkMode() {
+            state.darkMode = !state.darkMode;
+            document.body.classList.toggle('dark');
+            document.getElementById('themeIcon').className = state.darkMode ? 'fas fa-sun text-xl' : 'fas fa-moon text-xl';
+            saveState();
+        }
+
+        // Notification Functions
+        function showSessionCompleteNotification() {
+            const title = state.currentSession === 'pomodoro' ? 'Pomodoro Complete!' : 'Break Complete!';
+            const message = state.currentSession === 'pomodoro' ? 'Time for a well-deserved break!' : 'Ready to focus again?';
+            showNotification(title, message);
+        }
+
+        function showNotification(title, message) {
+            const toast = document.getElementById('notificationToast');
+            document.getElementById('notificationTitle').textContent = title;
+            document.getElementById('notificationMessage').textContent = message;
+
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
+        }
+
+        function playNotificationSound() {
+            const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZURE');
+            audio.play();
+        }
+
+        // Utility Functions
+        function setRandomQuote() {
+            const quote = quotes[Math.floor(Math.random() * quotes.length)];
+            document.getElementById('quote').textContent = `"${quote}"`;
+        }
+
+        function clearStats() {
+            if (confirm('Are you sure you want to clear all statistics? This cannot be undone.')) {
+                state.stats = {
+                    todayPomodoros: 0,
+                    weekPomodoros: 0,
+                    totalPomodoros: 0,
+                    todayFocusTime: 0,
+                    allTimeFocusTime: 0,
+                    currentStreak: 0,
+                    longestStreak: 0
+                };
+                updateStats();
+                saveState();
+                showNotification('Statistics Cleared', 'All statistics have been reset');
+            }
+        }
+
+        // Storage Functions
+        function saveState() {
+            localStorage.setItem('pomodoroState', JSON.stringify(state));
+        }
+
+        function loadState() {
+            const saved = localStorage.getItem('pomodoroState');
+            if (saved) {
+                const loadedState = JSON.parse(saved);
+                // Merge with default state to handle new properties
+                state = { ...state, ...loadedState };
+
+                // Apply dark mode
+                if (state.darkMode) {
+                    document.body.classList.add('dark');
+                    document.getElementById('themeIcon').className = 'fas fa-sun text-xl';
+                }
+
+                // Load settings into form
+                document.getElementById('pomodoroDuration').value = state.settings.pomodoroDuration;
+                document.getElementById('shortBreakDuration').value = state.settings.shortBreakDuration;
+                document.getElementById('longBreakDuration').value = state.settings.longBreakDuration;
+                document.getElementById('longBreakInterval').value = state.settings.longBreakInterval;
+                document.getElementById('autoStartBreaks').checked = state.settings.autoStartBreaks;
+                document.getElementById('autoStartPomodoros').checked = state.settings.autoStartPomodoros;
+                document.getElementById('soundEnabled').checked = state.settings.soundEnabled;
+                document.getElementById('desktopNotifications').checked = state.settings.desktopNotifications;
+            }
+        }
+    </script>
+</body>
+
+</html>
