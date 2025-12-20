@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pomodoro Focus</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .timer-ring {
+            transform: rotate(-90deg);
+        }
+
+        .timer-ring circle {
+            transition: stroke-dashoffset 0.5s ease;
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.7;
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .task-enter {
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            background: transparent;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: currentColor;
+            cursor: pointer;
+            margin-top: -6px;
+        }
+
+        input[type="range"]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            border-radius: 2px;
+            background: currentColor;
+            opacity: 0.3;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .dark .glass {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(128, 128, 128, 0.3);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen transition-all duration-500">
+    <div id="app" class="min-h-screen transition-all duration-500">
+        <!-- Header -->
+        <header class="p-6 flex justify-between items-center">
+            <h1 class="text-2xl font-bold tracking-tight">🍅 Pomodoro Focus</h1>
+            <div class="flex items-center gap-4">
+                <button id="statsBtn" class="p-2 rounded-xl hover:bg-white/20 transition-all" title="Statistics">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                </button>
+                <button id="settingsBtn" class="p-2 rounded-xl hover:bg-white/20 transition-all" title="Settings">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </button>
+                <button id="themeBtn" class="p-2 rounded-xl hover:bg-white/20 transition-all" title="Toggle Theme">
+                    <svg id="sunIcon" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                    <svg id="moonIcon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="container mx-auto px-4 py-8 max-w-4xl">
+            <!-- Mode Selector -->
+            <div class="flex justify-center gap-2 mb-12">
+                <button data-mode="work"
+                    class="mode-btn px-6 py-3 rounded-2xl font-medium transition-all">Focus</button>
+                <button data-mode="shortBreak" class="mode-btn px-6 py-3 rounded-2xl font-medium transition-all">Short
+                    Break</button>
+                <button data-mode="longBreak" class="mode-btn px-6 py-3 rounded-2xl font-medium transition-all">Long
+                    Break</button>
+            </div>
+
+            <!-- Timer -->
+            <div class="flex flex-col items-center mb-12">
+                <div class="relative w-72 h-72 md:w-80 md:h-80">
+                    <svg class="timer-ring w-full h-full">
+                        <circle cx="50%" cy="50%" r="45%" fill="none" stroke="currentColor" stroke-width="4"
+                            opacity="0.1" />
+                        <circle id="progressRing" cx="50%" cy="50%" r="45%" fill="none" stroke="currentColor"
+                            stroke-width="4" stroke-linecap="round" />
+                    </svg>
+                    <div class="absolute inset-0 flex flex-col items-center justify-center">
+                        <span id="timerDisplay" class="text-6xl md:text-7xl font-light tracking-tight">25:00</span>
+                        <span id="sessionLabel" class="text-lg opacity-70 mt-2">Focus Time</span>
+                    </div>
+                </div>
+
+                <!-- Controls -->
+                <div class="flex items-center gap-4 mt-8">
+                    <button id="resetBtn" class="p-4 rounded-2xl glass hover:scale-105 transition-all"
+                        title="Reset (R)">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                    </button>
+                    <button id="playPauseBtn" class="p-6 rounded-3xl glass hover:scale-105 transition-all"
+                        title="Play/Pause (Space)">
+                        <svg id="playIcon" class="w-10 h-10" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z" />
+                        </svg>
+                        <svg id="pauseIcon" class="w-10 h-10 hidden" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                        </svg>
+                    </button>
+                    <button id="skipBtn" class="p-4 rounded-2xl glass hover:scale-105 transition-all" title="Skip (S)">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Session Counter -->
+                <div class="flex items-center gap-2 mt-8">
+                    <span class="opacity-70">Sessions:</span>
+                    <div id="sessionDots" class="flex gap-1"></div>
+                    <span id="sessionCount" class="font-semibold">0/4</span>
+                </div>
+            </div>
+
+            <!-- Tasks Section -->
+            <div class="glass rounded-3xl p-6 fade-in">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-semibold">Tasks</h2>
+                    <span id="taskProgress" class="text-sm opacity-70">0/0 completed</span>
+                </div>
+                <form id="taskForm" class="flex gap-2 mb-4">
+                    <input type="text" id="taskInput" placeholder="What are you working on?"
+                        class="flex-1 px-4 py-3 rounded-xl bg-white/10 border border-white/20 focus:outline-none focus:border-white/40 transition-all placeholder-current placeholder-opacity-50">
+                    <button type="submit"
+                        class="px-6 py-3 rounded-xl bg-white/20 hover:bg-white/30 transition-all font-medium">Add</button>
+                </form>
+                <ul id="taskList" class="space-y-2 max-h-64 overflow-y-auto"></ul>
+            </div>
+        </main>
+
+        <!-- Settings Modal -->
+        <div id="settingsModal"
+            class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+            <div class="glass rounded-3xl p-8 max-w-md w-full fade-in max-h-[90vh] overflow-y-auto">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">Settings</h2>
+                    <button id="closeSettings" class="p-2 hover:bg-white/20 rounded-xl transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Focus Duration: <span
+                                id="workDurationLabel">25</span> min</label>
+                        <input type="range" id="workDuration" min="1" max="60" value="25" class="w-full">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Short Break: <span id="shortBreakLabel">5</span>
+                            min</label>
+                        <input type="range" id="shortBreakDuration" min="1" max="30" value="5" class="w-full">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Long Break: <span id="longBreakLabel">15</span>
+                            min</label>
+                        <input type="range" id="longBreakDuration" min="1" max="60" value="15" class="w-full">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Sessions until Long Break: <span
+                                id="sessionsLabel">4</span></label>
+                        <input type="range" id="sessionsUntilLong" min="2" max="8" value="4" class="w-full">
+                    </div>
+
+                    <div class="space-y-3">
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" id="autoStartBreaks" class="w-5 h-5 rounded">
+                            <span>Auto-start breaks</span>
+                        </label>
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" id="autoStartWork" class="w-5 h-5 rounded">
+                            <span>Auto-start focus sessions</span>
+                        </label>
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" id="soundEnabled" checked class="w-5 h-5 rounded">
+                            <span>Sound notifications</span>
+                        </label>
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" id="notificationsEnabled" class="w-5 h-5 rounded">
+                            <span>Browser notifications</span>
+                        </label>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Volume: <span id="volumeLabel">50</span>%</label>
+                        <input type="range" id="volume" min="0" max="100" value="50" class="w-full">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Modal -->
+        <div id="statsModal"
+            class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+            <div class="glass rounded-3xl p-8 max-w-md w-full fade-in">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">Statistics</h2>
+                    <button id="closeStats" class="p-2 hover:bg-white/20 rounded-xl transition-all">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="glass rounded-2xl p-4 text-center">
+                        <div id="todaySessions" class="text-3xl font-bold">0</div>
+                        <div class="text-sm opacity-70">Today's Sessions</div>
+                    </div>
+                    <div class="glass rounded-2xl p-4 text-center">
+                        <div id="todayMinutes" class="text-3xl font-bold">0</div>
+                        <div class="text-sm opacity-70">Minutes Focused</div>
+                    </div>
+                    <div class="glass rounded-2xl p-4 text-center">
+                        <div id="totalSessions" class="text-3xl font-bold">0</div>
+                        <div class="text-sm opacity-70">Total Sessions</div>
+                    </div>
+                    <div class="glass rounded-2xl p-4 text-center">
+                        <div id="totalHours" class="text-3xl font-bold">0</div>
+                        <div class="text-sm opacity-70">Total Hours</div>
+                    </div>
+                </div>
+
+                <div class="mt-6">
+                    <h3 class="font-semibold mb-3">This Week</h3>
+                    <div id="weekChart" class="flex items-end justify-between h-32 gap-1"></div>
+                    <div class="flex justify-between text-xs opacity-50 mt-2">
+                        <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+                    </div>
+                </div>
+
+                <button id="resetStats"
+                    class="mt-6 w-full py-3 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-all">
+                    Reset All Statistics
+                </button>
+            </div>
+        </div>
+
+        <!-- Keyboard Shortcuts Info -->
+        <div class="fixed bottom-4 left-4 text-xs opacity-50 hidden md:block">
+            <span class="mr-3">Space: Play/Pause</span>
+            <span class="mr-3">R: Reset</span>
+            <span>S: Skip</span>
+        </div>
+    </div>
+
+    <script>
+        // App State
+        const state = {
+            mode: 'work',
+            isRunning: false,
+            timeLeft: 25 * 60,
+            sessionsCompleted: 0,
+            settings: {
+                workDuration: 25,
+                shortBreakDuration: 5,
+                longBreakDuration: 15,
+                sessionsUntilLong: 4,
+                autoStartBreaks: false,
+                autoStartWork: false,
+                soundEnabled: true,
+                notificationsEnabled: false,
+                volume: 50
+            },
+            tasks: [],
+            stats: {
+                today: { sessions: 0, minutes: 0, date: new Date().toDateString() },
+                total: { sessions: 0, minutes: 0 },
+                weekData: [0, 0, 0, 0, 0, 0, 0]
+            },
+            isDark: false
+        };
+
+        let timer = null;
+
+        // DOM Elements
+        const timerDisplay = document.getElementById('timerDisplay');
+        const sessionLabel = document.getElementById('sessionLabel');
+        const progressRing = document.getElementById('progressRing');
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const playIcon = document.getElementById('playIcon');
+        const pauseIcon = document.getElementById('pauseIcon');
+        const resetBtn = document.getElementById('resetBtn');
+        const skipBtn = document.getElementById('skipBtn');
+        const sessionDots = document.getElementById('sessionDots');
+        const sessionCount = document.getElementById('sessionCount');
+        const modeBtns = document.querySelectorAll('.mode-btn');
+        const taskForm = document.getElementById('taskForm');
+        const taskInput = document.getElementById('taskInput');
+        const taskList = document.getElementById('taskList');
+        const taskProgress = document.getElementById('taskProgress');
+
+        // Color themes
+        const themes = {
+            work: { light: 'from-rose-100 to-orange-100', dark: 'from-rose-900 to-orange-900', accent: '#ef4444' },
+            shortBreak: { light: 'from-emerald-100 to-teal-100', dark: 'from-emerald-900 to-teal-900', accent: '#10b981' },
+            longBreak: { light: 'from-blue-100 to-indigo-100', dark: 'from-blue-900 to-indigo-900', accent: '#3b82f6' }
+        };
+
+        // Initialize
+        function init() {
+            loadState();
+            updateTheme();
+            updateMode(state.mode);
+            updateTimerDisplay();
+            updateProgress();
+            updateSessionDots();
+            renderTasks();
+            setupEventListeners();
+            requestNotificationPermission();
+        }
+
+        // Load/Save State
+        function loadState() {
+            const saved = localStorage.getItem('pomodoroState');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                Object.assign(state.settings, parsed.settings || {});
+                Object.assign(state.stats, parsed.stats || {});
+                state.tasks = parsed.tasks || [];
+                state.isDark = parsed.isDark || false;
+                state.sessionsCompleted = parsed.sessionsCompleted || 0;
+            }
+
+            // Reset daily stats if new day
+            if (state.stats.today.date !== new Date().toDateString()) {
+                state.stats.today = { sessions: 0, minutes: 0, date: new Date().toDateString() };
+            }
+
+            state.timeLeft = state.settings.workDuration * 60;
+            updateSettingsUI();
+        }
+
+        function saveState() {
+            localStorage.setItem('pomodoroState', JSON.stringify({
+                settings: state.settings,
+                stats: state.stats,
+                tasks: state.tasks,
+                isDark: state.isDark,
+                sessionsCompleted: state.sessionsCompleted
+            }));
+        }
+
+        // Timer Functions
+        function startTimer() {
+            if (state.isRunning) return;
+            state.isRunning = true;
+            updatePlayPauseBtn();
+            timer = setInterval(tick, 1000);
+        }
+
+        function pauseTimer() {
+            state.isRunning = false;
+            updatePlayPauseBtn();
+            clearInterval(timer);
+        }
+
+        function resetTimer() {
+            pauseTimer();
+            state.timeLeft = getDuration(state.mode) * 60;
+            updateTimerDisplay();
+            updateProgress();
+        }
+
+        function tick() {
+            state.timeLeft--;
+            updateTimerDisplay();
+            updateProgress();
+            updateTitle();
+
+            if (state.timeLeft <= 0) {
+                completeSession();
+            }
+        }
+
+        function completeSession() {
+            pauseTimer();
+            playSound();
+            showNotification();
+
+            if (state.mode === 'work') {
+                state.sessionsCompleted++;
+                state.stats.today.sessions++;
+                state.stats.today.minutes += state.settings.workDuration;
+                state.stats.total.sessions++;
+                state.stats.total.minutes += state.settings.workDuration;
+
+                const dayIndex = (new Date().getDay() + 6) % 7;
+                state.stats.weekData[dayIndex]++;
+
+                updateSessionDots();
+                saveState();
+
+                if (state.sessionsCompleted >= state.settings.sessionsUntilLong) {
+                    state.sessionsCompleted = 0;
+                    updateMode('longBreak');
+                } else {
+                    updateMode('shortBreak');
+                }
+
+                if (state.settings.autoStartBreaks) {
+                    setTimeout(startTimer, 1000);
+                }
+            } else {
+                updateMode('work');
+                if (state.settings.autoStartWork) {
+                    setTimeout(startTimer, 1000);
+                }
+            }
+        }
+
+        function skipSession() {
+            if (confirm('Skip this session?')) {
+                pauseTimer();
+                if (state.mode === 'work') {
+                    updateMode('shortBreak');
+                } else {
+                    updateMode('work');
+                }
+            }
+        }
+
+        // UI Updates
+        function updateTimerDisplay() {
+            const minutes = Math.floor(state.timeLeft / 60);
+            const seconds = state.timeLeft % 60;
+            timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function updateTitle() {
+            const minutes = Math.floor(state.timeLeft / 60);
+            const seconds = state.timeLeft % 60;
+            const modeLabel = state.mode === 'work' ? '🍅' : '☕';
+            document.title = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')} ${modeLabel} Pomodoro`;
+        }
+
+        function updateProgress() {
+            const total = getDuration(state.mode) * 60;
+            const progress = (total - state.timeLeft) / total;
+            const circumference = 2 * Math.PI * 45;
+            const offset = circumference * (1 - progress);
+
+            progressRing.style.strokeDasharray = `${circumference}%`;
+            progressRing.style.strokeDashoffset = `${offset}%`;
+        }
+
+        function updatePlayPauseBtn() {
+            playIcon.classList.toggle('hidden', state.isRunning);
+            pauseIcon.classList.toggle('hidden', !state.isRunning);
+            if (state.isRunning) {
+                playPauseBtn.classList.add('pulse');
+            } else {
+                playPauseBtn.classList.remove('pulse');
+            }
+        }
+
+        function updateMode(mode) {
+            state.mode = mode;
+            state.timeLeft = getDuration(mode) * 60;
+
+            modeBtns.forEach(btn => {
+                btn.classList.toggle('bg-white/30', btn.dataset.mode === mode);
+                btn.classList.toggle('bg-white/10', btn.dataset.mode !== mode);
+            });
+
+            const labels = { work: 'Focus Time', shortBreak: 'Short Break', longBreak: 'Long Break' };
+            sessionLabel.textContent = labels[mode];
+
+            updateColors();
+            updateTimerDisplay();
+            updateProgress();
+            updateTitle();
+        }
+
+        function updateColors() {
+            const app = document.getElementById('app');
+            const body = document.body;
+            const theme = themes[state.mode];
+
+            // Remove old gradient classes
+            app.className = 'min-h-screen transition-all duration-500 bg-gradient-to-br ' +
+                (state.isDark ? theme.dark + ' text-white' : theme.light + ' text-gray-800');
+            body.className = 'min-h-screen transition-all duration-500 bg-gradient-to-br ' +
+                (state.isDark ? theme.dark : theme.light);
+        }
+
+        function updateTheme() {
+            const sunIcon = document.getElementById('sunIcon');
+            const moonIcon = document.getElementById('moonIcon');
+
+            sunIcon.classList.toggle('hidden', !state.isDark);
+            moonIcon.classList.toggle('hidden', state.isDark);
+
+            document.documentElement.classList.toggle('dark', state.isDark);
+            updateColors();
+        }
+
+        function updateSessionDots() {
+            const total = state.settings.sessionsUntilLong;
+            const completed = state.sessionsCompleted;
+
+            sessionDots.innerHTML = '';
+            for (let i = 0; i < total; i++) {
+                const dot = document.createElement('div');
+                dot.className = `w-3 h-3 rounded-full transition-all ${i < completed ? 'bg-current' : 'bg-current opacity-30'}`;
+                sessionDots.appendChild(dot);
+            }
+            sessionCount.textContent = `${completed}/${total}`;
+        }
+
+        function getDuration(mode) {
+            const durations = {
+                work: state.settings.workDuration,
+                shortBreak: state.settings.shortBreakDuration,
+                longBreak: state.settings.longBreakDuration
+            };
+            return durations[mode];
+        }
+
+        // Tasks
+        function addTask(text) {
+            const task = {
+                id: Date.now(),
+                text: text,
+                completed: false,
+                pomodoros: 0
+            };
+            state.tasks.unshift(task);
+            saveState();
+            renderTasks();
+        }
+
+        function toggleTask(id) {
+            const task = state.tasks.find(t => t.id === id);
+            if (task) {
+                task.completed = !task.completed;
+                saveState();
+                renderTasks();
+            }
+        }
+
+        function deleteTask(id) {
+            state.tasks = state.tasks.filter(t => t.id !== id);
+            saveState();
+            renderTasks();
+        }
+
+        function incrementPomodoro(id) {
+            const task = state.tasks.find(t => t.id === id);
+            if (task) {
+                task.pomodoros++;
+                saveState();
+                renderTasks();
+            }
+        }
+
+        function renderTasks() {
+            taskList.innerHTML = '';
+            state.tasks.forEach(task => {
+                const li = document.createElement('li');
+                li.className = `flex items-center gap-3 p-3 rounded-xl bg-white/10 hover:bg-white/20 transition-all task-enter ${task.completed ? 'opacity-50' : ''}`;
+                li.innerHTML = `
+                    <button onclick="toggleTask(${task.id})" class="w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${task.completed ? 'bg-current' : ''}">
+                        ${task.completed ? '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>' : ''}
+                    </button>
+                    <span class="flex-1 ${task.completed ? 'line-through' : ''}">${task.text}</span>
+                    <span class="text-sm opacity-50">🍅 ${task.pomodoros}</span>
+                    <button onclick="incrementPomodoro(${task.id})" class="p-1 hover:bg-white/20 rounded-lg transition-all" title="Add pomodoro">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                    </button>
+                    <button onclick="deleteTask(${task.id})" class="p-1 hover:bg-red-500/20 rounded-lg transition-all text-red-400" title="Delete">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                    </button>
+                `;
+                taskList.appendChild(li);
+            });
+
+            const completed = state.tasks.filter(t => t.completed).length;
+            taskProgress.textContent = `${completed}/${state.tasks.length} completed`;
+        }
+
+        // Sound
+        function playSound() {
+            if (!state.settings.soundEnabled) return;
+
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            oscillator.frequency.value = 800;
+            oscillator.type = 'sine';
+            gainNode.gain.value = state.settings.volume / 100;
+
+            oscillator.start();
+
+            setTimeout(() => {
+                oscillator.frequency.value = 600;
+            }, 200);
+
+            setTimeout(() => {
+                oscillator.frequency.value = 800;
+            }, 400);
+
+            setTimeout(() => {
+                oscillator.stop();
+            }, 600);
+        }
+
+        // Notifications
+        function requestNotificationPermission() {
+            if ('Notification' in window && Notification.permission === 'default') {
+                document.getElementById('notificationsEnabled').addEventListener('change', async (e) => {
+                    if (e.target.checked) {
+                        const permission = await Notification.requestPermission();
+                        if (permission !== 'granted') {
+                            e.target.checked = false;
+                        }
+                    }
+                });
+            }
+        }
+
+        function showNotification() {
+            if (!state.settings.notificationsEnabled || Notification.permission !== 'granted') return;
+
+            const title = state.mode === 'work' ? 'Focus session complete! 🎉' : 'Break is over! 💪';
+            const body = state.mode === 'work' ? 'Time for a break!' : 'Ready to focus?';
+
+            new Notification(title, { body, icon: '🍅' });
+        }
+
+        // Settings
+        function updateSettingsUI() {
+            document.getElementById('workDuration').value = state.settings.workDuration;
+            document.getElementById('workDurationLabel').textContent = state.settings.workDuration;
+            document.getElementById('shortBreakDuration').value = state.settings.shortBreakDuration;
+            document.getElementById('shortBreakLabel').textContent = state.settings.shortBreakDuration;
+            document.getElementById('longBreakDuration').value = state.settings.longBreakDuration;
+            document.getElementById('longBreakLabel').textContent = state.settings.longBreakDuration;
+            document.getElementById('sessionsUntilLong').value = state.settings.sessionsUntilLong;
+            document.getElementById('sessionsLabel').textContent = state.settings.sessionsUntilLong;
+            document.getElementById('autoStartBreaks').checked = state.settings.autoStartBreaks;
+            document.getElementById('autoStartWork').checked = state.settings.autoStartWork;
+            document.getElementById('soundEnabled').checked = state.settings.soundEnabled;
+            document.getElementById('notificationsEnabled').checked = state.settings.notificationsEnabled;
+            document.getElementById('volume').value = state.settings.volume;
+            document.getElementById('volumeLabel').textContent = state.settings.volume;
+        }
+
+        function updateStats() {
+            document.getElementById('todaySessions').textContent = state.stats.today.sessions;
+            document.getElementById('todayMinutes').textContent = state.stats.today.minutes;
+            document.getElementById('totalSessions').textContent = state.stats.total.sessions;
+            document.getElementById('totalHours').textContent = (state.stats.total.minutes / 60).toFixed(1);
+
+            const weekChart = document.getElementById('weekChart');
+            const maxValue = Math.max(...state.stats.weekData, 1);
+            weekChart.innerHTML = state.stats.weekData.map((value, i) => `
+                <div class="flex-1 bg-current rounded-t-lg transition-all" style="height: ${(value / maxValue) * 100}%; opacity: ${value > 0 ? 0.7 : 0.2}"></div>
+            `).join('');
+        }
+
+        // Event Listeners
+        function setupEventListeners() {
+            playPauseBtn.addEventListener('click', () => {
+                state.isRunning ? pauseTimer() : startTimer();
+            });
+
+            resetBtn.addEventListener('click', resetTimer);
+            skipBtn.addEventListener('click', skipSession);
+
+            modeBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    pauseTimer();
+                    updateMode(btn.dataset.mode);
+                });
+            });
+
+            document.getElementById('themeBtn').addEventListener('click', () => {
+                state.isDark = !state.isDark;
+                updateTheme();
+                saveState();
+            });
+
+            // Settings Modal
+            document.getElementById('settingsBtn').addEventListener('click', () => {
+                document.getElementById('settingsModal').classList.remove('hidden');
+            });
+
+            document.getElementById('closeSettings').addEventListener('click', () => {
+                document.getElementById('settingsModal').classList.add('hidden');
+            });
+
+            // Stats Modal
+            document.getElementById('statsBtn').addEventListener('click', () => {
+                updateStats();
+                document.getElementById('statsModal').classList.remove('hidden');
+            });
+
+            document.getElementById('closeStats').addEventListener('click', () => {
+                document.getElementById('statsModal').classList.add('hidden');
+            });
+
+            document.getElementById('resetStats').addEventListener('click', () => {
+                if (confirm('Reset all statistics? This cannot be undone.')) {
+                    state.stats = {
+                        today: { sessions: 0, minutes: 0, date: new Date().toDateString() },
+                        total: { sessions: 0, minutes: 0 },
+                        weekData: [0, 0, 0, 0, 0, 0, 0]
+                    };
+                    saveState();
+                    updateStats();
+                }
+            });
+
+            // Settings inputs
+            const settingsInputs = ['workDuration', 'shortBreakDuration', 'longBreakDuration', 'sessionsUntilLong', 'volume'];
+            settingsInputs.forEach(id => {
+                const input = document.getElementById(id);
+                const label = document.getElementById(id.replace('Duration', '') + 'Label') || document.getElementById(id + 'Label');
+                input.addEventListener('input', (e) => {
+                    if (label) label.textContent = e.target.value;
+                    state.settings[id] = parseInt(e.target.value);
+                    if (!state.isRunning && id.includes('Duration')) {
+                        resetTimer();
+                    }
+                    updateSessionDots();
+                    saveState();
+                });
+            });
+
+            const checkboxes = ['autoStartBreaks', 'autoStartWork', 'soundEnabled', 'notificationsEnabled'];
+            checkboxes.forEach(id => {
+                document.getElementById(id).addEventListener('change', (e) => {
+                    state.settings[id] = e.target.checked;
+                    saveState();
+                });
+            });
+
+            // Task form
+            taskForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const text = taskInput.value.trim();
+                if (text) {
+                    addTask(text);
+                    taskInput.value = '';
+                }
+            });
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if (e.target.tagName === 'INPUT') return;
+
+                switch (e.code) {
+                    case 'Space':
+                        e.preventDefault();
+                        state.isRunning ? pauseTimer() : startTimer();
+                        break;
+                    case 'KeyR':
+                        resetTimer();
+                        break;
+                    case 'KeyS':
+                        skipSession();
+                        break;
+                }
+            });
+
+            // Close modals on outside click
+            ['settingsModal', 'statsModal'].forEach(id => {
+                document.getElementById(id).addEventListener('click', (e) => {
+                    if (e.target.id === id) {
+                        document.getElementById(id).classList.add('hidden');
+                    }
+                });
+            });
+        }
+
+        // Make functions globally available
+        window.toggleTask = toggleTask;
+        window.deleteTask = deleteTask;
+        window.incrementPomodoro = incrementPomodoro;
+
+        // Start app
+        init();
+    </script>
+</body>
+
+</html>
