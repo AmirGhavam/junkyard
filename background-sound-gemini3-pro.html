@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Focus Flow | Ambient & Radio</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #e2e8f0;
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .slider-thumb::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #38bdf8;
+            cursor: pointer;
+            transition: background .15s ease-in-out;
+        }
+
+        .slider-thumb::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border: 0;
+            border-radius: 50%;
+            background: #38bdf8;
+            cursor: pointer;
+            transition: background .15s ease-in-out;
+        }
+
+        .slider-thumb:hover::-webkit-slider-thumb {
+            background: #0ea5e9;
+        }
+
+        .visualizer-bar {
+            transition: height 0.2s ease;
+        }
+
+        .play-btn {
+            transition: all 0.2s ease;
+        }
+
+        .play-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+
+        .noise-active {
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+            border-color: rgba(56, 189, 248, 0.5);
+        }
+    </style>
+</head>
+
+<body class="h-screen flex flex-col overflow-hidden bg-slate-900 text-slate-200">
+
+    <!-- Top Navigation -->
+    <nav
+        class="h-16 border-b border-slate-800 flex items-center justify-between px-6 bg-slate-900/80 backdrop-blur-md z-10">
+        <div class="flex items-center gap-3">
+            <div
+                class="w-8 h-8 rounded-full bg-sky-500 flex items-center justify-center text-white font-bold shadow-lg shadow-sky-500/30">
+                F
+            </div>
+            <h1 class="text-xl font-medium tracking-tight text-white">Focus<span class="text-sky-400">Flow</span></h1>
+        </div>
+        <div class="flex items-center gap-4 text-sm font-medium text-slate-400">
+            <span id="clock" class="font-mono text-slate-200 text-lg">00:00</span>
+        </div>
+    </nav>
+
+    <div class="flex-1 flex overflow-hidden">
+
+        <!-- Sidebar / Stations List (Desktop) -->
+        <aside class="w-80 border-r border-slate-800 flex flex-col bg-slate-900/50 hidden md:flex">
+            <div class="p-6">
+                <h2 class="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-4">Live Radio Stations</h2>
+                <div class="space-y-2" id="station-list">
+                    <!-- Stations will be injected here -->
+                </div>
+            </div>
+
+            <div class="mt-auto p-6 border-t border-slate-800">
+                <div class="glass-panel p-4 rounded-xl">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Pomodoro
+                            Timer</span>
+                    </div>
+                    <div class="text-center py-4">
+                        <div id="timer-display" class="text-4xl font-mono font-bold text-white mb-4">25:00</div>
+                        <div class="flex justify-center gap-2">
+                            <button id="timer-toggle"
+                                class="bg-sky-500 hover:bg-sky-400 text-white px-4 py-2 rounded-lg text-sm font-medium transition">Start</button>
+                            <button id="timer-reset"
+                                class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition">Reset</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 flex flex-col relative overflow-y-auto">
+            <!-- Mobile Menu Toggle (Visible only on mobile) -->
+            <div class="md:hidden p-4">
+                <button id="mobile-menu-toggle"
+                    class="bg-slate-800 text-white px-4 py-2 rounded-lg w-full mb-4 font-medium border border-slate-700 shadow-sm flex items-center justify-center gap-2 transition hover:bg-slate-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                    <span>Stations & Timer</span>
+                </button>
+                <div id="mobile-menu"
+                    class="hidden space-y-6 bg-slate-800/80 backdrop-blur-md p-4 rounded-xl border border-slate-700 mb-6">
+                    <!-- Mobile Timer -->
+                    <div class="glass-panel p-4 rounded-xl">
+                        <div class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-2 text-center">
+                            Pomodoro Timer</div>
+                        <div class="text-center py-2">
+                            <div id="mobile-timer-display" class="text-3xl font-mono font-bold text-white mb-3">25:00
+                            </div>
+                            <div class="flex justify-center gap-2">
+                                <button id="mobile-timer-toggle"
+                                    class="bg-sky-500 hover:bg-sky-400 text-white px-4 py-2 rounded-lg text-sm font-medium transition">Start</button>
+                                <button id="mobile-timer-reset"
+                                    class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition">Reset</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mobile Stations -->
+                    <div>
+                        <h2 class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-3">Select Station
+                        </h2>
+                        <div class="space-y-2" id="mobile-station-list">
+                            <!-- Mobile Stations Injected Here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-1 p-6 md:p-12 max-w-5xl mx-auto w-full">
+
+                <!-- Welcome / Status -->
+                <div class="mb-10 text-center">
+                    <h2 class="text-3xl font-light text-white mb-2">Create your <span
+                            class="text-sky-400 font-normal">Atmosphere</span></h2>
+                    <p class="text-slate-400">Mix background noises with live radio for perfect focus.</p>
+                </div>
+
+                <!-- Noise Mixer Section -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+                    <!-- White Noise Card -->
+                    <div class="glass-panel p-6 rounded-2xl flex flex-col items-center transition hover:bg-slate-800/50"
+                        id="card-white">
+                        <div
+                            class="w-12 h-12 rounded-full bg-slate-700/50 flex items-center justify-center mb-4 text-sky-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="M2 12h20"></path>
+                                <path d="M12 2v20"></path>
+                                <path d="m4.93 4.93 14.14 14.14"></path>
+                                <path d="m19.07 4.93-14.14 14.14"></path>
+                            </svg>
+                        </div>
+                        <h3 class="font-medium text-white mb-1">White Noise</h3>
+                        <p class="text-xs text-slate-500 mb-4 text-center">Flat frequency response</p>
+                        <div class="w-full flex items-center gap-3">
+                            <button
+                                class="noise-toggle w-8 h-8 rounded-full bg-slate-700 hover:bg-slate-600 flex items-center justify-center transition"
+                                data-type="white">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                                </svg>
+                            </button>
+                            <input type="range" min="0" max="1" step="0.01" value="0.5"
+                                class="slider-thumb flex-1 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer noise-volume"
+                                data-type="white">
+                        </div>
+                    </div>
+
+                    <!-- Pink Noise Card -->
+                    <div class="glass-panel p-6 rounded-2xl flex flex-col items-center transition hover:bg-slate-800/50"
+                        id="card-pink">
+                        <div
+                            class="w-12 h-12 rounded-full bg-slate-700/50 flex items-center justify-center mb-4 text-pink-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+                                <line x1="4" y1="22" x2="4" y2="15"></line>
+                            </svg>
+                        </div>
+                        <h3 class="font-medium text-white mb-1">Pink Noise</h3>
+                        <p class="text-xs text-slate-500 mb-4 text-center">Balanced & Natural</p>
+                        <div class="w-full flex items-center gap-3">
+                            <button
+                                class="noise-toggle w-8 h-8 rounded-full bg-slate-700 hover:bg-slate-600 flex items-center justify-center transition"
+                                data-type="pink">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                                </svg>
+                            </button>
+                            <input type="range" min="0" max="1" step="0.01" value="0.5"
+                                class="slider-thumb flex-1 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer noise-volume"
+                                data-type="pink">
+                        </div>
+                    </div>
+
+                    <!-- Brown Noise Card -->
+                    <div class="glass-panel p-6 rounded-2xl flex flex-col items-center transition hover:bg-slate-800/50"
+                        id="card-brown">
+                        <div
+                            class="w-12 h-12 rounded-full bg-slate-700/50 flex items-center justify-center mb-4 text-amber-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="M17.5 19c0-1.7-1.3-3-3-3s-3 1.3-3 3 1.3 3 3 3 3-1.3 3-3Z"></path>
+                                <path d="M22 19c0-1.7-1.3-3-3-3s-3 1.3-3 3 1.3 3 3 3 3-1.3 3-3Z"></path>
+                                <path d="M13 19c0-1.7-1.3-3-3-3s-3 1.3-3 3 1.3 3 3 3 3-1.3 3-3Z"></path>
+                                <path d="M8.5 19c0-1.7-1.3-3-3-3s-3 1.3-3 3 1.3 3 3 3 3-1.3 3-3Z"></path>
+                                <path d="M4 19c0-1.7-1.3-3-3-3s-3 1.3-3 3 1.3 3 3 3 3-1.3 3-3Z"></path>
+                            </svg>
+                        </div>
+                        <h3 class="font-medium text-white mb-1">Brown Noise</h3>
+                        <p class="text-xs text-slate-500 mb-4 text-center">Deep & Rumbly</p>
+                        <div class="w-full flex items-center gap-3">
+                            <button
+                                class="noise-toggle w-8 h-8 rounded-full bg-slate-700 hover:bg-slate-600 flex items-center justify-center transition"
+                                data-type="brown">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                                </svg>
+                            </button>
+                            <input type="range" min="0" max="1" step="0.01" value="0.5"
+                                class="slider-thumb flex-1 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer noise-volume"
+                                data-type="brown">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Visualizer -->
+                <div
+                    class="glass-panel w-full h-32 rounded-2xl flex items-end justify-center gap-1 p-4 pb-0 overflow-hidden relative">
+                    <div class="absolute top-4 left-4 text-xs font-mono text-slate-500">AUDIO VISUALIZER</div>
+                    <canvas id="visualizer-canvas" class="w-full h-full"></canvas>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Bottom Player Bar -->
+    <div class="h-20 bg-slate-900 border-t border-slate-800 flex items-center px-6 gap-6 z-20">
+        <!-- Current Station Info -->
+        <div class="w-1/3 flex items-center gap-4">
+            <div id="player-art"
+                class="w-12 h-12 rounded bg-slate-800 flex items-center justify-center overflow-hidden">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    class="text-slate-600">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polygon points="10 8 16 12 10 16 10 8"></polygon>
+                </svg>
+            </div>
+            <div class="overflow-hidden">
+                <h3 id="player-title" class="font-medium text-white text-sm truncate">Select a Station</h3>
+                <p id="player-subtitle" class="text-xs text-slate-400 truncate">Background Music</p>
+            </div>
+        </div>
+
+        <!-- Main Controls -->
+        <div class="flex-1 flex flex-col items-center justify-center">
+            <div class="flex items-center gap-6">
+                <button class="text-slate-400 hover:text-white transition" id="prev-station">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="19 20 9 12 19 4 19 20"></polygon>
+                        <line x1="5" y1="19" x2="5" y2="5"></line>
+                    </svg>
+                </button>
+                <button id="main-play-btn"
+                    class="w-10 h-10 rounded-full bg-white text-slate-900 flex items-center justify-center play-btn hover:bg-sky-50 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                        fill="currentColor" stroke="none">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                </button>
+                <button class="text-slate-400 hover:text-white transition" id="next-station">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="5 4 15 12 5 20 5 4"></polygon>
+                        <line x1="19" y1="5" x2="19" y2="19"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Volume -->
+        <div class="w-1/3 flex items-center justify-end gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="text-slate-400">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            </svg>
+            <input type="range" id="master-volume" min="0" max="1" step="0.01" value="0.8"
+                class="slider-thumb w-24 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer hidden md:block">
+        </div>
+    </div>
+
+    <!-- Hidden Audio Element for Radio -->
+    <audio id="radio-audio" crossorigin="anonymous"></audio>
+
+    <script>
+        // --- STATIONS DATA ---
+        const stations = [
+            {
+                name: "FreeCodeCamp Radio",
+                genre: "Coding / Focus",
+                url: "https://coderadio-admin.freecodecamp.org/radio/8010/radio.mp3",
+                color: "bg-purple-500"
+            },
+            {
+                name: "Lofi Girl (Simulated)",
+                genre: "Lofi Hip Hop",
+                url: "http://stream.zeno.fm/0r0xa792kwzuv",
+                color: "bg-rose-400"
+            },
+            {
+                name: "SomaFM Groove Salad",
+                genre: "Ambient / Chill",
+                url: "https://ice1.somafm.com/groovesalad-128-mp3",
+                color: "bg-emerald-500"
+            },
+            {
+                name: "SomaFM Deep Space One",
+                genre: "Deep Ambient",
+                url: "https://ice1.somafm.com/deepspaceone-128-mp3",
+                color: "bg-indigo-500"
+            },
+            {
+                name: "Smooth Jazz",
+                genre: "Jazz",
+                url: "https://us4.internet-radio.com/proxy/wsjf?mp=/stream;",
+                color: "bg-amber-500"
+            },
+            {
+                name: "Classical",
+                genre: "Classical / Study",
+                url: "https://live.musopen.org:8085/streamvbr",
+                color: "bg-sky-500"
+            }
+        ];
+
+        let currentStationIndex = 0;
+        let isRadioPlaying = false;
+
+        // --- WEB AUDIO API (NOISE GENERATOR) ---
+        let audioCtx;
+        const noises = {
+            white: { node: null, gain: null, playing: false },
+            pink: { node: null, gain: null, playing: false },
+            brown: { node: null, gain: null, playing: false }
+        };
+
+        function initAudioContext() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function createNoiseBuffer(type) {
+            const bufferSize = 2 * audioCtx.sampleRate;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const output = buffer.getChannelData(0);
+
+            if (type === 'white') {
+                for (let i = 0; i < bufferSize; i++) {
+                    output[i] = Math.random() * 2 - 1;
+                }
+            } else if (type === 'pink') {
+                let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+                for (let i = 0; i < bufferSize; i++) {
+                    let white = Math.random() * 2 - 1;
+                    b0 = 0.99886 * b0 + white * 0.0555179;
+                    b1 = 0.99332 * b1 + white * 0.0750759;
+                    b2 = 0.96900 * b2 + white * 0.1538520;
+                    b3 = 0.86650 * b3 + white * 0.3104856;
+                    b4 = 0.55000 * b4 + white * 0.5329522;
+                    b5 = -0.7616 * b5 - white * 0.0168980;
+                    output[i] = b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362;
+                    output[i] *= 0.11;
+                    b6 = white * 0.115926;
+                }
+            } else if (type === 'brown') {
+                let lastOut = 0;
+                for (let i = 0; i < bufferSize; i++) {
+                    let white = Math.random() * 2 - 1;
+                    output[i] = (lastOut + (0.02 * white)) / 1.02;
+                    lastOut = output[i];
+                    output[i] *= 3.5;
+                }
+            }
+            return buffer;
+        }
+
+        function toggleNoise(type) {
+            initAudioContext();
+
+            const state = noises[type];
+            const btn = document.querySelector(`.noise-toggle[data-type="${type}"]`);
+            const slider = document.querySelector(`.noise-volume[data-type="${type}"]`);
+            const card = document.getElementById(`card-${type}`);
+
+            if (state.playing) {
+                // Stop
+                if (state.node) {
+                    state.node.stop();
+                    state.node.disconnect();
+                }
+                state.playing = false;
+                btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>';
+                btn.classList.remove('bg-sky-500', 'text-white');
+                btn.classList.add('bg-slate-700');
+                card.classList.remove('noise-active');
+            } else {
+                // Play
+                const buffer = createNoiseBuffer(type);
+                state.node = audioCtx.createBufferSource();
+                state.node.buffer = buffer;
+                state.node.loop = true;
+
+                state.gain = audioCtx.createGain();
+                state.gain.gain.value = parseFloat(slider.value) * 0.5; // Reduce max volume a bit
+
+                state.node.connect(state.gain);
+                state.gain.connect(audioCtx.destination);
+
+                state.node.start();
+                state.playing = true;
+
+                btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>';
+                btn.classList.remove('bg-slate-700');
+                btn.classList.add('bg-sky-500', 'text-white');
+                card.classList.add('noise-active');
+            }
+        }
+
+        function updateNoiseVolume(type, val) {
+            if (noises[type].playing && noises[type].gain) {
+                noises[type].gain.gain.setValueAtTime(val * 0.5, audioCtx.currentTime);
+            }
+        }
+
+        // --- RADIO PLAYER LOGIC ---
+        const audioEl = document.getElementById('radio-audio');
+        const playBtn = document.getElementById('main-play-btn');
+        const playerTitle = document.getElementById('player-title');
+        const playerSubtitle = document.getElementById('player-subtitle');
+        const playerArt = document.getElementById('player-art');
+        const volumeSlider = document.getElementById('master-volume');
+
+        function loadStation(index) {
+            currentStationIndex = index;
+            const station = stations[index];
+            audioEl.src = station.url;
+            audioEl.load(); // Important to reset buffer
+
+            playerTitle.innerText = station.name;
+            playerSubtitle.innerText = station.genre;
+            playerArt.className = `w-12 h-12 rounded flex items-center justify-center overflow-hidden text-white font-bold ${station.color}`;
+            playerArt.innerHTML = station.name.charAt(0);
+
+            highlightActiveStation(index);
+
+            if (isRadioPlaying) {
+                playRadio();
+            }
+        }
+
+        function playRadio() {
+            initAudioContext();
+            const playPromise = audioEl.play();
+            if (playPromise !== undefined) {
+                playPromise.then(_ => {
+                    isRadioPlaying = true;
+                    updatePlayButton(true);
+                    visualize(); // Start visualizer
+                }).catch(error => {
+                    console.error("Playback failed:", error);
+                    isRadioPlaying = false;
+                    updatePlayButton(false);
+                });
+            }
+        }
+
+        function pauseRadio() {
+            audioEl.pause();
+            isRadioPlaying = false;
+            updatePlayButton(false);
+        }
+
+        function toggleRadio() {
+            if (audioEl.paused) {
+                playRadio();
+            } else {
+                pauseRadio();
+            }
+        }
+
+        function updatePlayButton(playing) {
+            if (playing) {
+                playBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>';
+            } else {
+                playBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>';
+            }
+        }
+
+        function renderStationList() {
+            // Render for Desktop
+            const listDesktop = document.getElementById('station-list');
+            const listMobile = document.getElementById('mobile-station-list');
+
+            const createStationEl = (station, index, isMobile) => {
+                const el = document.createElement('div');
+                el.className = `p-3 rounded-lg cursor-pointer flex items-center gap-3 hover:bg-slate-700/50 transition station-item group`;
+                el.dataset.index = index;
+                el.innerHTML = `
+                    <div class="w-8 h-8 rounded-full ${station.color} bg-opacity-20 text-${station.color.split('-')[1]}-400 flex items-center justify-center font-bold text-xs group-hover:bg-opacity-100 group-hover:text-white transition">
+                        ${station.name.charAt(0)}
+                    </div>
+                    <div class="overflow-hidden">
+                        <div class="text-sm font-medium text-slate-200 truncate">${station.name}</div>
+                        <div class="text-xs text-slate-500 truncate">${station.genre}</div>
+                    </div>
+                `;
+                el.onclick = () => {
+                    if (currentStationIndex === index && isRadioPlaying) {
+                        pauseRadio();
+                    } else {
+                        loadStation(index);
+                        playRadio();
+                    }
+                    if (isMobile) {
+                        // Optional: Close menu on selection
+                        document.getElementById('mobile-menu').classList.add('hidden');
+                    }
+                };
+                return el;
+            };
+
+            if (listDesktop) {
+                listDesktop.innerHTML = '';
+                stations.forEach((station, index) => {
+                    listDesktop.appendChild(createStationEl(station, index, false));
+                });
+            }
+
+            if (listMobile) {
+                listMobile.innerHTML = '';
+                stations.forEach((station, index) => {
+                    listMobile.appendChild(createStationEl(station, index, true));
+                });
+            }
+        }
+
+        function highlightActiveStation(index) {
+            document.querySelectorAll('.station-item').forEach(el => {
+                el.classList.remove('bg-slate-800', 'border-l-2', 'border-sky-500');
+                if (parseInt(el.dataset.index) === index) {
+                    el.classList.add('bg-slate-800', 'border-l-2', 'border-sky-500');
+                }
+            });
+        }
+
+        // --- TIMER ---
+        let timerInterval;
+        let timeLeft = 25 * 60;
+        let isTimerRunning = false;
+
+        // Desktop Timer Elements
+        const timerDisplay = document.getElementById('timer-display');
+        const timerToggleBtn = document.getElementById('timer-toggle');
+        const timerResetBtn = document.getElementById('timer-reset');
+
+        // Mobile Timer Elements
+        const mobileTimerDisplay = document.getElementById('mobile-timer-display');
+        const mobileTimerToggleBtn = document.getElementById('mobile-timer-toggle');
+        const mobileTimerResetBtn = document.getElementById('mobile-timer-reset');
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function updateTimerDisplay() {
+            const timeStr = formatTime(timeLeft);
+            if (timerDisplay) timerDisplay.textContent = timeStr;
+            if (mobileTimerDisplay) mobileTimerDisplay.textContent = timeStr;
+            document.title = `${timeStr} - Focus Flow`;
+        }
+
+        function updateTimerButtonsState(running) {
+            const btns = [timerToggleBtn, mobileTimerToggleBtn];
+            btns.forEach(btn => {
+                if (!btn) return;
+                if (running) {
+                    btn.textContent = "Pause";
+                    btn.classList.remove('bg-sky-500', 'hover:bg-sky-400');
+                    btn.classList.add('bg-rose-500', 'hover:bg-rose-600');
+                } else {
+                    btn.textContent = "Start";
+                    btn.classList.remove('bg-rose-500', 'hover:bg-rose-600');
+                    btn.classList.add('bg-sky-500', 'hover:bg-sky-400');
+                }
+            });
+        }
+
+        function toggleTimer() {
+            if (isTimerRunning) {
+                clearInterval(timerInterval);
+                isTimerRunning = false;
+                updateTimerButtonsState(false);
+            } else {
+                timerInterval = setInterval(() => {
+                    timeLeft--;
+                    if (timeLeft <= 0) {
+                        clearInterval(timerInterval);
+                        isTimerRunning = false;
+                        timeLeft = 0;
+                        playAlarm();
+                        updateTimerButtonsState(false);
+                    }
+                    updateTimerDisplay();
+                }, 1000);
+                isTimerRunning = true;
+                updateTimerButtonsState(true);
+            }
+        }
+
+        function resetTimer() {
+            clearInterval(timerInterval);
+            isTimerRunning = false;
+            timeLeft = 25 * 60;
+            updateTimerDisplay();
+            updateTimerButtonsState(false);
+            document.title = "Focus Flow | Ambient & Radio";
+        }
+
+        function playAlarm() {
+            initAudioContext();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.5);
+        }
+
+        // --- VISUALIZER ---
+        const canvas = document.getElementById('visualizer-canvas');
+        const canvasCtx = canvas.getContext('2d');
+        let analyser;
+
+        function setupVisualizer() {
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            canvasCtx.scale(dpr, dpr);
+        }
+
+        function visualize() {
+            if (!analyser && audioCtx) {
+                analyser = audioCtx.createAnalyser();
+            }
+            drawVisualizer();
+        }
+
+        function drawVisualizer() {
+            requestAnimationFrame(drawVisualizer);
+
+            const width = canvas.width / (window.devicePixelRatio || 1);
+            const height = canvas.height / (window.devicePixelRatio || 1);
+
+            canvasCtx.clearRect(0, 0, width, height);
+
+            const bars = 50;
+            const barWidth = width / bars;
+
+            for (let i = 0; i < bars; i++) {
+                let barHeight = 2;
+                if (isRadioPlaying) {
+                    const time = Date.now() / 200;
+                    const val = Math.sin(i * 0.2 + time) * Math.cos(i * 0.1 - time) * 0.5 + 0.5;
+                    barHeight = Math.max(4, val * height * 0.8);
+                } else {
+                    const noisePlaying = Object.values(noises).some(n => n.playing);
+                    if (noisePlaying) {
+                        barHeight = Math.random() * (height * 0.3) + 5;
+                    }
+                }
+
+                const x = i * barWidth;
+                const y = height - barHeight;
+
+                const gradient = canvasCtx.createLinearGradient(0, height, 0, y);
+                gradient.addColorStop(0, '#0ea5e9');
+                gradient.addColorStop(1, '#6366f1');
+
+                canvasCtx.fillStyle = gradient;
+                canvasCtx.fillRect(x, y, barWidth - 2, barHeight);
+            }
+        }
+
+        // --- CLOCK ---
+        function updateClock() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById('clock').textContent = `${hours}:${minutes}`;
+        }
+
+        // --- EVENTS & INIT ---
+        document.addEventListener('DOMContentLoaded', () => {
+            renderStationList();
+            loadStation(0);
+            setInterval(updateClock, 1000);
+            updateClock();
+            setupVisualizer();
+            window.addEventListener('resize', setupVisualizer);
+
+            // Play Button
+            playBtn.addEventListener('click', toggleRadio);
+
+            // Prev/Next
+            document.getElementById('prev-station').addEventListener('click', () => {
+                let newIndex = currentStationIndex - 1;
+                if (newIndex < 0) newIndex = stations.length - 1;
+                loadStation(newIndex);
+            });
+            document.getElementById('next-station').addEventListener('click', () => {
+                let newIndex = currentStationIndex + 1;
+                if (newIndex >= stations.length) newIndex = 0;
+                loadStation(newIndex);
+            });
+
+            // Volume
+            volumeSlider.addEventListener('input', (e) => {
+                audioEl.volume = e.target.value;
+            });
+
+            // Noise Controls
+            document.querySelectorAll('.noise-toggle').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const type = e.currentTarget.dataset.type;
+                    toggleNoise(type);
+                });
+            });
+
+            document.querySelectorAll('.noise-volume').forEach(slider => {
+                slider.addEventListener('input', (e) => {
+                    const type = e.target.dataset.type;
+                    updateNoiseVolume(type, e.target.value);
+                });
+            });
+
+            // Timer Controls (Desktop)
+            if (timerToggleBtn) timerToggleBtn.addEventListener('click', toggleTimer);
+            if (timerResetBtn) timerResetBtn.addEventListener('click', resetTimer);
+
+            // Timer Controls (Mobile)
+            if (mobileTimerToggleBtn) mobileTimerToggleBtn.addEventListener('click', toggleTimer);
+            if (mobileTimerResetBtn) mobileTimerResetBtn.addEventListener('click', resetTimer);
+
+            // Mobile Menu
+            const mobileMenuBtn = document.getElementById('mobile-menu-toggle');
+            const mobileMenu = document.getElementById('mobile-menu');
+
+            if (mobileMenuBtn && mobileMenu) {
+                mobileMenuBtn.addEventListener('click', () => {
+                    mobileMenu.classList.toggle('hidden');
+                });
+            }
+        });
+
+    </script>
+</body>
+
+</html>
