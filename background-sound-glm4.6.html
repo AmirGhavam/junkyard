@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Serenity - White Noise & Ambient Sounds</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .glass-dark {
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sound-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .sound-card:hover {
+            transform: translateY(-4px);
+        }
+
+        .sound-card.playing {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.02);
+            }
+        }
+
+        .volume-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
+        }
+
+        .volume-slider::-webkit-slider-track {
+            background: rgba(255, 255, 255, 0.2);
+            height: 4px;
+            border-radius: 2px;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            background: white;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            margin-top: -6px;
+        }
+
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .wave-animation {
+            animation: wave 3s ease-in-out infinite;
+        }
+
+        @keyframes wave {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+
+<body class="gradient-bg min-h-screen text-white">
+    <!-- Background Animation -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+        <div
+            class="absolute -top-40 -right-40 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-70 wave-animation">
+        </div>
+        <div class="absolute -bottom-40 -left-40 w-80 h-80 bg-indigo-500 rounded-full mix-blend-multiply filter blur-xl opacity-70 wave-animation"
+            style="animation-delay: 2s;"></div>
+        <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-pink-500 rounded-full mix-blend-multiply filter blur-xl opacity-70 wave-animation"
+            style="animation-delay: 4s;"></div>
+    </div>
+
+    <!-- Header -->
+    <header class="relative z-10 glass sticky top-0">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-water text-2xl"></i>
+                    <h1 class="text-2xl font-bold">Serenity</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button onclick="toggleSearch()" class="p-2 hover:bg-white/20 rounded-lg transition">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    <button onclick="toggleTheme()" class="p-2 hover:bg-white/20 rounded-lg transition">
+                        <i class="fas fa-moon" id="themeIcon"></i>
+                    </button>
+                    <button onclick="showFavorites()" class="p-2 hover:bg-white/20 rounded-lg transition relative">
+                        <i class="fas fa-heart"></i>
+                        <span id="favCount"
+                            class="absolute -top-1 -right-1 bg-red-500 text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">0</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Search Bar -->
+            <div id="searchBar" class="hidden mt-4 fade-in">
+                <input type="text" id="searchInput" placeholder="Search sounds..."
+                    class="w-full px-4 py-2 rounded-lg bg-white/10 border border-white/20 focus:outline-none focus:border-white/40"
+                    onkeyup="searchSounds()">
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="relative z-10 container mx-auto px-6 py-8">
+        <!-- Category Tabs -->
+        <div class="flex space-x-2 mb-8 overflow-x-auto pb-2">
+            <button onclick="filterCategory('all')"
+                class="category-btn px-6 py-2 rounded-full glass hover:bg-white/20 transition whitespace-nowrap"
+                data-category="all">
+                All Sounds
+            </button>
+            <button onclick="filterCategory('nature')"
+                class="category-btn px-6 py-2 rounded-full glass hover:bg-white/20 transition whitespace-nowrap"
+                data-category="nature">
+                Nature
+            </button>
+            <button onclick="filterCategory('ambient')"
+                class="category-btn px-6 py-2 rounded-full glass hover:bg-white/20 transition whitespace-nowrap"
+                data-category="ambient">
+                Ambient
+            </button>
+            <button onclick="filterCategory('music')"
+                class="category-btn px-6 py-2 rounded-full glass hover:bg-white/20 transition whitespace-nowrap"
+                data-category="music">
+                Music & Radio
+            </button>
+            <button onclick="filterCategory('productivity')"
+                class="category-btn px-6 py-2 rounded-full glass hover:bg-white/20 transition whitespace-nowrap"
+                data-category="productivity">
+                Productivity
+            </button>
+        </div>
+
+        <!-- Sound Grid -->
+        <div id="soundGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
+            <!-- Sounds will be dynamically added here -->
+        </div>
+
+        <!-- Now Playing Bar -->
+        <div id="nowPlayingBar"
+            class="fixed bottom-0 left-0 right-0 glass-dark p-4 transform translate-y-full transition-transform duration-300 z-20">
+            <div class="container mx-auto flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <button onclick="togglePlayPause()"
+                        class="p-3 bg-white/20 rounded-full hover:bg-white/30 transition">
+                        <i class="fas fa-play" id="playPauseIcon"></i>
+                    </button>
+                    <div>
+                        <p class="font-semibold" id="nowPlayingName">No sound playing</p>
+                        <p class="text-sm opacity-75" id="nowPlayingCategory">Select a sound to begin</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-6">
+                    <div class="flex items-center space-x-2">
+                        <i class="fas fa-volume-up"></i>
+                        <input type="range" id="masterVolume" class="volume-slider w-32" min="0" max="100" value="70"
+                            onchange="updateMasterVolume(this.value)">
+                    </div>
+
+                    <div class="flex items-center space-x-2">
+                        <i class="fas fa-clock"></i>
+                        <select id="sleepTimer" onchange="setSleepTimer(this.value)"
+                            class="bg-white/10 px-3 py-1 rounded-lg focus:outline-none">
+                            <option value="">No timer</option>
+                            <option value="5">5 min</option>
+                            <option value="15">15 min</option>
+                            <option value="30">30 min</option>
+                            <option value="60">1 hour</option>
+                            <option value="120">2 hours</option>
+                        </select>
+                    </div>
+
+                    <button onclick="toggleMixer()" class="p-2 hover:bg-white/20 rounded-lg transition">
+                        <i class="fas fa-sliders-h"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sound Mixer Panel -->
+        <div id="mixerPanel"
+            class="fixed right-0 top-0 h-full w-80 glass-dark transform translate-x-full transition-transform duration-300 z-30 p-6 overflow-y-auto">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-semibold">Sound Mixer</h3>
+                <button onclick="toggleMixer()" class="p-2 hover:bg-white/20 rounded-lg transition">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="mixerTracks" class="space-y-4">
+                <!-- Mixer tracks will be added dynamically -->
+            </div>
+            <button onclick="clearMixer()"
+                class="w-full mt-6 py-2 bg-red-500/20 hover:bg-red-500/30 rounded-lg transition">
+                Clear All
+            </button>
+        </div>
+
+        <!-- Favorites Modal -->
+        <div id="favoritesModal" class="fixed inset-0 bg-black/50 hidden z-40 flex items-center justify-center p-6">
+            <div class="glass rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-2xl font-semibold">Your Favorites</h3>
+                    <button onclick="closeFavorites()" class="p-2 hover:bg-white/20 rounded-lg transition">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div id="favoritesList" class="grid gap-4">
+                    <!-- Favorites will be displayed here -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Sound data with free sources
+        const sounds = [
+            // Nature Sounds
+            { id: 1, name: 'Rain', category: 'nature', icon: 'cloud-rain', url: 'https://www.soundjay.com/misc/sounds/rain-01.mp3', color: 'from-blue-400 to-blue-600' },
+            { id: 2, name: 'Ocean Waves', category: 'nature', icon: 'water', url: 'https://www.soundjay.com/misc/sounds/ocean-wave-1.mp3', color: 'from-cyan-400 to-blue-600' },
+            { id: 3, name: 'Forest', category: 'nature', icon: 'tree', url: 'https://www.soundjay.com/misc/sounds/forest-ambience.mp3', color: 'from-green-400 to-green-600' },
+            { id: 4, name: 'Thunder', category: 'nature', icon: 'bolt', url: 'https://www.soundjay.com/misc/sounds/thunder-1.mp3', color: 'from-gray-600 to-gray-800' },
+            { id: 5, name: 'Wind', category: 'nature', icon: 'wind', url: 'https://www.soundjay.com/misc/sounds/wind-1.mp3', color: 'from-gray-400 to-gray-600' },
+            { id: 6, name: 'Birds', category: 'nature', icon: 'dove', url: 'https://www.soundjay.com/misc/sounds/birds-1.mp3', color: 'from-yellow-400 to-orange-500' },
+
+            // Ambient Sounds
+            { id: 7, name: 'Coffee Shop', category: 'ambient', icon: 'coffee', url: 'https://www.soundjay.com/misc/sounds/coffee-shop.mp3', color: 'from-amber-600 to-amber-800' },
+            { id: 8, name: 'Library', category: 'ambient', icon: 'book', url: 'https://www.soundjay.com/misc/sounds/library-ambience.mp3', color: 'from-indigo-400 to-indigo-600' },
+            { id: 9, name: 'Fireplace', category: 'ambient', icon: 'fire', url: 'https://www.soundjay.com/misc/sounds/fireplace.mp3', color: 'from-orange-500 to-red-600' },
+            { id: 10, name: 'Fan', category: 'ambient', icon: 'fan', url: 'https://www.soundjay.com/misc/sounds/fan-1.mp3', color: 'from-teal-400 to-teal-600' },
+
+            // Music & Radio
+            { id: 11, name: 'Lo-Fi Hip Hop', category: 'music', icon: 'headphones', url: 'https://streamer.radio.co/sd9d0d3c0c/listen', color: 'from-purple-400 to-pink-600' },
+            { id: 12, name: 'Classical Music', category: 'music', icon: 'music', url: 'https://streamer.radio.co/sd9d0d3c0c/listen', color: 'from-red-400 to-pink-600' },
+            { id: 13, name: 'Jazz Radio', category: 'music', icon: 'saxophone', url: 'https://streamer.radio.co/sd9d0d3c0c/listen', color: 'from-blue-500 to-purple-600' },
+            { id: 14, name: 'FreeCodeCamp Radio', category: 'music', icon: 'code', url: 'https://coderadio.freecodecamp.org/', color: 'from-yellow-500 to-orange-600' },
+            { id: 15, name: 'Chill Vibes', category: 'music', icon: 'compact-disc', url: 'https://streamer.radio.co/sd9d0d3c0c/listen', color: 'from-green-400 to-teal-600' },
+
+            // Productivity
+            { id: 16, name: 'White Noise', category: 'productivity', icon: 'wave-square', url: 'https://www.soundjay.com/misc/sounds/white-noise.mp3', color: 'from-gray-500 to-gray-700' },
+            { id: 17, name: 'Pink Noise', category: 'productivity', icon: 'signal', url: 'https://www.soundjay.com/misc/sounds/pink-noise.mp3', color: 'from-pink-400 to-pink-600' },
+            { id: 18, name: 'Brown Noise', category: 'productivity', icon: 'broadcast-tower', url: 'https://www.soundjay.com/misc/sounds/brown-noise.mp3', color: 'from-amber-700 to-amber-900' },
+            { id: 19, name: 'Focus Sounds', category: 'productivity', icon: 'brain', url: 'https://www.soundjay.com/misc/sounds/focus-ambience.mp3', color: 'from-indigo-500 to-purple-700' },
+            { id: 20, name: 'Meditation', category: 'productivity', icon: 'om', url: 'https://www.soundjay.com/misc/sounds/meditation.mp3', color: 'from-purple-500 to-indigo-700' }
+        ];
+
+        let currentSounds = [];
+        let favorites = JSON.parse(localStorage.getItem('favorites')) || [];
+        let isDarkTheme = true;
+        let sleepTimerInterval = null;
+
+        // Initialize the app
+        function init() {
+            renderSounds(sounds);
+            updateFavoriteCount();
+            loadTheme();
+        }
+
+        // Render sounds grid
+        function renderSounds(soundsToRender) {
+            const grid = document.getElementById('soundGrid');
+            grid.innerHTML = soundsToRender.map(sound => `
+                <div class="sound-card glass rounded-2xl p-6 cursor-pointer hover:bg-white/20" data-sound-id="${sound.id}" data-category="${sound.category}">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="w-16 h-16 rounded-full bg-gradient-to-br ${sound.color} flex items-center justify-center">
+                            <i class="fas fa-${sound.icon} text-2xl"></i>
+                        </div>
+                        <button onclick="toggleFavorite(event, ${sound.id})" class="p-2 hover:bg-white/20 rounded-full transition">
+                            <i class="fas fa-heart ${favorites.includes(sound.id) ? 'text-red-500' : 'opacity-50'}"></i>
+                        </button>
+                    </div>
+                    <h3 class="font-semibold text-lg mb-2">${sound.name}</h3>
+                    <p class="text-sm opacity-75 mb-4">${sound.category}</p>
+                    <div class="flex items-center justify-between">
+                        <button onclick="playSound(${sound.id})" class="px-4 py-2 bg-white/20 rounded-lg hover:bg-white/30 transition flex items-center space-x-2">
+                            <i class="fas fa-play"></i>
+                            <span>Play</span>
+                        </button>
+                        <button onclick="addToMixer(${sound.id})" class="p-2 hover:bg-white/20 rounded-lg transition">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Play a sound
+        function playSound(soundId) {
+            const sound = sounds.find(s => s.id === soundId);
+            if (!sound) return;
+
+            const existingSound = currentSounds.find(s => s.id === soundId);
+            if (existingSound) {
+                stopSound(soundId);
+            } else {
+                const audio = new Audio(sound.url);
+                audio.loop = true;
+                audio.volume = document.getElementById('masterVolume').value / 100;
+                audio.play();
+
+                currentSounds.push({
+                    id: soundId,
+                    name: sound.name,
+                    category: sound.category,
+                    audio: audio,
+                    volume: audio.volume
+                });
+
+                updateNowPlaying();
+                showNowPlayingBar();
+
+                // Add visual feedback
+                document.querySelector(`[data-sound-id="${soundId}"]`).classList.add('playing');
+            }
+        }
+
+        // Stop a sound
+        function stopSound(soundId) {
+            const index = currentSounds.findIndex(s => s.id === soundId);
+            if (index !== -1) {
+                currentSounds[index].audio.pause();
+                currentSounds.splice(index, 1);
+
+                document.querySelector(`[data-sound-id="${soundId}"]`)?.classList.remove('playing');
+                updateNowPlaying();
+
+                if (currentSounds.length === 0) {
+                    hideNowPlayingBar();
+                }
+            }
+        }
+
+        // Add sound to mixer
+        function addToMixer(soundId) {
+            const sound = sounds.find(s => s.id === soundId);
+            if (!sound) return;
+
+            const existingSound = currentSounds.find(s => s.id === soundId);
+            if (!existingSound) {
+                playSound(soundId);
+            }
+
+            updateMixer();
+            toggleMixer();
+        }
+
+        // Update mixer panel
+        function updateMixer() {
+            const mixerTracks = document.getElementById('mixerTracks');
+            mixerTracks.innerHTML = currentSounds.map(sound => `
+                <div class="glass rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="font-medium">${sound.name}</span>
+                        <button onclick="stopSound(${sound.id})" class="p-1 hover:bg-white/20 rounded transition">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <input type="range" class="volume-slider w-full" min="0" max="100" value="${sound.volume * 100}" 
+                           onchange="updateSoundVolume(${sound.id}, this.value)">
+                </div>
+            `).join('');
+        }
+
+        // Update individual sound volume
+        function updateSoundVolume(soundId, volume) {
+            const sound = currentSounds.find(s => s.id === soundId);
+            if (sound) {
+                sound.volume = volume / 100;
+                sound.audio.volume = sound.volume;
+            }
+        }
+
+        // Update master volume
+        function updateMasterVolume(value) {
+            currentSounds.forEach(sound => {
+                sound.audio.volume = (value / 100) * sound.volume;
+            });
+        }
+
+        // Toggle play/pause
+        function togglePlayPause() {
+            const icon = document.getElementById('playPauseIcon');
+            if (currentSounds.length > 0) {
+                const isPlaying = currentSounds[0].audio.paused;
+                currentSounds.forEach(sound => {
+                    if (isPlaying) {
+                        sound.audio.play();
+                    } else {
+                        sound.audio.pause();
+                    }
+                });
+                icon.className = isPlaying ? 'fas fa-pause' : 'fas fa-play';
+            }
+        }
+
+        // Update now playing display
+        function updateNowPlaying() {
+            const nameEl = document.getElementById('nowPlayingName');
+            const categoryEl = document.getElementById('nowPlayingCategory');
+
+            if (currentSounds.length === 0) {
+                nameEl.textContent = 'No sound playing';
+                categoryEl.textContent = 'Select a sound to begin';
+            } else if (currentSounds.length === 1) {
+                nameEl.textContent = currentSounds[0].name;
+                categoryEl.textContent = currentSounds[0].category;
+            } else {
+                nameEl.textContent = `${currentSounds.length} sounds mixing`;
+                categoryEl.textContent = 'Custom mix';
+            }
+        }
+
+        // Show/hide now playing bar
+        function showNowPlayingBar() {
+            document.getElementById('nowPlayingBar').classList.remove('translate-y-full');
+        }
+
+        function hideNowPlayingBar() {
+            document.getElementById('nowPlayingBar').classList.add('translate-y-full');
+        }
+
+        // Toggle mixer panel
+        function toggleMixer() {
+            const panel = document.getElementById('mixerPanel');
+            panel.classList.toggle('translate-x-full');
+            if (!panel.classList.contains('translate-x-full')) {
+                updateMixer();
+            }
+        }
+
+        // Clear mixer
+        function clearMixer() {
+            currentSounds.forEach(sound => sound.audio.pause());
+            currentSounds = [];
+            document.querySelectorAll('.sound-card').forEach(card => card.classList.remove('playing'));
+            updateNowPlaying();
+            updateMixer();
+            hideNowPlayingBar();
+        }
+
+        // Filter by category
+        function filterCategory(category) {
+            // Update active button
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.classList.remove('bg-white/20');
+                if (btn.dataset.category === category) {
+                    btn.classList.add('bg-white/20');
+                }
+            });
+
+            // Filter sounds
+            const filtered = category === 'all' ? sounds : sounds.filter(s => s.category === category);
+            renderSounds(filtered);
+        }
+
+        // Search sounds
+        function searchSounds() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = sounds.filter(s =>
+                s.name.toLowerCase().includes(query) ||
+                s.category.toLowerCase().includes(query)
+            );
+            renderSounds(filtered);
+        }
+
+        // Toggle search bar
+        function toggleSearch() {
+            const searchBar = document.getElementById('searchBar');
+            searchBar.classList.toggle('hidden');
+            if (!searchBar.classList.contains('hidden')) {
+                document.getElementById('searchInput').focus();
+            }
+        }
+
+        // Toggle favorite
+        function toggleFavorite(event, soundId) {
+            event.stopPropagation();
+            const index = favorites.indexOf(soundId);
+            if (index === -1) {
+                favorites.push(soundId);
+            } else {
+                favorites.splice(index, 1);
+            }
+            localStorage.setItem('favorites', JSON.stringify(favorites));
+            updateFavoriteCount();
+            renderSounds(sounds);
+        }
+
+        // Update favorite count
+        function updateFavoriteCount() {
+            const count = document.getElementById('favCount');
+            if (favorites.length > 0) {
+                count.textContent = favorites.length;
+                count.classList.remove('hidden');
+            } else {
+                count.classList.add('hidden');
+            }
+        }
+
+        // Show favorites modal
+        function showFavorites() {
+            const modal = document.getElementById('favoritesModal');
+            const list = document.getElementById('favoritesList');
+
+            if (favorites.length === 0) {
+                list.innerHTML = '<p class="text-center opacity-75">No favorites yet. Click the heart icon on sounds to add them here.</p>';
+            } else {
+                const favoriteSounds = sounds.filter(s => favorites.includes(s.id));
+                list.innerHTML = favoriteSounds.map(sound => `
+                    <div class="glass rounded-lg p-4 flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 rounded-full bg-gradient-to-br ${sound.color} flex items-center justify-center">
+                                <i class="fas fa-${sound.icon}"></i>
+                            </div>
+                            <div>
+                                <p class="font-medium">${sound.name}</p>
+                                <p class="text-sm opacity-75">${sound.category}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="playSound(${sound.id})" class="p-2 hover:bg-white/20 rounded-lg transition">
+                                <i class="fas fa-play"></i>
+                            </button>
+                            <button onclick="toggleFavorite(event, ${sound.id}); showFavorites();" class="p-2 hover:bg-white/20 rounded-lg transition">
+                                <i class="fas fa-heart text-red-500"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        // Close favorites modal
+        function closeFavorites() {
+            document.getElementById('favoritesModal').classList.add('hidden');
+        }
+
+        // Set sleep timer
+        function setSleepTimer(minutes) {
+            if (sleepTimerInterval) {
+                clearInterval(sleepTimerInterval);
+                sleepTimerInterval = null;
+            }
+
+            if (minutes) {
+                const ms = minutes * 60 * 1000;
+                sleepTimerInterval = setTimeout(() => {
+                    clearMixer();
+                    document.getElementById('sleepTimer').value = '';
+                }, ms);
+            }
+        }
+
+        // Toggle theme
+        function toggleTheme() {
+            isDarkTheme = !isDarkTheme;
+            const icon = document.getElementById('themeIcon');
+            icon.className = isDarkTheme ? 'fas fa-moon' : 'fas fa-sun';
+            localStorage.setItem('theme', isDarkTheme ? 'dark' : 'light');
+
+            // In a real implementation, you would update the theme here
+            // For this demo, we'll keep the gradient background
+        }
+
+        // Load theme
+        function loadTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'light') {
+                isDarkTheme = false;
+                document.getElementById('themeIcon').className = 'fas fa-sun';
+            }
+        }
+
+        // Initialize app on load
+        init();
+    </script>
+</body>
+
+</html>
