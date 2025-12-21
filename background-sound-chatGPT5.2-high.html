@@ -1,0 +1,1888 @@
+<!doctype html>
+<html lang="en" class="h-full">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0b0f19" />
+    <title>Hush — White Noise + Radios</title>
+    <link rel="icon"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3CradialGradient id='g' cx='50%25' cy='45%25' r='70%25'%3E%3Cstop offset='0%25' stop-color='%23a78bfa'/%3E%3Cstop offset='60%25' stop-color='%2314b8a6'/%3E%3Cstop offset='100%25' stop-color='%230b0f19'/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='url(%23g)'/%3E%3Cpath d='M16 40c8-18 24-18 32 0' fill='none' stroke='white' stroke-opacity='.85' stroke-width='4' stroke-linecap='round'/%3E%3Cpath d='M20 28c6-10 18-10 24 0' fill='none' stroke='white' stroke-opacity='.65' stroke-width='4' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='44' r='3.5' fill='white' fill-opacity='.9'/%3E%3C/svg%3E" />
+
+    <!-- Tailwind v4 browser CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+    <style>
+        :root {
+            color-scheme: dark;
+        }
+
+        .glass {
+            background: color-mix(in srgb, rgb(255 255 255 / .08), transparent 55%);
+            border: 1px solid rgb(255 255 255 / .10);
+        }
+
+        .glass2 {
+            background: color-mix(in srgb, rgb(255 255 255 / .06), transparent 60%);
+            border: 1px solid rgb(255 255 255 / .08);
+        }
+
+        .noisebg {
+            background:
+                radial-gradient(1200px 700px at 20% 10%, rgb(167 139 250 / .20), transparent 55%),
+                radial-gradient(900px 600px at 85% 15%, rgb(20 184 166 / .18), transparent 55%),
+                radial-gradient(900px 700px at 55% 95%, rgb(59 130 246 / .12), transparent 55%),
+                linear-gradient(180deg, #070a12, #070a12);
+        }
+
+        .subtle-grid {
+            background-image:
+                linear-gradient(to right, rgb(255 255 255 / .05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgb(255 255 255 / .05) 1px, transparent 1px);
+            background-size: 56px 56px;
+            mask-image: radial-gradient(ellipse at 50% 30%, black 35%, transparent 70%);
+            opacity: .55;
+            pointer-events: none;
+        }
+
+        .ringfocus:focus-visible {
+            outline: 2px solid rgb(167 139 250 / .9);
+            outline-offset: 2px;
+        }
+
+        .range {
+            accent-color: #a78bfa;
+        }
+
+        .chip[aria-pressed="true"] {
+            background: rgb(167 139 250 / .20);
+            border-color: rgb(167 139 250 / .40);
+        }
+
+        .chip {
+            border: 1px solid rgb(255 255 255 / .10);
+            background: rgb(255 255 255 / .06);
+        }
+
+        .mono {
+            font-feature-settings: "ss01" on, "ss02" on;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            #viz {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body class="h-full text-zinc-100 noisebg">
+    <div class="subtle-grid fixed inset-0"></div>
+
+    <div class="min-h-full relative">
+        <header class="sticky top-0 z-30 backdrop-blur-xl bg-black/25 border-b border-white/10">
+            <div class="max-w-6xl mx-auto px-4 sm:px-6 py-4">
+                <div class="flex items-center justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="h-10 w-10 rounded-2xl grid place-items-center glass">
+                            <span class="text-lg font-semibold">H</span>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-3">
+                                <h1 class="text-lg sm:text-xl font-semibold tracking-tight">Hush</h1>
+                                <span class="text-xs text-zinc-300/80 mono">noise • radios • focus</span>
+                            </div>
+                            <p class="text-xs text-zinc-300/70">Free ambient sound + community radio directory.
+                                Everything starts after you enable audio.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button id="btnEnable"
+                            class="ringfocus px-3 py-2 rounded-xl glass hover:bg-white/10 transition text-sm font-medium">
+                            Enable audio
+                        </button>
+                        <button id="btnMinimal"
+                            class="ringfocus px-3 py-2 rounded-xl glass hover:bg-white/10 transition text-sm"
+                            title="Toggle minimal mode">
+                            Minimal
+                        </button>
+                        <button id="btnTheme"
+                            class="ringfocus px-3 py-2 rounded-xl glass hover:bg-white/10 transition text-sm"
+                            title="Toggle theme">
+                            Theme
+                        </button>
+                        <button id="btnHelp"
+                            class="ringfocus px-3 py-2 rounded-xl glass hover:bg-white/10 transition text-sm"
+                            title="Help">
+                            ?
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mt-3 flex flex-wrap items-center gap-2">
+                    <div id="statusPill" class="text-xs px-2 py-1 rounded-full glass2 text-zinc-300/90">Audio: <span
+                            id="audioState">not enabled</span></div>
+                    <div class="text-xs px-2 py-1 rounded-full glass2 text-zinc-300/80">Shortcuts: <span
+                            class="mono">Space</span> play/pause · <span class="mono">N</span> noise · <span
+                            class="mono">/</span> search · <span class="mono">F</span> favorite</div>
+                </div>
+            </div>
+        </header>
+
+        <main class="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+            <div class="grid lg:grid-cols-12 gap-4">
+                <!-- LEFT: RADIO -->
+                <section class="lg:col-span-7 space-y-4">
+                    <div class="glass rounded-2xl p-4">
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <h2 class="font-semibold tracking-tight">Radios</h2>
+                                <p class="text-sm text-zinc-300/70">Curated free stations + search via Radio Browser
+                                    (community directory).</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button id="tabCurated" class="ringfocus chip px-3 py-1.5 rounded-full text-xs"
+                                    aria-pressed="true">Curated</button>
+                                <button id="tabSearch" class="ringfocus chip px-3 py-1.5 rounded-full text-xs"
+                                    aria-pressed="false">Search</button>
+                            </div>
+                        </div>
+
+                        <!-- Player -->
+                        <div class="mt-4 grid sm:grid-cols-12 gap-3">
+                            <div class="sm:col-span-8">
+                                <div class="glass2 rounded-2xl p-3">
+                                    <div class="flex items-center justify-between gap-3">
+                                        <div class="min-w-0">
+                                            <div class="text-xs text-zinc-300/70">Now playing</div>
+                                            <div id="nowTitle" class="truncate font-medium">—</div>
+                                            <div id="nowMeta" class="truncate text-xs text-zinc-300/70 mono">—</div>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <button id="btnFav"
+                                                class="ringfocus px-3 py-2 rounded-xl glass hover:bg-white/10 transition text-sm"
+                                                title="Favorite (F)">☆</button>
+                                            <button id="btnRadio"
+                                                class="ringfocus px-3 py-2 rounded-xl bg-white text-black hover:bg-zinc-100 transition text-sm font-medium"
+                                                title="Play/Pause (Space)">Play</button>
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-3 grid grid-cols-12 gap-3 items-center">
+                                        <div class="col-span-6">
+                                            <label class="text-xs text-zinc-300/70">Radio volume</label>
+                                            <input id="radioVol" class="range w-full" type="range" min="0" max="100"
+                                                value="70" />
+                                        </div>
+                                        <div class="col-span-6">
+                                            <label class="text-xs text-zinc-300/70">Master volume</label>
+                                            <input id="masterVol" class="range w-full" type="range" min="0" max="100"
+                                                value="85" />
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-2 flex items-center justify-between text-xs text-zinc-300/70">
+                                        <div>Buffer: <span id="bufferState">—</span></div>
+                                        <div class="flex items-center gap-2">
+                                            <button id="btnReconnect"
+                                                class="ringfocus px-2 py-1 rounded-lg glass hover:bg-white/10">Reconnect</button>
+                                            <a id="btnOpenSource"
+                                                class="ringfocus px-2 py-1 rounded-lg glass hover:bg-white/10" href="#"
+                                                target="_blank" rel="noreferrer">Open</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="sm:col-span-4">
+                                <div class="glass2 rounded-2xl p-3">
+                                    <div class="text-xs text-zinc-300/70">Recent</div>
+                                    <div id="recents" class="mt-2 space-y-1"></div>
+                                    <div class="mt-3 text-xs text-zinc-400/70">Tip: some stations block WebAudio
+                                        analysis (CORS). Playback still works.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Lists -->
+                        <div class="mt-4">
+                            <div id="curatedPanel" class="space-y-2">
+                                <div class="flex items-center gap-2">
+                                    <input id="filterCurated"
+                                        class="ringfocus w-full rounded-xl px-3 py-2 bg-black/30 border border-white/10 text-sm placeholder:text-zinc-400/70"
+                                        placeholder="Filter curated stations…" />
+                                </div>
+                                <div id="curatedList" class="mt-2 grid md:grid-cols-2 gap-2"></div>
+                            </div>
+
+                            <div id="searchPanel" class="hidden space-y-2">
+                                <div class="grid sm:grid-cols-12 gap-2">
+                                    <div class="sm:col-span-8">
+                                        <input id="searchQuery"
+                                            class="ringfocus w-full rounded-xl px-3 py-2 bg-black/30 border border-white/10 text-sm placeholder:text-zinc-400/70"
+                                            placeholder="Search stations (name/tag/country)…" />
+                                    </div>
+                                    <div class="sm:col-span-2">
+                                        <select id="searchBy"
+                                            class="ringfocus w-full rounded-xl px-3 py-2 bg-black/30 border border-white/10 text-sm">
+                                            <option value="name">Name</option>
+                                            <option value="tag">Tag</option>
+                                            <option value="country">Country</option>
+                                            <option value="language">Language</option>
+                                        </select>
+                                    </div>
+                                    <div class="sm:col-span-2">
+                                        <button id="btnSearch"
+                                            class="ringfocus w-full rounded-xl px-3 py-2 bg-white text-black hover:bg-zinc-100 transition text-sm font-medium">Search</button>
+                                    </div>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <div class="text-xs text-zinc-300/70">Powered by <a
+                                            class="underline hover:no-underline" href="https://www.radio-browser.info/"
+                                            target="_blank" rel="noreferrer">Radio Browser</a></div>
+                                    <div id="searchStatus" class="text-xs text-zinc-300/70"></div>
+                                </div>
+                                <div id="searchResults" class="grid md:grid-cols-2 gap-2"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- FreeCodeCamp Radio -->
+                    <div class="glass rounded-2xl p-4">
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <h3 class="font-semibold tracking-tight">freeCodeCamp Radio (optional)</h3>
+                                <p class="text-sm text-zinc-300/70">A cozy YouTube stream. Not part of the mixer
+                                    (YouTube’s restrictions). Load only if you want it.</p>
+                            </div>
+                            <button id="btnToggleFCC"
+                                class="ringfocus px-3 py-2 rounded-xl glass hover:bg-white/10 transition text-sm">Load</button>
+                        </div>
+                        <div id="fccWrap" class="hidden mt-3">
+                            <div class="aspect-video rounded-2xl overflow-hidden border border-white/10 bg-black/40">
+                                <iframe id="fccFrame" title="freeCodeCamp Radio" class="w-full h-full"
+                                    allow="autoplay; encrypted-media; picture-in-picture"
+                                    referrerpolicy="origin-when-cross-origin" loading="lazy"></iframe>
+                            </div>
+                            <div class="mt-2 flex items-center justify-between text-xs text-zinc-300/70">
+                                <div>Tip: start playback inside the video, then keep it in the background.</div>
+                                <a class="underline hover:no-underline"
+                                    href="https://www.youtube.com/watch?v=jfKfPfyJRdk" target="_blank"
+                                    rel="noreferrer">Open on YouTube</a>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- RIGHT: NOISE + TOOLS -->
+                <section class="lg:col-span-5 space-y-4">
+                    <div class="glass rounded-2xl p-4">
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <h2 class="font-semibold tracking-tight">Noise</h2>
+                                <p class="text-sm text-zinc-300/70">White / pink / brown noise with gentle filtering.
+                                    Great for focus and sleep.</p>
+                            </div>
+                            <button id="btnNoise"
+                                class="ringfocus px-3 py-2 rounded-xl glass hover:bg-white/10 transition text-sm">Off</button>
+                        </div>
+
+                        <div class="mt-4 grid grid-cols-12 gap-3 items-center">
+                            <div class="col-span-12">
+                                <div class="flex flex-wrap gap-2">
+                                    <button class="ringfocus chip px-3 py-1.5 rounded-full text-xs"
+                                        data-noisetype="white" aria-pressed="true">White</button>
+                                    <button class="ringfocus chip px-3 py-1.5 rounded-full text-xs"
+                                        data-noisetype="pink" aria-pressed="false">Pink</button>
+                                    <button class="ringfocus chip px-3 py-1.5 rounded-full text-xs"
+                                        data-noisetype="brown" aria-pressed="false">Brown</button>
+                                </div>
+                            </div>
+
+                            <div class="col-span-6">
+                                <label class="text-xs text-zinc-300/70">Noise volume</label>
+                                <input id="noiseVol" class="range w-full" type="range" min="0" max="100" value="35" />
+                            </div>
+                            <div class="col-span-6">
+                                <label class="text-xs text-zinc-300/70">Tone (low-pass)</label>
+                                <input id="noiseTone" class="range w-full" type="range" min="300" max="18000"
+                                    value="11000" />
+                            </div>
+
+                            <div class="col-span-6">
+                                <label class="text-xs text-zinc-300/70">Width</label>
+                                <input id="noiseWidth" class="range w-full" type="range" min="0" max="100" value="25" />
+                            </div>
+                            <div class="col-span-6">
+                                <label class="text-xs text-zinc-300/70">Gentle drift</label>
+                                <input id="noiseDrift" class="range w-full" type="range" min="0" max="100" value="18" />
+                            </div>
+
+                            <div class="col-span-12">
+                                <div class="flex items-center justify-between text-xs text-zinc-300/70">
+                                    <div>Noise uses WebAudio (no external files).</div>
+                                    <button id="btnPanic"
+                                        class="ringfocus px-2 py-1 rounded-lg bg-red-500/20 border border-red-500/30 hover:bg-red-500/25">Panic
+                                        stop</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="glass rounded-2xl p-4">
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <h3 class="font-semibold tracking-tight">Sleep timer</h3>
+                                <p class="text-sm text-zinc-300/70">Fade out and stop everything after a set time.</p>
+                            </div>
+                            <div id="sleepBadge" class="text-xs px-2 py-1 rounded-full glass2 text-zinc-300/90 hidden">
+                            </div>
+                        </div>
+
+                        <div class="mt-3 grid grid-cols-12 gap-2 items-center">
+                            <div class="col-span-6">
+                                <input id="sleepMinutes"
+                                    class="ringfocus w-full rounded-xl px-3 py-2 bg-black/30 border border-white/10 text-sm"
+                                    type="number" min="1" max="240" value="30" />
+                                <div class="text-xs text-zinc-300/70 mt-1">Minutes</div>
+                            </div>
+                            <div class="col-span-6">
+                                <div class="flex gap-2">
+                                    <button id="btnSleepStart"
+                                        class="ringfocus w-full rounded-xl px-3 py-2 bg-white text-black hover:bg-zinc-100 transition text-sm font-medium">Start</button>
+                                    <button id="btnSleepCancel"
+                                        class="ringfocus w-full rounded-xl px-3 py-2 glass hover:bg-white/10 transition text-sm">Cancel</button>
+                                </div>
+                            </div>
+                            <div class="col-span-12">
+                                <div class="text-xs text-zinc-300/70">When the timer ends, it fades out the master
+                                    volume and stops radio + noise.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="glass rounded-2xl p-4">
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <h3 class="font-semibold tracking-tight">Focus timer (Pomodoro)</h3>
+                                <p class="text-sm text-zinc-300/70">A gentle timer that pairs well with noise.</p>
+                            </div>
+                            <div id="pomoBadge" class="text-xs px-2 py-1 rounded-full glass2 text-zinc-300/90 hidden">
+                            </div>
+                        </div>
+
+                        <div class="mt-3 grid grid-cols-12 gap-2 items-center">
+                            <div class="col-span-4">
+                                <label class="text-xs text-zinc-300/70">Work</label>
+                                <input id="pomoWork"
+                                    class="ringfocus w-full rounded-xl px-3 py-2 bg-black/30 border border-white/10 text-sm"
+                                    type="number" min="5" max="120" value="25" />
+                            </div>
+                            <div class="col-span-4">
+                                <label class="text-xs text-zinc-300/70">Break</label>
+                                <input id="pomoBreak"
+                                    class="ringfocus w-full rounded-xl px-3 py-2 bg-black/30 border border-white/10 text-sm"
+                                    type="number" min="1" max="60" value="5" />
+                            </div>
+                            <div class="col-span-4">
+                                <label class="text-xs text-zinc-300/70">Rounds</label>
+                                <input id="pomoRounds"
+                                    class="ringfocus w-full rounded-xl px-3 py-2 bg-black/30 border border-white/10 text-sm"
+                                    type="number" min="1" max="12" value="4" />
+                            </div>
+                            <div class="col-span-12">
+                                <div class="flex gap-2">
+                                    <button id="btnPomoStart"
+                                        class="ringfocus w-full rounded-xl px-3 py-2 bg-white text-black hover:bg-zinc-100 transition text-sm font-medium">Start</button>
+                                    <button id="btnPomoPause"
+                                        class="ringfocus w-full rounded-xl px-3 py-2 glass hover:bg-white/10 transition text-sm">Pause</button>
+                                    <button id="btnPomoReset"
+                                        class="ringfocus w-full rounded-xl px-3 py-2 glass hover:bg-white/10 transition text-sm">Reset</button>
+                                </div>
+                            </div>
+                            <div class="col-span-12">
+                                <div class="text-xs text-zinc-300/70">Optional: enable “Noise” and pick a station, then
+                                    start your timer.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="glass rounded-2xl p-4">
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <h3 class="font-semibold tracking-tight">Scenes</h3>
+                                <p class="text-sm text-zinc-300/70">One-tap presets for mixing and mood.</p>
+                            </div>
+                        </div>
+                        <div class="mt-3 grid grid-cols-2 gap-2">
+                            <button class="ringfocus rounded-xl glass hover:bg-white/10 transition p-3 text-left"
+                                data-scene="focus">
+                                <div class="text-sm font-medium">Deep focus</div>
+                                <div class="text-xs text-zinc-300/70">Brown + low tone · softer radio</div>
+                            </button>
+                            <button class="ringfocus rounded-xl glass hover:bg-white/10 transition p-3 text-left"
+                                data-scene="calm">
+                                <div class="text-sm font-medium">Calm</div>
+                                <div class="text-xs text-zinc-300/70">Pink · wide · chill radio</div>
+                            </button>
+                            <button class="ringfocus rounded-xl glass hover:bg-white/10 transition p-3 text-left"
+                                data-scene="sleep">
+                                <div class="text-sm font-medium">Sleep</div>
+                                <div class="text-xs text-zinc-300/70">Brown · very low · no radio</div>
+                            </button>
+                            <button class="ringfocus rounded-xl glass hover:bg-white/10 transition p-3 text-left"
+                                data-scene="silence">
+                                <div class="text-sm font-medium">Silence</div>
+                                <div class="text-xs text-zinc-300/70">Stops everything (soft fade)</div>
+                            </button>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <section class="mt-4 glass rounded-2xl p-4">
+                <div class="flex items-center justify-between gap-4">
+                    <div>
+                        <h3 class="font-semibold tracking-tight">Visualizer</h3>
+                        <p class="text-sm text-zinc-300/70">A subtle spectrum (best effort). If a station blocks
+                            analysis, you’ll still get noise visualization.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button id="btnViz"
+                            class="ringfocus px-3 py-2 rounded-xl glass hover:bg-white/10 transition text-sm">On</button>
+                        <button id="btnFullscreen"
+                            class="ringfocus px-3 py-2 rounded-xl glass hover:bg-white/10 transition text-sm">Fullscreen</button>
+                    </div>
+                </div>
+                <div class="mt-3 rounded-2xl overflow-hidden border border-white/10 bg-black/40">
+                    <canvas id="viz" height="140" class="w-full"></canvas>
+                </div>
+            </section>
+
+            <footer class="mt-6 text-xs text-zinc-300/70 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                    Built for free sources: SomaFM, Radio Paradise, Nightride FM, KEXP and stations from Radio Browser.
+                    <span class="mono">No tracking</span> beyond local settings in your browser.
+                </div>
+                <div class="mono">v1 · <a class="underline hover:no-underline" href="https://github.com/"
+                        target="_blank" rel="noreferrer" id="dummy"> </a></div>
+            </footer>
+        </main>
+
+        <!-- Hidden audio element (used for radio playback) -->
+        <audio id="radioEl" crossorigin="anonymous" preload="none"></audio>
+
+        <!-- Help modal -->
+        <div id="modal" class="fixed inset-0 hidden items-center justify-center p-4 z-50">
+            <div class="absolute inset-0 bg-black/60"></div>
+            <div class="relative max-w-lg w-full glass rounded-2xl p-4">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h3 class="font-semibold tracking-tight">How to use</h3>
+                        <p class="text-sm text-zinc-300/70">Quick guide and troubleshooting.</p>
+                    </div>
+                    <button id="btnCloseModal"
+                        class="ringfocus px-3 py-2 rounded-xl glass hover:bg-white/10 transition text-sm">Close</button>
+                </div>
+                <div class="mt-3 text-sm text-zinc-200/90 space-y-3">
+                    <div>
+                        <div class="font-medium">1) Enable audio</div>
+                        <div class="text-zinc-300/80">Browsers require a user gesture before WebAudio can start. Click
+                            <span class="mono">Enable audio</span> once.</div>
+                    </div>
+                    <div>
+                        <div class="font-medium">2) Pick a station or noise</div>
+                        <div class="text-zinc-300/80">Use the curated list, or search via Radio Browser. Turn on noise
+                            to mask distractions.</div>
+                    </div>
+                    <div>
+                        <div class="font-medium">If a station won’t play</div>
+                        <ul class="list-disc pl-5 text-zinc-300/80">
+                            <li>Try <span class="mono">Reconnect</span> or pick another stream (some servers temporarily
+                                fail).</li>
+                            <li>Some stations are blocked in some regions or require HTTP (not supported here).</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <div class="font-medium">Shortcuts</div>
+                        <div class="text-zinc-300/80 mono">Space = play/pause · N = noise toggle · / = focus search · F
+                            = favorite current</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        (() => {
+            const $ = (sel) => document.querySelector(sel);
+            const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+            // Elements
+            const btnEnable = $('#btnEnable');
+            const audioStateEl = $('#audioState');
+            const btnMinimal = $('#btnMinimal');
+            const btnTheme = $('#btnTheme');
+            const btnHelp = $('#btnHelp');
+
+            const tabCurated = $('#tabCurated');
+            const tabSearch = $('#tabSearch');
+            const curatedPanel = $('#curatedPanel');
+            const searchPanel = $('#searchPanel');
+
+            const curatedList = $('#curatedList');
+            const filterCurated = $('#filterCurated');
+
+            const searchQuery = $('#searchQuery');
+            const searchBy = $('#searchBy');
+            const btnSearch = $('#btnSearch');
+            const searchResults = $('#searchResults');
+            const searchStatus = $('#searchStatus');
+
+            const radioEl = $('#radioEl');
+            const nowTitle = $('#nowTitle');
+            const nowMeta = $('#nowMeta');
+            const btnRadio = $('#btnRadio');
+            const btnFav = $('#btnFav');
+            const btnReconnect = $('#btnReconnect');
+            const btnOpenSource = $('#btnOpenSource');
+            const bufferState = $('#bufferState');
+
+            const recentsEl = $('#recents');
+
+            const radioVol = $('#radioVol');
+            const masterVol = $('#masterVol');
+
+            const btnNoise = $('#btnNoise');
+            const noiseVol = $('#noiseVol');
+            const noiseTone = $('#noiseTone');
+            const noiseWidth = $('#noiseWidth');
+            const noiseDrift = $('#noiseDrift');
+            const btnPanic = $('#btnPanic');
+
+            const sleepMinutes = $('#sleepMinutes');
+            const btnSleepStart = $('#btnSleepStart');
+            const btnSleepCancel = $('#btnSleepCancel');
+            const sleepBadge = $('#sleepBadge');
+
+            const pomoWork = $('#pomoWork');
+            const pomoBreak = $('#pomoBreak');
+            const pomoRounds = $('#pomoRounds');
+            const btnPomoStart = $('#btnPomoStart');
+            const btnPomoPause = $('#btnPomoPause');
+            const btnPomoReset = $('#btnPomoReset');
+            const pomoBadge = $('#pomoBadge');
+
+            const btnViz = $('#btnViz');
+            const viz = $('#viz');
+            const btnFullscreen = $('#btnFullscreen');
+
+            const btnToggleFCC = $('#btnToggleFCC');
+            const fccWrap = $('#fccWrap');
+            const fccFrame = $('#fccFrame');
+
+            const modal = $('#modal');
+            const btnCloseModal = $('#btnCloseModal');
+
+            const LS_KEY = 'hush.v1';
+            const defaultState = {
+                theme: 'dark',
+                minimal: false,
+                volumes: { radio: 0.70, noise: 0.35, master: 0.85 },
+                noise: { enabled: false, type: 'white', tone: 11000, width: 0.25, drift: 0.18 },
+                currentStation: null,
+                favorites: [],
+                recents: [],
+                vizOn: true,
+                fccLoaded: false
+            };
+
+            const state = loadState();
+
+            // Curated stations: free internet radio streams
+            const curatedStations = [
+                {
+                    id: 'somafm_groovesalad',
+                    name: 'SomaFM — Groove Salad',
+                    desc: 'Chilled electronic / downtempo (free, listener-supported)',
+                    url: 'https://ice1.somafm.com/groovesalad-256-mp3',
+                    homepage: 'https://somafm.com/groovesalad/'
+                },
+                {
+                    id: 'somafm_dronezone',
+                    name: 'SomaFM — Drone Zone',
+                    desc: 'Spacious drones and long-form ambience',
+                    url: 'https://ice1.somafm.com/dronezone-256-mp3',
+                    homepage: 'https://somafm.com/dronezone/'
+                },
+                {
+                    id: 'somafm_deepspaceone',
+                    name: 'SomaFM — Deep Space One',
+                    desc: 'Ambient, space music, minimal beats',
+                    url: 'https://ice1.somafm.com/deepspaceone-256-mp3',
+                    homepage: 'https://somafm.com/deepspaceone/'
+                },
+                {
+                    id: 'somafm_lush',
+                    name: 'SomaFM — Lush',
+                    desc: 'Dreamy pop & chilled indie',
+                    url: 'https://ice1.somafm.com/lush-128-mp3',
+                    homepage: 'https://somafm.com/lush/'
+                },
+                {
+                    id: 'somafm_spacestation',
+                    name: 'SomaFM — Space Station Soma',
+                    desc: 'Ambient / psychedelic / eclectic',
+                    url: 'https://ice1.somafm.com/spacestation-128-mp3',
+                    homepage: 'https://somafm.com/spacestation/'
+                },
+                {
+                    id: 'somafm_beatblender',
+                    name: 'SomaFM — Beat Blender',
+                    desc: 'Groovy downtempo / chill',
+                    url: 'https://ice1.somafm.com/beatblender-128-mp3',
+                    homepage: 'https://somafm.com/beatblender/'
+                },
+                {
+                    id: 'radioparadise_main',
+                    name: 'Radio Paradise — Main Mix',
+                    desc: 'Hand-picked eclectic rock/indie/world (non-commercial)',
+                    url: 'https://stream.radioparadise.com/mp3-192',
+                    homepage: 'https://radioparadise.com/'
+                },
+                {
+                    id: 'radioparadise_mellow',
+                    name: 'Radio Paradise — Mellow Mix',
+                    desc: 'Softer, calmer selections',
+                    url: 'https://stream.radioparadise.com/mellow-192',
+                    homepage: 'https://radioparadise.com/'
+                },
+                {
+                    id: 'radioparadise_rock',
+                    name: 'Radio Paradise — Rock Mix',
+                    desc: 'More guitars, more energy',
+                    url: 'https://stream.radioparadise.com/rock-192',
+                    homepage: 'https://radioparadise.com/'
+                },
+                {
+                    id: 'nightride_nightride',
+                    name: 'Nightride FM — Nightride',
+                    desc: 'Synthwave / retrowave (free stream)',
+                    url: 'https://stream.nightride.fm/nightride.m4a',
+                    homepage: 'https://nightride.fm/'
+                },
+                {
+                    id: 'nightride_chillsynth',
+                    name: 'Nightride FM — Chillsynth',
+                    desc: 'Ambient synthwave',
+                    url: 'https://stream.nightride.fm/chillsynth.m4a',
+                    homepage: 'https://nightride.fm/'
+                },
+                {
+                    id: 'kexp_128',
+                    name: 'KEXP — Seattle (128kbps)',
+                    desc: 'Independent radio (publicly accessible stream)',
+                    url: 'https://kexp-mp3-128.streamguys1.com/kexp128.mp3',
+                    homepage: 'https://www.kexp.org/'
+                }
+            ];
+
+            // -------------------------
+            // Audio engine (WebAudio + <audio>)
+            // -------------------------
+            let audioEnabled = false;
+            let ctx = null;
+            let masterGain = null;
+            let radioGainNode = null;
+            let noiseGainNode = null;
+            let analyser = null;
+            let radioSourceNode = null;
+
+            // noise nodes
+            let noiseNode = null; // AudioWorkletNode or ScriptProcessor
+            let noiseFilter = null;
+            let stereoPanner = null;
+            let driftLfo = null;
+            let driftGain = null;
+
+            // timers
+            let sleepTimer = null;
+            let sleepEndsAt = null;
+
+            let pomo = {
+                running: false,
+                paused: false,
+                phase: 'work',
+                round: 1,
+                endsAt: null,
+                t: null
+            };
+
+            // Viz
+            let vizOn = state.vizOn;
+            let rafId = null;
+
+            // -------------------------
+            // Persistence
+            // -------------------------
+            function loadState() {
+                try {
+                    const raw = localStorage.getItem(LS_KEY);
+                    if (!raw) return structuredClone(defaultState);
+                    const parsed = JSON.parse(raw);
+                    return {
+                        ...structuredClone(defaultState),
+                        ...parsed,
+                        volumes: { ...structuredClone(defaultState.volumes), ...(parsed.volumes || {}) },
+                        noise: { ...structuredClone(defaultState.noise), ...(parsed.noise || {}) }
+                    };
+                } catch {
+                    return structuredClone(defaultState);
+                }
+            }
+            function saveState() {
+                localStorage.setItem(LS_KEY, JSON.stringify(state));
+            }
+
+            // -------------------------
+            // UI helpers
+            // -------------------------
+            function fmtUrl(u) {
+                try {
+                    const url = new URL(u);
+                    return url.host + url.pathname;
+                } catch {
+                    return u;
+                }
+            }
+
+            function setAudioStateLabel(txt) {
+                audioStateEl.textContent = txt;
+            }
+
+            function setBufferState(txt) {
+                bufferState.textContent = txt;
+            }
+
+            function setRadioButtonPlaying(isPlaying) {
+                btnRadio.textContent = isPlaying ? 'Pause' : 'Play';
+            }
+
+            function setNoiseButton(enabled) {
+                btnNoise.textContent = enabled ? 'On' : 'Off';
+            }
+
+            function renderRecents() {
+                const items = state.recents.slice(0, 5);
+                recentsEl.innerHTML = '';
+                if (!items.length) {
+                    recentsEl.innerHTML = `<div class="text-xs text-zinc-400/70">No recent stations.</div>`;
+                    return;
+                }
+                for (const st of items) {
+                    const btn = document.createElement('button');
+                    btn.className = 'ringfocus w-full text-left px-2 py-1 rounded-lg hover:bg-white/10 transition text-xs border border-white/10 bg-black/20';
+                    btn.innerHTML = `<div class="truncate">${escapeHtml(st.name)}</div><div class="truncate text-zinc-300/60 mono">${escapeHtml(fmtUrl(st.url))}</div>`;
+                    btn.addEventListener('click', () => playStation(st));
+                    recentsEl.appendChild(btn);
+                }
+            }
+
+            function renderCuratedList() {
+                const q = (filterCurated.value || '').trim().toLowerCase();
+                const list = curatedStations
+                    .filter(s => !q || (s.name + ' ' + (s.desc || '')).toLowerCase().includes(q))
+                    .sort((a, b) => a.name.localeCompare(b.name));
+
+                curatedList.innerHTML = '';
+                for (const st of list) curatedList.appendChild(stationCard(st, { source: 'curated' }));
+            }
+
+            function renderFavButton() {
+                const cur = state.currentStation;
+                const isFav = cur && state.favorites.some(f => f.url === cur.url);
+                btnFav.textContent = isFav ? '★' : '☆';
+                btnFav.setAttribute('aria-pressed', String(!!isFav));
+            }
+
+            function escapeHtml(s) {
+                return String(s ?? '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+            }
+
+            function stationCard(st, { source = 'custom' } = {}) {
+                const wrap = document.createElement('div');
+                wrap.className = 'glass2 rounded-2xl p-3 flex items-start justify-between gap-3 hover:bg-white/5 transition';
+
+                const left = document.createElement('div');
+                left.className = 'min-w-0';
+
+                const name = document.createElement('div');
+                name.className = 'font-medium truncate';
+                name.textContent = st.name || 'Unnamed station';
+
+                const desc = document.createElement('div');
+                desc.className = 'text-xs text-zinc-300/70 line-clamp-2';
+                desc.textContent = st.desc || st.tags || st.country || '';
+
+                const meta = document.createElement('div');
+                meta.className = 'text-xs text-zinc-300/60 mono truncate mt-1';
+                meta.textContent = fmtUrl(st.url);
+
+                left.appendChild(name);
+                left.appendChild(desc);
+                left.appendChild(meta);
+
+                const right = document.createElement('div');
+                right.className = 'flex flex-col items-end gap-2';
+
+                const row = document.createElement('div');
+                row.className = 'flex items-center gap-2';
+
+                const play = document.createElement('button');
+                play.className = 'ringfocus px-3 py-2 rounded-xl bg-white text-black hover:bg-zinc-100 transition text-xs font-medium';
+                play.textContent = 'Play';
+                play.addEventListener('click', () => playStation({ ...st, source }));
+
+                const fav = document.createElement('button');
+                fav.className = 'ringfocus px-3 py-2 rounded-xl glass hover:bg-white/10 transition text-xs';
+                fav.textContent = isFavorite(st) ? '★' : '☆';
+                fav.title = 'Favorite';
+                fav.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    toggleFavorite({ ...st, source });
+                    fav.textContent = isFavorite(st) ? '★' : '☆';
+                    renderFavButton();
+                });
+
+                row.appendChild(fav);
+                row.appendChild(play);
+                right.appendChild(row);
+
+                const open = document.createElement('a');
+                open.className = 'ringfocus px-2 py-1 rounded-lg glass hover:bg-white/10 transition text-xs';
+                open.textContent = 'Open';
+                open.href = st.homepage || st.homepageurl || st.url;
+                open.target = '_blank';
+                open.rel = 'noreferrer';
+                right.appendChild(open);
+
+                wrap.appendChild(left);
+                wrap.appendChild(right);
+
+                wrap.addEventListener('click', () => playStation({ ...st, source }));
+                return wrap;
+            }
+
+            function isFavorite(st) {
+                return state.favorites.some(f => f.url === st.url);
+            }
+
+            function toggleFavorite(st) {
+                const idx = state.favorites.findIndex(f => f.url === st.url);
+                if (idx >= 0) state.favorites.splice(idx, 1);
+                else state.favorites.unshift(pickStationFields(st));
+                state.favorites = state.favorites.slice(0, 40);
+                saveState();
+            }
+
+            function pushRecent(st) {
+                const clean = pickStationFields(st);
+                state.recents = [clean, ...state.recents.filter(r => r.url !== clean.url)].slice(0, 10);
+                saveState();
+                renderRecents();
+            }
+
+            function pickStationFields(st) {
+                return {
+                    id: st.id || null,
+                    name: st.name || st.stationuuid || 'Station',
+                    desc: st.desc || st.tags || '',
+                    url: st.url_resolved || st.url,
+                    homepage: st.homepage || st.homepageurl || '',
+                    source: st.source || 'custom'
+                };
+            }
+
+            // -------------------------
+            // Theme & minimal
+            // -------------------------
+            function applyTheme() {
+                // Keep dark default; provide "ink" alternative that shifts accents subtly.
+                const isInk = state.theme === 'ink';
+                document.documentElement.style.colorScheme = 'dark';
+                document.body.classList.toggle('noisebg', true);
+
+                // Small tweak via CSS variables (optional)
+                document.body.style.filter = isInk ? 'saturate(.9) contrast(1.05)' : 'none';
+
+                btnTheme.textContent = isInk ? 'Theme: Ink' : 'Theme: Dark';
+            }
+
+            function applyMinimal() {
+                document.querySelector('header').classList.toggle('hidden', state.minimal);
+                btnMinimal.textContent = state.minimal ? 'Exit minimal' : 'Minimal';
+            }
+
+            // -------------------------
+            // Tabs
+            // -------------------------
+            function setTab(which) {
+                const isCur = which === 'curated';
+                curatedPanel.classList.toggle('hidden', !isCur);
+                searchPanel.classList.toggle('hidden', isCur);
+                tabCurated.setAttribute('aria-pressed', String(isCur));
+                tabSearch.setAttribute('aria-pressed', String(!isCur));
+                if (!isCur) setTimeout(() => searchQuery.focus(), 50);
+                saveState();
+            }
+
+            // -------------------------
+            // Audio setup
+            // -------------------------
+            async function enableAudio() {
+                if (audioEnabled) return;
+                ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+                masterGain = ctx.createGain();
+                radioGainNode = ctx.createGain();
+                noiseGainNode = ctx.createGain();
+
+                analyser = ctx.createAnalyser();
+                analyser.fftSize = 2048;
+                analyser.smoothingTimeConstant = 0.85;
+
+                // chain: radio/noise -> master -> analyser -> destination
+                radioGainNode.connect(masterGain);
+                noiseGainNode.connect(masterGain);
+                masterGain.connect(analyser);
+                analyser.connect(ctx.destination);
+
+                // gains
+                setMaster(state.volumes.master, false);
+                setRadioVol(state.volumes.radio, false);
+                setNoiseVol(state.volumes.noise, false);
+
+                // noise chain
+                noiseFilter = ctx.createBiquadFilter();
+                noiseFilter.type = 'lowpass';
+                noiseFilter.frequency.value = state.noise.tone;
+
+                stereoPanner = ctx.createStereoPanner();
+                stereoPanner.pan.value = 0;
+
+                // gentle drift: LFO modulating pan
+                driftLfo = ctx.createOscillator();
+                driftGain = ctx.createGain();
+                driftLfo.type = 'sine';
+                driftLfo.frequency.value = 0.06;
+                driftGain.gain.value = 0.0;
+                driftLfo.connect(driftGain);
+                driftGain.connect(stereoPanner.pan);
+                driftLfo.start();
+
+                // create noise generator
+                noiseNode = await createNoiseNode(ctx);
+                connectNoise();
+
+                // connect radio element (best effort)
+                tryConnectRadioWebAudio();
+
+                audioEnabled = true;
+                setAudioStateLabel('enabled');
+                btnEnable.textContent = 'Audio enabled';
+                btnEnable.disabled = true;
+
+                // resume if suspended
+                if (ctx.state === 'suspended') {
+                    await ctx.resume();
+                }
+
+                // restore noise enabled state
+                if (state.noise.enabled) {
+                    startNoise();
+                }
+
+                // restore last station
+                if (state.currentStation) {
+                    // do not autoplay; keep selected in UI
+                    setNowPlaying(state.currentStation, { paused: true });
+                }
+
+                // visualization
+                if (vizOn) startViz();
+            }
+
+            function tryConnectRadioWebAudio() {
+                // We try to route radio through WebAudio for mixing + visualizer.
+                // If CORS blocks analysis or connection fails, fallback to element output.
+                // Note: createMediaElementSource must be created only once per element.
+                try {
+                    if (!radioSourceNode) {
+                        radioSourceNode = ctx.createMediaElementSource(radioEl);
+                        radioSourceNode.connect(radioGainNode);
+                        // Ensure element output does not double-play: keep element not connected to destination directly.
+                        // Browsers still play through WebAudio chain; keep element volume at 1.
+                        radioEl.volume = 1;
+                    }
+                    state.radioRouted = true;
+                } catch (e) {
+                    // fallback
+                    state.radioRouted = false;
+                    console.warn('Radio WebAudio routing failed, falling back to element output.', e);
+                }
+            }
+
+            async function createNoiseNode(ctx) {
+                if (ctx.audioWorklet) {
+                    const workletCode = `
+        class NoiseProcessor extends AudioWorkletProcessor {
+          constructor() {
+            super();
+            this.type = 'white';
+            this.b0 = this.b1 = this.b2 = this.b3 = this.b4 = this.b5 = this.b6 = 0.0;
+            this.lastOut = 0.0;
+            this.port.onmessage = (e) => {
+              if (e.data && e.data.type) this.type = e.data.type;
+            };
+          }
+          process(inputs, outputs) {
+            const out = outputs[0];
+            const ch0 = out[0];
+            for (let i = 0; i < ch0.length; i++) {
+              const white = Math.random() * 2 - 1;
+              let sample = white;
+              if (this.type === 'pink') {
+                // Paul Kellet pink noise filter
+                this.b0 = 0.99886 * this.b0 + white * 0.0555179;
+                this.b1 = 0.99332 * this.b1 + white * 0.0750759;
+                this.b2 = 0.96900 * this.b2 + white * 0.1538520;
+                this.b3 = 0.86650 * this.b3 + white * 0.3104856;
+                this.b4 = 0.55000 * this.b4 + white * 0.5329522;
+                this.b5 = -0.7616 * this.b5 - white * 0.0168980;
+                sample = this.b0 + this.b1 + this.b2 + this.b3 + this.b4 + this.b5 + this.b6 + white * 0.5362;
+                sample *= 0.11;
+                this.b6 = white * 0.115926;
+              } else if (this.type === 'brown') {
+                // Brown(ian) noise
+                this.lastOut = (this.lastOut + (0.02 * white)) / 1.02;
+                sample = this.lastOut * 3.5;
+              }
+              ch0[i] = sample;
+            }
+            if (out.length > 1) {
+              const ch1 = out[1];
+              for (let i = 0; i < ch1.length; i++) ch1[i] = ch0[i];
+            }
+            return true;
+          }
+        }
+        registerProcessor('noise-processor', NoiseProcessor);
+      `;
+                    const blob = new Blob([workletCode], { type: 'application/javascript' });
+                    const url = URL.createObjectURL(blob);
+                    await ctx.audioWorklet.addModule(url);
+                    URL.revokeObjectURL(url);
+                    const node = new AudioWorkletNode(ctx, 'noise-processor', { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2] });
+                    node.port.postMessage({ type: state.noise.type });
+                    return node;
+                }
+
+                // fallback: ScriptProcessor
+                const bufSize = 2048;
+                const node = ctx.createScriptProcessor(bufSize, 0, 2);
+                let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0, lastOut = 0;
+                node.onaudioprocess = (e) => {
+                    const out0 = e.outputBuffer.getChannelData(0);
+                    const out1 = e.outputBuffer.getChannelData(1);
+                    for (let i = 0; i < out0.length; i++) {
+                        const white = Math.random() * 2 - 1;
+                        let sample = white;
+                        if (state.noise.type === 'pink') {
+                            b0 = 0.99886 * b0 + white * 0.0555179;
+                            b1 = 0.99332 * b1 + white * 0.0750759;
+                            b2 = 0.96900 * b2 + white * 0.1538520;
+                            b3 = 0.86650 * b3 + white * 0.3104856;
+                            b4 = 0.55000 * b4 + white * 0.5329522;
+                            b5 = -0.7616 * b5 - white * 0.0168980;
+                            sample = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.11;
+                            b6 = white * 0.115926;
+                        } else if (state.noise.type === 'brown') {
+                            lastOut = (lastOut + (0.02 * white)) / 1.02;
+                            sample = lastOut * 3.5;
+                        }
+                        out0[i] = sample;
+                        out1[i] = sample;
+                    }
+                };
+                return node;
+            }
+
+            function connectNoise() {
+                // noise -> filter -> panner -> noiseGain
+                try { noiseNode.disconnect(); } catch { }
+                noiseNode.connect(noiseFilter);
+                noiseFilter.connect(stereoPanner);
+                stereoPanner.connect(noiseGainNode);
+                // start paused by setting gain 0 if disabled
+                if (!state.noise.enabled) noiseGainNode.gain.value = 0;
+            }
+
+            function setMaster(v, persist = true) {
+                state.volumes.master = clamp01(v);
+                masterVol.value = String(Math.round(state.volumes.master * 100));
+                if (masterGain) masterGain.gain.setTargetAtTime(state.volumes.master, ctx.currentTime, 0.03);
+                if (persist) saveState();
+            }
+            function setRadioVol(v, persist = true) {
+                state.volumes.radio = clamp01(v);
+                radioVol.value = String(Math.round(state.volumes.radio * 100));
+                if (radioGainNode) radioGainNode.gain.setTargetAtTime(state.volumes.radio, ctx.currentTime, 0.03);
+                if (!state.radioRouted) radioEl.volume = state.volumes.radio;
+                if (persist) saveState();
+            }
+            function setNoiseVol(v, persist = true) {
+                state.volumes.noise = clamp01(v);
+                noiseVol.value = String(Math.round(state.volumes.noise * 100));
+                if (noiseGainNode) {
+                    const target = state.noise.enabled ? state.volumes.noise : 0;
+                    noiseGainNode.gain.setTargetAtTime(target, ctx.currentTime, 0.03);
+                }
+                if (persist) saveState();
+            }
+
+            function setNoiseTone(freq, persist = true) {
+                state.noise.tone = Math.max(300, Math.min(18000, Number(freq) || 11000));
+                noiseTone.value = String(state.noise.tone);
+                if (noiseFilter) noiseFilter.frequency.setTargetAtTime(state.noise.tone, ctx.currentTime, 0.03);
+                if (persist) saveState();
+            }
+
+            function setNoiseWidth(amount, persist = true) {
+                state.noise.width = clamp01(amount);
+                noiseWidth.value = String(Math.round(state.noise.width * 100));
+                // width influences drift depth and subtle decorrelation via pan range
+                updateDrift();
+                if (persist) saveState();
+            }
+
+            function setNoiseDrift(amount, persist = true) {
+                state.noise.drift = clamp01(amount);
+                noiseDrift.value = String(Math.round(state.noise.drift * 100));
+                updateDrift();
+                if (persist) saveState();
+            }
+
+            function updateDrift() {
+                if (!driftGain || !driftLfo) return;
+                const depth = (state.noise.width * 0.65) * (state.noise.drift * 0.9);
+                driftGain.gain.setTargetAtTime(depth, ctx.currentTime, 0.05);
+                // rate: 0.03..0.25 Hz
+                const rate = 0.03 + state.noise.drift * 0.22;
+                driftLfo.frequency.setTargetAtTime(rate, ctx.currentTime, 0.08);
+            }
+
+            function setNoiseType(type) {
+                state.noise.type = type;
+                // update chips
+                $$('[data-noisetype]').forEach(btn => btn.setAttribute('aria-pressed', String(btn.dataset.noisetype === type)));
+                if (noiseNode && noiseNode.port) noiseNode.port.postMessage({ type });
+                saveState();
+            }
+
+            function startNoise() {
+                if (!audioEnabled) return;
+                state.noise.enabled = true;
+                setNoiseButton(true);
+                setNoiseVol(state.volumes.noise, false);
+                saveState();
+            }
+            function stopNoise() {
+                if (!audioEnabled) {
+                    state.noise.enabled = false;
+                    setNoiseButton(false);
+                    saveState();
+                    return;
+                }
+                state.noise.enabled = false;
+                setNoiseButton(false);
+                if (noiseGainNode) noiseGainNode.gain.setTargetAtTime(0, ctx.currentTime, 0.06);
+                saveState();
+            }
+
+            async function playStation(st) {
+                state.currentStation = pickStationFields(st);
+                saveState();
+
+                setNowPlaying(state.currentStation, { paused: true });
+                pushRecent(state.currentStation);
+
+                if (!audioEnabled) {
+                    // Do not autoplay before user gesture
+                    setBufferState('enable audio to start');
+                    return;
+                }
+
+                // ensure context running
+                if (ctx.state === 'suspended') await ctx.resume();
+
+                // route if possible
+                if (state.radioRouted == null) tryConnectRadioWebAudio();
+
+                // set src and play
+                try {
+                    setBufferState('connecting…');
+                    radioEl.src = state.currentStation.url;
+                    radioEl.load();
+                    await radioEl.play();
+                    setRadioButtonPlaying(true);
+                    setBufferState('playing');
+                } catch (e) {
+                    console.warn('Play failed', e);
+                    setBufferState('failed — try another');
+                    setRadioButtonPlaying(false);
+                }
+
+                renderFavButton();
+            }
+
+            function setNowPlaying(st, { paused = false } = {}) {
+                nowTitle.textContent = st ? st.name : '—';
+                nowMeta.textContent = st ? fmtUrl(st.url) : '—';
+                btnOpenSource.href = st?.homepage || st?.url || '#';
+                if (paused) setRadioButtonPlaying(false);
+                renderFavButton();
+            }
+
+            async function toggleRadio() {
+                if (!state.currentStation) {
+                    // choose a sensible default
+                    await playStation(curatedStations[0]);
+                    return;
+                }
+                if (!audioEnabled) return;
+
+                if (radioEl.paused) {
+                    try {
+                        setBufferState('connecting…');
+                        await radioEl.play();
+                        setRadioButtonPlaying(true);
+                        setBufferState('playing');
+                    } catch {
+                        setBufferState('failed');
+                        setRadioButtonPlaying(false);
+                    }
+                } else {
+                    radioEl.pause();
+                    setRadioButtonPlaying(false);
+                    setBufferState('paused');
+                }
+            }
+
+            function reconnectRadio() {
+                if (!state.currentStation) return;
+                const curTime = radioEl.currentTime || 0;
+                radioEl.pause();
+                // bust some caches
+                const u = new URL(state.currentStation.url);
+                u.searchParams.set('_', String(Date.now()));
+                radioEl.src = u.toString();
+                radioEl.load();
+                radioEl.play().then(() => {
+                    setRadioButtonPlaying(true);
+                    setBufferState('playing');
+                }).catch(() => {
+                    setBufferState('failed');
+                    setRadioButtonPlaying(false);
+                });
+            }
+
+            function stopRadio() {
+                try {
+                    radioEl.pause();
+                    radioEl.removeAttribute('src');
+                    radioEl.load();
+                } catch { }
+                setRadioButtonPlaying(false);
+                setBufferState('stopped');
+            }
+
+            function panicStop() {
+                // Softly fade master, then cut.
+                if (!audioEnabled) return;
+                const t0 = ctx.currentTime;
+                masterGain.gain.cancelScheduledValues(t0);
+                masterGain.gain.setValueAtTime(masterGain.gain.value, t0);
+                masterGain.gain.linearRampToValueAtTime(0.0, t0 + 0.08);
+                setTimeout(() => {
+                    stopRadio();
+                    stopNoise();
+                    // restore master after cut
+                    masterGain.gain.setValueAtTime(state.volumes.master, ctx.currentTime);
+                }, 120);
+            }
+
+            function clamp01(v) {
+                v = Number(v);
+                if (!Number.isFinite(v)) return 0;
+                if (v > 1) return 1;
+                if (v < 0) return 0;
+                return v;
+            }
+
+            // -------------------------
+            // Radio browser search
+            // -------------------------
+            async function doSearch() {
+                const q = (searchQuery.value || '').trim();
+                if (!q) {
+                    searchResults.innerHTML = `<div class="text-xs text-zinc-400/70">Type something to search.</div>`;
+                    return;
+                }
+                searchStatus.textContent = 'Searching…';
+                searchResults.innerHTML = '';
+
+                const by = searchBy.value;
+                const base = 'https://de1.api.radio-browser.info/json/stations/search';
+
+                const params = new URLSearchParams();
+                params.set(by, q);
+                params.set('hidebroken', 'true');
+                params.set('order', 'clickcount');
+                params.set('reverse', 'true');
+                params.set('limit', '24');
+
+                try {
+                    const res = await fetch(`${base}?${params}`, { headers: { 'accept': 'application/json' } });
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    const data = await res.json();
+
+                    const usable = (data || [])
+                        .filter(s => (s.url_resolved || s.url || '').startsWith('https://'))
+                        .map(s => ({
+                            id: s.stationuuid,
+                            name: s.name || 'Station',
+                            desc: [s.country, s.language, s.tags].filter(Boolean).join(' · '),
+                            url: s.url_resolved || s.url,
+                            homepage: s.homepage || s.homepageurl || '',
+                            tags: s.tags || '',
+                            bitrate: s.bitrate,
+                            codec: s.codec
+                        }));
+
+                    searchStatus.textContent = `${usable.length} results`;
+                    if (!usable.length) {
+                        searchResults.innerHTML = `<div class="text-xs text-zinc-400/70">No HTTPS stations found for this query. Try another term.</div>`;
+                        return;
+                    }
+                    for (const st of usable) {
+                        const card = stationCard({
+                            ...st,
+                            desc: `${st.desc}${st.bitrate ? ` · ${st.bitrate}kbps` : ''}${st.codec ? ` · ${st.codec}` : ''}`
+                        }, { source: 'radio-browser' });
+                        searchResults.appendChild(card);
+                    }
+                } catch (e) {
+                    console.warn(e);
+                    searchStatus.textContent = 'Failed';
+                    searchResults.innerHTML = `<div class="text-xs text-zinc-400/70">Search failed. Try again later (or switch network). Some networks block the API.</div>`;
+                }
+            }
+
+            // -------------------------
+            // Sleep timer
+            // -------------------------
+            function startSleepTimer(minutes) {
+                cancelSleepTimer();
+                minutes = Math.max(1, Math.min(240, Number(minutes) || 30));
+                sleepEndsAt = Date.now() + minutes * 60 * 1000;
+                sleepBadge.classList.remove('hidden');
+
+                sleepTimer = setInterval(() => {
+                    const msLeft = sleepEndsAt - Date.now();
+                    if (msLeft <= 0) {
+                        sleepBadge.textContent = 'Sleep timer: ending…';
+                        clearInterval(sleepTimer);
+                        sleepTimer = null;
+                        sleepEndsAt = null;
+                        fadeOutAndStop(10);
+                        setTimeout(() => sleepBadge.classList.add('hidden'), 900);
+                        return;
+                    }
+                    const m = Math.floor(msLeft / 60000);
+                    const s = Math.floor((msLeft % 60000) / 1000);
+                    sleepBadge.textContent = `Sleep timer: ${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                }, 250);
+            }
+
+            function cancelSleepTimer() {
+                if (sleepTimer) clearInterval(sleepTimer);
+                sleepTimer = null;
+                sleepEndsAt = null;
+                sleepBadge.classList.add('hidden');
+            }
+
+            function fadeOutAndStop(seconds) {
+                if (!audioEnabled) {
+                    stopRadio();
+                    stopNoise();
+                    return;
+                }
+                const dur = Math.max(2, Math.min(60, Number(seconds) || 10));
+                const t0 = ctx.currentTime;
+                masterGain.gain.cancelScheduledValues(t0);
+                masterGain.gain.setValueAtTime(masterGain.gain.value, t0);
+                masterGain.gain.linearRampToValueAtTime(0.0, t0 + dur);
+
+                setTimeout(() => {
+                    stopRadio();
+                    stopNoise();
+                    // restore
+                    masterGain.gain.setValueAtTime(state.volumes.master, ctx.currentTime);
+                }, dur * 1000 + 50);
+            }
+
+            // -------------------------
+            // Pomodoro
+            // -------------------------
+            function pomoReset() {
+                if (pomo.t) clearInterval(pomo.t);
+                pomo = { running: false, paused: false, phase: 'work', round: 1, endsAt: null, t: null };
+                pomoBadge.classList.add('hidden');
+            }
+
+            function pomoStart() {
+                const w = Math.max(5, Math.min(120, Number(pomoWork.value) || 25));
+                const b = Math.max(1, Math.min(60, Number(pomoBreak.value) || 5));
+                const r = Math.max(1, Math.min(12, Number(pomoRounds.value) || 4));
+                state.pomoSettings = { w, b, r };
+                saveState();
+
+                if (!pomo.running) {
+                    pomo.running = true;
+                    pomo.paused = false;
+                    pomo.phase = 'work';
+                    pomo.round = 1;
+                    pomo.endsAt = Date.now() + w * 60 * 1000;
+                } else if (pomo.paused) {
+                    // resume
+                    pomo.paused = false;
+                    // endsAt already adjusted in pause
+                    pomo.endsAt = Date.now() + pomo.remaining;
+                }
+
+                pomoBadge.classList.remove('hidden');
+
+                if (pomo.t) clearInterval(pomo.t);
+                pomo.t = setInterval(() => {
+                    if (!pomo.running || pomo.paused) return;
+                    const msLeft = pomo.endsAt - Date.now();
+                    if (msLeft <= 0) {
+                        // switch phase
+                        if (pomo.phase === 'work') {
+                            pomo.phase = 'break';
+                            pomo.endsAt = Date.now() + b * 60 * 1000;
+                            announce('Break');
+                        } else {
+                            pomo.phase = 'work';
+                            pomo.round += 1;
+                            if (pomo.round > r) {
+                                announce('Pomodoro complete');
+                                pomoReset();
+                                return;
+                            }
+                            pomo.endsAt = Date.now() + w * 60 * 1000;
+                            announce(`Work — round ${pomo.round}/${r}`);
+                        }
+                    }
+                    const ms = Math.max(0, pomo.endsAt - Date.now());
+                    const mm = Math.floor(ms / 60000);
+                    const ss = Math.floor((ms % 60000) / 1000);
+                    const label = `${pomo.phase.toUpperCase()} · round ${pomo.round}/${r} · ${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+                    pomoBadge.textContent = label;
+                    document.title = `Hush — ${label}`;
+                }, 250);
+
+                // immediate tick
+                pomoBadge.textContent = 'Starting…';
+            }
+
+            function pomoPause() {
+                if (!pomo.running) return;
+                if (!pomo.paused) {
+                    pomo.paused = true;
+                    pomo.remaining = Math.max(0, pomo.endsAt - Date.now());
+                    pomoBadge.textContent = 'Paused';
+                    document.title = 'Hush — paused';
+                } else {
+                    // resume
+                    pomoStart();
+                }
+            }
+
+            function announce(text) {
+                // subtle soundless notification (and optional system notification later)
+                try {
+                    const el = document.createElement('div');
+                    el.setAttribute('role', 'status');
+                    el.className = 'sr-only';
+                    el.textContent = text;
+                    document.body.appendChild(el);
+                    setTimeout(() => el.remove(), 1200);
+                } catch { }
+            }
+
+            // -------------------------
+            // Scenes
+            // -------------------------
+            async function applyScene(id) {
+                if (id === 'silence') {
+                    cancelSleepTimer();
+                    fadeOutAndStop(2);
+                    return;
+                }
+
+                if (!audioEnabled) await enableAudio();
+
+                if (id === 'focus') {
+                    setNoiseType('brown');
+                    setNoiseTone(4200);
+                    setNoiseWidth(0.12);
+                    setNoiseDrift(0.12);
+                    state.noise.enabled = true;
+                    setNoiseButton(true);
+                    setNoiseVol(0.42);
+
+                    // pick a drone-y station
+                    await playStation(curatedStations.find(s => s.id === 'somafm_dronezone') || curatedStations[1]);
+                    setRadioVol(0.45);
+                    return;
+                }
+
+                if (id === 'calm') {
+                    setNoiseType('pink');
+                    setNoiseTone(9500);
+                    setNoiseWidth(0.35);
+                    setNoiseDrift(0.25);
+                    state.noise.enabled = true;
+                    setNoiseButton(true);
+                    setNoiseVol(0.30);
+
+                    await playStation(curatedStations.find(s => s.id === 'somafm_groovesalad') || curatedStations[0]);
+                    setRadioVol(0.62);
+                    return;
+                }
+
+                if (id === 'sleep') {
+                    // noise only
+                    stopRadio();
+                    setNoiseType('brown');
+                    setNoiseTone(2800);
+                    setNoiseWidth(0.06);
+                    setNoiseDrift(0.08);
+                    state.noise.enabled = true;
+                    setNoiseButton(true);
+                    setNoiseVol(0.35);
+                    return;
+                }
+            }
+
+            // -------------------------
+            // Visualizer
+            // -------------------------
+            function startViz() {
+                if (!analyser || !viz) return;
+                cancelAnimationFrame(rafId);
+
+                const canvas = viz;
+                const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+                function resize() {
+                    const rect = canvas.getBoundingClientRect();
+                    canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+                    canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+                }
+                resize();
+                window.addEventListener('resize', resize, { passive: true });
+
+                const ctx2 = canvas.getContext('2d');
+                const bins = analyser.frequencyBinCount;
+                const data = new Uint8Array(bins);
+
+                function draw() {
+                    if (!vizOn) return;
+                    analyser.getByteFrequencyData(data);
+
+                    const w = canvas.width;
+                    const h = canvas.height;
+                    ctx2.clearRect(0, 0, w, h);
+
+                    // background subtle gradient
+                    const g = ctx2.createLinearGradient(0, 0, w, h);
+                    g.addColorStop(0, 'rgba(167,139,250,.18)');
+                    g.addColorStop(0.45, 'rgba(20,184,166,.12)');
+                    g.addColorStop(1, 'rgba(59,130,246,.10)');
+                    ctx2.fillStyle = g;
+                    ctx2.fillRect(0, 0, w, h);
+
+                    // bars
+                    const barCount = 72;
+                    const step = Math.floor(bins / barCount);
+                    const gap = Math.max(1, Math.floor(w / (barCount * 28)));
+                    const barW = Math.max(2, Math.floor((w - gap * (barCount - 1)) / barCount));
+
+                    for (let i = 0; i < barCount; i++) {
+                        let sum = 0;
+                        for (let j = 0; j < step; j++) sum += data[i * step + j];
+                        const v = sum / step;
+                        const amp = Math.pow(v / 255, 1.25);
+                        const barH = Math.max(2, Math.floor(amp * (h * 0.85)));
+                        const x = i * (barW + gap);
+                        const y = h - barH;
+
+                        ctx2.fillStyle = 'rgba(255,255,255,.70)';
+                        ctx2.fillRect(x, y, barW, barH);
+                        ctx2.fillStyle = 'rgba(167,139,250,.35)';
+                        ctx2.fillRect(x, y, barW, Math.max(2, Math.floor(barH * 0.22)));
+                    }
+
+                    // top subtle line
+                    ctx2.strokeStyle = 'rgba(255,255,255,.18)';
+                    ctx2.lineWidth = Math.max(1, Math.floor(dpr));
+                    ctx2.beginPath();
+                    ctx2.moveTo(0, Math.floor(h * 0.18));
+                    ctx2.lineTo(w, Math.floor(h * 0.18));
+                    ctx2.stroke();
+
+                    rafId = requestAnimationFrame(draw);
+                }
+
+                rafId = requestAnimationFrame(draw);
+            }
+
+            function stopViz() {
+                vizOn = false;
+                cancelAnimationFrame(rafId);
+                rafId = null;
+            }
+
+            // -------------------------
+            // FCC embed
+            // -------------------------
+            function toggleFCC() {
+                state.fccLoaded = !state.fccLoaded;
+                saveState();
+                if (state.fccLoaded) {
+                    fccWrap.classList.remove('hidden');
+                    btnToggleFCC.textContent = 'Unload';
+                    // freeCodeCamp Radio / lofi stream id
+                    fccFrame.src = 'https://www.youtube-nocookie.com/embed/jfKfPfyJRdk?rel=0&modestbranding=1&playsinline=1';
+                } else {
+                    fccWrap.classList.add('hidden');
+                    btnToggleFCC.textContent = 'Load';
+                    fccFrame.src = '';
+                }
+            }
+
+            // -------------------------
+            // Event wiring
+            // -------------------------
+            btnEnable.addEventListener('click', enableAudio);
+
+            btnHelp.addEventListener('click', () => {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            });
+            btnCloseModal.addEventListener('click', () => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            });
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.add('hidden');
+                    modal.classList.remove('flex');
+                }
+            });
+
+            btnMinimal.addEventListener('click', () => {
+                state.minimal = !state.minimal;
+                applyMinimal();
+                saveState();
+            });
+
+            btnTheme.addEventListener('click', () => {
+                state.theme = state.theme === 'dark' ? 'ink' : 'dark';
+                applyTheme();
+                saveState();
+            });
+
+            tabCurated.addEventListener('click', () => setTab('curated'));
+            tabSearch.addEventListener('click', () => setTab('search'));
+
+            filterCurated.addEventListener('input', renderCuratedList);
+
+            btnSearch.addEventListener('click', doSearch);
+            searchQuery.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') doSearch();
+            });
+
+            btnRadio.addEventListener('click', toggleRadio);
+            btnReconnect.addEventListener('click', reconnectRadio);
+
+            btnFav.addEventListener('click', () => {
+                if (!state.currentStation) return;
+                toggleFavorite(state.currentStation);
+                renderFavButton();
+                // refresh curated list stars (simple rerender)
+                renderCuratedList();
+            });
+
+            radioVol.addEventListener('input', () => setRadioVol(Number(radioVol.value) / 100));
+            masterVol.addEventListener('input', () => setMaster(Number(masterVol.value) / 100));
+
+            btnNoise.addEventListener('click', async () => {
+                if (!audioEnabled) await enableAudio();
+                if (state.noise.enabled) stopNoise();
+                else startNoise();
+                setNoiseVol(state.volumes.noise, false);
+            });
+
+            $$('[data-noisetype]').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    if (!audioEnabled) await enableAudio();
+                    setNoiseType(btn.dataset.noisetype);
+                });
+            });
+
+            noiseVol.addEventListener('input', () => setNoiseVol(Number(noiseVol.value) / 100));
+            noiseTone.addEventListener('input', () => setNoiseTone(Number(noiseTone.value)));
+            noiseWidth.addEventListener('input', () => setNoiseWidth(Number(noiseWidth.value) / 100));
+            noiseDrift.addEventListener('input', () => setNoiseDrift(Number(noiseDrift.value) / 100));
+
+            btnPanic.addEventListener('click', panicStop);
+
+            btnSleepStart.addEventListener('click', () => startSleepTimer(sleepMinutes.value));
+            btnSleepCancel.addEventListener('click', cancelSleepTimer);
+
+            btnPomoStart.addEventListener('click', pomoStart);
+            btnPomoPause.addEventListener('click', pomoPause);
+            btnPomoReset.addEventListener('click', pomoReset);
+
+            $$('[data-scene]').forEach(btn => btn.addEventListener('click', () => applyScene(btn.dataset.scene)));
+
+            btnViz.addEventListener('click', async () => {
+                vizOn = !vizOn;
+                state.vizOn = vizOn;
+                btnViz.textContent = vizOn ? 'On' : 'Off';
+                saveState();
+                if (!vizOn) stopViz();
+                else {
+                    if (!audioEnabled) await enableAudio();
+                    startViz();
+                }
+            });
+
+            btnFullscreen.addEventListener('click', async () => {
+                const el = document.documentElement;
+                try {
+                    if (!document.fullscreenElement) await el.requestFullscreen();
+                    else await document.exitFullscreen();
+                } catch { }
+            });
+
+            btnToggleFCC.addEventListener('click', toggleFCC);
+
+            // Audio element status events
+            radioEl.addEventListener('playing', () => setBufferState('playing'));
+            radioEl.addEventListener('waiting', () => setBufferState('buffering…'));
+            radioEl.addEventListener('stalled', () => setBufferState('stalled'));
+            radioEl.addEventListener('pause', () => {
+                if (radioEl.src) setBufferState('paused');
+                setRadioButtonPlaying(false);
+            });
+            radioEl.addEventListener('error', () => setBufferState('error'));
+
+            // Keyboard shortcuts
+            window.addEventListener('keydown', async (e) => {
+                if (e.target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) {
+                    // allow search shortcut
+                    if (e.key === '/' && e.target === document.body) e.preventDefault();
+                    return;
+                }
+                if (e.key === ' ') {
+                    e.preventDefault();
+                    if (!audioEnabled) await enableAudio();
+                    toggleRadio();
+                }
+                if (e.key.toLowerCase() === 'n') {
+                    e.preventDefault();
+                    if (!audioEnabled) await enableAudio();
+                    state.noise.enabled ? stopNoise() : startNoise();
+                    setNoiseVol(state.volumes.noise, false);
+                }
+                if (e.key === '/') {
+                    e.preventDefault();
+                    setTab('search');
+                    searchQuery.focus();
+                }
+                if (e.key.toLowerCase() === 'f') {
+                    e.preventDefault();
+                    if (!state.currentStation) return;
+                    toggleFavorite(state.currentStation);
+                    renderFavButton();
+                    renderCuratedList();
+                }
+                if (e.key === 'Escape') {
+                    if (!modal.classList.contains('hidden')) {
+                        modal.classList.add('hidden');
+                        modal.classList.remove('flex');
+                    }
+                }
+            });
+
+            // -------------------------
+            // Init UI from saved state
+            // -------------------------
+            function init() {
+                applyTheme();
+                applyMinimal();
+
+                // volumes
+                radioVol.value = String(Math.round(state.volumes.radio * 100));
+                masterVol.value = String(Math.round(state.volumes.master * 100));
+                noiseVol.value = String(Math.round(state.volumes.noise * 100));
+
+                // noise
+                setNoiseButton(state.noise.enabled);
+                setNoiseType(state.noise.type);
+                setNoiseTone(state.noise.tone, false);
+                setNoiseWidth(state.noise.width, false);
+                setNoiseDrift(state.noise.drift, false);
+
+                // now playing
+                if (state.currentStation) setNowPlaying(state.currentStation, { paused: true });
+                renderFavButton();
+
+                // lists
+                renderCuratedList();
+                renderRecents();
+
+                // viz state
+                btnViz.textContent = vizOn ? 'On' : 'Off';
+
+                // FCC
+                if (state.fccLoaded) toggleFCC();
+
+                // set default buffer state
+                setBufferState('—');
+
+                // show audio state
+                setAudioStateLabel('not enabled');
+            }
+
+            init();
+        })();
+    </script>
+</body>
+
+</html>
