@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Serene — White Noise & Focus Radio</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: #1a1a24;
+            --accent: #6366f1;
+            --accent-glow: rgba(99, 102, 241, 0.3);
+        }
+
+        body {
+            background: var(--bg-primary);
+            min-height: 100vh;
+        }
+
+        .glass {
+            background: rgba(26, 26, 36, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .glow {
+            box-shadow: 0 0 40px var(--accent-glow);
+        }
+
+        .sound-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .sound-card.active {
+            border-color: var(--accent);
+            box-shadow: 0 0 30px var(--accent-glow);
+        }
+
+        .slider {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 4px;
+            border-radius: 2px;
+            background: #2a2a3a;
+            outline: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .visualizer-bar {
+            animation: pulse 0.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes pulse {
+            from {
+                transform: scaleY(0.3);
+            }
+
+            to {
+                transform: scaleY(1);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .tab-active {
+            background: linear-gradient(135deg, var(--accent), #8b5cf6);
+        }
+
+        .radio-card.playing {
+            border-color: #22c55e;
+            box-shadow: 0 0 30px rgba(34, 197, 94, 0.2);
+        }
+
+        .radio-card.playing .play-indicator {
+            display: flex;
+        }
+
+        .wave {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at center, var(--accent-glow) 0%, transparent 70%);
+            animation: wave 3s ease-in-out infinite;
+            opacity: 0.3;
+        }
+
+        @keyframes wave {
+
+            0%,
+            100% {
+                transform: scale(1);
+                opacity: 0.3;
+            }
+
+            50% {
+                transform: scale(1.1);
+                opacity: 0.5;
+            }
+        }
+
+        .timer-ring {
+            stroke-dasharray: 283;
+            stroke-dashoffset: 0;
+            transition: stroke-dashoffset 1s linear;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #3a3a4a;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4a4a5a;
+        }
+    </style>
+</head>
+
+<body class="text-white overflow-x-hidden">
+    <!-- Background Effects -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+        <div class="wave"></div>
+        <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl"></div>
+        <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl"></div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="relative z-10 min-h-screen">
+        <!-- Header -->
+        <header class="glass sticky top-0 z-50 border-b border-white/5">
+            <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div
+                        class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center glow">
+                        <i class="fas fa-wind text-lg"></i>
+                    </div>
+                    <h1 class="text-xl font-semibold">Serene</h1>
+                </div>
+
+                <!-- Master Volume -->
+                <div class="flex items-center gap-4">
+                    <div class="hidden sm:flex items-center gap-3 glass px-4 py-2 rounded-full">
+                        <i class="fas fa-volume-high text-indigo-400"></i>
+                        <input type="range" id="masterVolume" class="slider w-24" min="0" max="100" value="70">
+                        <span id="volumeDisplay" class="text-sm text-gray-400 w-8">70%</span>
+                    </div>
+
+                    <!-- Timer Button -->
+                    <button id="timerBtn"
+                        class="glass px-4 py-2 rounded-full hover:bg-white/10 transition flex items-center gap-2">
+                        <i class="fas fa-clock text-indigo-400"></i>
+                        <span id="timerDisplay" class="text-sm">Timer</span>
+                    </button>
+
+                    <!-- Keyboard Shortcuts -->
+                    <button id="helpBtn" class="glass w-10 h-10 rounded-full hover:bg-white/10 transition">
+                        <i class="fas fa-keyboard text-gray-400"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Tabs -->
+        <div class="max-w-7xl mx-auto px-6 py-6">
+            <div class="flex gap-2 p-1 glass rounded-2xl w-fit mx-auto">
+                <button class="tab-btn tab-active px-6 py-3 rounded-xl font-medium transition" data-tab="sounds">
+                    <i class="fas fa-cloud-rain mr-2"></i>Ambient Sounds
+                </button>
+                <button class="tab-btn px-6 py-3 rounded-xl font-medium transition hover:bg-white/10" data-tab="radio">
+                    <i class="fas fa-radio mr-2"></i>Focus Radio
+                </button>
+                <button class="tab-btn px-6 py-3 rounded-xl font-medium transition hover:bg-white/10" data-tab="mixer">
+                    <i class="fas fa-sliders mr-2"></i>Mixer
+                </button>
+            </div>
+        </div>
+
+        <!-- Content -->
+        <main class="max-w-7xl mx-auto px-6 pb-32">
+            <!-- Ambient Sounds Tab -->
+            <div id="soundsTab" class="tab-content fade-in">
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                    <!-- Sound cards will be generated by JS -->
+                </div>
+            </div>
+
+            <!-- Radio Tab -->
+            <div id="radioTab" class="tab-content hidden fade-in">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Radio cards will be generated by JS -->
+                </div>
+            </div>
+
+            <!-- Mixer Tab -->
+            <div id="mixerTab" class="tab-content hidden fade-in">
+                <div class="glass rounded-3xl p-8">
+                    <div class="flex items-center justify-between mb-8">
+                        <h2 class="text-2xl font-semibold">Sound Mixer</h2>
+                        <div class="flex gap-3">
+                            <button id="savePreset"
+                                class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-xl transition flex items-center gap-2">
+                                <i class="fas fa-save"></i> Save Preset
+                            </button>
+                            <button id="clearAll"
+                                class="px-4 py-2 bg-red-600/20 hover:bg-red-600/40 text-red-400 rounded-xl transition flex items-center gap-2">
+                                <i class="fas fa-stop"></i> Stop All
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="mixerChannels" class="space-y-4">
+                        <p class="text-gray-500 text-center py-12">No sounds playing. Select sounds from the Ambient
+                            Sounds tab.</p>
+                    </div>
+
+                    <!-- Saved Presets -->
+                    <div class="mt-8 pt-8 border-t border-white/10">
+                        <h3 class="text-lg font-medium mb-4">Saved Presets</h3>
+                        <div id="presetsList" class="flex flex-wrap gap-3">
+                            <p class="text-gray-500">No saved presets yet.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Now Playing Bar -->
+        <div id="nowPlaying"
+            class="fixed bottom-0 left-0 right-0 glass border-t border-white/10 transform translate-y-full transition-transform duration-300">
+            <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <div id="visualizer" class="flex items-end gap-1 h-8">
+                        <div class="visualizer-bar w-1 bg-indigo-500 rounded-full"
+                            style="height:30%; animation-delay:0s"></div>
+                        <div class="visualizer-bar w-1 bg-indigo-500 rounded-full"
+                            style="height:60%; animation-delay:0.1s"></div>
+                        <div class="visualizer-bar w-1 bg-indigo-500 rounded-full"
+                            style="height:40%; animation-delay:0.2s"></div>
+                        <div class="visualizer-bar w-1 bg-indigo-500 rounded-full"
+                            style="height:80%; animation-delay:0.3s"></div>
+                        <div class="visualizer-bar w-1 bg-indigo-500 rounded-full"
+                            style="height:50%; animation-delay:0.4s"></div>
+                    </div>
+                    <div>
+                        <p id="nowPlayingTitle" class="font-medium">Nothing playing</p>
+                        <p id="nowPlayingSubtitle" class="text-sm text-gray-400">Select a sound or radio station</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <span id="activeCount" class="text-sm text-gray-400">0 active</span>
+                    <button id="pauseAll"
+                        class="w-12 h-12 rounded-full bg-indigo-600 hover:bg-indigo-700 transition flex items-center justify-center glow">
+                        <i class="fas fa-pause"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Timer Modal -->
+        <div id="timerModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden items-center justify-center">
+            <div class="glass rounded-3xl p-8 max-w-md w-full mx-4 fade-in">
+                <h3 class="text-2xl font-semibold mb-6 text-center">Sleep Timer</h3>
+
+                <div class="flex justify-center mb-8">
+                    <svg class="w-48 h-48 transform -rotate-90">
+                        <circle cx="96" cy="96" r="88" stroke="#2a2a3a" stroke-width="8" fill="none" />
+                        <circle id="timerRing" class="timer-ring" cx="96" cy="96" r="88" stroke="url(#gradient)"
+                            stroke-width="8" fill="none" stroke-linecap="round" />
+                        <defs>
+                            <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#6366f1" />
+                                <stop offset="100%" stop-color="#8b5cf6" />
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    <div class="absolute flex items-center justify-center w-48 h-48">
+                        <span id="timerCountdown" class="text-4xl font-bold">00:00</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-4 gap-2 mb-6">
+                    <button class="timer-preset glass py-3 rounded-xl hover:bg-indigo-600 transition"
+                        data-minutes="5">5m</button>
+                    <button class="timer-preset glass py-3 rounded-xl hover:bg-indigo-600 transition"
+                        data-minutes="15">15m</button>
+                    <button class="timer-preset glass py-3 rounded-xl hover:bg-indigo-600 transition"
+                        data-minutes="30">30m</button>
+                    <button class="timer-preset glass py-3 rounded-xl hover:bg-indigo-600 transition"
+                        data-minutes="60">1h</button>
+                    <button class="timer-preset glass py-3 rounded-xl hover:bg-indigo-600 transition"
+                        data-minutes="90">1.5h</button>
+                    <button class="timer-preset glass py-3 rounded-xl hover:bg-indigo-600 transition"
+                        data-minutes="120">2h</button>
+                    <button class="timer-preset glass py-3 rounded-xl hover:bg-indigo-600 transition col-span-2"
+                        data-minutes="0">Cancel</button>
+                </div>
+
+                <button id="closeTimerModal"
+                    class="w-full py-3 glass rounded-xl hover:bg-white/10 transition">Close</button>
+            </div>
+        </div>
+
+        <!-- Help Modal -->
+        <div id="helpModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden items-center justify-center">
+            <div class="glass rounded-3xl p-8 max-w-md w-full mx-4 fade-in">
+                <h3 class="text-2xl font-semibold mb-6">Keyboard Shortcuts</h3>
+                <div class="space-y-3">
+                    <div class="flex justify-between"><span class="text-gray-400">Play/Pause All</span><kbd
+                            class="px-3 py-1 glass rounded-lg">Space</kbd></div>
+                    <div class="flex justify-between"><span class="text-gray-400">Volume Up</span><kbd
+                            class="px-3 py-1 glass rounded-lg">↑</kbd></div>
+                    <div class="flex justify-between"><span class="text-gray-400">Volume Down</span><kbd
+                            class="px-3 py-1 glass rounded-lg">↓</kbd></div>
+                    <div class="flex justify-between"><span class="text-gray-400">Mute/Unmute</span><kbd
+                            class="px-3 py-1 glass rounded-lg">M</kbd></div>
+                    <div class="flex justify-between"><span class="text-gray-400">Stop All</span><kbd
+                            class="px-3 py-1 glass rounded-lg">Esc</kbd></div>
+                    <div class="flex justify-between"><span class="text-gray-400">Open Timer</span><kbd
+                            class="px-3 py-1 glass rounded-lg">T</kbd></div>
+                </div>
+                <button id="closeHelpModal"
+                    class="w-full py-3 mt-6 glass rounded-xl hover:bg-white/10 transition">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Audio Context
+        let audioContext;
+        const activeSounds = new Map();
+        const activeRadio = { audio: null, id: null };
+        let masterVolume = 0.7;
+        let isPaused = false;
+        let timerInterval = null;
+        let timerRemaining = 0;
+
+        // Sound definitions with generated noise
+        const sounds = [
+            { id: 'white-noise', name: 'White Noise', icon: 'fa-wave-square', color: 'from-gray-500 to-gray-600', type: 'noise', noiseType: 'white' },
+            { id: 'pink-noise', name: 'Pink Noise', icon: 'fa-water', color: 'from-pink-500 to-rose-600', type: 'noise', noiseType: 'pink' },
+            { id: 'brown-noise', name: 'Brown Noise', icon: 'fa-mountain', color: 'from-amber-700 to-amber-900', type: 'noise', noiseType: 'brown' },
+            { id: 'rain', name: 'Rain', icon: 'fa-cloud-rain', color: 'from-blue-500 to-blue-700', type: 'noise', noiseType: 'rain' },
+            { id: 'thunder', name: 'Thunderstorm', icon: 'fa-cloud-bolt', color: 'from-slate-600 to-slate-800', type: 'noise', noiseType: 'thunder' },
+            { id: 'ocean', name: 'Ocean Waves', icon: 'fa-water', color: 'from-cyan-500 to-teal-600', type: 'noise', noiseType: 'ocean' },
+            { id: 'wind', name: 'Wind', icon: 'fa-wind', color: 'from-sky-400 to-sky-600', type: 'noise', noiseType: 'wind' },
+            { id: 'forest', name: 'Forest', icon: 'fa-tree', color: 'from-green-600 to-green-800', type: 'noise', noiseType: 'forest' },
+            { id: 'fire', name: 'Fireplace', icon: 'fa-fire', color: 'from-orange-500 to-red-600', type: 'noise', noiseType: 'fire' },
+            { id: 'birds', name: 'Birds', icon: 'fa-dove', color: 'from-yellow-400 to-amber-500', type: 'noise', noiseType: 'birds' },
+            { id: 'crickets', name: 'Crickets', icon: 'fa-bug', color: 'from-lime-600 to-green-700', type: 'noise', noiseType: 'crickets' },
+            { id: 'cafe', name: 'Café', icon: 'fa-mug-hot', color: 'from-amber-600 to-orange-700', type: 'noise', noiseType: 'cafe' },
+            { id: 'fan', name: 'Fan', icon: 'fa-fan', color: 'from-indigo-400 to-indigo-600', type: 'noise', noiseType: 'fan' },
+            { id: 'train', name: 'Train', icon: 'fa-train', color: 'from-stone-500 to-stone-700', type: 'noise', noiseType: 'train' },
+            { id: 'airplane', name: 'Airplane', icon: 'fa-plane', color: 'from-blue-400 to-blue-600', type: 'noise', noiseType: 'airplane' },
+        ];
+
+        // Radio stations
+        const radios = [
+            { id: 'fcc-coderadio', name: 'freeCodeCamp Code Radio', desc: '24/7 music for coding', icon: 'fa-code', color: 'from-purple-600 to-indigo-700', url: 'https://coderadio-admin-v2.freecodecamp.org/radio/8010/radio.mp3' },
+            { id: 'soma-groovesalad', name: 'Groove Salad', desc: 'SomaFM - Ambient/Downtempo', icon: 'fa-leaf', color: 'from-green-500 to-teal-600', url: 'https://ice1.somafm.com/groovesalad-128-mp3' },
+            { id: 'soma-dronezone', name: 'Drone Zone', desc: 'SomaFM - Atmospheric', icon: 'fa-moon', color: 'from-violet-600 to-purple-800', url: 'https://ice1.somafm.com/dronezone-128-mp3' },
+            { id: 'soma-deepspaceone', name: 'Deep Space One', desc: 'SomaFM - Deep ambient', icon: 'fa-rocket', color: 'from-slate-700 to-slate-900', url: 'https://ice1.somafm.com/deepspaceone-128-mp3' },
+            { id: 'soma-spacestation', name: 'Space Station', desc: 'SomaFM - Spaced-out ambient', icon: 'fa-satellite', color: 'from-blue-700 to-indigo-900', url: 'https://ice1.somafm.com/spacestation-128-mp3' },
+            { id: 'soma-lush', name: 'Lush', desc: 'SomaFM - Dreampop/Chillwave', icon: 'fa-cloud', color: 'from-pink-400 to-rose-600', url: 'https://ice1.somafm.com/lush-128-mp3' },
+            { id: 'soma-beatblender', name: 'Beat Blender', desc: 'SomaFM - Deep house/Downtempo', icon: 'fa-headphones', color: 'from-amber-500 to-orange-600', url: 'https://ice1.somafm.com/beatblender-128-mp3' },
+            { id: 'lofi-hiphop', name: 'Lofi Hip Hop', desc: 'SomaFM - Lo-Fi beats', icon: 'fa-record-vinyl', color: 'from-rose-500 to-pink-700', url: 'https://ice1.somafm.com/vaporwaves-128-mp3' },
+            { id: 'soma-fluid', name: 'Fluid', desc: 'SomaFM - Instrumental hip-hop', icon: 'fa-music', color: 'from-cyan-500 to-blue-600', url: 'https://ice1.somafm.com/fluid-128-mp3' },
+        ];
+
+        // Initialize Audio Context
+        function initAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+        }
+
+        // Generate noise buffer
+        function createNoiseBuffer(type) {
+            const bufferSize = audioContext.sampleRate * 2;
+            const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+            const data = buffer.getChannelData(0);
+
+            let lastOut = 0;
+            let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+
+            for (let i = 0; i < bufferSize; i++) {
+                const white = Math.random() * 2 - 1;
+
+                switch (type) {
+                    case 'white':
+                    case 'rain':
+                    case 'cafe':
+                        data[i] = white * 0.5;
+                        break;
+                    case 'pink':
+                    case 'wind':
+                    case 'forest':
+                    case 'birds':
+                        b0 = 0.99886 * b0 + white * 0.0555179;
+                        b1 = 0.99332 * b1 + white * 0.0750759;
+                        b2 = 0.96900 * b2 + white * 0.1538520;
+                        b3 = 0.86650 * b3 + white * 0.3104856;
+                        b4 = 0.55000 * b4 + white * 0.5329522;
+                        b5 = -0.7616 * b5 - white * 0.0168980;
+                        data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.11;
+                        b6 = white * 0.115926;
+                        break;
+                    case 'brown':
+                    case 'thunder':
+                    case 'ocean':
+                    case 'train':
+                    case 'airplane':
+                    case 'fan':
+                        lastOut = (lastOut + (0.02 * white)) / 1.02;
+                        data[i] = lastOut * 3.5;
+                        break;
+                    case 'fire':
+                    case 'crickets':
+                        data[i] = white * (0.1 + Math.random() * 0.4) * Math.sin(i * 0.001);
+                        break;
+                    default:
+                        data[i] = white * 0.5;
+                }
+            }
+            return buffer;
+        }
+
+        // Play noise
+        function playNoise(soundId, noiseType) {
+            initAudioContext();
+
+            if (activeSounds.has(soundId)) {
+                stopNoise(soundId);
+                return;
+            }
+
+            const buffer = createNoiseBuffer(noiseType);
+            const source = audioContext.createBufferSource();
+            source.buffer = buffer;
+            source.loop = true;
+
+            const gainNode = audioContext.createGain();
+            gainNode.gain.value = masterVolume * 0.5;
+
+            // Add filter for variety
+            const filter = audioContext.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = noiseType === 'brown' ? 500 : noiseType === 'pink' ? 2000 : 8000;
+
+            source.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            source.start();
+
+            activeSounds.set(soundId, { source, gainNode, volume: 0.5 });
+            updateUI();
+        }
+
+        // Stop noise
+        function stopNoise(soundId) {
+            const sound = activeSounds.get(soundId);
+            if (sound) {
+                sound.source.stop();
+                activeSounds.delete(soundId);
+                updateUI();
+            }
+        }
+
+        // Play radio
+        function playRadio(radioId, url) {
+            if (activeRadio.id === radioId) {
+                stopRadio();
+                return;
+            }
+
+            stopRadio();
+
+            const audio = new Audio(url);
+            audio.crossOrigin = 'anonymous';
+            audio.volume = masterVolume;
+            audio.play().catch(e => console.log('Radio error:', e));
+
+            activeRadio.audio = audio;
+            activeRadio.id = radioId;
+            updateUI();
+        }
+
+        // Stop radio
+        function stopRadio() {
+            if (activeRadio.audio) {
+                activeRadio.audio.pause();
+                activeRadio.audio.src = '';
+                activeRadio.audio = null;
+                activeRadio.id = null;
+                updateUI();
+            }
+        }
+
+        // Update UI
+        function updateUI() {
+            const totalActive = activeSounds.size + (activeRadio.id ? 1 : 0);
+            const nowPlaying = document.getElementById('nowPlaying');
+            const activeCount = document.getElementById('activeCount');
+            const pauseBtn = document.getElementById('pauseAll');
+
+            // Update sound cards
+            document.querySelectorAll('.sound-card').forEach(card => {
+                const id = card.dataset.id;
+                card.classList.toggle('active', activeSounds.has(id));
+            });
+
+            // Update radio cards
+            document.querySelectorAll('.radio-card').forEach(card => {
+                const id = card.dataset.id;
+                card.classList.toggle('playing', activeRadio.id === id);
+            });
+
+            // Update now playing bar
+            if (totalActive > 0) {
+                nowPlaying.classList.remove('translate-y-full');
+                activeCount.textContent = `${totalActive} active`;
+
+                if (activeRadio.id) {
+                    const radio = radios.find(r => r.id === activeRadio.id);
+                    document.getElementById('nowPlayingTitle').textContent = radio.name;
+                    document.getElementById('nowPlayingSubtitle').textContent = radio.desc;
+                } else if (activeSounds.size > 0) {
+                    const names = [...activeSounds.keys()].map(id => {
+                        const s = sounds.find(s => s.id === id);
+                        return s ? s.name : id;
+                    });
+                    document.getElementById('nowPlayingTitle').textContent = names.join(' + ');
+                    document.getElementById('nowPlayingSubtitle').textContent = 'Ambient sounds mix';
+                }
+            } else {
+                nowPlaying.classList.add('translate-y-full');
+            }
+
+            // Update pause button
+            pauseBtn.innerHTML = isPaused ? '<i class="fas fa-play"></i>' : '<i class="fas fa-pause"></i>';
+
+            // Update mixer
+            updateMixer();
+        }
+
+        // Update mixer panel
+        function updateMixer() {
+            const container = document.getElementById('mixerChannels');
+
+            if (activeSounds.size === 0 && !activeRadio.id) {
+                container.innerHTML = '<p class="text-gray-500 text-center py-12">No sounds playing. Select sounds from the Ambient Sounds tab.</p>';
+                return;
+            }
+
+            let html = '';
+
+            activeSounds.forEach((data, id) => {
+                const sound = sounds.find(s => s.id === id);
+                if (sound) {
+                    html += `
+                        <div class="flex items-center gap-4 glass p-4 rounded-xl">
+                            <div class="w-12 h-12 rounded-xl bg-gradient-to-br ${sound.color} flex items-center justify-center">
+                                <i class="fas ${sound.icon}"></i>
+                            </div>
+                            <div class="flex-1">
+                                <p class="font-medium">${sound.name}</p>
+                                <input type="range" class="mixer-slider slider w-full mt-2" data-id="${id}" min="0" max="100" value="${data.volume * 100}">
+                            </div>
+                            <button class="mixer-remove w-10 h-10 rounded-full hover:bg-red-600/20 text-red-400 transition" data-id="${id}">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    `;
+                }
+            });
+
+            if (activeRadio.id) {
+                const radio = radios.find(r => r.id === activeRadio.id);
+                html += `
+                    <div class="flex items-center gap-4 glass p-4 rounded-xl border border-green-500/30">
+                        <div class="w-12 h-12 rounded-xl bg-gradient-to-br ${radio.color} flex items-center justify-center">
+                            <i class="fas ${radio.icon}"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="font-medium">${radio.name}</p>
+                            <p class="text-sm text-gray-400">${radio.desc}</p>
+                        </div>
+                        <button id="stopRadioBtn" class="w-10 h-10 rounded-full hover:bg-red-600/20 text-red-400 transition">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = html;
+
+            // Add event listeners
+            container.querySelectorAll('.mixer-slider').forEach(slider => {
+                slider.addEventListener('input', (e) => {
+                    const id = e.target.dataset.id;
+                    const volume = e.target.value / 100;
+                    const sound = activeSounds.get(id);
+                    if (sound) {
+                        sound.volume = volume;
+                        sound.gainNode.gain.value = volume * masterVolume;
+                    }
+                });
+            });
+
+            container.querySelectorAll('.mixer-remove').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = e.target.closest('button').dataset.id;
+                    stopNoise(id);
+                });
+            });
+
+            const stopRadioBtn = container.querySelector('#stopRadioBtn');
+            if (stopRadioBtn) {
+                stopRadioBtn.addEventListener('click', stopRadio);
+            }
+        }
+
+        // Render sounds
+        function renderSounds() {
+            const container = document.querySelector('#soundsTab .grid');
+            container.innerHTML = sounds.map(sound => `
+                <div class="sound-card glass rounded-2xl p-6 cursor-pointer transition-all duration-300 border border-transparent hover:border-white/10" data-id="${sound.id}" data-type="${sound.noiseType}">
+                    <div class="w-14 h-14 rounded-2xl bg-gradient-to-br ${sound.color} flex items-center justify-center mb-4 mx-auto">
+                        <i class="fas ${sound.icon} text-xl"></i>
+                    </div>
+                    <h3 class="text-center font-medium">${sound.name}</h3>
+                    <div class="mt-3 flex justify-center">
+                        <div class="w-8 h-8 rounded-full border-2 border-white/20 flex items-center justify-center">
+                            <i class="fas fa-play text-xs play-icon"></i>
+                            <i class="fas fa-pause text-xs pause-icon hidden"></i>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            container.querySelectorAll('.sound-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    playNoise(card.dataset.id, card.dataset.type);
+                    const playIcon = card.querySelector('.play-icon');
+                    const pauseIcon = card.querySelector('.pause-icon');
+                    playIcon.classList.toggle('hidden');
+                    pauseIcon.classList.toggle('hidden');
+                });
+            });
+        }
+
+        // Render radios
+        function renderRadios() {
+            const container = document.querySelector('#radioTab .grid');
+            container.innerHTML = radios.map(radio => `
+                <div class="radio-card glass rounded-2xl p-6 cursor-pointer transition-all duration-300 border border-transparent hover:border-white/10" data-id="${radio.id}" data-url="${radio.url}">
+                    <div class="flex items-start gap-4">
+                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br ${radio.color} flex items-center justify-center flex-shrink-0">
+                            <i class="fas ${radio.icon} text-2xl"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h3 class="font-semibold truncate">${radio.name}</h3>
+                            <p class="text-sm text-gray-400 mt-1">${radio.desc}</p>
+                            <div class="play-indicator hidden items-center gap-2 mt-3 text-green-400 text-sm">
+                                <span class="relative flex h-2 w-2">
+                                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                    <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                                </span>
+                                Now Playing
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            container.querySelectorAll('.radio-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    playRadio(card.dataset.id, card.dataset.url);
+                });
+            });
+        }
+
+        // Tab switching
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tab = btn.dataset.tab;
+
+                document.querySelectorAll('.tab-btn').forEach(b => {
+                    b.classList.remove('tab-active');
+                    b.classList.add('hover:bg-white/10');
+                });
+                btn.classList.add('tab-active');
+                btn.classList.remove('hover:bg-white/10');
+
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.add('hidden');
+                });
+                document.getElementById(tab + 'Tab').classList.remove('hidden');
+            });
+        });
+
+        // Master volume
+        document.getElementById('masterVolume').addEventListener('input', (e) => {
+            masterVolume = e.target.value / 100;
+            document.getElementById('volumeDisplay').textContent = e.target.value + '%';
+
+            activeSounds.forEach(sound => {
+                sound.gainNode.gain.value = sound.volume * masterVolume;
+            });
+
+            if (activeRadio.audio) {
+                activeRadio.audio.volume = masterVolume;
+            }
+        });
+
+        // Pause/Play all
+        document.getElementById('pauseAll').addEventListener('click', () => {
+            isPaused = !isPaused;
+
+            if (isPaused) {
+                activeSounds.forEach(sound => {
+                    sound.gainNode.gain.value = 0;
+                });
+                if (activeRadio.audio) activeRadio.audio.volume = 0;
+            } else {
+                activeSounds.forEach(sound => {
+                    sound.gainNode.gain.value = sound.volume * masterVolume;
+                });
+                if (activeRadio.audio) activeRadio.audio.volume = masterVolume;
+            }
+
+            updateUI();
+        });
+
+        // Stop all
+        document.getElementById('clearAll').addEventListener('click', () => {
+            activeSounds.forEach((_, id) => stopNoise(id));
+            stopRadio();
+        });
+
+        // Timer
+        document.getElementById('timerBtn').addEventListener('click', () => {
+            document.getElementById('timerModal').classList.remove('hidden');
+            document.getElementById('timerModal').classList.add('flex');
+        });
+
+        document.getElementById('closeTimerModal').addEventListener('click', () => {
+            document.getElementById('timerModal').classList.add('hidden');
+            document.getElementById('timerModal').classList.remove('flex');
+        });
+
+        document.querySelectorAll('.timer-preset').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const minutes = parseInt(btn.dataset.minutes);
+
+                if (timerInterval) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                }
+
+                if (minutes === 0) {
+                    timerRemaining = 0;
+                    document.getElementById('timerDisplay').textContent = 'Timer';
+                    document.getElementById('timerCountdown').textContent = '00:00';
+                    document.getElementById('timerRing').style.strokeDashoffset = 0;
+                    return;
+                }
+
+                timerRemaining = minutes * 60;
+                const totalSeconds = timerRemaining;
+
+                timerInterval = setInterval(() => {
+                    timerRemaining--;
+
+                    const mins = Math.floor(timerRemaining / 60);
+                    const secs = timerRemaining % 60;
+                    const display = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+                    document.getElementById('timerDisplay').textContent = display;
+                    document.getElementById('timerCountdown').textContent = display;
+
+                    const progress = (totalSeconds - timerRemaining) / totalSeconds;
+                    document.getElementById('timerRing').style.strokeDashoffset = 283 * progress;
+
+                    if (timerRemaining <= 0) {
+                        clearInterval(timerInterval);
+                        timerInterval = null;
+                        document.getElementById('timerDisplay').textContent = 'Timer';
+
+                        // Stop all sounds
+                        activeSounds.forEach((_, id) => stopNoise(id));
+                        stopRadio();
+                    }
+                }, 1000);
+
+                document.getElementById('timerModal').classList.add('hidden');
+                document.getElementById('timerModal').classList.remove('flex');
+            });
+        });
+
+        // Help modal
+        document.getElementById('helpBtn').addEventListener('click', () => {
+            document.getElementById('helpModal').classList.remove('hidden');
+            document.getElementById('helpModal').classList.add('flex');
+        });
+
+        document.getElementById('closeHelpModal').addEventListener('click', () => {
+            document.getElementById('helpModal').classList.add('hidden');
+            document.getElementById('helpModal').classList.remove('flex');
+        });
+
+        // Presets
+        function loadPresets() {
+            const presets = JSON.parse(localStorage.getItem('serene-presets') || '[]');
+            const container = document.getElementById('presetsList');
+
+            if (presets.length === 0) {
+                container.innerHTML = '<p class="text-gray-500">No saved presets yet.</p>';
+                return;
+            }
+
+            container.innerHTML = presets.map((preset, index) => `
+                <button class="preset-btn glass px-4 py-2 rounded-xl hover:bg-indigo-600 transition flex items-center gap-2" data-index="${index}">
+                    <i class="fas fa-play text-xs"></i>
+                    ${preset.name}
+                    <span class="text-xs text-gray-400">(${preset.sounds.length} sounds)</span>
+                </button>
+            `).join('');
+
+            container.querySelectorAll('.preset-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const preset = presets[btn.dataset.index];
+                    activeSounds.forEach((_, id) => stopNoise(id));
+                    preset.sounds.forEach(s => playNoise(s.id, s.type));
+                });
+            });
+        }
+
+        document.getElementById('savePreset').addEventListener('click', () => {
+            if (activeSounds.size === 0) return;
+
+            const name = prompt('Enter preset name:');
+            if (!name) return;
+
+            const preset = {
+                name,
+                sounds: [...activeSounds.keys()].map(id => {
+                    const sound = sounds.find(s => s.id === id);
+                    return { id, type: sound.noiseType, volume: activeSounds.get(id).volume };
+                })
+            };
+
+            const presets = JSON.parse(localStorage.getItem('serene-presets') || '[]');
+            presets.push(preset);
+            localStorage.setItem('serene-presets', JSON.stringify(presets));
+            loadPresets();
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT') return;
+
+            switch (e.key) {
+                case ' ':
+                    e.preventDefault();
+                    document.getElementById('pauseAll').click();
+                    break;
+                case 'ArrowUp':
+                    e.preventDefault();
+                    document.getElementById('masterVolume').value = Math.min(100, parseInt(document.getElementById('masterVolume').value) + 5);
+                    document.getElementById('masterVolume').dispatchEvent(new Event('input'));
+                    break;
+                case 'ArrowDown':
+                    e.preventDefault();
+                    document.getElementById('masterVolume').value = Math.max(0, parseInt(document.getElementById('masterVolume').value) - 5);
+                    document.getElementById('masterVolume').dispatchEvent(new Event('input'));
+                    break;
+                case 'm':
+                case 'M':
+                    const vol = document.getElementById('masterVolume');
+                    vol.value = vol.value === '0' ? '70' : '0';
+                    vol.dispatchEvent(new Event('input'));
+                    break;
+                case 'Escape':
+                    activeSounds.forEach((_, id) => stopNoise(id));
+                    stopRadio();
+                    break;
+                case 't':
+                case 'T':
+                    document.getElementById('timerBtn').click();
+                    break;
+            }
+        });
+
+        // Close modals on outside click
+        ['timerModal', 'helpModal'].forEach(modalId => {
+            document.getElementById(modalId).addEventListener('click', (e) => {
+                if (e.target.id === modalId) {
+                    e.target.classList.add('hidden');
+                    e.target.classList.remove('flex');
+                }
+            });
+        });
+
+        // Initialize
+        renderSounds();
+        renderRadios();
+        loadPresets();
+    </script>
+</body>
+
+</html>
