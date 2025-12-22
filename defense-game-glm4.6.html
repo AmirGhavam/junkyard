@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lawn Defense - Plant Strategy Game</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        .grid-cell {
+            width: 80px;
+            height: 80px;
+            position: relative;
+            transition: all 0.2s;
+        }
+
+        .grid-cell:hover {
+            background-color: rgba(34, 197, 94, 0.2);
+        }
+
+        .plant {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation: plantGrow 0.3s ease-out;
+        }
+
+        .zombie {
+            position: absolute;
+            width: 50px;
+            height: 70px;
+            transition: left 0.1s linear;
+        }
+
+        .projectile {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            transition: left 0.05s linear;
+        }
+
+        .sun {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            animation: sunFloat 10s linear;
+            background: radial-gradient(circle, #FFD700, #FFA500);
+            box-shadow: 0 0 20px #FFD700;
+        }
+
+        @keyframes plantGrow {
+            0% {
+                transform: translate(-50%, -50%) scale(0);
+            }
+
+            50% {
+                transform: translate(-50%, -50%) scale(1.2);
+            }
+
+            100% {
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+
+        @keyframes sunFloat {
+            0% {
+                transform: translateY(-100px);
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 1;
+            }
+
+            90% {
+                opacity: 1;
+            }
+
+            100% {
+                transform: translateY(400px);
+                opacity: 0;
+            }
+        }
+
+        @keyframes zombieWalk {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-5px);
+            }
+        }
+
+        .zombie-walking {
+            animation: zombieWalk 0.5s infinite;
+        }
+
+        .damage-text {
+            position: absolute;
+            color: red;
+            font-weight: bold;
+            animation: damageFloat 1s ease-out forwards;
+            pointer-events: none;
+        }
+
+        @keyframes damageFloat {
+            0% {
+                transform: translateY(0);
+                opacity: 1;
+            }
+
+            100% {
+                transform: translateY(-30px);
+                opacity: 0;
+            }
+        }
+
+        .plant-selector {
+            transition: all 0.2s;
+        }
+
+        .plant-selector:hover {
+            transform: scale(1.1);
+        }
+
+        .plant-selector.selected {
+            border: 3px solid #10b981;
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.5);
+        }
+
+        .plant-selector.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+
+<body class="bg-gradient-to-b from-sky-400 to-sky-200 min-h-screen overflow-hidden">
+    <div class="container mx-auto p-4">
+        <!-- Game Header -->
+        <div class="bg-white rounded-lg shadow-lg p-4 mb-4">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center bg-yellow-100 px-4 py-2 rounded-lg">
+                        <span class="text-2xl mr-2">☀️</span>
+                        <span id="sunCount" class="text-2xl font-bold text-yellow-600">50</span>
+                    </div>
+                    <div class="flex items-center bg-red-100 px-4 py-2 rounded-lg">
+                        <span class="text-xl mr-2">🧟</span>
+                        <span id="waveInfo" class="text-lg font-bold text-red-600">Wave 1</span>
+                    </div>
+                    <div class="flex items-center bg-green-100 px-4 py-2 rounded-lg">
+                        <span class="text-xl mr-2">💰</span>
+                        <span id="score" class="text-lg font-bold text-green-600">0</span>
+                    </div>
+                </div>
+                <div class="flex space-x-2">
+                    <button onclick="game.useSpecialAbility('freeze')"
+                        class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
+                        ❄️ Freeze (100☀️)
+                    </button>
+                    <button onclick="game.useSpecialAbility('bomb')"
+                        class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors">
+                        💣 Bomb (150☀️)
+                    </button>
+                    <button onclick="game.togglePause()"
+                        class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors">
+                        ⏸️ Pause
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Plant Selection Bar -->
+        <div class="bg-white rounded-lg shadow-lg p-4 mb-4">
+            <div class="flex space-x-4 justify-center">
+                <div class="plant-selector bg-green-100 p-3 rounded-lg cursor-pointer text-center"
+                    onclick="game.selectPlant('sunflower')" data-plant="sunflower">
+                    <div class="text-3xl mb-1">🌻</div>
+                    <div class="text-xs font-semibold">Sunflower</div>
+                    <div class="text-xs text-yellow-600">50☀️</div>
+                </div>
+                <div class="plant-selector bg-green-100 p-3 rounded-lg cursor-pointer text-center"
+                    onclick="game.selectPlant('peashooter')" data-plant="peashooter">
+                    <div class="text-3xl mb-1">🌱</div>
+                    <div class="text-xs font-semibold">Peashooter</div>
+                    <div class="text-xs text-yellow-600">100☀️</div>
+                </div>
+                <div class="plant-selector bg-green-100 p-3 rounded-lg cursor-pointer text-center"
+                    onclick="game.selectPlant('wallnut')" data-plant="wallnut">
+                    <div class="text-3xl mb-1">🥜</div>
+                    <div class="text-xs font-semibold">Wall-nut</div>
+                    <div class="text-xs text-yellow-600">50☀️</div>
+                </div>
+                <div class="plant-selector bg-green-100 p-3 rounded-lg cursor-pointer text-center"
+                    onclick="game.selectPlant('snowpea')" data-plant="snowpea">
+                    <div class="text-3xl mb-1">❄️</div>
+                    <div class="text-xs font-semibold">Snow Pea</div>
+                    <div class="text-xs text-yellow-600">175☀️</div>
+                </div>
+                <div class="plant-selector bg-green-100 p-3 rounded-lg cursor-pointer text-center"
+                    onclick="game.selectPlant('chomper')" data-plant="chomper">
+                    <div class="text-3xl mb-1">🌵</div>
+                    <div class="text-xs font-semibold">Chomper</div>
+                    <div class="text-xs text-yellow-600">150☀️</div>
+                </div>
+                <div class="plant-selector bg-green-100 p-3 rounded-lg cursor-pointer text-center"
+                    onclick="game.selectPlant('repeater')" data-plant="repeater">
+                    <div class="text-3xl mb-1">🌿</div>
+                    <div class="text-xs font-semibold">Repeater</div>
+                    <div class="text-xs text-yellow-600">200☀️</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Board -->
+        <div class="relative bg-green-400 rounded-lg shadow-2xl p-4" style="width: fit-content; margin: 0 auto;">
+            <div id="gameBoard" class="grid grid-cols-9 gap-1">
+                <!-- Grid will be generated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Game Over Modal -->
+        <div id="gameOverModal"
+            class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-8 text-center">
+                <h2 id="gameOverTitle" class="text-4xl font-bold mb-4">Game Over!</h2>
+                <p id="gameOverMessage" class="text-xl mb-4">The zombies have taken over!</p>
+                <p class="text-lg mb-6">Final Score: <span id="finalScore" class="font-bold">0</span></p>
+                <button onclick="game.restart()"
+                    class="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg text-lg font-semibold">
+                    Play Again
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class LawnDefenseGame {
+            constructor() {
+                this.grid = [];
+                this.plants = [];
+                this.zombies = [];
+                this.projectiles = [];
+                this.suns = [];
+                this.selectedPlant = null;
+                this.sunCount = 50;
+                this.score = 0;
+                this.wave = 1;
+                this.zombiesSpawned = 0;
+                this.zombiesPerWave = 5;
+                this.isPaused = false;
+                this.isGameOver = false;
+                this.lastSunSpawn = Date.now();
+                this.lastZombieSpawn = Date.now();
+                this.frozenTime = 0;
+
+                this.plantTypes = {
+                    sunflower: { cost: 50, health: 100, emoji: '🌻', produces: 'sun' },
+                    peashooter: { cost: 100, health: 100, emoji: '🌱', damage: 20, fireRate: 2000 },
+                    wallnut: { cost: 50, health: 300, emoji: '🥜', isWall: true },
+                    snowpea: { cost: 175, health: 100, emoji: '❄️', damage: 20, fireRate: 2000, slows: true },
+                    chomper: { cost: 150, health: 150, emoji: '🌵', damage: 100, range: 1, eatRate: 5000 },
+                    repeater: { cost: 200, health: 100, emoji: '🌿', damage: 20, fireRate: 1000, doubleShot: true }
+                };
+
+                this.zombieTypes = {
+                    normal: { health: 100, speed: 0.5, damage: 10, emoji: '🧟', points: 10 },
+                    cone: { health: 200, speed: 0.4, damage: 10, emoji: '🧟‍♂️', points: 20 },
+                    bucket: { health: 300, speed: 0.3, damage: 15, emoji: '🧟‍♀️', points: 30 }
+                };
+
+                this.init();
+            }
+
+            init() {
+                this.createGrid();
+                this.startGameLoop();
+                this.updateUI();
+            }
+
+            createGrid() {
+                const board = document.getElementById('gameBoard');
+                board.innerHTML = '';
+
+                for (let row = 0; row < 5; row++) {
+                    this.grid[row] = [];
+                    for (let col = 0; col < 9; col++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'grid-cell bg-green-300 border border-green-400 rounded cursor-pointer';
+                        cell.dataset.row = row;
+                        cell.dataset.col = col;
+                        cell.onclick = () => this.handleCellClick(row, col);
+                        board.appendChild(cell);
+                        this.grid[row][col] = null;
+                    }
+                }
+            }
+
+            handleCellClick(row, col) {
+                if (this.isPaused || this.isGameOver || !this.selectedPlant) return;
+
+                const plantType = this.plantTypes[this.selectedPlant];
+                if (this.sunCount < plantType.cost) return;
+                if (this.grid[row][col]) return;
+
+                this.plantPlant(row, col, this.selectedPlant);
+                this.sunCount -= plantType.cost;
+                this.updateUI();
+            }
+
+            plantPlant(row, col, type) {
+                const plant = {
+                    type: type,
+                    row: row,
+                    col: col,
+                    health: this.plantTypes[type].health,
+                    maxHealth: this.plantTypes[type].health,
+                    lastAction: Date.now()
+                };
+
+                this.grid[row][col] = plant;
+                this.plants.push(plant);
+
+                const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+                const plantDiv = document.createElement('div');
+                plantDiv.className = 'plant';
+                plantDiv.innerHTML = `<span style="font-size: 40px;">${this.plantTypes[type].emoji}</span>`;
+                plantDiv.id = `plant-${row}-${col}`;
+                cell.appendChild(plantDiv);
+            }
+
+            selectPlant(type) {
+                if (this.plantTypes[type].cost > this.sunCount) return;
+
+                document.querySelectorAll('.plant-selector').forEach(el => el.classList.remove('selected'));
+                document.querySelector(`[data-plant="${type}"]`).classList.add('selected');
+                this.selectedPlant = type;
+            }
+
+            spawnZombie() {
+                if (this.zombiesSpawned >= this.zombiesPerWave) return;
+
+                const row = Math.floor(Math.random() * 5);
+                const types = ['normal', 'normal', 'normal', 'cone', 'bucket'];
+                const type = types[Math.floor(Math.random() * types.length)];
+                const zombieData = this.zombieTypes[type];
+
+                const zombie = {
+                    type: type,
+                    row: row,
+                    x: 720,
+                    health: zombieData.health,
+                    maxHealth: zombieData.health,
+                    speed: zombieData.speed,
+                    damage: zombieData.damage,
+                    frozen: false,
+                    id: Date.now() + Math.random()
+                };
+
+                this.zombies.push(zombie);
+                this.zombiesSpawned++;
+
+                const zombieDiv = document.createElement('div');
+                zombieDiv.className = 'zombie zombie-walking';
+                zombieDiv.id = `zombie-${zombie.id}`;
+                zombieDiv.style.top = `${row * 81 + 5}px`;
+                zombieDiv.style.left = `${zombie.x}px`;
+                zombieDiv.innerHTML = `<span style="font-size: 35px;">${zombieData.emoji}</span>`;
+                document.getElementById('gameBoard').appendChild(zombieDiv);
+            }
+
+            spawnSun() {
+                const sun = {
+                    x: Math.random() * 650 + 50,
+                    y: 0,
+                    value: 25,
+                    id: Date.now()
+                };
+
+                this.suns.push(sun);
+
+                const sunDiv = document.createElement('div');
+                sunDiv.className = 'sun';
+                sunDiv.id = `sun-${sun.id}`;
+                sunDiv.style.left = `${sun.x}px`;
+                sunDiv.style.top = `${sun.y}px`;
+                sunDiv.onclick = () => this.collectSun(sun.id);
+                sunDiv.innerHTML = '☀️';
+                document.getElementById('gameBoard').appendChild(sunDiv);
+            }
+
+            collectSun(sunId) {
+                const sunIndex = this.suns.findIndex(s => s.id === sunId);
+                if (sunIndex === -1) return;
+
+                this.sunCount += this.suns[sunIndex].value;
+                this.suns.splice(sunIndex, 1);
+
+                const sunDiv = document.getElementById(`sun-${sunId}`);
+                if (sunDiv) sunDiv.remove();
+
+                this.updateUI();
+            }
+
+            updateZombies() {
+                const now = Date.now();
+                const speedMultiplier = this.frozenTime > now ? 0.2 : 1;
+
+                this.zombies = this.zombies.filter(zombie => {
+                    zombie.x -= zombie.speed * speedMultiplier;
+
+                    const zombieDiv = document.getElementById(`zombie-${zombie.id}`);
+                    if (!zombieDiv) return false;
+
+                    zombieDiv.style.left = `${zombie.x}px`;
+
+                    // Check if zombie reached the house
+                    if (zombie.x < 0) {
+                        zombieDiv.remove();
+                        this.gameOver(false);
+                        return false;
+                    }
+
+                    // Check collision with plants
+                    const col = Math.floor(zombie.x / 81);
+                    if (col >= 0 && col < 9) {
+                        const plant = this.grid[zombie.row][col];
+                        if (plant) {
+                            if (plant.type === 'chomper') {
+                                if (now - plant.lastAction > this.plantTypes.chomper.eatRate) {
+                                    zombie.health = 0;
+                                    plant.lastAction = now;
+                                    this.showDamage(zombie.x, zombie.row * 81 + 40, 100);
+                                }
+                            } else {
+                                // Attack plant
+                                if (!zombie.attacking) {
+                                    zombie.attacking = true;
+                                    zombieDiv.classList.remove('zombie-walking');
+                                }
+
+                                if (now - (zombie.lastAttack || 0) > 1000) {
+                                    plant.health -= zombie.damage;
+                                    zombie.lastAttack = now;
+                                    this.showDamage(col * 81 + 40, zombie.row * 81 + 40, zombie.damage);
+
+                                    if (plant.health <= 0) {
+                                        this.removePlant(zombie.row, col);
+                                        zombie.attacking = false;
+                                        zombieDiv.classList.add('zombie-walking');
+                                    }
+                                }
+                            }
+                        } else {
+                            if (zombie.attacking) {
+                                zombie.attacking = false;
+                                zombieDiv.classList.add('zombie-walking');
+                            }
+                        }
+                    }
+
+                    // Check if zombie is dead
+                    if (zombie.health <= 0) {
+                        zombieDiv.remove();
+                        this.score += this.zombieTypes[zombie.type].points;
+                        this.updateUI();
+                        return false;
+                    }
+
+                    return true;
+                });
+            }
+
+            updatePlants() {
+                const now = Date.now();
+
+                this.plants.forEach(plant => {
+                    const plantData = this.plantTypes[plant.type];
+
+                    if (plant.type === 'sunflower') {
+                        if (now - plant.lastAction > 5000) {
+                            this.spawnSunFromPlant(plant.row, plant.col);
+                            plant.lastAction = now;
+                        }
+                    } else if (plant.type === 'peashooter' || plant.type === 'snowpea' || plant.type === 'repeater') {
+                        if (now - plant.lastAction > plantData.fireRate) {
+                            if (this.hasZombieInLane(plant.row)) {
+                                this.shootProjectile(plant);
+                                plant.lastAction = now;
+                            }
+                        }
+                    }
+                });
+            }
+
+            hasZombieInLane(row) {
+                return this.zombies.some(z => z.row === row);
+            }
+
+            shootProjectile(plant) {
+                const plantData = this.plantTypes[plant.type];
+                const projectile = {
+                    x: plant.col * 81 + 40,
+                    y: plant.row * 81 + 40,
+                    row: plant.row,
+                    damage: plantData.damage,
+                    slows: plantData.slows || false,
+                    id: Date.now() + Math.random()
+                };
+
+                this.projectiles.push(projectile);
+
+                const projectileDiv = document.createElement('div');
+                projectileDiv.className = 'projectile';
+                projectileDiv.id = `projectile-${projectile.id}`;
+                projectileDiv.style.left = `${projectile.x}px`;
+                projectileDiv.style.top = `${projectile.y}px`;
+                projectileDiv.style.backgroundColor = plantData.slows ? '#87CEEB' : '#90EE90';
+                document.getElementById('gameBoard').appendChild(projectileDiv);
+
+                if (plantData.doubleShot) {
+                    setTimeout(() => {
+                        const projectile2 = {
+                            x: plant.col * 81 + 40,
+                            y: plant.row * 81 + 40,
+                            row: plant.row,
+                            damage: plantData.damage,
+                            slows: false,
+                            id: Date.now() + Math.random()
+                        };
+                        this.projectiles.push(projectile2);
+
+                        const projectileDiv2 = document.createElement('div');
+                        projectileDiv2.className = 'projectile';
+                        projectileDiv2.id = `projectile-${projectile2.id}`;
+                        projectileDiv2.style.left = `${projectile2.x}px`;
+                        projectileDiv2.style.top = `${projectile2.y}px`;
+                        projectileDiv2.style.backgroundColor = '#90EE90';
+                        document.getElementById('gameBoard').appendChild(projectileDiv2);
+                    }, 200);
+                }
+            }
+
+            updateProjectiles() {
+                this.projectiles = this.projectiles.filter(projectile => {
+                    projectile.x += 5;
+
+                    const projectileDiv = document.getElementById(`projectile-${projectile.id}`);
+                    if (!projectileDiv) return false;
+
+                    projectileDiv.style.left = `${projectile.x}px`;
+
+                    // Check collision with zombies
+                    const hitZombie = this.zombies.find(z =>
+                        z.row === projectile.row &&
+                        Math.abs(z.x - projectile.x) < 30
+                    );
+
+                    if (hitZombie) {
+                        hitZombie.health -= projectile.damage;
+                        if (projectile.slows) {
+                            hitZombie.frozen = true;
+                            setTimeout(() => hitZombie.frozen = false, 3000);
+                        }
+                        this.showDamage(hitZombie.x, projectile.y, projectile.damage);
+                        projectileDiv.remove();
+                        return false;
+                    }
+
+                    // Remove if out of bounds
+                    if (projectile.x > 720) {
+                        projectileDiv.remove();
+                        return false;
+                    }
+
+                    return true;
+                });
+            }
+
+            spawnSunFromPlant(row, col) {
+                const sun = {
+                    x: col * 81 + 40,
+                    y: row * 81 + 40,
+                    value: 25,
+                    id: Date.now(),
+                    fromPlant: true
+                };
+
+                this.suns.push(sun);
+
+                const sunDiv = document.createElement('div');
+                sunDiv.className = 'sun';
+                sunDiv.id = `sun-${sun.id}`;
+                sunDiv.style.left = `${sun.x}px`;
+                sunDiv.style.top = `${sun.y}px`;
+                sunDiv.style.animation = 'none';
+                sunDiv.onclick = () => this.collectSun(sun.id);
+                sunDiv.innerHTML = '☀️';
+                document.getElementById('gameBoard').appendChild(sunDiv);
+
+                setTimeout(() => {
+                    const index = this.suns.findIndex(s => s.id === sun.id);
+                    if (index !== -1) {
+                        this.suns.splice(index, 1);
+                        const div = document.getElementById(`sun-${sun.id}`);
+                        if (div) div.remove();
+                    }
+                }, 8000);
+            }
+
+            removePlant(row, col) {
+                this.grid[row][col] = null;
+                const plantDiv = document.getElementById(`plant-${row}-${col}`);
+                if (plantDiv) plantDiv.remove();
+            }
+
+            showDamage(x, y, damage) {
+                const damageDiv = document.createElement('div');
+                damageDiv.className = 'damage-text';
+                damageDiv.style.left = `${x}px`;
+                damageDiv.style.top = `${y}px`;
+                damageDiv.textContent = `-${damage}`;
+                document.getElementById('gameBoard').appendChild(damageDiv);
+
+                setTimeout(() => damageDiv.remove(), 1000);
+            }
+
+            useSpecialAbility(type) {
+                if (type === 'freeze' && this.sunCount >= 100) {
+                    this.sunCount -= 100;
+                    this.frozenTime = Date.now() + 5000;
+                    this.zombies.forEach(z => {
+                        const div = document.getElementById(`zombie-${z.id}`);
+                        if (div) div.style.filter = 'hue-rotate(180deg)';
+                    });
+                    setTimeout(() => {
+                        this.zombies.forEach(z => {
+                            const div = document.getElementById(`zombie-${z.id}`);
+                            if (div) div.style.filter = 'none';
+                        });
+                    }, 5000);
+                } else if (type === 'bomb' && this.sunCount >= 150) {
+                    this.sunCount -= 150;
+                    this.zombies.forEach(z => {
+                        z.health = 0;
+                        this.showDamage(z.x, z.row * 81 + 40, 999);
+                    });
+                }
+                this.updateUI();
+            }
+
+            togglePause() {
+                this.isPaused = !this.isPaused;
+            }
+
+            updateUI() {
+                document.getElementById('sunCount').textContent = this.sunCount;
+                document.getElementById('score').textContent = this.score;
+                document.getElementById('waveInfo').textContent = `Wave ${this.wave}`;
+
+                // Update plant selector states
+                document.querySelectorAll('.plant-selector').forEach(el => {
+                    const type = el.dataset.plant;
+                    if (this.plantTypes[type].cost > this.sunCount) {
+                        el.classList.add('disabled');
+                    } else {
+                        el.classList.remove('disabled');
+                    }
+                });
+            }
+
+            checkWaveComplete() {
+                if (this.zombiesSpawned >= this.zombiesPerWave && this.zombies.length === 0) {
+                    this.wave++;
+                    this.zombiesSpawned = 0;
+                    this.zombiesPerWave = Math.min(this.zombiesPerWave + 2, 20);
+                    this.sunCount += 50;
+                    this.updateUI();
+                }
+            }
+
+            gameOver(won) {
+                this.isGameOver = true;
+                const modal = document.getElementById('gameOverModal');
+                const title = document.getElementById('gameOverTitle');
+                const message = document.getElementById('gameOverMessage');
+                const finalScore = document.getElementById('finalScore');
+
+                if (won) {
+                    title.textContent = 'Victory!';
+                    message.textContent = 'You defended your lawn successfully!';
+                } else {
+                    title.textContent = 'Game Over!';
+                    message.textContent = 'The zombies have taken over!';
+                }
+
+                finalScore.textContent = this.score;
+                modal.classList.remove('hidden');
+            }
+
+            restart() {
+                location.reload();
+            }
+
+            startGameLoop() {
+                setInterval(() => {
+                    if (this.isPaused || this.isGameOver) return;
+
+                    const now = Date.now();
+
+                    // Spawn suns
+                    if (now - this.lastSunSpawn > 8000) {
+                        this.spawnSun();
+                        this.lastSunSpawn = now;
+                    }
+
+                    // Spawn zombies
+                    if (this.zombiesSpawned < this.zombiesPerWave && now - this.lastZombieSpawn > 3000) {
+                        this.spawnZombie();
+                        this.lastZombieSpawn = now;
+                    }
+
+                    // Update game entities
+                    this.updateZombies();
+                    this.updatePlants();
+                    this.updateProjectiles();
+                    this.checkWaveComplete();
+                }, 50);
+            }
+        }
+
+        const game = new LawnDefenseGame();
+    </script>
+</body>
+
+</html>
