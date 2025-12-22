@@ -1,0 +1,1436 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lane Defense Garden (PVZ-style)</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        :root {
+            --cell: 72px;
+        }
+
+        .lawn-wrap {
+            touch-action: manipulation;
+        }
+
+        .lawn {
+            display: grid;
+            grid-template-columns: repeat(9, var(--cell));
+            grid-template-rows: repeat(5, var(--cell));
+            gap: 6px;
+        }
+
+        .cell {
+            border-radius: 14px;
+            position: relative;
+        }
+
+        .cell::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: 14px;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .22);
+        }
+
+        .overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+
+        .entity {
+            position: absolute;
+            width: var(--cell);
+            height: var(--cell);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 16px;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        .plant {
+            filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .25));
+        }
+
+        .zombie {
+            filter: drop-shadow(0 10px 14px rgba(0, 0, 0, .35));
+        }
+
+        .pea {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            border-radius: 999px;
+            background: linear-gradient(180deg, #93f99f, #22c55e);
+            box-shadow: 0 4px 10px rgba(34, 197, 94, .45);
+        }
+
+        .sun {
+            position: absolute;
+            width: 34px;
+            height: 34px;
+            border-radius: 999px;
+            background: radial-gradient(circle at 30% 30%, #fff6a5, #fbbf24 65%, #f59e0b);
+            box-shadow: 0 8px 18px rgba(245, 158, 11, .5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            color: #4b2c00;
+            pointer-events: auto;
+            cursor: pointer;
+        }
+
+        .floating {
+            animation: floaty 1.8s ease-in-out infinite;
+        }
+
+        @keyframes floaty {
+
+            0%,
+            100% {
+                transform: translateY(0)
+            }
+
+            50% {
+                transform: translateY(-4px)
+            }
+        }
+
+        .damage-pop {
+            position: absolute;
+            font-weight: 900;
+            font-size: 12px;
+            color: white;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, .6);
+            animation: pop 700ms ease-out forwards;
+            pointer-events: none;
+        }
+
+        @keyframes pop {
+            0% {
+                opacity: 0;
+                transform: translateY(8px) scale(.9)
+            }
+
+            15% {
+                opacity: 1;
+                transform: translateY(0) scale(1)
+            }
+
+            100% {
+                opacity: 0;
+                transform: translateY(-18px) scale(1.1)
+            }
+        }
+
+        .shake {
+            animation: shake 120ms linear 2;
+        }
+
+        @keyframes shake {
+            0% {
+                transform: translateX(0)
+            }
+
+            25% {
+                transform: translateX(-2px)
+            }
+
+            50% {
+                transform: translateX(2px)
+            }
+
+            75% {
+                transform: translateX(-1px)
+            }
+
+            100% {
+                transform: translateX(0)
+            }
+        }
+
+        .cooldown-bar {
+            height: 6px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, .15);
+            overflow: hidden;
+        }
+
+        .cooldown-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #60a5fa, #a78bfa);
+        }
+
+        .badge {
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: .02em;
+            padding: .2rem .5rem;
+            border-radius: 999px;
+        }
+
+        /* Make it scale nicely on small screens */
+        @media (max-width: 980px) {
+            :root {
+                --cell: 62px;
+            }
+        }
+
+        @media (max-width: 760px) {
+            :root {
+                --cell: 54px;
+            }
+
+            .lawn {
+                gap: 5px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            :root {
+                --cell: 46px;
+            }
+
+            .lawn {
+                gap: 4px;
+            }
+        }
+    </style>
+</head>
+
+<body class="min-h-screen bg-gradient-to-b from-slate-950 via-slate-950 to-emerald-950 text-slate-100">
+    <div class="max-w-6xl mx-auto px-4 py-6">
+        <header class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-black tracking-tight">Lane Defense Garden</h1>
+                <p class="text-slate-300 text-sm md:text-base">Plant defenders, collect sun, stop the waves. Click a
+                    plant card, then click a tile.</p>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2 md:gap-3">
+                <div class="flex items-center gap-2 rounded-2xl bg-slate-900/60 border border-white/10 px-4 py-2">
+                    <div
+                        class="w-9 h-9 rounded-full bg-amber-400/20 border border-amber-300/30 flex items-center justify-center">
+                        <span class="text-amber-300 font-black">☀</span>
+                    </div>
+                    <div>
+                        <div class="text-xs text-slate-300">Sun</div>
+                        <div id="sunCount" class="text-lg font-black">50</div>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 rounded-2xl bg-slate-900/60 border border-white/10 px-4 py-2">
+                    <div
+                        class="w-9 h-9 rounded-full bg-indigo-400/15 border border-indigo-300/25 flex items-center justify-center">
+                        <span class="text-indigo-200 font-black">≋</span>
+                    </div>
+                    <div>
+                        <div class="text-xs text-slate-300">Wave</div>
+                        <div id="waveLabel" class="text-lg font-black">1</div>
+                    </div>
+                </div>
+
+                <button id="freezeBtn"
+                    class="rounded-2xl px-4 py-2 bg-sky-500/20 hover:bg-sky-500/30 border border-sky-300/30 transition font-extrabold">
+                    Freeze <span class="text-sky-200">(75☀)</span>
+                </button>
+
+                <button id="shovelBtn"
+                    class="rounded-2xl px-4 py-2 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-300/25 transition font-extrabold">
+                    Shovel
+                </button>
+
+                <button id="pauseBtn"
+                    class="rounded-2xl px-4 py-2 bg-slate-800/50 hover:bg-slate-800/70 border border-white/10 transition font-extrabold">
+                    Pause
+                </button>
+            </div>
+        </header>
+
+        <section class="mt-5 grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-4">
+            <aside class="rounded-3xl bg-slate-900/55 border border-white/10 p-4">
+                <div class="flex items-center justify-between">
+                    <h2 class="font-black text-lg">Plant Deck</h2>
+                    <div class="flex items-center gap-2">
+                        <span id="modeBadge"
+                            class="badge bg-emerald-500/15 border border-emerald-300/20 text-emerald-200">Mode:
+                            Plant</span>
+                    </div>
+                </div>
+
+                <div id="cards" class="mt-3 grid grid-cols-2 gap-3"></div>
+
+                <div class="mt-4 rounded-2xl bg-slate-950/40 border border-white/10 p-3">
+                    <div class="text-sm font-extrabold">Quick tips</div>
+                    <ul class="mt-2 text-xs text-slate-300 space-y-1">
+                        <li><span class="font-bold text-slate-200">Sunflower</span> makes sun. Click suns to collect.
+                        </li>
+                        <li><span class="font-bold text-slate-200">Peashooter</span> shoots zombies in its lane.</li>
+                        <li><span class="font-bold text-slate-200">Wall-nut</span> stalls (big HP).</li>
+                        <li><span class="font-bold text-slate-200">Cherry Bomb</span> explodes 3×3, then disappears.
+                        </li>
+                        <li><span class="font-bold text-slate-200">Freeze</span> slows zombies globally for a few
+                            seconds.</li>
+                        <li><span class="font-bold text-slate-200">Lawnmowers</span> trigger if zombies reach your
+                            house.</li>
+                    </ul>
+                </div>
+
+                <div class="mt-4 rounded-2xl bg-slate-950/40 border border-white/10 p-3">
+                    <div class="flex items-center justify-between">
+                        <div class="text-sm font-extrabold">Wave progress</div>
+                        <div id="statusText" class="text-xs text-slate-300">Prepare…</div>
+                    </div>
+                    <div class="mt-2 h-2 rounded-full bg-white/10 overflow-hidden">
+                        <div id="progressFill"
+                            class="h-full w-0 bg-gradient-to-r from-emerald-400 via-sky-400 to-indigo-400"></div>
+                    </div>
+                </div>
+            </aside>
+
+            <main class="rounded-3xl bg-slate-900/35 border border-white/10 p-4">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div class="text-sm text-slate-300">
+                        <span class="font-extrabold text-slate-100">Goal:</span> don’t let zombies cross the left edge.
+                    </div>
+                    <div class="flex items-center gap-2 text-xs text-slate-300">
+                        <span
+                            class="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1">
+                            <span class="text-emerald-200 font-black">Click</span> plant → tile
+                        </span>
+                        <span
+                            class="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1">
+                            <span class="text-rose-200 font-black">Shovel</span> to remove
+                        </span>
+                    </div>
+                </div>
+
+                <div class="mt-4 relative lawn-wrap select-none">
+                    <div id="lawn" class="lawn"></div>
+                    <div id="overlay" class="overlay"></div>
+                </div>
+
+                <div class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div class="rounded-2xl bg-slate-950/40 border border-white/10 p-3">
+                        <div class="text-xs text-slate-300">Lawnmowers</div>
+                        <div id="mowerRow" class="mt-1 flex flex-wrap gap-2"></div>
+                    </div>
+                    <div class="rounded-2xl bg-slate-950/40 border border-white/10 p-3">
+                        <div class="text-xs text-slate-300">Selected</div>
+                        <div id="selectedLabel" class="mt-1 font-black">None</div>
+                    </div>
+                    <div class="rounded-2xl bg-slate-950/40 border border-white/10 p-3">
+                        <div class="text-xs text-slate-300">Difficulty</div>
+                        <div class="mt-1 text-sm font-extrabold">Endless waves (ramps every wave)</div>
+                    </div>
+                </div>
+            </main>
+        </section>
+
+        <footer class="mt-6 text-xs text-slate-400">
+            Built-in demo inspired by lane defense classics. No assets; all shapes and colors are CSS.
+        </footer>
+    </div>
+
+    <script>
+        // ======== Game constants ========
+        const ROWS = 5;
+        const COLS = 9;
+
+        const PLANTS = {
+            sunflower: {
+                key: 'sunflower', name: 'Sunflower', cost: 50, cooldown: 5.0,
+                maxHp: 180,
+                emoji: '🌻',
+                description: 'Generates sun periodically.',
+            },
+            peashooter: {
+                key: 'peashooter', name: 'Peashooter', cost: 100, cooldown: 5.0,
+                maxHp: 220,
+                emoji: '🟢',
+                description: 'Shoots peas down its lane.',
+            },
+            wallnut: {
+                key: 'wallnut', name: 'Wall-nut', cost: 50, cooldown: 7.5,
+                maxHp: 900,
+                emoji: '🛡️',
+                description: 'High HP blocker.',
+            },
+            cherry: {
+                key: 'cherry', name: 'Cherry Bomb', cost: 150, cooldown: 12.0,
+                maxHp: 999,
+                emoji: '💥',
+                description: 'Explodes 3×3 then vanishes.',
+            },
+        };
+
+        const ZOMBIE_BASE = {
+            hp: 420,
+            speed: 0.35, // cells per second
+            dps: 52, // damage per second to plants
+        };
+
+        const PEA = {
+            speed: 5.2, // cells per second
+            damage: 25,
+            radius: 0.16,
+        };
+
+        const SUN = {
+            value: 25,
+            lifetime: 12, // seconds
+        };
+
+        const FREEZE = {
+            cost: 75,
+            duration: 4.5,
+            slowMul: 0.35,
+            cooldown: 10,
+        };
+
+        // ======== DOM ========
+        const lawnEl = document.getElementById('lawn');
+        const overlayEl = document.getElementById('overlay');
+        const sunCountEl = document.getElementById('sunCount');
+        const waveLabelEl = document.getElementById('waveLabel');
+        const cardsEl = document.getElementById('cards');
+        const selectedLabelEl = document.getElementById('selectedLabel');
+        const mowerRowEl = document.getElementById('mowerRow');
+        const freezeBtn = document.getElementById('freezeBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const shovelBtn = document.getElementById('shovelBtn');
+        const modeBadge = document.getElementById('modeBadge');
+        const progressFill = document.getElementById('progressFill');
+        const statusText = document.getElementById('statusText');
+
+        // ======== State ========
+        const state = {
+            running: true,
+            gameOver: false,
+            sun: 50,
+            wave: 1,
+            time: 0,
+            lastTs: performance.now(),
+            cellPx: 72,
+            gapPx: 6,
+            selected: null, // plant key or 'shovel'
+            hover: { r: -1, c: -1 },
+
+            grid: Array.from({ length: ROWS }, () => Array.from({ length: COLS }, () => null)),
+            plants: [],
+            zombies: [],
+            peas: [],
+            suns: [],
+            pops: [],
+            mowers: Array.from({ length: ROWS }, () => ({ used: false, x: -0.6, active: false })),
+
+            // Card cooldowns
+            cdReadyAt: Object.fromEntries(Object.keys(PLANTS).map(k => [k, 0])),
+            freezeReadyAt: 0,
+
+            // Wave spawning
+            waveActive: false,
+            waveSpawned: 0,
+            waveToSpawn: 0,
+            nextSpawnAt: 0,
+            waveEndsAt: 0,
+
+            // Effects
+            globalSlowUntil: 0,
+
+            // House health (simple lose condition)
+            breaches: 0,
+        };
+
+        // ======== Helpers ========
+        const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+        const now = () => state.time;
+
+        function cellToPxX(c) { return c * (state.cellPx + state.gapPx); }
+        function cellToPxY(r) { return r * (state.cellPx + state.gapPx); }
+
+        function setSun(v) {
+            state.sun = Math.max(0, Math.floor(v));
+            sunCountEl.textContent = state.sun;
+            updateCardsUI();
+            updateFreezeUI();
+        }
+
+        function setSelected(key) {
+            state.selected = key;
+            if (!key) selectedLabelEl.textContent = 'None';
+            else if (key === 'shovel') selectedLabelEl.textContent = 'Shovel (remove plants)';
+            else selectedLabelEl.textContent = `${PLANTS[key].name} (${PLANTS[key].cost}☀)`;
+
+            modeBadge.textContent = key === 'shovel' ? 'Mode: Shovel' : 'Mode: Plant';
+            modeBadge.className = 'badge ' + (key === 'shovel'
+                ? 'bg-rose-500/15 border border-rose-300/20 text-rose-200'
+                : 'bg-emerald-500/15 border border-emerald-300/20 text-emerald-200');
+
+            updateCardsUI();
+            updateHoverHighlight();
+        }
+
+        function plantAt(r, c) {
+            return state.grid[r][c];
+        }
+
+        function isInBounds(r, c) {
+            return r >= 0 && r < ROWS && c >= 0 && c < COLS;
+        }
+
+        function anyZombieAhead(row, col) {
+            // zombie.x is in cell units; zombie's body occupies about 0.6 cell width
+            return state.zombies.some(z => z.row === row && z.x > col - 0.15 && z.hp > 0);
+        }
+
+        function spawnPop(text, xCell, yCell, color = 'white') {
+            const el = document.createElement('div');
+            el.className = 'damage-pop';
+            el.style.color = color;
+            el.textContent = text;
+            overlayEl.appendChild(el);
+            const x = cellToPxX(xCell) + state.cellPx * 0.5;
+            const y = cellToPxY(yCell) + state.cellPx * 0.2;
+            el.style.left = (x - 10) + 'px';
+            el.style.top = (y - 8) + 'px';
+            setTimeout(() => el.remove(), 800);
+        }
+
+        function shakeCell(r, c) {
+            const cell = document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+            if (!cell) return;
+            cell.classList.remove('shake');
+            // Force reflow
+            void cell.offsetWidth;
+            cell.classList.add('shake');
+        }
+
+        function formatTime(s) {
+            const m = Math.floor(s / 60);
+            const r = Math.floor(s % 60);
+            return m > 0 ? `${m}:${String(r).padStart(2, '0')}` : `${r}s`;
+        }
+
+        // ======== Rendering setup ========
+        function buildLawn() {
+            lawnEl.innerHTML = '';
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const cell = document.createElement('button');
+                    cell.type = 'button';
+                    cell.className = `cell aspect-square ${((r + c) % 2 === 0)
+                        ? 'bg-emerald-600/25 hover:bg-emerald-600/35'
+                        : 'bg-emerald-700/20 hover:bg-emerald-700/30'} border border-white/10 transition`;
+                    cell.dataset.r = String(r);
+                    cell.dataset.c = String(c);
+                    cell.addEventListener('mouseenter', () => { state.hover = { r, c }; updateHoverHighlight(); });
+                    cell.addEventListener('mouseleave', () => { state.hover = { r: -1, c: -1 }; updateHoverHighlight(); });
+                    cell.addEventListener('click', () => onCellClick(r, c));
+                    lawnEl.appendChild(cell);
+                }
+            }
+        }
+
+        function computeMetrics() {
+            const styles = getComputedStyle(lawnEl);
+            const cell = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cell')) || 72;
+            state.cellPx = cell;
+            state.gapPx = parseFloat(styles.gap) || 6;
+        }
+
+        function updateHoverHighlight() {
+            // Highlight target cell based on selection
+            document.querySelectorAll('.cell').forEach(el => {
+                el.classList.remove('ring-2', 'ring-emerald-300/70', 'ring-rose-300/70', 'ring-amber-200/70');
+            });
+            const { r, c } = state.hover;
+            if (r < 0 || c < 0) return;
+            const cell = document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+            if (!cell) return;
+
+            if (!state.selected) {
+                cell.classList.add('ring-2', 'ring-amber-200/70');
+                return;
+            }
+
+            if (state.selected === 'shovel') {
+                cell.classList.add('ring-2', 'ring-rose-300/70');
+            } else {
+                cell.classList.add('ring-2', 'ring-emerald-300/70');
+            }
+        }
+
+        // ======== Cards UI ========
+        function cardTemplate(p) {
+            const wrap = document.createElement('button');
+            wrap.type = 'button';
+            wrap.className = 'group text-left rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition p-3 flex flex-col gap-2 relative overflow-hidden';
+            wrap.dataset.key = p.key;
+
+            const top = document.createElement('div');
+            top.className = 'flex items-start justify-between gap-2';
+
+            const left = document.createElement('div');
+            left.innerHTML = `
+        <div class="flex items-center gap-2">
+          <div class="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-lg">${p.emoji}</div>
+          <div>
+            <div class="font-black">${p.name}</div>
+            <div class="text-xs text-slate-300">${p.description}</div>
+          </div>
+        </div>
+      `;
+
+            const cost = document.createElement('div');
+            cost.className = 'text-right';
+            cost.innerHTML = `<div class="text-xs text-slate-300">Cost</div><div class="font-black">${p.cost}☀</div>`;
+
+            top.appendChild(left);
+            top.appendChild(cost);
+
+            const cd = document.createElement('div');
+            cd.className = 'mt-1';
+            cd.innerHTML = `
+        <div class="flex items-center justify-between text-[11px] text-slate-300">
+          <span>Cooldown</span>
+          <span class="font-bold">${p.cooldown.toFixed(1)}s</span>
+        </div>
+        <div class="cooldown-bar mt-1"><div class="cooldown-fill" data-cdfill="${p.key}"></div></div>
+      `;
+
+            const overlay = document.createElement('div');
+            overlay.className = 'absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition';
+            overlay.style.background = 'radial-gradient(circle at 30% 20%, rgba(255,255,255,.10), rgba(255,255,255,0) 60%)';
+
+            wrap.appendChild(top);
+            wrap.appendChild(cd);
+            wrap.appendChild(overlay);
+
+            wrap.addEventListener('click', () => {
+                if (state.gameOver) return;
+                setSelected(p.key);
+            });
+
+            return wrap;
+        }
+
+        function buildCards() {
+            cardsEl.innerHTML = '';
+            Object.values(PLANTS).forEach(p => cardsEl.appendChild(cardTemplate(p)));
+        }
+
+        function updateCardsUI() {
+            const t = now();
+            for (const key of Object.keys(PLANTS)) {
+                const p = PLANTS[key];
+                const btn = cardsEl.querySelector(`button[data-key="${key}"]`);
+                const fill = cardsEl.querySelector(`[data-cdfill="${key}"]`);
+                if (!btn || !fill) continue;
+
+                const cdLeft = Math.max(0, state.cdReadyAt[key] - t);
+                const pct = cdLeft <= 0 ? 0 : clamp((cdLeft / p.cooldown) * 100, 0, 100);
+                fill.style.width = pct + '%';
+
+                const affordable = state.sun >= p.cost;
+                const ready = cdLeft <= 0;
+                const selected = state.selected === key;
+
+                btn.classList.toggle('ring-2', selected);
+                btn.classList.toggle('ring-emerald-300/60', selected);
+
+                btn.disabled = state.gameOver;
+                btn.classList.toggle('opacity-50', !ready || !affordable);
+                btn.classList.toggle('cursor-not-allowed', !ready || !affordable);
+
+                // Also update title tooltip
+                btn.title = `${p.name} — Cost ${p.cost} — CD ${p.cooldown}s` +
+                    (cdLeft > 0 ? ` — Ready in ${cdLeft.toFixed(1)}s` : '') +
+                    (!affordable ? ' — Not enough sun' : '');
+            }
+        }
+
+        function updateFreezeUI() {
+            const t = now();
+            const cdLeft = Math.max(0, state.freezeReadyAt - t);
+            const can = state.sun >= FREEZE.cost && cdLeft <= 0 && !state.gameOver;
+            freezeBtn.disabled = !can;
+            freezeBtn.classList.toggle('opacity-50', !can);
+            freezeBtn.classList.toggle('cursor-not-allowed', !can);
+
+            const label = cdLeft > 0 ? `Freeze (CD ${cdLeft.toFixed(1)}s)` : 'Freeze (75☀)';
+            freezeBtn.innerHTML = cdLeft > 0
+                ? `Freeze <span class="text-sky-200">(CD ${cdLeft.toFixed(1)}s)</span>`
+                : `Freeze <span class="text-sky-200">(75☀)</span>`;
+            freezeBtn.title = `Slow all zombies for ${FREEZE.duration}s. CD ${FREEZE.cooldown}s.`;
+        }
+
+        // ======== Entity creation ========
+        function createPlant(type, r, c) {
+            const def = PLANTS[type];
+            const plant = {
+                id: crypto.randomUUID(),
+                type,
+                row: r,
+                col: c,
+                hp: def.maxHp,
+                maxHp: def.maxHp,
+                nextActionAt: now() + 0.4 + Math.random() * 0.4,
+                dead: false,
+
+                // DOM
+                el: null,
+                hpEl: null,
+            };
+            return plant;
+        }
+
+        function createZombie(row, wave) {
+            const wMul = 1 + (wave - 1) * 0.12;
+            const hp = Math.round(ZOMBIE_BASE.hp * wMul);
+            const speed = ZOMBIE_BASE.speed * (1 + (wave - 1) * 0.04);
+
+            const zombie = {
+                id: crypto.randomUUID(),
+                row,
+                x: COLS - 0.05 + Math.random() * 0.35, // spawn just off the right edge
+                hp,
+                maxHp: hp,
+                speed,
+                dps: ZOMBIE_BASE.dps * (1 + (wave - 1) * 0.03),
+                attacking: false,
+                targetPlantId: null,
+                dead: false,
+                el: null,
+                hpEl: null,
+            };
+            return zombie;
+        }
+
+        function createPea(row, x, fromCol) {
+            return {
+                id: crypto.randomUUID(),
+                row,
+                x,
+                fromCol,
+                speed: PEA.speed,
+                damage: PEA.damage,
+                dead: false,
+                el: null,
+            };
+        }
+
+        function createSun(xCell, yCell, value = SUN.value) {
+            const sun = {
+                id: crypto.randomUUID(),
+                x: xCell,
+                y: yCell,
+                value,
+                bornAt: now(),
+                dead: false,
+                el: null,
+            };
+            return sun;
+        }
+
+        // ======== DOM entity rendering ========
+        function makePlantEl(plant) {
+            const def = PLANTS[plant.type];
+            const el = document.createElement('div');
+            el.className = 'entity plant';
+            el.style.left = cellToPxX(plant.col) + 'px';
+            el.style.top = cellToPxY(plant.row) + 'px';
+
+            const inner = document.createElement('div');
+            inner.className = 'w-[calc(var(--cell)-10px)] h-[calc(var(--cell)-10px)] rounded-2xl border border-white/15 bg-slate-950/30 flex flex-col items-center justify-center gap-1';
+
+            const icon = document.createElement('div');
+            icon.className = 'text-2xl';
+            icon.textContent = def.emoji;
+
+            const name = document.createElement('div');
+            name.className = 'text-[10px] font-black text-slate-200';
+            name.textContent = def.name;
+
+            const hpWrap = document.createElement('div');
+            hpWrap.className = 'w-4/5 h-1.5 rounded-full bg-white/10 overflow-hidden';
+            const hpFill = document.createElement('div');
+            hpFill.className = 'h-full bg-gradient-to-r from-emerald-400 to-lime-300';
+            hpFill.style.width = '100%';
+            hpWrap.appendChild(hpFill);
+
+            inner.appendChild(icon);
+            inner.appendChild(name);
+            inner.appendChild(hpWrap);
+            el.appendChild(inner);
+
+            plant.el = el;
+            plant.hpEl = hpFill;
+            overlayEl.appendChild(el);
+        }
+
+        function makeZombieEl(z) {
+            const el = document.createElement('div');
+            el.className = 'entity zombie';
+
+            const body = document.createElement('div');
+            body.className = 'w-[calc(var(--cell)-10px)] h-[calc(var(--cell)-10px)] rounded-2xl border border-white/15 bg-gradient-to-b from-slate-100/15 to-slate-100/5 flex flex-col items-center justify-center gap-1';
+
+            const icon = document.createElement('div');
+            icon.className = 'text-2xl';
+            icon.textContent = '🧟';
+
+            const hpWrap = document.createElement('div');
+            hpWrap.className = 'w-4/5 h-1.5 rounded-full bg-white/10 overflow-hidden';
+            const hpFill = document.createElement('div');
+            hpFill.className = 'h-full bg-gradient-to-r from-rose-400 to-amber-300';
+            hpFill.style.width = '100%';
+            hpWrap.appendChild(hpFill);
+
+            const tag = document.createElement('div');
+            tag.className = 'text-[10px] text-slate-200 font-black';
+            tag.textContent = 'Zombie';
+
+            body.appendChild(icon);
+            body.appendChild(tag);
+            body.appendChild(hpWrap);
+            el.appendChild(body);
+
+            z.el = el;
+            z.hpEl = hpFill;
+            overlayEl.appendChild(el);
+        }
+
+        function makePeaEl(p) {
+            const el = document.createElement('div');
+            el.className = 'pea';
+            p.el = el;
+            overlayEl.appendChild(el);
+        }
+
+        function makeSunEl(s) {
+            const el = document.createElement('div');
+            el.className = 'sun floating';
+            el.title = `+${s.value} sun`;
+            el.textContent = '☀';
+            el.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                if (state.gameOver) return;
+                collectSun(s.id);
+            });
+            s.el = el;
+            overlayEl.appendChild(el);
+        }
+
+        function collectSun(id) {
+            const s = state.suns.find(x => x.id === id);
+            if (!s || s.dead) return;
+            s.dead = true;
+            if (s.el) s.el.remove();
+            setSun(state.sun + s.value);
+            spawnPop('+' + s.value, s.x, s.y, '#fde68a');
+        }
+
+        // ======== Gameplay ========
+        function onCellClick(r, c) {
+            if (state.gameOver) return;
+            if (!state.selected) return;
+
+            if (state.selected === 'shovel') {
+                const p = plantAt(r, c);
+                if (p) {
+                    removePlant(p);
+                    spawnPop('Removed', c + 0.5, r + 0.5, '#fca5a5');
+                }
+                return;
+            }
+
+            const type = state.selected;
+            const def = PLANTS[type];
+            if (!def) return;
+
+            if (plantAt(r, c)) {
+                shakeCell(r, c);
+                spawnPop('Occupied', c + 0.5, r + 0.5, '#fca5a5');
+                return;
+            }
+
+            const t = now();
+            if (state.cdReadyAt[type] > t) {
+                shakeCell(r, c);
+                spawnPop('Cooling down', c + 0.5, r + 0.5, '#93c5fd');
+                return;
+            }
+
+            if (state.sun < def.cost) {
+                shakeCell(r, c);
+                spawnPop('Need sun', c + 0.5, r + 0.5, '#fde68a');
+                return;
+            }
+
+            setSun(state.sun - def.cost);
+            state.cdReadyAt[type] = t + def.cooldown;
+
+            const plant = createPlant(type, r, c);
+            state.grid[r][c] = plant;
+            state.plants.push(plant);
+            makePlantEl(plant);
+
+            if (type === 'cherry') {
+                // Arm and explode shortly
+                plant.nextActionAt = t + 0.65;
+            }
+
+            updateCardsUI();
+        }
+
+        function removePlant(plant) {
+            const { row: r, col: c } = plant;
+            if (state.grid[r][c] && state.grid[r][c].id === plant.id) {
+                state.grid[r][c] = null;
+            }
+            plant.dead = true;
+            if (plant.el) plant.el.remove();
+        }
+
+        function damagePlant(plant, dmg) {
+            plant.hp -= dmg;
+            if (plant.el) {
+                const pct = clamp((plant.hp / plant.maxHp) * 100, 0, 100);
+                plant.hpEl.style.width = pct + '%';
+                plant.hpEl.className = 'h-full ' + (pct > 50
+                    ? 'bg-gradient-to-r from-emerald-400 to-lime-300'
+                    : pct > 25
+                        ? 'bg-gradient-to-r from-amber-400 to-orange-300'
+                        : 'bg-gradient-to-r from-rose-500 to-amber-300');
+            }
+            if (plant.hp <= 0) {
+                spawnPop('💀', plant.col + 0.5, plant.row + 0.4, '#fda4af');
+                removePlant(plant);
+            }
+        }
+
+        function damageZombie(z, dmg) {
+            z.hp -= dmg;
+            if (z.el) {
+                const pct = clamp((z.hp / z.maxHp) * 100, 0, 100);
+                z.hpEl.style.width = pct + '%';
+            }
+            if (z.hp <= 0 && !z.dead) {
+                z.dead = true;
+                if (z.el) z.el.remove();
+                spawnPop('+5', z.x, z.row + 0.5, '#a7f3d0');
+                setSun(state.sun + 5); // tiny reward
+            }
+        }
+
+        function explodeAt(centerR, centerC, radiusCells = 1) {
+            // Visual ring
+            const ring = document.createElement('div');
+            ring.className = 'absolute rounded-3xl border border-rose-300/40';
+            const left = cellToPxX(centerC - radiusCells) - 10;
+            const top = cellToPxY(centerR - radiusCells) - 10;
+            const w = (radiusCells * 2 + 1) * state.cellPx + (radiusCells * 2) * state.gapPx + 20;
+            const h = (radiusCells * 2 + 1) * state.cellPx + (radiusCells * 2) * state.gapPx + 20;
+            ring.style.left = left + 'px';
+            ring.style.top = top + 'px';
+            ring.style.width = w + 'px';
+            ring.style.height = h + 'px';
+            ring.style.background = 'radial-gradient(circle at 50% 50%, rgba(244,63,94,.35), rgba(244,63,94,0) 60%)';
+            ring.style.pointerEvents = 'none';
+            overlayEl.appendChild(ring);
+            ring.animate([{ transform: 'scale(.9)', opacity: 0.8 }, { transform: 'scale(1.08)', opacity: 0 }], { duration: 550, easing: 'ease-out' })
+                .onfinish = () => ring.remove();
+
+            const r0 = centerR - radiusCells;
+            const r1 = centerR + radiusCells;
+            const c0 = centerC - radiusCells;
+            const c1 = centerC + radiusCells;
+
+            // Kill zombies in the area
+            for (const z of state.zombies) {
+                if (z.dead) continue;
+                const zColApprox = z.x;
+                if (z.row >= r0 && z.row <= r1 && zColApprox >= c0 - 0.2 && zColApprox <= c1 + 0.9) {
+                    damageZombie(z, 9999);
+                }
+            }
+        }
+
+        function tryFreeze() {
+            if (state.gameOver) return;
+            const t = now();
+            const cdLeft = state.freezeReadyAt - t;
+            if (cdLeft > 0) return;
+            if (state.sun < FREEZE.cost) return;
+
+            setSun(state.sun - FREEZE.cost);
+            state.freezeReadyAt = t + FREEZE.cooldown;
+            state.globalSlowUntil = Math.max(state.globalSlowUntil, t + FREEZE.duration);
+
+            spawnPop('❄ Freeze!', 4.2, 0.35, '#bae6fd');
+
+            // Screen tint flash
+            const tint = document.createElement('div');
+            tint.className = 'absolute inset-0 rounded-3xl';
+            tint.style.background = 'linear-gradient(180deg, rgba(56,189,248,.18), rgba(99,102,241,.08))';
+            tint.style.pointerEvents = 'none';
+            overlayEl.appendChild(tint);
+            tint.animate([{ opacity: 0 }, { opacity: 1 }, { opacity: 0 }], { duration: 520, easing: 'ease-out' })
+                .onfinish = () => tint.remove();
+
+            updateFreezeUI();
+        }
+
+        function setPaused(p) {
+            if (state.gameOver) return;
+            state.running = !p ? true : false;
+            pauseBtn.textContent = state.running ? 'Pause' : 'Resume';
+            statusText.textContent = state.running ? statusText.textContent : 'Paused';
+        }
+
+        // ======== Wave logic ========
+        function startWave() {
+            const w = state.wave;
+            state.waveActive = true;
+            state.waveSpawned = 0;
+            state.waveToSpawn = Math.round(5 + w * 1.8);
+            state.nextSpawnAt = now() + 1.3;
+            state.waveEndsAt = now() + 24 + w * 2.2;
+            statusText.textContent = 'Wave incoming…';
+        }
+
+        function updateWave(dt) {
+            if (state.gameOver) return;
+
+            if (!state.waveActive) {
+                // Start next wave after a short breather
+                if (state.zombies.filter(z => !z.dead).length === 0) {
+                    if (now() > state.waveEndsAt) {
+                        startWave();
+                    } else {
+                        // Prep progress
+                        statusText.textContent = 'Prepare…';
+                        const prepLen = 4.0;
+                        const t = clamp((prepLen - Math.max(0, state.waveEndsAt - now())) / prepLen, 0, 1);
+                        progressFill.style.width = (t * 100).toFixed(1) + '%';
+                    }
+                } else {
+                    statusText.textContent = 'Cleaning up…';
+                    progressFill.style.width = '100%';
+                }
+                return;
+            }
+
+            const w = state.wave;
+            const t = now();
+
+            const alive = state.zombies.filter(z => !z.dead).length;
+            const spawned = state.waveSpawned;
+            const total = state.waveToSpawn;
+            const progress = clamp((spawned / total) * 0.75 + (1 - clamp(alive / Math.max(1, total - spawned + 1), 0, 1)) * 0.25, 0, 1);
+            progressFill.style.width = (progress * 100).toFixed(1) + '%';
+
+            if (t >= state.nextSpawnAt && state.waveSpawned < state.waveToSpawn) {
+                const laneBias = Math.random();
+                let row = Math.floor(Math.random() * ROWS);
+
+                // Simple strategy pressure: if a lane has fewer plants, favor it a bit
+                if (laneBias < 0.55) {
+                    const counts = Array.from({ length: ROWS }, (_, r) => state.plants.filter(p => !p.dead && p.row === r).length);
+                    const min = Math.min(...counts);
+                    const candidates = counts.map((v, r) => ({ v, r })).filter(x => x.v === min).map(x => x.r);
+                    row = candidates[Math.floor(Math.random() * candidates.length)];
+                }
+
+                const z = createZombie(row, w);
+                state.zombies.push(z);
+                makeZombieEl(z);
+
+                state.waveSpawned++;
+
+                const baseInterval = Math.max(0.45, 1.6 - w * 0.08);
+                const jitter = 0.5 + Math.random() * 0.7;
+                state.nextSpawnAt = t + baseInterval * jitter;
+            }
+
+            if (state.waveSpawned >= state.waveToSpawn) {
+                statusText.textContent = 'Wave engaged!';
+            }
+
+            // End wave when timer is up and most zombies cleared
+            if (t >= state.waveEndsAt && alive === 0 && state.waveSpawned >= state.waveToSpawn) {
+                state.waveActive = false;
+                state.waveEndsAt = t + 4.0;
+                state.wave++;
+                waveLabelEl.textContent = state.wave;
+                statusText.textContent = 'Wave cleared!';
+                progressFill.style.width = '0%';
+
+                // Bonus sun
+                setSun(state.sun + 25);
+                spawnPop('+25', 4.4, 0.5, '#fde68a');
+            }
+        }
+
+        // ======== Updates ========
+        function updatePlants(dt) {
+            const t = now();
+            for (const p of state.plants) {
+                if (p.dead) continue;
+
+                if (p.type === 'sunflower') {
+                    if (t >= p.nextActionAt) {
+                        // Drop a sun slightly above the plant
+                        const s = createSun(p.col + 0.52 + (Math.random() * 0.12 - 0.06), p.row + 0.18 + (Math.random() * 0.10));
+                        state.suns.push(s);
+                        makeSunEl(s);
+                        positionSunEl(s);
+                        p.nextActionAt = t + 7.0 + Math.random() * 1.2;
+                    }
+                }
+
+                if (p.type === 'peashooter') {
+                    if (t >= p.nextActionAt && anyZombieAhead(p.row, p.col + 0.1)) {
+                        const pea = createPea(p.row, p.col + 0.72, p.col);
+                        state.peas.push(pea);
+                        makePeaEl(pea);
+                        positionPeaEl(pea);
+                        p.nextActionAt = t + 1.55;
+                    }
+                }
+
+                if (p.type === 'cherry') {
+                    if (t >= p.nextActionAt) {
+                        explodeAt(p.row, p.col, 1);
+                        spawnPop('BOOM!', p.col + 0.5, p.row + 0.4, '#fecaca');
+                        removePlant(p);
+                    }
+                }
+
+                // update plant DOM position (fixed but keep consistent with responsive)
+                if (p.el) {
+                    p.el.style.left = cellToPxX(p.col) + 'px';
+                    p.el.style.top = cellToPxY(p.row) + 'px';
+                }
+            }
+
+            // cleanup array
+            state.plants = state.plants.filter(p => !p.dead);
+        }
+
+        function updatePeas(dt) {
+            for (const pea of state.peas) {
+                if (pea.dead) continue;
+                pea.x += pea.speed * dt;
+
+                // hit test: nearest zombie in lane within small range
+                const hit = state.zombies.find(z => !z.dead && z.row === pea.row && Math.abs(z.x - pea.x) <= PEA.radius + 0.22);
+                if (hit) {
+                    damageZombie(hit, pea.damage);
+                    spawnPop('-' + pea.damage, hit.x, hit.row + 0.38, '#bbf7d0');
+                    pea.dead = true;
+                    if (pea.el) pea.el.remove();
+                    continue;
+                }
+
+                if (pea.x > COLS + 0.6) {
+                    pea.dead = true;
+                    if (pea.el) pea.el.remove();
+                    continue;
+                }
+
+                positionPeaEl(pea);
+            }
+            state.peas = state.peas.filter(p => !p.dead);
+        }
+
+        function updateSuns(dt) {
+            const t = now();
+            for (const s of state.suns) {
+                if (s.dead) continue;
+                if (t - s.bornAt > SUN.lifetime) {
+                    s.dead = true;
+                    if (s.el) s.el.remove();
+                    continue;
+                }
+                positionSunEl(s);
+            }
+            state.suns = state.suns.filter(s => !s.dead);
+        }
+
+        function updateZombies(dt) {
+            const t = now();
+            const slowed = t < state.globalSlowUntil;
+            const slowMul = slowed ? FREEZE.slowMul : 1;
+
+            for (const z of state.zombies) {
+                if (z.dead) continue;
+
+                // Check if colliding with a plant in its lane at its current x
+                const col = Math.floor(z.x);
+                const frontC = clamp(col, 0, COLS - 1);
+                const targetCell = state.grid[z.row][frontC];
+
+                // Determine if zombie is in biting range of that cell
+                const biteZoneLeft = frontC + 0.25;
+                const biteZoneRight = frontC + 0.85;
+                const inBite = z.x >= biteZoneLeft && z.x <= biteZoneRight;
+
+                if (targetCell && !targetCell.dead && inBite) {
+                    z.attacking = true;
+                    // damage plant
+                    const dmg = z.dps * dt;
+                    damagePlant(targetCell, dmg);
+                    shakeCell(z.row, frontC);
+                } else {
+                    z.attacking = false;
+                    z.x -= z.speed * slowMul * dt;
+                }
+
+                // lawnmower trigger / breach
+                if (z.x <= -0.15) {
+                    // trigger mower if available
+                    const mower = state.mowers[z.row];
+                    if (!mower.used) {
+                        mower.used = true;
+                        mower.active = true;
+                        mower.x = -0.4;
+                        spawnPop('Mower!', 0.2, z.row + 0.4, '#a7f3d0');
+                    } else {
+                        // breach
+                        z.dead = true;
+                        if (z.el) z.el.remove();
+                        state.breaches++;
+                        spawnPop('Breach!', 0.2, z.row + 0.4, '#fecaca');
+                        if (state.breaches >= 3) {
+                            endGame(false);
+                        }
+                    }
+                }
+
+                // Update DOM position
+                if (z.el) {
+                    const xpx = cellToPxX(z.x) - state.cellPx * 0.12;
+                    const ypx = cellToPxY(z.row);
+                    z.el.style.left = xpx + 'px';
+                    z.el.style.top = ypx + 'px';
+                    z.el.style.opacity = slowed ? '0.92' : '1';
+                    z.el.style.filter = slowed
+                        ? 'drop-shadow(0 10px 14px rgba(0,0,0,.35)) hue-rotate(170deg) saturate(1.1)'
+                        : 'drop-shadow(0 10px 14px rgba(0,0,0,.35))';
+                }
+            }
+
+            state.zombies = state.zombies.filter(z => !z.dead);
+        }
+
+        function updateMowers(dt) {
+            for (let r = 0; r < ROWS; r++) {
+                const mower = state.mowers[r];
+                if (!mower.active) continue;
+
+                mower.x += 7.5 * dt; // fast
+                // kill zombies in lane
+                for (const z of state.zombies) {
+                    if (z.dead) continue;
+                    if (z.row === r && Math.abs(z.x - mower.x) < 0.7) {
+                        damageZombie(z, 9999);
+                    }
+                }
+                if (mower.x > COLS + 0.8) {
+                    mower.active = false;
+                }
+            }
+            renderMowerBadges();
+        }
+
+        function positionPeaEl(p) {
+            if (!p.el) return;
+            const xpx = cellToPxX(p.x) + state.cellPx * 0.12;
+            const ypx = cellToPxY(p.row) + state.cellPx * 0.44;
+            p.el.style.left = xpx + 'px';
+            p.el.style.top = ypx + 'px';
+        }
+
+        function positionSunEl(s) {
+            if (!s.el) return;
+            const xpx = cellToPxX(s.x) + state.cellPx * 0.25;
+            const ypx = cellToPxY(s.y) + state.cellPx * 0.15;
+            s.el.style.left = xpx + 'px';
+            s.el.style.top = ypx + 'px';
+        }
+
+        function renderMowerBadges() {
+            mowerRowEl.innerHTML = '';
+            for (let r = 0; r < ROWS; r++) {
+                const m = state.mowers[r];
+                const el = document.createElement('div');
+                const label = m.used ? (m.active ? 'Running' : 'Used') : 'Ready';
+                const cls = !m.used
+                    ? 'bg-emerald-500/15 border-emerald-300/20 text-emerald-200'
+                    : m.active
+                        ? 'bg-amber-500/15 border-amber-300/20 text-amber-200'
+                        : 'bg-slate-500/15 border-slate-300/20 text-slate-200';
+                el.className = `badge border ${cls}`;
+                el.textContent = `Lane ${r + 1}: ${label}`;
+                mowerRowEl.appendChild(el);
+            }
+        }
+
+        function endGame(win) {
+            state.gameOver = true;
+            state.running = false;
+            pauseBtn.textContent = 'Paused';
+            updateCardsUI();
+            updateFreezeUI();
+
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black/65 flex items-center justify-center p-4';
+            modal.innerHTML = `
+        <div class="w-full max-w-lg rounded-3xl border border-white/10 bg-slate-950/90 p-5">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <div class="text-2xl font-black">${win ? 'Victory!' : 'Game Over'}</div>
+              <div class="mt-1 text-slate-300 text-sm">You reached <span class="font-extrabold text-slate-100">Wave ${state.wave}</span>. Breaches: <span class="font-extrabold text-slate-100">${state.breaches}</span>/3</div>
+            </div>
+            <div class="text-3xl">${win ? '🏆' : '🏚️'}</div>
+          </div>
+
+          <div class="mt-4 rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-slate-200">
+            Try: 2 Sunflowers early → Peashooters per lane → Wall-nuts as stoppers → Cherry Bomb on clumps.
+          </div>
+
+          <div class="mt-4 flex flex-wrap gap-2 justify-end">
+            <button id="restartBtn" class="rounded-2xl px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-300/25 font-extrabold">Restart</button>
+            <button id="closeBtn" class="rounded-2xl px-4 py-2 bg-slate-800/50 hover:bg-slate-800/70 border border-white/10 font-extrabold">Close</button>
+          </div>
+        </div>
+      `;
+            document.body.appendChild(modal);
+            modal.querySelector('#restartBtn').addEventListener('click', () => { modal.remove(); resetGame(); });
+            modal.querySelector('#closeBtn').addEventListener('click', () => modal.remove());
+        }
+
+        function resetGame() {
+            // Clear DOM overlay & arrays
+            overlayEl.innerHTML = '';
+            state.grid = Array.from({ length: ROWS }, () => Array.from({ length: COLS }, () => null));
+            state.plants = [];
+            state.zombies = [];
+            state.peas = [];
+            state.suns = [];
+            state.mowers = Array.from({ length: ROWS }, () => ({ used: false, x: -0.6, active: false }));
+            state.cdReadyAt = Object.fromEntries(Object.keys(PLANTS).map(k => [k, 0]));
+            state.freezeReadyAt = 0;
+            state.globalSlowUntil = 0;
+
+            state.sun = 50;
+            state.wave = 1;
+            state.waveActive = false;
+            state.waveSpawned = 0;
+            state.waveToSpawn = 0;
+            state.nextSpawnAt = 0;
+            state.waveEndsAt = now() + 2.5;
+            state.breaches = 0;
+
+            setSelected(null);
+            setSun(50);
+            waveLabelEl.textContent = '1';
+            statusText.textContent = 'Prepare…';
+            progressFill.style.width = '0%';
+
+            state.gameOver = false;
+            state.running = true;
+            pauseBtn.textContent = 'Pause';
+            renderMowerBadges();
+            updateCardsUI();
+            updateFreezeUI();
+        }
+
+        // ======== Main loop ========
+        function tick(ts) {
+            const dt = clamp((ts - state.lastTs) / 1000, 0, 0.05);
+            state.lastTs = ts;
+            if (state.running && !state.gameOver) {
+                state.time += dt;
+                updateWave(dt);
+                updatePlants(dt);
+                updatePeas(dt);
+                updateZombies(dt);
+                updateMowers(dt);
+                updateSuns(dt);
+                updateCardsUI();
+                updateFreezeUI();
+            }
+            requestAnimationFrame(tick);
+        }
+
+        // ======== Wiring ========
+        freezeBtn.addEventListener('click', tryFreeze);
+        pauseBtn.addEventListener('click', () => setPaused(state.running));
+        shovelBtn.addEventListener('click', () => setSelected(state.selected === 'shovel' ? null : 'shovel'));
+
+        // Click empty space to deselect
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') setSelected(null);
+            if (e.key.toLowerCase() === 'p') setPaused(state.running);
+            if (e.key.toLowerCase() === 'f') tryFreeze();
+            if (e.key.toLowerCase() === 's') setSelected('sunflower');
+            if (e.key.toLowerCase() === 'a') setSelected('peashooter');
+            if (e.key.toLowerCase() === 'w') setSelected('wallnut');
+            if (e.key.toLowerCase() === 'd') setSelected('cherry');
+            if (e.key.toLowerCase() === 'x') setSelected('shovel');
+        });
+
+        document.querySelector('.lawn-wrap').addEventListener('click', (e) => {
+            // If clicked on overlay entity or sun, ignore; otherwise if clicked outside cells/cards, deselect
+            const withinCell = e.target.closest('.cell');
+            const withinCard = e.target.closest('#cards button');
+            const isSun = e.target.closest('.sun');
+            if (!withinCell && !withinCard && !isSun) setSelected(null);
+        });
+
+        const ro = new ResizeObserver(() => {
+            computeMetrics();
+            // Re-position all existing entities
+            for (const p of state.plants) if (p.el) { p.el.style.left = cellToPxX(p.col) + 'px'; p.el.style.top = cellToPxY(p.row) + 'px'; }
+            for (const z of state.zombies) if (z.el) { z.el.style.left = (cellToPxX(z.x) - state.cellPx * 0.12) + 'px'; z.el.style.top = cellToPxY(z.row) + 'px'; }
+            for (const pea of state.peas) positionPeaEl(pea);
+            for (const s of state.suns) positionSunEl(s);
+        });
+
+        // ======== Init ========
+        buildLawn();
+        buildCards();
+        computeMetrics();
+        ro.observe(lawnEl);
+
+        renderMowerBadges();
+        setSelected('sunflower');
+        setSun(state.sun);
+
+        // Give a couple ambient suns at start
+        state.waveEndsAt = 2.2;
+        for (let i = 0; i < 2; i++) {
+            const s = createSun(2.2 + i * 1.6 + Math.random() * 0.4, 0.2 + Math.random() * 3.8, 25);
+            state.suns.push(s);
+            makeSunEl(s);
+            positionSunEl(s);
+        }
+
+        requestAnimationFrame((ts) => {
+            state.lastTs = ts;
+            requestAnimationFrame(tick);
+        });
+    </script>
+</body>
+
+</html>
