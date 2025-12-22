@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Garden Defenders</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+        body {
+            font-family: 'Press Start 2P', cursive;
+            background-color: #222;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        .game-canvas {
+            background: repeating-linear-gradient(0deg,
+                    #2d5a27 0px,
+                    #2d5a27 99px,
+                    #254b20 100px);
+            border-left: 100px solid #1a3316;
+            /* House area */
+            cursor: crosshair;
+        }
+
+        /* Custom scrollbar for plant selector if needed */
+        ::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #333;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #666;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body class="text-white h-screen w-screen flex flex-col items-center justify-center">
+
+    <!-- UI Header -->
+    <div class="absolute top-0 left-0 w-full p-4 flex justify-between items-start pointer-events-none z-10">
+        <!-- Resource Counter -->
+        <div
+            class="bg-gray-800/90 border-4 border-yellow-600 rounded-lg p-3 pointer-events-auto flex items-center gap-3 shadow-lg">
+            <div class="w-8 h-8 rounded-full bg-yellow-400 shadow-[0_0_10px_yellow] animate-pulse"></div>
+            <span id="sun-display" class="text-2xl text-yellow-100">150</span>
+        </div>
+
+        <!-- Wave Info -->
+        <div class="bg-gray-800/80 border-2 border-red-900 rounded px-4 py-2 text-center pointer-events-auto">
+            <div class="text-xs text-red-300">WAVE</div>
+            <div id="wave-display" class="text-xl text-red-500">1</div>
+        </div>
+
+        <!-- Score -->
+        <div class="bg-gray-800/80 rounded px-4 py-2 pointer-events-auto">
+            <div class="text-xs text-gray-400">SCORE</div>
+            <div id="score-display" class="text-xl">0</div>
+        </div>
+    </div>
+
+    <!-- Plant Selection Bar -->
+    <div
+        class="absolute top-4 left-1/2 transform -translate-x-1/2 bg-gray-900/90 p-2 rounded-xl border border-gray-700 flex gap-2 z-20 pointer-events-auto shadow-2xl">
+
+        <!-- Shooter -->
+        <div class="plant-card group relative w-16 h-20 bg-green-900/50 border-2 border-green-600 hover:bg-green-800 cursor-pointer flex flex-col items-center justify-center rounded transition-all"
+            onclick="selectPlant(0)">
+            <div class="w-8 h-8 rounded-full bg-green-500 border-2 border-green-300 mb-1"></div>
+            <span class="text-[10px] text-green-200">100</span>
+            <div class="absolute inset-0 bg-black/50 hidden" id="cd-0"></div>
+        </div>
+
+        <!-- Sunflower -->
+        <div class="plant-card group relative w-16 h-20 bg-yellow-900/50 border-2 border-yellow-600 hover:bg-yellow-800 cursor-pointer flex flex-col items-center justify-center rounded transition-all"
+            onclick="selectPlant(1)">
+            <div class="w-8 h-8 rounded-full bg-yellow-400 border-2 border-orange-300 mb-1 animate-pulse"></div>
+            <span class="text-[10px] text-yellow-200">50</span>
+            <div class="absolute inset-0 bg-black/50 hidden" id="cd-1"></div>
+        </div>
+
+        <!-- WallNut -->
+        <div class="plant-card group relative w-16 h-20 bg-amber-900/50 border-2 border-amber-700 hover:bg-amber-800 cursor-pointer flex flex-col items-center justify-center rounded transition-all"
+            onclick="selectPlant(2)">
+            <div class="w-8 h-10 rounded-xl bg-amber-700 border-2 border-amber-500 mb-1"></div>
+            <span class="text-[10px] text-amber-200">50</span>
+            <div class="absolute inset-0 bg-black/50 hidden" id="cd-2"></div>
+        </div>
+
+        <!-- Mine -->
+        <div class="plant-card group relative w-16 h-20 bg-gray-800/50 border-2 border-gray-500 hover:bg-gray-700 cursor-pointer flex flex-col items-center justify-center rounded transition-all"
+            onclick="selectPlant(3)">
+            <div class="w-8 h-6 rounded-t-full bg-gray-400 border-b-4 border-red-500 mb-1"></div>
+            <span class="text-[10px] text-gray-200">25</span>
+            <div class="absolute inset-0 bg-black/50 hidden" id="cd-3"></div>
+        </div>
+
+        <!-- Blue Shooter -->
+        <div class="plant-card group relative w-16 h-20 bg-blue-900/50 border-2 border-blue-600 hover:bg-blue-800 cursor-pointer flex flex-col items-center justify-center rounded transition-all"
+            onclick="selectPlant(4)">
+            <div class="w-8 h-8 rounded-full bg-blue-400 border-2 border-cyan-300 mb-1"></div>
+            <span class="text-[10px] text-blue-200">175</span>
+            <div class="absolute inset-0 bg-black/50 hidden" id="cd-4"></div>
+        </div>
+    </div>
+
+    <!-- Game Container -->
+    <div id="canvas-container" class="relative shadow-2xl border-4 border-gray-800 rounded-lg overflow-hidden bg-black">
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- Game Over Screen -->
+        <div id="game-over-screen"
+            class="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-50 hidden">
+            <h1 class="text-6xl text-red-600 mb-4 font-bold tracking-tighter">GAME OVER</h1>
+            <p class="text-xl text-gray-300 mb-8">The Zombies Ate Your Brains!</p>
+            <button onclick="restartGame()"
+                class="px-8 py-4 bg-green-600 hover:bg-green-500 text-white rounded font-bold text-xl border-b-4 border-green-800 active:border-b-0 active:translate-y-1 transition-all">
+                TRY AGAIN
+            </button>
+        </div>
+
+        <!-- Level Complete Screen -->
+        <div id="level-win-screen"
+            class="absolute inset-0 bg-green-900/80 flex flex-col items-center justify-center z-50 hidden">
+            <h1 class="text-6xl text-yellow-400 mb-4 font-bold">VICTORY!</h1>
+            <p class="text-xl text-white mb-8">The lawn is safe... for now.</p>
+            <button onclick="restartGame()"
+                class="px-8 py-4 bg-yellow-600 hover:bg-yellow-500 text-white rounded font-bold text-xl border-b-4 border-yellow-800 active:border-b-0 active:translate-y-1 transition-all">
+                PLAY AGAIN
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // --- Configuration ---
+        const CELL_SIZE = 100;
+        const GRID_ROWS = 5;
+        const GRID_COLS = 9;
+        const TOP_OFFSET = 0;
+
+        // Set canvas size
+        canvas.width = GRID_COLS * CELL_SIZE;
+        canvas.height = GRID_ROWS * CELL_SIZE;
+
+        // --- Game State ---
+        let frame = 0;
+        let score = 0;
+        let sun = 150;
+        let gameOver = false;
+        let gameWin = false;
+        let wave = 1;
+
+        // --- Entities ---
+        const grid = [];
+        const defenders = [];
+        const enemies = [];
+        const projectiles = [];
+        const suns = [];
+        const particles = [];
+        const floatingMessages = [];
+        const lawnMowers = [];
+
+        // --- Plant Types ---
+        const plantTypes = [
+            { id: 0, name: 'Peashooter', cost: 100, health: 100, color: '#4ade80', damage: 20, rate: 100, type: 'shooter', cooldown: 300 },
+            { id: 1, name: 'Sunflower', cost: 50, health: 60, color: '#facc15', damage: 0, rate: 500, type: 'producer', cooldown: 300 },
+            { id: 2, name: 'Walnut', cost: 50, health: 400, color: '#b45309', damage: 0, rate: 0, type: 'blocker', cooldown: 900 },
+            { id: 3, name: 'PotatoMine', cost: 25, health: 20, color: '#9ca3af', damage: 500, rate: 0, type: 'mine', cooldown: 1200 },
+            { id: 4, name: 'Repeater', cost: 175, health: 100, color: '#60a5fa', damage: 20, rate: 90, type: 'rapid', cooldown: 450 }
+        ];
+
+        // Cooldown state (0 means ready)
+        let plantCooldowns = [0, 0, 0, 0, 0];
+        let selectedPlant = -1;
+
+        // --- Mouse Handling ---
+        const mouse = { x: 0, y: 0, clicked: false };
+        let canvasPosition = canvas.getBoundingClientRect();
+
+        window.addEventListener('resize', () => {
+            canvasPosition = canvas.getBoundingClientRect();
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            mouse.x = e.x - canvasPosition.left;
+            mouse.y = e.y - canvasPosition.top;
+        });
+
+        canvas.addEventListener('mousedown', (e) => {
+            mouse.clicked = true;
+            // Handle clicks
+            const gridX = Math.floor(mouse.x / CELL_SIZE);
+            const gridY = Math.floor(mouse.y / CELL_SIZE);
+
+            // Collect Sun
+            for (let i = 0; i < suns.length; i++) {
+                if (suns[i].isClicked(mouse.x, mouse.y)) {
+                    sun += suns[i].value;
+                    createFloatingText(suns[i].x, suns[i].y, `+${suns[i].value}`, '#ffd700');
+                    suns.splice(i, 1);
+                    i--;
+                    return; // Don't plant if collected sun
+                }
+            }
+
+            // Plant Defender
+            if (gridX >= 0 && gridX < GRID_COLS && gridY >= 0 && gridY < GRID_ROWS) {
+                if (selectedPlant !== -1) {
+                    const plantInfo = plantTypes[selectedPlant];
+
+                    if (plantCooldowns[selectedPlant] > 0) {
+                        createFloatingText(mouse.x, mouse.y, "Recharging...", "#fbbf24");
+                        return;
+                    }
+
+                    if (sun >= plantInfo.cost) {
+                        // Check if cell is occupied
+                        let occupied = false;
+                        for (let defender of defenders) {
+                            if (defender.x === gridX * CELL_SIZE && defender.y === gridY * CELL_SIZE) {
+                                occupied = true;
+                                break;
+                            }
+                        }
+
+                        if (!occupied) {
+                            defenders.push(new Defender(gridX * CELL_SIZE, gridY * CELL_SIZE, plantInfo));
+                            sun -= plantInfo.cost;
+                            plantCooldowns[selectedPlant] = plantInfo.cooldown; // Set cooldown
+                            selectedPlant = -1; // Deselect after planting
+                            updateUI();
+                        }
+                    } else {
+                        createFloatingText(mouse.x, mouse.y, "Not enough sun!", "#ff4444");
+                    }
+                }
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            mouse.clicked = false;
+        });
+
+        // --- Classes ---
+        class Cell {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.width = CELL_SIZE;
+                this.height = CELL_SIZE;
+            }
+            draw() {
+                ctx.strokeStyle = '#1a3316';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(this.x, this.y, this.width, this.height);
+            }
+        }
+
+        class Defender {
+            constructor(x, y, typeInfo) {
+                this.x = x;
+                this.y = y;
+                this.width = CELL_SIZE;
+                this.height = CELL_SIZE;
+                this.health = typeInfo.health;
+                this.maxHealth = typeInfo.health;
+                this.cost = typeInfo.cost;
+                this.color = typeInfo.color;
+                this.timer = 0;
+                this.info = typeInfo;
+                this.ready = false;
+
+                // Mine arming time
+                if (this.info.type === 'mine') {
+                    this.ready = false;
+                    this.armTime = 300; // frames
+                } else {
+                    this.ready = true;
+                }
+            }
+
+            draw() {
+                ctx.save();
+                // Draw Plant
+                ctx.fillStyle = this.color;
+
+                if (this.info.type === 'mine' && !this.ready) {
+                    ctx.globalAlpha = 0.5;
+                }
+
+                // Simple graphics based on type
+                if (this.info.type === 'shooter' || this.info.type === 'rapid') {
+                    // Head
+                    ctx.beginPath();
+                    ctx.arc(this.x + 50, this.y + 30, 25, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Mouth/Barrel
+                    ctx.fillRect(this.x + 70, this.y + 20, 20, 20);
+                    // Leaf
+                    ctx.fillStyle = '#166534';
+                    ctx.beginPath();
+                    ctx.ellipse(this.x + 50, this.y + 80, 20, 10, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (this.info.type === 'producer') {
+                    // Petals
+                    ctx.fillStyle = '#fef08a';
+                    for (let i = 0; i < 8; i++) {
+                        const angle = (i / 8) * Math.PI * 2;
+                        const px = this.x + 50 + Math.cos(angle) * 25;
+                        const py = this.y + 50 + Math.sin(angle) * 25;
+                        ctx.beginPath();
+                        ctx.arc(px, py, 10, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    // Center
+                    ctx.fillStyle = this.color;
+                    ctx.beginPath();
+                    ctx.arc(this.x + 50, this.y + 50, 20, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Happy face
+                    ctx.fillStyle = '#000';
+                    ctx.fillRect(this.x + 42, this.y + 45, 4, 4);
+                    ctx.fillRect(this.x + 54, this.y + 45, 4, 4);
+                    ctx.beginPath();
+                    ctx.arc(this.x + 50, this.y + 55, 8, 0, Math.PI, false);
+                    ctx.stroke();
+
+                } else if (this.info.type === 'blocker') {
+                    ctx.beginPath();
+                    ctx.ellipse(this.x + 50, this.y + 50, 30, 40, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Cracks based on health
+                    if (this.health < this.maxHealth * 0.7) {
+                        ctx.strokeStyle = '#5c2b05';
+                        ctx.beginPath();
+                        ctx.moveTo(this.x + 40, this.y + 30);
+                        ctx.lineTo(this.x + 60, this.y + 50);
+                        ctx.stroke();
+                    }
+                } else if (this.info.type === 'mine') {
+                    // Potato bump
+                    ctx.beginPath();
+                    ctx.arc(this.x + 50, this.y + 70, 20, Math.PI, 0);
+                    ctx.fill();
+                    // Red flashing light if ready
+                    if (this.ready && frame % 60 < 30) {
+                        ctx.fillStyle = 'red';
+                        ctx.beginPath();
+                        ctx.arc(this.x + 50, this.y + 50, 5, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+
+                // Health bar
+                if (this.health < this.maxHealth) {
+                    ctx.fillStyle = 'red';
+                    ctx.fillRect(this.x + 10, this.y + 90, 80, 5);
+                    ctx.fillStyle = 'lime';
+                    ctx.fillRect(this.x + 10, this.y + 90, (this.health / this.maxHealth) * 80, 5);
+                }
+                ctx.restore();
+            }
+
+            update() {
+                this.timer++;
+
+                // Mine Arming
+                if (this.info.type === 'mine' && !this.ready) {
+                    if (this.timer >= this.armTime) {
+                        this.ready = true;
+                        createFloatingText(this.x + 50, this.y, "READY!", "red");
+                    }
+                }
+
+                // Shooting Logic
+                if (this.info.type === 'shooter' || this.info.type === 'rapid') {
+                    // Check if zombie in lane
+                    let zombieInLane = false;
+                    for (let enemy of enemies) {
+                        if (enemy.y === this.y && enemy.x > this.x) {
+                            zombieInLane = true;
+                            break;
+                        }
+                    }
+
+                    if (zombieInLane) {
+                        if (this.timer % this.info.rate === 0) {
+                            projectiles.push(new Projectile(this.x + 70, this.y + 20, this.info.damage, this.info.type === 'rapid'));
+                            if (this.info.type === 'rapid') {
+                                // Double shot
+                                setTimeout(() => {
+                                    projectiles.push(new Projectile(this.x + 70, this.y + 20, this.info.damage, true));
+                                }, 150);
+                            }
+                        }
+                    }
+                }
+                // Sun Production Logic
+                else if (this.info.type === 'producer') {
+                    if (this.timer % this.info.rate === 0) {
+                        suns.push(new Sun(this.x + 20, this.y + 20, 25));
+                    }
+                }
+            }
+        }
+
+        class Projectile {
+            constructor(x, y, damage, isIce = false) {
+                this.x = x;
+                this.y = y;
+                this.width = 10;
+                this.height = 10;
+                this.power = damage;
+                this.speed = 8;
+                this.markedForDeletion = false;
+                this.isIce = isIce; // Reusing rapid as 'Ice' visually just for variety
+            }
+            update() {
+                this.x += this.speed;
+                if (this.x > canvas.width) this.markedForDeletion = true;
+            }
+            draw() {
+                ctx.fillStyle = this.isIce ? '#93c5fd' : '#10b981'; // Ice or Pea
+                ctx.beginPath();
+                ctx.arc(this.x, this.y + 15, this.width, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        class Zombie {
+            constructor(verticalPosition) {
+                this.x = canvas.width;
+                this.y = verticalPosition;
+                this.width = CELL_SIZE;
+                this.height = CELL_SIZE;
+                this.speed = Math.random() * 0.2 + 0.4;
+                this.movement = this.speed;
+                this.health = 100 + (wave * 20); // Wave scaling
+                this.maxHealth = this.health;
+                this.markedForDeletion = false;
+                this.eating = false;
+                this.damage = 1; // Damage per frame to plant
+
+                // Visual variation
+                this.color = '#ef4444'; // Red
+                this.hat = Math.random() > 0.7; // 30% chance for Conehead
+                if (this.hat) {
+                    this.health *= 2;
+                    this.maxHealth = this.health;
+                    this.speed *= 0.8;
+                    this.movement = this.speed;
+                }
+                this.bucket = !this.hat && Math.random() > 0.8; // Buckethead
+                if (this.bucket) {
+                    this.health *= 3;
+                    this.maxHealth = this.health;
+                    this.speed *= 0.7;
+                    this.movement = this.speed;
+                }
+            }
+
+            update() {
+                this.x -= this.movement;
+                this.eating = false;
+                this.movement = this.speed;
+
+                // Check House Breach
+                if (this.x < 0) {
+                    // Check for mower
+                    let mowerFound = false;
+                    for (let m of lawnMowers) {
+                        if (m.y === this.y) {
+                            m.active = true;
+                            mowerFound = true;
+                            break;
+                        }
+                    }
+
+                    if (!mowerFound) {
+                        gameOver = true;
+                    }
+                }
+            }
+
+            draw() {
+                // Body
+                ctx.fillStyle = this.color;
+                ctx.fillRect(this.x + 20, this.y + 20, 60, 70);
+
+                // Head
+                ctx.fillStyle = '#d1d5db'; // Greyish skin
+                ctx.beginPath();
+                ctx.arc(this.x + 50, this.y + 20, 25, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Eyes
+                ctx.fillStyle = 'yellow';
+                ctx.beginPath();
+                ctx.arc(this.x + 40, this.y + 15, 5, 0, Math.PI * 2);
+                ctx.arc(this.x + 60, this.y + 15, 5, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Accessories
+                if (this.hat) {
+                    ctx.fillStyle = '#f97316'; // Orange Cone
+                    ctx.beginPath();
+                    ctx.moveTo(this.x + 30, this.y);
+                    ctx.lineTo(this.x + 70, this.y);
+                    ctx.lineTo(this.x + 50, this.y - 40);
+                    ctx.fill();
+                } else if (this.bucket) {
+                    ctx.fillStyle = '#9ca3af'; // Metal Bucket
+                    ctx.fillRect(this.x + 25, this.y - 25, 50, 30);
+                }
+
+                // Health Bar
+                ctx.fillStyle = 'red';
+                ctx.fillRect(this.x + 20, this.y - 10, 60, 5);
+                ctx.fillStyle = 'lime';
+                ctx.fillRect(this.x + 20, this.y - 10, (this.health / this.maxHealth) * 60, 5);
+            }
+        }
+
+        class Sun {
+            constructor(x, y, val) {
+                this.x = x;
+                this.y = y;
+                this.width = 50;
+                this.height = 50;
+                this.value = val;
+                this.markedForDeletion = false;
+                this.timer = 0;
+                this.targetY = Math.min(y + 200, canvas.height - 100); // For falling sun
+                this.falling = (y < 0);
+            }
+
+            update() {
+                if (this.falling && this.y < this.targetY) {
+                    this.y += 2;
+                }
+                this.timer++;
+                // Disappear after 10 seconds
+                if (this.timer > 600) this.markedForDeletion = true;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = 'yellow';
+                ctx.fillStyle = 'yellow';
+                ctx.beginPath();
+                ctx.arc(this.x + 25, this.y + 25, 20, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#f59e0b';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Rays
+                ctx.translate(this.x + 25, this.y + 25);
+                ctx.rotate(this.timer * 0.02);
+                for (let i = 0; i < 8; i++) {
+                    ctx.rotate(Math.PI / 4);
+                    ctx.beginPath();
+                    ctx.moveTo(0, 20);
+                    ctx.lineTo(0, 30);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+
+            isClicked(mx, my) {
+                const dx = mx - (this.x + 25);
+                const dy = my - (this.y + 25);
+                return Math.sqrt(dx * dx + dy * dy) < 30;
+            }
+        }
+
+        class LawnMower {
+            constructor(y) {
+                this.x = -80; // Slightly off screen initially
+                this.y = y;
+                this.width = 60;
+                this.height = 60;
+                this.active = false;
+                this.speed = 10;
+            }
+
+            update() {
+                if (this.active) {
+                    this.x += this.speed;
+                }
+            }
+
+            draw() {
+                // Draw Mower
+                ctx.fillStyle = '#dc2626'; // Red
+                ctx.fillRect(this.x + 20, this.y + 40, 40, 30);
+
+                // Wheels
+                ctx.fillStyle = 'black';
+                ctx.beginPath();
+                ctx.arc(this.x + 30, this.y + 70, 10, 0, Math.PI * 2);
+                ctx.arc(this.x + 50, this.y + 70, 10, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Handle
+                ctx.strokeStyle = '#999';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(this.x + 20, this.y + 50);
+                ctx.lineTo(this.x, this.y + 20);
+                ctx.stroke();
+
+                // Blade (spinning if active)
+                if (this.active) {
+                    ctx.fillStyle = '#cbd5e1';
+                    ctx.save();
+                    ctx.translate(this.x + 40, this.y + 80);
+                    ctx.rotate(frame * 0.5);
+                    ctx.fillRect(-25, -2, 50, 4);
+                    ctx.fillRect(-2, -25, 4, 50);
+                    ctx.restore();
+                }
+            }
+        }
+
+        class FloatingText {
+            constructor(x, y, text, color) {
+                this.x = x;
+                this.y = y;
+                this.text = text;
+                this.color = color;
+                this.life = 0;
+                this.maxLife = 60;
+                this.opacity = 1;
+            }
+            update() {
+                this.y -= 1;
+                this.life++;
+                this.opacity = 1 - (this.life / this.maxLife);
+            }
+            draw() {
+                ctx.globalAlpha = this.opacity;
+                ctx.fillStyle = this.color;
+                ctx.font = '20px "Press Start 2P"';
+                ctx.fillText(this.text, this.x, this.y);
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        function createFloatingText(x, y, text, color) {
+            floatingMessages.push(new FloatingText(x, y, text, color));
+        }
+
+        // --- Core Functions ---
+
+        function init() {
+            // Create Grid
+            for (let y = 0; y < GRID_ROWS; y++) {
+                for (let x = 0; x < GRID_COLS; x++) {
+                    grid.push(new Cell(x * CELL_SIZE, y * CELL_SIZE));
+                }
+            }
+            // Create Mowers
+            for (let y = 0; y < GRID_ROWS; y++) {
+                lawnMowers.push(new LawnMower(y * CELL_SIZE));
+            }
+            animate();
+        }
+
+        function handleLawnMowers() {
+            for (let i = 0; i < lawnMowers.length; i++) {
+                lawnMowers[i].update();
+                lawnMowers[i].draw();
+
+                // Check collision with zombies if active
+                if (lawnMowers[i].active) {
+                    for (let j = 0; j < enemies.length; j++) {
+                        if (enemies[j].y === lawnMowers[i].y &&
+                            enemies[j].x < lawnMowers[i].x + lawnMowers[i].width &&
+                            enemies[j].x + enemies[j].width > lawnMowers[i].x) {
+
+                            enemies.splice(j, 1);
+                            j--;
+                            score += 10;
+                        }
+                    }
+                    // Remove mower if off screen
+                    if (lawnMowers[i].x > canvas.width) {
+                        lawnMowers.splice(i, 1);
+                        i--;
+                    }
+                }
+            }
+        }
+
+        function selectPlant(id) {
+            selectedPlant = id;
+            // Visual feedback handled by CSS hover mostly, but could add border here
+            document.querySelectorAll('.plant-card').forEach((el, index) => {
+                if (index === id) el.style.borderColor = 'white';
+                else {
+                    // Reset to default colors
+                    if (index === 0) el.style.borderColor = '#16a34a';
+                    if (index === 1) el.style.borderColor = '#ca8a04';
+                    if (index === 2) el.style.borderColor = '#b45309';
+                    if (index === 3) el.style.borderColor = '#6b7280';
+                    if (index === 4) el.style.borderColor = '#2563eb';
+                }
+            });
+        }
+
+        function spawnEnemies() {
+            // Spawn rate increases with wave
+            let spawnRate = Math.max(100, 600 - (wave * 50));
+
+            if (frame % spawnRate === 0) {
+                let yPos = Math.floor(Math.random() * 5) * CELL_SIZE;
+                enemies.push(new Zombie(yPos));
+            }
+
+            // Wave logic
+            if (frame % 3000 === 0) {
+                wave++;
+                createFloatingText(canvas.width / 2 - 100, canvas.height / 2, `WAVE ${wave}`, 'red');
+                // Spawn a burst of sun
+                suns.push(new Sun(Math.random() * canvas.width, 0, 50));
+            }
+        }
+
+        function spawnEnvironmentSun() {
+            if (frame % 500 === 0) {
+                let x = Math.random() * (canvas.width - CELL_SIZE);
+                let y = -50;
+                suns.push(new Sun(x, y, 25));
+            }
+        }
+
+        function handleDefenders() {
+            for (let i = 0; i < defenders.length; i++) {
+                defenders[i].draw();
+                defenders[i].update();
+
+                // Check if destroyed
+                if (defenders[i].health <= 0) {
+                    defenders.splice(i, 1);
+                    i--;
+                }
+            }
+        }
+
+        function handleProjectiles() {
+            for (let i = 0; i < projectiles.length; i++) {
+                projectiles[i].update();
+                projectiles[i].draw();
+
+                // Collision with enemies
+                for (let j = 0; j < enemies.length; j++) {
+                    if (enemies[j] && projectiles[i]) {
+                        // Simple rect collision
+                        if (projectiles[i].x < enemies[j].x + enemies[j].width &&
+                            projectiles[i].x + projectiles[i].width > enemies[j].x &&
+                            projectiles[i].y < enemies[j].y + enemies[j].height &&
+                            projectiles[i].y + projectiles[i].height > enemies[j].y) {
+
+                            enemies[j].health -= projectiles[i].power;
+                            projectiles.splice(i, 1);
+                            i--;
+
+                            // Check Zombie Death
+                            if (enemies[j].health <= 0) {
+                                score += 10;
+                                enemies.splice(j, 1);
+                                j--;
+                            }
+
+                            break; // Projectile hit something, stop checking other enemies
+                        }
+                    }
+                }
+
+                if (projectiles[i] && projectiles[i].markedForDeletion) {
+                    projectiles.splice(i, 1);
+                    i--;
+                }
+            }
+        }
+
+        function handleEnemies() {
+            for (let i = 0; i < enemies.length; i++) {
+                enemies[i].update();
+                enemies[i].draw();
+
+                // Collision with defenders
+                // We actually only need to check if they are in the same cell
+                // and the zombie is slightly to the right of the plant
+                let isEating = false;
+
+                for (let j = 0; j < defenders.length; j++) {
+                    if (defenders[j].y === enemies[i].y &&
+                        (enemies[i].x < defenders[j].x + defenders[j].width - 10) &&
+                        (enemies[i].x + enemies[i].width > defenders[j].x + 10)) {
+
+                        // Mine logic
+                        if (defenders[j].info.type === 'mine') {
+                            if (defenders[j].ready) {
+                                // BOOM
+                                enemies[i].health -= defenders[j].info.damage;
+                                defenders[j].health = 0; // Mine destroys itself
+                                // Visual boom could go here
+                                createFloatingText(defenders[j].x, defenders[j].y, "BOOM!", "orange");
+                            }
+                        } else {
+                            // Eat plant
+                            enemies[i].movement = 0;
+                            isEating = true;
+                            if (frame % 5 === 0) {
+                                defenders[j].health -= enemies[i].damage;
+                            }
+                        }
+                    }
+                }
+
+                if (enemies[i].health <= 0) {
+                    score += 10;
+                    enemies.splice(i, 1);
+                    i--;
+                }
+            }
+        }
+
+        function handleResources() {
+            for (let i = 0; i < suns.length; i++) {
+                suns[i].update();
+                suns[i].draw();
+                if (suns[i].markedForDeletion) {
+                    suns.splice(i, 1);
+                    i--;
+                }
+            }
+        }
+
+        function handleFloatingMessages() {
+            for (let i = 0; i < floatingMessages.length; i++) {
+                floatingMessages[i].update();
+                floatingMessages[i].draw();
+                if (floatingMessages[i].life >= floatingMessages[i].maxLife) {
+                    floatingMessages.splice(i, 1);
+                    i--;
+                }
+            }
+        }
+
+        function updateUI() {
+            document.getElementById('sun-display').innerText = Math.floor(sun);
+            document.getElementById('score-display').innerText = score;
+            document.getElementById('wave-display').innerText = wave;
+
+            // Update Cooldown Visuals
+            for (let i = 0; i < plantCooldowns.length; i++) {
+                const overlay = document.getElementById(`cd-${i}`);
+                if (plantCooldowns[i] > 0) {
+                    overlay.classList.remove('hidden');
+                    // Calculate height percentage for cooldown effect
+                    const heightPercent = (plantCooldowns[i] / plantTypes[i].cooldown) * 100;
+                    overlay.style.height = `${heightPercent}%`;
+                    overlay.style.top = `${100 - heightPercent}%`;
+                } else {
+                    overlay.classList.add('hidden');
+                    overlay.style.height = '100%';
+                    overlay.style.top = '0';
+                }
+            }
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Grid
+            for (let cell of grid) {
+                cell.draw();
+            }
+
+            // Logic
+            if (!gameOver) {
+                // Cooldown Management
+                for (let i = 0; i < plantCooldowns.length; i++) {
+                    if (plantCooldowns[i] > 0) plantCooldowns[i]--;
+                }
+
+                handleLawnMowers();
+                handleDefenders();
+                handleEnemies();
+                handleProjectiles();
+                handleResources();
+                handleFloatingMessages();
+                spawnEnemies();
+                spawnEnvironmentSun();
+                updateUI();
+                frame++;
+                requestAnimationFrame(animate);
+            } else {
+                document.getElementById('game-over-screen').classList.remove('hidden');
+            }
+        }
+
+        function restartGame() {
+            defenders.length = 0;
+            enemies.length = 0;
+            projectiles.length = 0;
+            suns.length = 0;
+            floatingMessages.length = 0;
+            score = 0;
+            sun = 150;
+            wave = 1;
+            frame = 0;
+            gameOver = false;
+            document.getElementById('game-over-screen').classList.add('hidden');
+            document.getElementById('level-win-screen').classList.add('hidden');
+            animate();
+        }
+
+        // Start
+        init();
+
+    </script>
+</body>
+
+</html>
