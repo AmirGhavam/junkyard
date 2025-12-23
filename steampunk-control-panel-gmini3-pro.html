@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Steampunk Control Panel</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Rye&family=Share+Tech+Mono&display=swap');
+
+        :root {
+            --brass-light: #fdf5a6;
+            --brass-main: #d4af37;
+            --brass-dark: #8b6c28;
+            --copper-main: #b87333;
+            --iron-dark: #2a2a2a;
+            --wood-dark: #3e2723;
+        }
+
+        body {
+            background-color: #1a1a1a;
+            background-image:
+                radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.9)),
+                url('https://www.transparenttextures.com/patterns/dark-wood.png');
+            font-family: 'Rye', serif;
+            color: var(--brass-light);
+            overflow-x: hidden;
+        }
+
+        /* Metallic Textures */
+        .brass-plate {
+            background: linear-gradient(135deg, #b8860b 0%, #d4af37 50%, #8b6c28 100%);
+            box-shadow:
+                inset 2px 2px 5px rgba(255, 255, 255, 0.4),
+                inset -2px -2px 5px rgba(0, 0, 0, 0.6),
+                5px 5px 15px rgba(0, 0, 0, 0.8);
+            border: 2px solid #5c4018;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .brass-rim {
+            border: 4px solid #b8860b;
+            box-shadow:
+                inset 0 0 10px rgba(0, 0, 0, 0.8),
+                0 0 5px rgba(255, 255, 255, 0.3);
+            background: radial-gradient(circle, #f5deb3 0%, #d2b48c 90%);
+        }
+
+        .glass-face {
+            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 20%, rgba(0, 0, 0, 0.1) 100%);
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .screw {
+            width: 12px;
+            height: 12px;
+            background: radial-gradient(circle, #d4af37, #8b6c28);
+            border-radius: 50%;
+            box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .screw::after {
+            content: '';
+            width: 100%;
+            height: 2px;
+            background: #3e2723;
+            transform: rotate(45deg);
+        }
+
+        /* Animations */
+        @keyframes rotate-gear {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes needle-jitter {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            25% {
+                transform: rotate(2deg);
+            }
+
+            50% {
+                transform: rotate(-1deg);
+            }
+
+            75% {
+                transform: rotate(1deg);
+            }
+
+            100% {
+                transform: rotate(0deg);
+            }
+        }
+
+        .gear-spin {
+            animation: rotate-gear 10s linear infinite;
+        }
+
+        .gear-spin-reverse {
+            animation: rotate-gear 10s linear infinite reverse;
+        }
+
+        .needle-wrapper {
+            transition: transform 1s cubic-bezier(0.4, 2.5, 0.6, 0.8);
+        }
+
+        /* Steam effect */
+        .steam {
+            position: absolute;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0) 70%);
+            border-radius: 50%;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        @keyframes steam-rise {
+            0% {
+                transform: translateY(0) scale(0.5);
+                opacity: 0.6;
+            }
+
+            100% {
+                transform: translateY(-100px) scale(2);
+                opacity: 0;
+            }
+        }
+
+        @keyframes shake {
+            0% {
+                transform: translate(1px, 1px) rotate(0deg);
+            }
+
+            10% {
+                transform: translate(-1px, -2px) rotate(-1deg);
+            }
+
+            20% {
+                transform: translate(-3px, 0px) rotate(1deg);
+            }
+
+            30% {
+                transform: translate(3px, 2px) rotate(0deg);
+            }
+
+            40% {
+                transform: translate(1px, -1px) rotate(1deg);
+            }
+
+            50% {
+                transform: translate(-1px, 2px) rotate(-1deg);
+            }
+
+            60% {
+                transform: translate(-3px, 1px) rotate(0deg);
+            }
+
+            70% {
+                transform: translate(3px, 1px) rotate(-1deg);
+            }
+
+            80% {
+                transform: translate(-1px, -1px) rotate(1deg);
+            }
+
+            90% {
+                transform: translate(1px, 2px) rotate(0deg);
+            }
+
+            100% {
+                transform: translate(1px, -2px) rotate(-1deg);
+            }
+        }
+
+        .shake-hard {
+            animation: shake 0.5s;
+            animation-iteration-count: infinite;
+        }
+
+        @keyframes pulse-glow {
+
+            0%,
+            100% {
+                box-shadow: 0 0 5px #d4af37;
+            }
+
+            50% {
+                box-shadow: 0 0 20px #d4af37, 0 0 10px #ff8c00;
+            }
+        }
+
+        .animate-pulse-glow {
+            animation: pulse-glow 2s infinite;
+        }
+
+        /* Toggle Switch */
+        .toggle-track {
+            background: #2a2a2a;
+            box-shadow: inset 0 0 10px #000;
+        }
+
+        .toggle-thumb {
+            background: linear-gradient(to bottom, #d4af37, #8b6c28);
+            box-shadow: 0 2px 5px #000;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <!-- Main Control Panel Container -->
+    <div id="main-panel"
+        class="brass-plate p-8 w-full max-w-5xl grid grid-cols-1 md:grid-cols-12 gap-6 relative z-10 transition-transform">
+
+        <!-- Corner Screws -->
+        <div class="screw top-2 left-2"></div>
+        <div class="screw top-2 right-2"></div>
+        <div class="screw bottom-2 left-2"></div>
+        <div class="screw bottom-2 right-2"></div>
+
+        <div
+            class="absolute bottom-2 left-1/2 transform -translate-x-1/2 text-[10px] text-[#5c4018] font-mono opacity-50">
+            STEAMOS v1.8.94
+        </div>
+
+        <!-- Left Column: Gauges -->
+        <div class="md:col-span-4 flex flex-col gap-6 items-center border-r-2 border-yellow-900/30 pr-4">
+            <h2 class="text-xl tracking-widest text-[#3e2723] uppercase font-bold drop-shadow-sm">Diagnostics</h2>
+
+            <!-- Gauge 1: Pressure -->
+            <div class="relative w-40 h-40 brass-rim rounded-full bg-[#e8dcc5] flex items-center justify-center">
+                <div class="absolute inset-0 rounded-full glass-face z-20"></div>
+                <div class="text-[10px] text-black font-mono absolute bottom-8 font-bold">PSI</div>
+                <!-- Ticks -->
+                <div class="absolute w-full h-full"
+                    style="background: repeating-conic-gradient(from -135deg at 50% 50%, transparent 0deg 2deg, #000 2deg 3deg, transparent 3deg 27deg) content-box; -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 10px), #fff calc(100% - 10px));">
+                </div>
+
+                <!-- Needle -->
+                <div class="absolute w-full h-full z-10 flex items-center justify-center needle-wrapper"
+                    id="gauge-psi-wrapper">
+                    <div class="w-1 h-20 bg-red-800 origin-bottom transform -translate-y-1/2 rounded"
+                        style="box-shadow: 2px 2px 4px rgba(0,0,0,0.5);"></div>
+                </div>
+                <div class="absolute w-4 h-4 bg-[#3e2723] rounded-full z-20 border border-gray-600"></div>
+                <!-- Warning Light -->
+                <div id="psi-warning"
+                    class="absolute top-8 w-3 h-3 rounded-full bg-red-900 shadow-inner z-10 transition-colors duration-200">
+                </div>
+            </div>
+
+            <!-- Gauge 2: Temperature -->
+            <div class="relative w-40 h-40 brass-rim rounded-full bg-[#e8dcc5] flex items-center justify-center">
+                <div class="absolute inset-0 rounded-full glass-face z-20"></div>
+                <div class="text-[10px] text-black font-mono absolute bottom-8 font-bold">TEMP °C</div>
+
+                <div class="absolute w-full h-full z-10 flex items-center justify-center needle-wrapper"
+                    id="gauge-temp-wrapper">
+                    <div class="w-1 h-20 bg-red-800 origin-bottom transform -translate-y-1/2 rounded"
+                        style="box-shadow: 2px 2px 4px rgba(0,0,0,0.5);"></div>
+                </div>
+                <div class="absolute w-4 h-4 bg-[#3e2723] rounded-full z-20 border border-gray-600"></div>
+            </div>
+
+            <!-- Gauge 3: Steam Output -->
+            <div class="relative w-40 h-40 brass-rim rounded-full bg-[#e8dcc5] flex items-center justify-center">
+                <div class="absolute inset-0 rounded-full glass-face z-20"></div>
+                <div class="text-[10px] text-black font-mono absolute bottom-8 font-bold">FLOW</div>
+
+                <div class="absolute w-full h-full z-10 flex items-center justify-center needle-wrapper"
+                    id="gauge-flow-wrapper">
+                    <div class="w-1 h-20 bg-red-800 origin-bottom transform -translate-y-1/2 rounded"
+                        style="box-shadow: 2px 2px 4px rgba(0,0,0,0.5);"></div>
+                </div>
+                <div class="absolute w-4 h-4 bg-[#3e2723] rounded-full z-20 border border-gray-600"></div>
+            </div>
+        </div>
+
+        <!-- Center Column: Core & Readout -->
+        <div class="md:col-span-4 flex flex-col items-center justify-between py-4">
+
+            <!-- Nixie Tube / Digital Readout -->
+            <div
+                class="w-full bg-[#111] border-4 border-[#5c4018] rounded p-4 mb-6 shadow-[inset_0_0_20px_#000] relative overflow-hidden">
+                <div class="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent pointer-events-none"></div>
+                <div class="absolute inset-0 shadow-[inset_0_0_50px_rgba(0,0,0,0.9)] pointer-events-none"></div>
+                <div
+                    class="flex justify-center gap-2 font-['Share_Tech_Mono'] text-4xl text-[#ff8c00] drop-shadow-[0_0_8px_#ff4500] relative z-10">
+                    <span id="readout-h">00</span><span class="animate-pulse">:</span><span
+                        id="readout-m">00</span><span class="animate-pulse">:</span><span id="readout-s">00</span>
+                </div>
+                <div class="text-center text-xs text-[#8b6c28] mt-1 uppercase tracking-widest relative z-10">System
+                    Runtime</div>
+                <!-- Scanlines -->
+                <div
+                    class="absolute inset-0 bg-[linear-gradient(transparent_50%,rgba(0,0,0,0.5)_50%)] bg-[length:100%_4px] pointer-events-none opacity-30">
+                </div>
+            </div>
+
+            <!-- Main Gear Mechanism (Visual) -->
+            <div class="relative w-64 h-64 flex items-center justify-center my-4">
+                <!-- Big Gear -->
+                <svg id="gear-big" class="w-48 h-48 text-[#8b6c28] absolute drop-shadow-xl" viewBox="0 0 100 100"
+                    fill="currentColor">
+                    <path
+                        d="M95 50c0-2.8-2.2-5-5-5h-4.2c-1.1-4.8-3.4-9.2-6.6-12.9l3-3c2-2 2-5.1 0-7.1l-7.1-7.1c-2-2-5.1-2-7.1 0l-3 3c-3.7-3.2-8.1-5.5-12.9-6.6V7.1c0-2.8-2.2-5-5-5h-10c-2.8 0-5 2.2-5 5v4.2c-4.8 1.1-9.2 3.4-12.9 6.6l-3-3c-2-2-5.1-2-7.1 0l-7.1 7.1c-2 2-2 5.1 0 7.1l3 3c-3.2 3.7-5.5 8.1-6.6 12.9H7.1c-2.8 0-5 2.2-5 5v10c0 2.8 2.2 5 5 5h4.2c1.1 4.8 3.4 9.2 6.6 12.9l-3 3c-2 2-2 5.1 0 7.1l7.1 7.1c2 2 5.1 2 7.1 0l3-3c3.7 3.2 8.1 5.5 12.9 6.6v4.2c0 2.8 2.2 5 5 5h10c2.8 0 5-2.2 5-5v-4.2c4.8-1.1 9.2-3.4 12.9-6.6l3 3c2 2 5.1 2 7.1 0l7.1-7.1c2-2 2-5.1 0-7.1l-3-3c3.2-3.7 5.5-8.1 6.6-12.9h4.2c2.8 0 5-2.2 5-5v-10zm-45 15c-8.3 0-15-6.7-15-15s6.7-15 15-15 15 6.7 15 15-6.7 15-15 15z" />
+                </svg>
+                <!-- Small Gear -->
+                <svg id="gear-small" class="w-32 h-32 text-[#d4af37] absolute -top-4 -right-4 drop-shadow-xl"
+                    viewBox="0 0 100 100" fill="currentColor">
+                    <path
+                        d="M95 50c0-2.8-2.2-5-5-5h-4.2c-1.1-4.8-3.4-9.2-6.6-12.9l3-3c2-2 2-5.1 0-7.1l-7.1-7.1c-2-2-5.1-2-7.1 0l-3 3c-3.7-3.2-8.1-5.5-12.9-6.6V7.1c0-2.8-2.2-5-5-5h-10c-2.8 0-5 2.2-5 5v4.2c-4.8 1.1-9.2 3.4-12.9 6.6l-3-3c-2-2-5.1-2-7.1 0l-7.1 7.1c-2 2-2 5.1 0 7.1l3 3c-3.2 3.7-5.5 8.1-6.6 12.9H7.1c-2.8 0-5 2.2-5 5v10c0 2.8 2.2 5 5 5h4.2c1.1 4.8 3.4 9.2 6.6 12.9l-3 3c-2 2-2 5.1 0 7.1l7.1 7.1c2 2 5.1 2 7.1 0l3-3c3.7 3.2 8.1 5.5 12.9 6.6v4.2c0 2.8 2.2 5 5 5h10c2.8 0 5-2.2 5-5v-4.2c4.8-1.1 9.2-3.4 12.9-6.6l3 3c2 2 5.1 2 7.1 0l7.1-7.1c2-2 2-5.1 0-7.1l-3-3c3.2-3.7 5.5-8.1 6.6-12.9h4.2c2.8 0 5-2.2 5-5v-10zm-45 15c-8.3 0-15-6.7-15-15s6.7-15 15-15 15 6.7 15 15-6.7 15-15 15z" />
+                </svg>
+            </div>
+
+            <!-- Main Power Lever -->
+            <div class="flex flex-col items-center gap-2 w-full mt-8">
+                <span class="text-[#3e2723] uppercase font-bold text-sm bg-yellow-600/20 px-2 py-1 rounded">Main
+                    Power</span>
+                <div class="relative w-full h-16 bg-[#2a2a2a] rounded-lg shadow-inner flex items-center px-2 cursor-pointer group"
+                    id="power-lever-container">
+                    <div class="absolute w-full h-2 bg-[#111] top-1/2 left-0 -translate-y-1/2"></div>
+                    <!-- Lever Handle -->
+                    <div id="power-handle"
+                        class="relative z-10 w-24 h-12 bg-gradient-to-r from-[#8b6c28] to-[#d4af37] rounded flex items-center justify-center shadow-lg transform transition-transform duration-300 ease-out translate-x-0 border-2 border-[#fdf5a6] animate-pulse-glow">
+                        <div class="w-full h-1 bg-black/20"></div>
+                        <div class="absolute -top-4 w-4 h-20 bg-[#5c4018] rounded"></div>
+                        <div class="absolute -top-6 w-8 h-8 rounded-full bg-red-800 shadow-md"></div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right Column: Controls -->
+        <div class="md:col-span-4 flex flex-col gap-6 items-center border-l-2 border-yellow-900/30 pl-4">
+            <h2 class="text-xl tracking-widest text-[#3e2723] uppercase font-bold drop-shadow-sm">Regulation</h2>
+
+            <!-- Slider Controls -->
+            <div class="w-full space-y-6 px-4">
+
+                <!-- Pressure Slider -->
+                <div class="space-y-1">
+                    <label class="text-[#3e2723] text-xs uppercase font-bold flex justify-between">
+                        <span>Pressure Valve</span>
+                        <span id="pressure-val">0%</span>
+                    </label>
+                    <input type="range" min="0" max="100" value="0"
+                        class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#d4af37]"
+                        id="pressure-slider">
+                </div>
+
+                <!-- Heat Slider -->
+                <div class="space-y-1">
+                    <label class="text-[#3e2723] text-xs uppercase font-bold flex justify-between">
+                        <span>Furnace Heat</span>
+                        <span id="heat-val">0%</span>
+                    </label>
+                    <input type="range" min="0" max="100" value="0"
+                        class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#b87333]"
+                        id="heat-slider">
+                </div>
+            </div>
+
+            <!-- Toggle Switches -->
+            <div class="grid grid-cols-2 gap-4 w-full px-4 mt-4">
+                <div class="flex flex-col items-center gap-2">
+                    <span class="text-[10px] text-[#3e2723] font-bold uppercase">Vent A</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" value="" class="sr-only peer" id="vent-a-toggle">
+                        <div
+                            class="w-11 h-6 toggle-track peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#8b6c28] toggle-thumb">
+                        </div>
+                    </label>
+                </div>
+                <div class="flex flex-col items-center gap-2">
+                    <span class="text-[10px] text-[#3e2723] font-bold uppercase">Vent B</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" value="" class="sr-only peer" id="vent-b-toggle">
+                        <div
+                            class="w-11 h-6 toggle-track peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#8b6c28] toggle-thumb">
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Emergency Button -->
+            <div class="mt-auto mb-4 text-center">
+                <button id="purge-btn"
+                    class="relative w-24 h-24 rounded-full bg-red-900 border-4 border-[#5c4018] shadow-[0_5px_10px_rgba(0,0,0,0.5)] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center group overflow-hidden">
+                    <div class="absolute inset-0 bg-gradient-to-br from-red-600 to-red-950 opacity-80"></div>
+                    <span
+                        class="relative z-10 text-[#fdf5a6] font-bold text-xs uppercase tracking-widest pointer-events-none group-hover:text-white">Steam<br>Purge</span>
+                </button>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Steam Particle Container -->
+    <div id="steam-container" class="fixed inset-0 pointer-events-none z-50 overflow-hidden"></div>
+
+    <script>
+        // DOM Elements
+        const pressureSlider = document.getElementById('pressure-slider');
+        const heatSlider = document.getElementById('heat-slider');
+        const pressureVal = document.getElementById('pressure-val');
+        const heatVal = document.getElementById('heat-val');
+
+        const gaugePsi = document.getElementById('gauge-psi-wrapper');
+        const gaugeTemp = document.getElementById('gauge-temp-wrapper');
+        const gaugeFlow = document.getElementById('gauge-flow-wrapper');
+
+        const powerLeverContainer = document.getElementById('power-lever-container');
+        const powerHandle = document.getElementById('power-handle');
+        const purgeBtn = document.getElementById('purge-btn');
+        const steamContainer = document.getElementById('steam-container');
+        const gearBig = document.getElementById('gear-big');
+        const gearSmall = document.getElementById('gear-small');
+
+        const ventAToggle = document.getElementById('vent-a-toggle');
+        const ventBToggle = document.getElementById('vent-b-toggle');
+
+        let isPowerOn = false;
+        let systemPressure = 0;
+        let systemHeat = 0;
+        let systemFlow = 0;
+        let targetPressure = 0;
+        let targetHeat = 0;
+
+        let gearRotationBig = 0;
+        let gearRotationSmall = 0;
+
+        // Clock
+        setInterval(() => {
+            if (!isPowerOn) return;
+            const now = new Date();
+            document.getElementById('readout-h').innerText = String(now.getHours()).padStart(2, '0');
+            document.getElementById('readout-m').innerText = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById('readout-s').innerText = String(now.getSeconds()).padStart(2, '0');
+        }, 1000);
+
+        // Power Lever Logic
+        powerLeverContainer.addEventListener('click', () => {
+            isPowerOn = !isPowerOn;
+            if (isPowerOn) {
+                // Move handle to right
+                powerHandle.style.transform = 'translateX(calc(100% + 2rem))'; // approximate width calc
+                // Actually, let's just use flex positioning or specific pixel translate for simplicity
+                // The container is w-full. Handle is w-24. 
+                // Let's rely on class toggling or just direct style for the slide
+                const containerWidth = powerLeverContainer.offsetWidth;
+                const handleWidth = powerHandle.offsetWidth;
+                powerHandle.style.transform = `translateX(${containerWidth - handleWidth - 16}px)`; // 16px for padding
+
+                powerHandle.querySelector('.bg-red-800').classList.remove('bg-red-800');
+                powerHandle.querySelector('.rounded-full').classList.add('bg-green-600');
+                powerHandle.classList.remove('animate-pulse-glow');
+
+                playSound('clunk');
+            } else {
+                powerHandle.style.transform = 'translateX(0)';
+                powerHandle.querySelector('.bg-green-600').classList.remove('bg-green-600');
+                powerHandle.querySelector('.rounded-full').classList.add('bg-red-800');
+                powerHandle.classList.add('animate-pulse-glow');
+
+                // Reset systems
+                pressureSlider.value = 0;
+                heatSlider.value = 0;
+                targetPressure = 0;
+                targetHeat = 0;
+                playSound('hiss');
+            }
+        });
+
+        // Sliders
+        pressureSlider.addEventListener('input', (e) => {
+            if (!isPowerOn) { e.target.value = 0; return; }
+            pressureVal.innerText = e.target.value + '%';
+            targetPressure = parseInt(e.target.value);
+            playSound('ratchet');
+        });
+
+        heatSlider.addEventListener('input', (e) => {
+            if (!isPowerOn) { e.target.value = 0; return; }
+            heatVal.innerText = e.target.value + '%';
+            targetHeat = parseInt(e.target.value);
+        });
+
+        // Steam Purge
+        purgeBtn.addEventListener('mousedown', () => {
+            if (!isPowerOn) return;
+            purgeBtn.style.transform = 'scale(0.95)';
+            createSteamBurst(20);
+            systemPressure = Math.max(0, systemPressure - 20); // release pressure
+            playSound('blast');
+        });
+        purgeBtn.addEventListener('mouseup', () => {
+            purgeBtn.style.transform = 'scale(1)';
+        });
+
+        // Game Loop for Gauge Physics
+        function updatePhysics() {
+            // Smooth approach to target
+            if (isPowerOn) {
+                const pressureDiff = targetPressure - systemPressure;
+                systemPressure += pressureDiff * 0.05;
+
+                const heatDiff = targetHeat - systemHeat;
+                systemHeat += heatDiff * 0.02; // Heat rises slower
+
+                // Flow calculation
+                let flowTarget = (ventAToggle.checked ? 30 : 0) + (ventBToggle.checked ? 30 : 0) + (systemPressure * 0.2);
+                const flowDiff = flowTarget - systemFlow;
+                systemFlow += flowDiff * 0.1;
+
+            } else {
+                systemPressure *= 0.95;
+                systemHeat *= 0.98;
+                systemFlow *= 0.9;
+            }
+
+            // Update Needles (Mapping 0-100 to rotation angles)
+            // Assuming -135deg is 0 and 135deg is max (270 degree sweep)
+            const pressureAngle = -135 + (systemPressure / 100 * 270);
+            const heatAngle = -135 + (systemHeat / 100 * 270);
+            const flowAngle = -135 + (Math.min(systemFlow, 100) / 100 * 270); // Cap flow visual at 100
+
+            // Add jitter
+            const jitter = isPowerOn ? (Math.random() - 0.5) * 2 : 0;
+
+            gaugePsi.style.transform = `rotate(${pressureAngle + jitter}deg)`;
+            gaugeTemp.style.transform = `rotate(${heatAngle + jitter * 0.5}deg)`;
+            gaugeFlow.style.transform = `rotate(${flowAngle + jitter * 2}deg)`;
+
+            // Gear rotation based on Flow
+            if (systemFlow > 1) {
+                const speed = systemFlow * 0.1;
+                gearRotationBig += speed;
+                gearRotationSmall -= speed * 1.5; // Small gear spins faster and reverse
+
+                gearBig.style.transform = `rotate(${gearRotationBig}deg)`;
+                gearSmall.style.transform = `rotate(${gearRotationSmall}deg)`;
+            }
+
+            // Warning Light Logic
+            const psiWarning = document.getElementById('psi-warning');
+            if (systemPressure > 80) {
+                if (Math.floor(Date.now() / 200) % 2 === 0) {
+                    psiWarning.classList.remove('bg-red-900');
+                    psiWarning.classList.add('bg-red-500', 'shadow-[0_0_10px_red]');
+                } else {
+                    psiWarning.classList.add('bg-red-900');
+                    psiWarning.classList.remove('bg-red-500', 'shadow-[0_0_10px_red]');
+                }
+                // Random steam puffs if pressure high
+                if (Math.random() > 0.9) {
+                    createSteamBurst(1);
+                }
+
+                // Shake panel if critical
+                if (systemPressure > 95) {
+                    document.getElementById('main-panel').classList.add('shake-hard');
+                } else {
+                    document.getElementById('main-panel').classList.remove('shake-hard');
+                }
+            } else {
+                psiWarning.classList.add('bg-red-900');
+                psiWarning.classList.remove('bg-red-500', 'shadow-[0_0_10px_red]');
+                document.getElementById('main-panel').classList.remove('shake-hard');
+            }
+
+            requestAnimationFrame(updatePhysics);
+        }
+
+        updatePhysics();
+
+        // FX Functions
+        function createSteamBurst(amount) {
+            const rect = purgeBtn.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top;
+
+            for (let i = 0; i < amount; i++) {
+                const puff = document.createElement('div');
+                puff.classList.add('steam');
+
+                // Randomize size
+                const size = 20 + Math.random() * 40;
+                puff.style.width = `${size}px`;
+                puff.style.height = `${size}px`;
+
+                // Start position (near button)
+                puff.style.left = `${centerX + (Math.random() - 0.5) * 50}px`;
+                puff.style.top = `${centerY + (Math.random() - 0.5) * 20}px`;
+
+                // Animation
+                puff.style.animation = `steam-rise ${1 + Math.random()}s forwards`;
+
+                steamContainer.appendChild(puff);
+
+                // Cleanup
+                setTimeout(() => {
+                    puff.remove();
+                }, 2000);
+            }
+        }
+
+        // Placeholder for sound (Web Audio API or Audio elements would go here)
+        function playSound(type) {
+            // For now, visual feedback is enough, but this is where we'd trigger Audio objects
+            // console.log("Playing sound:", type);
+        }
+
+    </script>
+</body>
+
+</html>
