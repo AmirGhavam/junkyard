@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Steampunk Control Panel</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Rye&family=UnifrakturMaguntia&display=swap');
+
+        :root {
+            --brass: #b5a642;
+            --brass-light: #d4c77a;
+            --brass-dark: #8b7355;
+            --copper: #b87333;
+            --copper-light: #da8a67;
+            --copper-dark: #8b4513;
+            --bronze: #cd7f32;
+            --iron: #434b4d;
+            --steam: rgba(200, 200, 200, 0.4);
+        }
+
+        body {
+            background: linear-gradient(180deg, #1a1410 0%, #2d2418 50%, #1a1410 100%);
+            font-family: 'Rye', serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Wood Panel Background */
+        .wood-panel {
+            background:
+                repeating-linear-gradient(90deg,
+                    transparent,
+                    transparent 2px,
+                    rgba(0, 0, 0, 0.1) 2px,
+                    rgba(0, 0, 0, 0.1) 4px),
+                linear-gradient(180deg, #3d2817 0%, #5c3d2e 50%, #3d2817 100%);
+            border: 8px solid var(--brass-dark);
+            box-shadow:
+                inset 0 0 30px rgba(0, 0, 0, 0.5),
+                0 0 20px rgba(0, 0, 0, 0.8),
+                0 0 60px rgba(181, 166, 66, 0.2);
+        }
+
+        /* Brass Frame Effect */
+        .brass-frame {
+            background: linear-gradient(135deg, var(--brass-dark) 0%, var(--brass) 25%, var(--brass-light) 50%, var(--brass) 75%, var(--brass-dark) 100%);
+            border-radius: 4px;
+            padding: 4px;
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.3),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.3),
+                0 4px 8px rgba(0, 0, 0, 0.5);
+        }
+
+        .brass-inner {
+            background: radial-gradient(circle, #2a1f15 0%, #1a1210 100%);
+            border-radius: 2px;
+        }
+
+        /* Gauge Styles */
+        .gauge {
+            position: relative;
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background:
+                radial-gradient(circle at 30% 30%, var(--brass-light) 0%, var(--brass) 40%, var(--brass-dark) 100%);
+            box-shadow:
+                inset 0 0 20px rgba(0, 0, 0, 0.5),
+                0 4px 10px rgba(0, 0, 0, 0.5),
+                0 0 30px rgba(181, 166, 66, 0.3);
+            border: 4px solid var(--copper-dark);
+        }
+
+        .gauge-face {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            bottom: 10px;
+            border-radius: 50%;
+            background:
+                radial-gradient(circle, #f5f0e6 0%, #e8dcc8 60%, #d4c4a8 100%);
+            box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .gauge-ticks {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+
+        .tick {
+            position: absolute;
+            width: 2px;
+            height: 10px;
+            background: var(--iron);
+            left: 50%;
+            top: 5px;
+            transform-origin: center 65px;
+        }
+
+        .tick.major {
+            width: 3px;
+            height: 15px;
+            background: var(--copper-dark);
+        }
+
+        .gauge-needle {
+            position: absolute;
+            width: 4px;
+            height: 55px;
+            background: linear-gradient(180deg, var(--copper) 0%, var(--copper-dark) 100%);
+            left: calc(50% - 2px);
+            bottom: calc(50% + 5px);
+            transform-origin: bottom center;
+            transform: rotate(-135deg);
+            border-radius: 2px;
+            box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .gauge-center {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, var(--brass-light) 0%, var(--brass-dark) 100%);
+            left: calc(50% - 10px);
+            top: calc(50% - 10px);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+            z-index: 10;
+        }
+
+        .gauge-label {
+            position: absolute;
+            bottom: 30px;
+            width: 100%;
+            text-align: center;
+            font-size: 10px;
+            color: var(--iron);
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Gear Styles */
+        .gear {
+            position: absolute;
+            border-radius: 50%;
+        }
+
+        .gear-teeth {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+
+        .gear-tooth {
+            position: absolute;
+            width: 8px;
+            height: 100%;
+            left: calc(50% - 4px);
+            top: 0;
+        }
+
+        .gear-tooth::before,
+        .gear-tooth::after {
+            content: '';
+            position: absolute;
+            width: 8px;
+            height: 12px;
+            background: inherit;
+            left: 0;
+        }
+
+        .gear-tooth::before {
+            top: -6px;
+            border-radius: 2px 2px 0 0;
+        }
+
+        .gear-tooth::after {
+            bottom: -6px;
+            border-radius: 0 0 2px 2px;
+        }
+
+        @keyframes rotate-clockwise {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes rotate-counter {
+            from {
+                transform: rotate(360deg);
+            }
+
+            to {
+                transform: rotate(0deg);
+            }
+        }
+
+        .gear-rotating-cw {
+            animation: rotate-clockwise 10s linear infinite;
+        }
+
+        .gear-rotating-ccw {
+            animation: rotate-counter 8s linear infinite;
+        }
+
+        /* Steam Vent */
+        .steam-vent {
+            width: 60px;
+            height: 40px;
+            background: linear-gradient(180deg, var(--copper-dark) 0%, var(--copper) 50%, var(--copper-dark) 100%);
+            border-radius: 50% 50% 5px 5px;
+            position: relative;
+            box-shadow:
+                inset 0 -5px 15px rgba(0, 0, 0, 0.5),
+                0 5px 15px rgba(0, 0, 0, 0.5);
+        }
+
+        .steam-vent::before {
+            content: '';
+            position: absolute;
+            top: 5px;
+            left: 10px;
+            right: 10px;
+            bottom: 5px;
+            background: repeating-linear-gradient(90deg,
+                    transparent,
+                    transparent 3px,
+                    rgba(0, 0, 0, 0.3) 3px,
+                    rgba(0, 0, 0, 0.3) 5px);
+            border-radius: 50% 50% 2px 2px;
+        }
+
+        .steam-particle {
+            position: absolute;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.6) 0%, rgba(200, 200, 200, 0.3) 50%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: steam-rise 2s ease-out infinite;
+        }
+
+        @keyframes steam-rise {
+            0% {
+                opacity: 0.8;
+                transform: translateY(0) scale(0.5);
+            }
+
+            50% {
+                opacity: 0.4;
+            }
+
+            100% {
+                opacity: 0;
+                transform: translateY(-80px) scale(2) translateX(var(--drift));
+            }
+        }
+
+        /* Toggle Switch */
+        .toggle-switch {
+            width: 80px;
+            height: 40px;
+            background: linear-gradient(180deg, var(--brass-dark) 0%, var(--brass) 50%, var(--brass-dark) 100%);
+            border-radius: 20px;
+            position: relative;
+            cursor: pointer;
+            box-shadow:
+                inset 0 2px 5px rgba(0, 0, 0, 0.3),
+                0 4px 8px rgba(0, 0, 0, 0.4);
+        }
+
+        .toggle-lever {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background: radial-gradient(circle at 30% 30%, var(--brass-light) 0%, var(--brass) 50%, var(--brass-dark) 100%);
+            border-radius: 50%;
+            top: 5px;
+            left: 5px;
+            transition: left 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+        }
+
+        .toggle-switch.active .toggle-lever {
+            left: 45px;
+            background: radial-gradient(circle at 30% 30%, var(--copper-light) 0%, var(--copper) 50%, var(--copper-dark) 100%);
+        }
+
+        /* Pressure Valve */
+        .pressure-valve {
+            width: 60px;
+            height: 80px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .valve-handle {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(45deg, var(--brass-dark) 0%, var(--brass) 25%, var(--brass-light) 50%, var(--brass) 75%, var(--brass-dark) 100%);
+            border-radius: 5px;
+            position: absolute;
+            top: 0;
+            left: 5px;
+            box-shadow:
+                0 4px 8px rgba(0, 0, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+            transition: transform 0.3s ease;
+        }
+
+        .valve-stem {
+            width: 15px;
+            height: 30px;
+            background: linear-gradient(90deg, var(--copper-dark) 0%, var(--copper) 50%, var(--copper-dark) 100%);
+            position: absolute;
+            top: 45px;
+            left: 22.5px;
+            border-radius: 2px;
+        }
+
+        /* Lever Handle */
+        .lever-container {
+            width: 30px;
+            height: 100px;
+            position: relative;
+        }
+
+        .lever-base {
+            width: 40px;
+            height: 20px;
+            background: linear-gradient(180deg, var(--brass-dark) 0%, var(--brass) 50%, var(--brass-dark) 100%);
+            border-radius: 5px;
+            position: absolute;
+            bottom: 0;
+            left: -5px;
+        }
+
+        .lever-arm {
+            width: 8px;
+            height: 70px;
+            background: linear-gradient(90deg, var(--copper-dark) 0%, var(--copper) 50%, var(--copper-dark) 100%);
+            position: absolute;
+            bottom: 15px;
+            left: 11px;
+            transform-origin: bottom center;
+            transition: transform 0.5s ease;
+            border-radius: 2px;
+        }
+
+        .lever-ball {
+            width: 24px;
+            height: 24px;
+            background: radial-gradient(circle at 30% 30%, var(--brass-light) 0%, var(--brass) 50%, var(--brass-dark) 100%);
+            border-radius: 50%;
+            position: absolute;
+            top: -12px;
+            left: -8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Title Banner */
+        .title-banner {
+            font-family: 'UnifrakturMaguntia', cursive;
+            background: linear-gradient(180deg, var(--copper-dark) 0%, var(--copper) 50%, var(--copper-dark) 100%);
+            border: 3px solid var(--brass-light);
+            box-shadow:
+                0 4px 15px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Status Light */
+        .status-light {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            box-shadow:
+                inset 0 -2px 5px rgba(0, 0, 0, 0.5),
+                0 2px 5px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .status-light.green {
+            background: radial-gradient(circle at 30% 30%, #90ee90 0%, #228b22 100%);
+        }
+
+        .status-light.red {
+            background: radial-gradient(circle at 30% 30%, #ff6b6b 0%, #8b0000 100%);
+        }
+
+        .status-light.amber {
+            background: radial-gradient(circle at 30% 30%, #ffcc00 0%, #ff8c00 100%);
+        }
+
+        .status-light.on {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                filter: brightness(1);
+            }
+
+            50% {
+                filter: brightness(1.5);
+            }
+        }
+
+        /* Pipe Decoration */
+        .pipe {
+            background: linear-gradient(90deg, var(--copper-dark) 0%, var(--copper-light) 30%, var(--copper) 50%, var(--copper-light) 70%, var(--copper-dark) 100%);
+            box-shadow:
+                inset 0 -5px 10px rgba(0, 0, 0, 0.3),
+                inset 0 5px 10px rgba(255, 255, 255, 0.1),
+                0 5px 15px rgba(0, 0, 0, 0.4);
+        }
+
+        .pipe-joint {
+            background: linear-gradient(90deg, var(--brass-dark) 0%, var(--brass) 50%, var(--brass-dark) 100%);
+            box-shadow:
+                inset 0 -3px 5px rgba(0, 0, 0, 0.3),
+                0 3px 8px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Button */
+        .steam-button {
+            width: 60px;
+            height: 60px;
+            background: radial-gradient(circle at 30% 30%, var(--brass-light) 0%, var(--brass) 50%, var(--brass-dark) 100%);
+            border-radius: 50%;
+            border: 3px solid var(--copper-dark);
+            box-shadow:
+                inset 0 2px 5px rgba(255, 255, 255, 0.3),
+                0 5px 15px rgba(0, 0, 0, 0.5);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .steam-button:active {
+            transform: scale(0.95);
+            box-shadow:
+                inset 0 2px 10px rgba(0, 0, 0, 0.5),
+                0 2px 5px rgba(0, 0, 0, 0.5);
+        }
+
+        .steam-button::after {
+            content: '';
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background: radial-gradient(circle at 30% 30., var(--brass-light) 0%, var(--brass) 100%);
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        /* Digital Counter */
+        .counter-display {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0a;
+            color: #ff6600;
+            padding: 10px 15px;
+            border-radius: 5px;
+            border: 3px solid var(--brass-dark);
+            box-shadow:
+                inset 0 0 20px rgba(255, 102, 0, 0.3),
+                0 4px 10px rgba(0, 0, 0, 0.5);
+            letter-spacing: 3px;
+            text-shadow: 0 0 10px #ff6600;
+        }
+
+        /* Pressure Dial Large */
+        .pressure-dial-large {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background:
+                radial-gradient(circle at 30% 30%, var(--copper-light) 0%, var(--copper) 40%, var(--copper-dark) 100%);
+            border: 6px solid var(--brass-dark);
+            box-shadow:
+                inset 0 0 30px rgba(0, 0, 0, 0.4),
+                0 8px 20px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+
+        .pressure-dial-large .gauge-face {
+            top: 15px;
+            left: 15px;
+            right: 15px;
+            bottom: 15px;
+        }
+
+        .pressure-dial-large .gauge-needle {
+            height: 75px;
+            width: 5px;
+        }
+
+        .pressure-zone {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .danger-zone {
+            background: conic-gradient(from 225deg, transparent 0deg, transparent 150deg, rgba(255, 0, 0, 0.3) 150deg, rgba(255, 0, 0, 0.3) 200deg, transparent 200deg);
+        }
+
+        .warning-zone {
+            background: conic-gradient(from 225deg, transparent 0deg, transparent 100deg, rgba(255, 200, 0, 0.3) 100deg, rgba(255, 200, 0, 0.3) 150deg, transparent 150deg);
+        }
+    </style>
+</head>
+
+<body class="p-4 md:p-8">
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="title-banner text-4xl md:text-5xl text-amber-100 py-4 px-8 inline-block rounded">
+                ⚙ Aetheric Propulsion Control ⚙
+            </h1>
+            <p class="text-amber-200/70 mt-3 text-sm tracking-widest">EST. 1887 • LONDON WORKS • DIVISION VII</p>
+        </div>
+
+        <!-- Main Control Panel -->
+        <div class="wood-panel p-6 rounded-lg">
+            <!-- Top Row - Gauges -->
+            <div class="flex flex-wrap justify-center gap-6 mb-8">
+                <!-- Pressure Gauge 1 -->
+                <div class="brass-frame">
+                    <div class="brass-inner p-4">
+                        <div class="gauge" id="gauge1">
+                            <div class="gauge-face">
+                                <div class="gauge-ticks" id="ticks1"></div>
+                                <div class="pressure-zone warning-zone"></div>
+                                <div class="gauge-needle" id="needle1"></div>
+                                <div class="gauge-center"></div>
+                                <div class="gauge-label">Steam Pressure</div>
+                            </div>
+                        </div>
+                        <div class="text-center text-amber-200 text-xs mt-2">PSI × 100</div>
+                    </div>
+                </div>
+
+                <!-- Temperature Gauge -->
+                <div class="brass-frame">
+                    <div class="brass-inner p-4">
+                        <div class="gauge" id="gauge2">
+                            <div class="gauge-face">
+                                <div class="gauge-ticks" id="ticks2"></div>
+                                <div class="pressure-zone danger-zone"></div>
+                                <div class="gauge-needle" id="needle2"></div>
+                                <div class="gauge-center"></div>
+                                <div class="gauge-label">Boiler Temp</div>
+                            </div>
+                        </div>
+                        <div class="text-center text-amber-200 text-xs mt-2">°Celsius</div>
+                    </div>
+                </div>
+
+                <!-- RPM Gauge -->
+                <div class="brass-frame">
+                    <div class="brass-inner p-4">
+                        <div class="gauge" id="gauge3">
+                            <div class="gauge-face">
+                                <div class="gauge-ticks" id="ticks3"></div>
+                                <div class="gauge-needle" id="needle3"></div>
+                                <div class="gauge-center"></div>
+                                <div class="gauge-label">RPM × 10</div>
+                            </div>
+                        </div>
+                        <div class="text-center text-amber-200 text-xs mt-2">Main Rotor</div>
+                    </div>
+                </div>
+
+                <!-- Fuel Pressure -->
+                <div class="brass-frame">
+                    <div class="brass-inner p-4">
+                        <div class="gauge" id="gauge4">
+                            <div class="gauge-face">
+                                <div class="gauge-ticks" id="ticks4"></div>
+                                <div class="gauge-needle" id="needle4"></div>
+                                <div class="gauge-center"></div>
+                                <div class="gauge-label">Fuel Pressure</div>
+                            </div>
+                        </div>
+                        <div class="text-center text-amber-200 text-xs mt-2">Bar</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Middle Section -->
+            <div class="flex flex-wrap items-center justify-center gap-8 mb-8">
+                <!-- Left Gears -->
+                <div class="relative w-32 h-32">
+                    <div class="gear gear-rotating-cw"
+                        style="width: 80px; height: 80px; background: radial-gradient(circle, var(--brass-light) 0%, var(--brass) 50%, var(--brass-dark) 100%); top: 0; left: 0; box-shadow: 0 4px 8px rgba(0,0,0,0.4);">
+                        <div class="gear-teeth"
+                            style="background: repeating-conic-gradient(from 0deg, var(--brass) 0deg 15deg, var(--brass-dark) 15deg 30deg); border-radius: 50%; position: absolute; inset: -6px;">
+                        </div>
+                        <div
+                            style="position: absolute; width: 30px; height: 30px; background: radial-gradient(circle, #2a1f15 0%, #1a1210 100%); border-radius: 50%; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+                        </div>
+                    </div>
+                    <div class="gear gear-rotating-ccw"
+                        style="width: 60px; height: 60px; background: radial-gradient(circle, var(--copper-light) 0%, var(--copper) 50%, var(--copper-dark) 100%); top: 45px; left: 55px; box-shadow: 0 4px 8px rgba(0,0,0,0.4);">
+                        <div class="gear-teeth"
+                            style="background: repeating-conic-gradient(from 0deg, var(--copper) 0deg 18deg, var(--copper-dark) 18deg 36deg); border-radius: 50%; position: absolute; inset: -6px;">
+                        </div>
+                        <div
+                            style="position: absolute; width: 20px; height: 20px; background: radial-gradient(circle, #2a1f15 0%, #1a1210 100%); border-radius: 50%; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Pressure Dial -->
+                <div class="pressure-dial-large">
+                    <div class="gauge-face">
+                        <div class="gauge-ticks" id="ticksMain"></div>
+                        <div class="pressure-zone warning-zone"></div>
+                        <div class="pressure-zone danger-zone"></div>
+                        <div class="gauge-needle" id="needleMain"></div>
+                        <div class="gauge-center"
+                            style="width: 25px; height: 25px; left: calc(50% - 12.5px); top: calc(50% - 12.5px);"></div>
+                        <div class="gauge-label" style="font-size: 12px; bottom: 40px;">Main Chamber</div>
+                        <div class="absolute bottom-8 w-full text-center text-amber-800 font-bold text-lg"
+                            id="pressureValue">0 PSI</div>
+                    </div>
+                </div>
+
+                <!-- Right Gears -->
+                <div class="relative w-32 h-32">
+                    <div class="gear gear-rotating-ccw"
+                        style="width: 70px; height: 70px; background: radial-gradient(circle, var(--bronze) 0%, var(--copper-dark) 100%); top: 20px; left: 40px; box-shadow: 0 4px 8px rgba(0,0,0,0.4);">
+                        <div class="gear-teeth"
+                            style="background: repeating-conic-gradient(from 0deg, var(--bronze) 0deg 16deg, #8b4513 16deg 32deg); border-radius: 50%; position: absolute; inset: -6px;">
+                        </div>
+                        <div
+                            style="position: absolute; width: 25px; height: 25px; background: radial-gradient(circle, #2a1f15 0%, #1a1210 100%); border-radius: 50%; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+                        </div>
+                    </div>
+                    <div class="gear gear-rotating-cw"
+                        style="width: 50px; height: 50px; background: radial-gradient(circle, var(--brass-light) 0%, var(--brass-dark) 100%); top: 0; left: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.4);">
+                        <div class="gear-teeth"
+                            style="background: repeating-conic-gradient(from 0deg, var(--brass) 0deg 20deg, var(--brass-dark) 20deg 40deg); border-radius: 50%; position: absolute; inset: -5px;">
+                        </div>
+                        <div
+                            style="position: absolute; width: 15px; height: 15px; background: radial-gradient(circle, #2a1f15 0%, #1a1210 100%); border-radius: 50%; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Control Row -->
+            <div class="flex flex-wrap justify-center items-center gap-6 mb-8 p-4 bg-black/30 rounded-lg">
+                <!-- Steam Vents -->
+                <div class="flex gap-4">
+                    <div class="steam-vent relative" id="vent1">
+                        <div class="absolute -top-20 left-1/2 -translate-x-1/2 w-20 h-20 overflow-hidden">
+                            <div class="steam-particles" id="steam1"></div>
+                        </div>
+                    </div>
+                    <div class="steam-vent relative" id="vent2">
+                        <div class="absolute -top-20 left-1/2 -translate-x-1/2 w-20 h-20 overflow-hidden">
+                            <div class="steam-particles" id="steam2"></div>
+                        </div>
+                    </div>
+                    <div class="steam-vent relative" id="vent3">
+                        <div class="absolute -top-20 left-1/2 -translate-x-1/2 w-20 h-20 overflow-hidden">
+                            <div class="steam-particles" id="steam3"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Emergency Button -->
+                <div class="steam-button" id="emergencyBtn" title="Emergency Vent">
+                    <span
+                        class="absolute inset-0 flex items-center justify-center text-red-800 font-bold text-xs">VENT</span>
+                </div>
+
+                <!-- Toggle Switches -->
+                <div class="flex flex-col items-center gap-2">
+                    <div class="toggle-switch" id="toggle1" onclick="toggleSwitch(this)">
+                        <div class="toggle-lever"></div>
+                    </div>
+                    <span class="text-amber-200 text-xs">MAIN</span>
+                </div>
+                <div class="flex flex-col items-center gap-2">
+                    <div class="toggle-switch active" id="toggle2" onclick="toggleSwitch(this)">
+                        <div class="toggle-lever"></div>
+                    </div>
+                    <span class="text-amber-200 text-xs">AUX</span>
+                </div>
+                <div class="flex flex-col items-center gap-2">
+                    <div class="toggle-switch" id="toggle3" onclick="toggleSwitch(this)">
+                        <div class="toggle-lever"></div>
+                    </div>
+                    <span class="text-amber-200 text-xs">BOOST</span>
+                </div>
+
+                <!-- Levers -->
+                <div class="flex gap-6">
+                    <div class="lever-container">
+                        <div class="lever-arm" id="lever1" style="transform: rotate(-30deg);"
+                            onclick="moveLever('lever1')">
+                            <div class="lever-ball"></div>
+                        </div>
+                        <div class="lever-base"></div>
+                        <span class="text-amber-200 text-xs block text-center -mt-4">THROTTLE</span>
+                    </div>
+                    <div class="lever-container">
+                        <div class="lever-arm" id="lever2" style="transform: rotate(0deg);"
+                            onclick="moveLever('lever2')">
+                            <div class="lever-ball"></div>
+                        </div>
+                        <div class="lever-base"></div>
+                        <span class="text-amber-200 text-xs block text-center -mt-4">MIXTURE</span>
+                    </div>
+                </div>
+
+                <!-- Pressure Valves -->
+                <div class="flex gap-4">
+                    <div class="pressure-valve" id="valve1" onclick="rotateValve(this)">
+                        <div class="valve-handle" style="transform: rotate(0deg);"></div>
+                        <div class="valve-stem"></div>
+                    </div>
+                    <div class="pressure-valve" id="valve2" onclick="rotateValve(this)">
+                        <div class="valve-handle" style="transform: rotate(45deg);"></div>
+                        <div class="valve-stem"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Section - Status & Counter -->
+            <div class="flex flex-wrap justify-center items-center gap-8 p-4 bg-black/30 rounded-lg">
+                <!-- Status Lights -->
+                <div class="flex flex-col items-center gap-2">
+                    <span class="text-amber-200 text-xs">SYSTEM STATUS</span>
+                    <div class="flex gap-3">
+                        <div class="status-light green on" id="light1" title="Power"></div>
+                        <div class="status-light amber" id="light2" title="Warning"></div>
+                        <div class="status-light red" id="light3" title="Critical"></div>
+                    </div>
+                    <div class="flex gap-3 text-xs text-amber-200/70">
+                        <span>PWR</span>
+                        <span>WRN</span>
+                        <span>CRT</span>
+                    </div>
+                </div>
+
+                <!-- Digital Counter -->
+                <div class="flex flex-col items-center gap-2">
+                    <span class="text-amber-200 text-xs">PRESSURE CYCLES</span>
+                    <div class="counter-display text-2xl" id="counter">000000</div>
+                </div>
+
+                <!-- Aetheric Resonance -->
+                <div class="flex flex-col items-center gap-2">
+                    <span class="text-amber-200 text-xs">AETHERIC RESONANCE</span>
+                    <div class="flex gap-1 items-end h-10" id="resonanceBars">
+                        <div class="w-3 bg-gradient-to-t from-amber-700 to-amber-400 rounded-t" style="height: 60%;">
+                        </div>
+                        <div class="w-3 bg-gradient-to-t from-amber-700 to-amber-400 rounded-t" style="height: 80%;">
+                        </div>
+                        <div class="w-3 bg-gradient-to-t from-amber-700 to-amber-400 rounded-t" style="height: 40%;">
+                        </div>
+                        <div class="w-3 bg-gradient-to-t from-amber-700 to-amber-400 rounded-t" style="height: 90%;">
+                        </div>
+                        <div class="w-3 bg-gradient-to-t from-amber-700 to-amber-400 rounded-t" style="height: 70%;">
+                        </div>
+                        <div class="w-3 bg-gradient-to-t from-amber-700 to-amber-400 rounded-t" style="height: 50%;">
+                        </div>
+                        <div class="w-3 bg-gradient-to-t from-amber-700 to-amber-400 rounded-t" style="height: 85%;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Efficiency Meter -->
+                <div class="flex flex-col items-center gap-2">
+                    <span class="text-amber-200 text-xs">THERMAL EFFICIENCY</span>
+                    <div
+                        class="w-32 h-6 bg-gradient-to-r from-red-600 via-amber-500 to-green-500 rounded-full overflow-hidden border-2 border-amber-700">
+                        <div class="h-full bg-black/30 rounded-full" id="efficiencyBar"
+                            style="width: 65%; margin-left: auto;"></div>
+                    </div>
+                    <div class="text-amber-200 text-sm" id="efficiencyValue">65%</div>
+                </div>
+            </div>
+
+            <!-- Decorative Pipes -->
+            <div class="mt-6 flex justify-center">
+                <div class="flex items-center gap-1">
+                    <div class="pipe-joint w-6 h-8 rounded"></div>
+                    <div class="pipe h-6 w-32"></div>
+                    <div class="pipe-joint w-8 h-10 rounded-full"></div>
+                    <div class="pipe h-6 w-48"></div>
+                    <div class="pipe-joint w-6 h-8 rounded"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-6 text-amber-200/50 text-sm">
+            <p>◈ Imperial Aetherworks & Steam Co. ◈ Patent No. 18,742 ◈</p>
+        </div>
+    </div>
+
+    <script>
+        // Initialize gauge ticks
+        function createGaugeTicks(containerId, numTicks = 20) {
+            const container = document.getElementById(containerId);
+            for (let i = 0; i < numTicks; i++) {
+                const tick = document.createElement('div');
+                tick.className = `tick ${i % 5 === 0 ? 'major' : ''}`;
+                tick.style.transform = `rotate(${(i / numTicks) * 270 - 135}deg)`;
+                container.appendChild(tick);
+            }
+        }
+
+        createGaugeTicks('ticks1');
+        createGaugeTicks('ticks2');
+        createGaugeTicks('ticks3');
+        createGaugeTicks('ticks4');
+        createGaugeTicks('ticksMain', 30);
+
+        // Gauge animation
+        function animateGauge(needleId, minValue, maxValue) {
+            const needle = document.getElementById(needleId);
+            const value = Math.random() * (maxValue - minValue) + minValue;
+            const rotation = -135 + (value / 100) * 270;
+            needle.style.transform = `rotate(${rotation}deg)`;
+        }
+
+        function animateAllGauges() {
+            animateGauge('needle1', 40, 75);
+            animateGauge('needle2', 55, 85);
+            animateGauge('needle3', 20, 60);
+            animateGauge('needle4', 30, 70);
+            animateGauge('needleMain', 35, 65);
+
+            // Update pressure display
+            const pressure = Math.floor(Math.random() * 30 + 120);
+            document.getElementById('pressureValue').textContent = `${pressure} PSI`;
+        }
+
+        // Initial and periodic gauge updates
+        animateAllGauges();
+        setInterval(animateAllGauges, 3000);
+
+        // Steam particle generation
+        function createSteamParticle(container) {
+            const particle = document.createElement('div');
+            particle.className = 'steam-particle';
+            particle.style.width = Math.random() * 15 + 10 + 'px';
+            particle.style.height = particle.style.width;
+            particle.style.left = Math.random() * 40 + 10 + 'px';
+            particle.style.setProperty('--drift', (Math.random() - 0.5) * 40 + 'px');
+            particle.style.animationDuration = Math.random() * 1 + 1.5 + 's';
+            particle.style.animationDelay = Math.random() * 0.5 + 's';
+            container.appendChild(particle);
+
+            setTimeout(() => particle.remove(), 2500);
+        }
+
+        // Steam generation for active vents
+        function startSteam() {
+            for (let i = 1; i <= 3; i++) {
+                const container = document.getElementById(`steam${i}`);
+                if (container) {
+                    setInterval(() => {
+                        if (Math.random() > 0.5) {
+                            createSteamParticle(container);
+                        }
+                    }, 300);
+                }
+            }
+        }
+        startSteam();
+
+        // Toggle switch
+        function toggleSwitch(element) {
+            element.classList.toggle('active');
+            playSound('click');
+        }
+
+        // Lever movement
+        let leverPositions = { lever1: -30, lever2: 0 };
+        function moveLever(leverId) {
+            leverPositions[leverId] = leverPositions[leverId] >= 30 ? -30 : leverPositions[leverId] + 30;
+            document.getElementById(leverId).style.transform = `rotate(${leverPositions[leverId]}deg)`;
+            playSound('clank');
+        }
+
+        // Valve rotation
+        let valveRotations = { valve1: 0, valve2: 45 };
+        function rotateValve(element) {
+            const id = element.id;
+            valveRotations[id] = (valveRotations[id] + 45) % 360;
+            element.querySelector('.valve-handle').style.transform = `rotate(${valveRotations[id]}deg)`;
+            playSound('valve');
+
+            // Trigger steam burst on vent
+            const ventNum = id === 'valve1' ? 1 : 2;
+            for (let i = 0; i < 5; i++) {
+                setTimeout(() => {
+                    createSteamParticle(document.getElementById(`steam${ventNum}`));
+                }, i * 100);
+            }
+        }
+
+        // Emergency button
+        document.getElementById('emergencyBtn').addEventListener('click', function () {
+            // Flash all gauges
+            for (let i = 1; i <= 4; i++) {
+                const needle = document.getElementById(`needle${i}`);
+                needle.style.transform = 'rotate(-135deg)';
+                setTimeout(() => {
+                    needle.style.transform = `rotate(${Math.random() * 180 - 135}deg)`;
+                }, 100);
+            }
+            document.getElementById('needleMain').style.transform = 'rotate(-135deg)';
+
+            // Trigger steam burst
+            for (let v = 1; v <= 3; v++) {
+                for (let i = 0; i < 8; i++) {
+                    setTimeout(() => {
+                        createSteamParticle(document.getElementById(`steam${v}`));
+                    }, i * 50);
+                }
+            }
+
+            playSound('emergency');
+        });
+
+        // Counter increment
+        let counterValue = 0;
+        setInterval(() => {
+            counterValue = (counterValue + 1) % 1000000;
+            document.getElementById('counter').textContent = counterValue.toString().padStart(6, '0');
+        }, 100);
+
+        // Resonance bars animation
+        function animateResonanceBars() {
+            const bars = document.querySelectorAll('#resonanceBars > div');
+            bars.forEach(bar => {
+                bar.style.height = Math.random() * 60 + 30 + '%';
+            });
+        }
+        setInterval(animateResonanceBars, 500);
+
+        // Efficiency meter fluctuation
+        function updateEfficiency() {
+            const efficiency = Math.floor(Math.random() * 15 + 55);
+            document.getElementById('efficiencyBar').style.width = efficiency + '%';
+            document.getElementById('efficiencyValue').textContent = efficiency + '%';
+        }
+        setInterval(updateEfficiency, 5000);
+
+        // Status light blinking
+        function blinkLights() {
+            const lights = ['light2', 'light3'];
+            lights.forEach(id => {
+                const light = document.getElementById(id);
+                if (Math.random() > 0.7) {
+                    light.classList.add('on');
+                    setTimeout(() => light.classList.remove('on'), 500);
+                }
+            });
+        }
+        setInterval(blinkLights, 2000);
+
+        // Simple sound simulation (visual feedback)
+        function playSound(type) {
+            // In a real implementation, you'd play actual sounds here
+            console.log(`Sound: ${type}`);
+        }
+    </script>
+</body>
+
+</html>
