@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Steampunk Control Panel</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Special+Elite&display=swap');
+
+        :root {
+            --brass: linear-gradient(135deg, #d4a84b 0%, #c49b3a 25%, #e8c56a 50%, #b8943a 75%, #a07830 100%);
+            --brass-dark: linear-gradient(135deg, #8b6914 0%, #a07830 50%, #6b5010 100%);
+            --copper: linear-gradient(135deg, #b87333 0%, #da8a4a 50%, #8b5a2b 100%);
+            --steel: linear-gradient(135deg, #4a4a4a 0%, #6a6a6a 25%, #3a3a3a 75%, #2a2a2a 100%);
+        }
+
+        body {
+            font-family: 'Special Elite', cursive;
+            background: linear-gradient(180deg, #1a1510 0%, #2d2318 50%, #1a1510 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .panel-bg {
+            background: linear-gradient(145deg, #3d3428 0%, #2a2318 50%, #1f1a14 100%);
+            border: 8px solid;
+            border-image: var(--brass) 1;
+            box-shadow:
+                inset 0 0 50px rgba(0, 0, 0, 0.8),
+                0 0 30px rgba(212, 168, 75, 0.3),
+                0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .rivet {
+            width: 12px;
+            height: 12px;
+            background: var(--brass);
+            border-radius: 50%;
+            box-shadow:
+                inset -2px -2px 4px rgba(0, 0, 0, 0.5),
+                inset 2px 2px 4px rgba(255, 255, 255, 0.3),
+                0 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .gauge-container {
+            background: var(--brass);
+            border-radius: 50%;
+            padding: 8px;
+            box-shadow:
+                0 8px 20px rgba(0, 0, 0, 0.6),
+                inset 0 2px 4px rgba(255, 255, 255, 0.3),
+                inset 0 -2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .gauge-face {
+            background: radial-gradient(circle, #f5f0e0 0%, #e8e0c8 70%, #d0c8b0 100%);
+            border-radius: 50%;
+            position: relative;
+            box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .gauge-needle {
+            position: absolute;
+            bottom: 50%;
+            left: 50%;
+            transform-origin: bottom center;
+            width: 4px;
+            height: 45%;
+            background: linear-gradient(to top, #8b0000, #cc0000);
+            margin-left: -2px;
+            border-radius: 2px;
+            transition: transform 0.5s ease-out;
+            box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .gauge-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            background: var(--brass);
+            border-radius: 50%;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+            z-index: 10;
+        }
+
+        .gear {
+            position: relative;
+            background: var(--brass-dark);
+            border-radius: 50%;
+            box-shadow:
+                inset 0 0 10px rgba(0, 0, 0, 0.5),
+                0 4px 8px rgba(0, 0, 0, 0.4);
+        }
+
+        .gear::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 30%;
+            height: 30%;
+            background: var(--steel);
+            border-radius: 50%;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .gear-tooth {
+            position: absolute;
+            width: 20%;
+            height: 15%;
+            background: var(--brass-dark);
+            top: -10%;
+            left: 40%;
+            border-radius: 3px;
+        }
+
+        @keyframes rotate {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes rotateReverse {
+            from {
+                transform: rotate(360deg);
+            }
+
+            to {
+                transform: rotate(0deg);
+            }
+        }
+
+        .gear-spin {
+            animation: rotate 4s linear infinite;
+        }
+
+        .gear-spin-reverse {
+            animation: rotateReverse 3s linear infinite;
+        }
+
+        .gear-spin-slow {
+            animation: rotate 8s linear infinite;
+        }
+
+        .steam-vent {
+            background: var(--steel);
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .steam-particle {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+            filter: blur(4px);
+            animation: steam 2s ease-out infinite;
+        }
+
+        @keyframes steam {
+            0% {
+                transform: translateY(0) scale(1);
+                opacity: 0.8;
+            }
+
+            100% {
+                transform: translateY(-60px) scale(2);
+                opacity: 0;
+            }
+        }
+
+        .lever {
+            width: 20px;
+            height: 100px;
+            background: var(--copper);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+            box-shadow:
+                inset -3px 0 6px rgba(0, 0, 0, 0.3),
+                3px 3px 8px rgba(0, 0, 0, 0.4);
+        }
+
+        .lever-handle {
+            width: 40px;
+            height: 30px;
+            background: var(--brass);
+            border-radius: 8px;
+            position: absolute;
+            top: -15px;
+            left: -10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+        }
+
+        .button-brass {
+            background: var(--brass);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.1s ease;
+            box-shadow:
+                0 6px 12px rgba(0, 0, 0, 0.4),
+                inset 0 2px 4px rgba(255, 255, 255, 0.3);
+        }
+
+        .button-brass:active {
+            box-shadow:
+                0 2px 4px rgba(0, 0, 0, 0.4),
+                inset 0 2px 6px rgba(0, 0, 0, 0.3);
+            transform: translateY(3px);
+        }
+
+        .indicator-light {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--steel);
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .indicator-light.active {
+            background: radial-gradient(circle, #00ff00 0%, #00aa00 70%, #006600 100%);
+            box-shadow:
+                inset 0 2px 4px rgba(255, 255, 255, 0.3),
+                0 0 15px rgba(0, 255, 0, 0.6);
+        }
+
+        .indicator-light.warning {
+            background: radial-gradient(circle, #ffaa00 0%, #ff8800 70%, #cc6600 100%);
+            box-shadow:
+                inset 0 2px 4px rgba(255, 255, 255, 0.3),
+                0 0 15px rgba(255, 170, 0, 0.6);
+        }
+
+        .indicator-light.danger {
+            background: radial-gradient(circle, #ff3333 0%, #cc0000 70%, #880000 100%);
+            box-shadow:
+                inset 0 2px 4px rgba(255, 255, 255, 0.3),
+                0 0 15px rgba(255, 0, 0, 0.6);
+            animation: pulse 1s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .pipe {
+            background: var(--copper);
+            box-shadow:
+                inset 0 5px 10px rgba(255, 255, 255, 0.2),
+                inset 0 -5px 10px rgba(0, 0, 0, 0.3),
+                0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .valve-wheel {
+            background: var(--brass);
+            border-radius: 50%;
+            cursor: pointer;
+            position: relative;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+        }
+
+        .valve-spoke {
+            position: absolute;
+            width: 100%;
+            height: 8px;
+            background: var(--brass-dark);
+            top: 50%;
+            left: 0;
+            transform: translateY(-50%);
+            border-radius: 4px;
+        }
+
+        .digital-display {
+            background: #1a1a1a;
+            border: 4px solid;
+            border-image: var(--brass) 1;
+            font-family: 'Courier New', monospace;
+            color: #00ff88;
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.8);
+            box-shadow: inset 0 0 20px rgba(0, 255, 136, 0.1);
+        }
+
+        .pressure-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #00aa00 0%, #ffaa00 60%, #ff0000 100%);
+            transition: width 0.5s ease;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+
+        .engraved-text {
+            font-family: 'IM Fell English SC', serif;
+            color: #8b7355;
+            text-shadow:
+                1px 1px 1px rgba(0, 0, 0, 0.8),
+                -1px -1px 1px rgba(255, 255, 255, 0.1);
+        }
+
+        .brass-plate {
+            background: var(--brass);
+            box-shadow:
+                inset 0 2px 4px rgba(255, 255, 255, 0.3),
+                inset 0 -2px 4px rgba(0, 0, 0, 0.3),
+                0 4px 8px rgba(0, 0, 0, 0.4);
+        }
+    </style>
+</head>
+
+<body class="p-4 md:p-8">
+    <div class="max-w-6xl mx-auto">
+        <!-- Title Plate -->
+        <div class="brass-plate rounded-lg p-4 mb-6 text-center">
+            <h1 class="text-2xl md:text-4xl text-amber-900 font-bold engraved-text tracking-widest">
+                ⚙️ IMPERIAL STEAM WORKS ⚙️
+            </h1>
+            <p class="text-amber-800 text-sm mt-1">MASTER CONTROL STATION - EST. 1887</p>
+        </div>
+
+        <!-- Main Panel -->
+        <div class="panel-bg rounded-lg p-6 md:p-8 relative">
+            <!-- Corner Rivets -->
+            <div class="absolute top-4 left-4 rivet"></div>
+            <div class="absolute top-4 right-4 rivet"></div>
+            <div class="absolute bottom-4 left-4 rivet"></div>
+            <div class="absolute bottom-4 right-4 rivet"></div>
+
+            <!-- Top Row - Gauges -->
+            <div class="flex flex-wrap justify-center gap-6 mb-8">
+                <!-- Pressure Gauge -->
+                <div class="text-center">
+                    <div class="gauge-container w-32 h-32 md:w-40 md:h-40">
+                        <div class="gauge-face w-full h-full relative" id="pressureGauge">
+                            <div class="gauge-needle" id="pressureNeedle" style="transform: rotate(-45deg);"></div>
+                            <div class="gauge-center"></div>
+                            <!-- Gauge markings -->
+                            <span class="absolute text-xs font-bold text-gray-700" style="top: 70%; left: 15%;">0</span>
+                            <span class="absolute text-xs font-bold text-gray-700"
+                                style="top: 20%; left: 50%; transform: translateX(-50%);">50</span>
+                            <span class="absolute text-xs font-bold text-gray-700"
+                                style="top: 70%; right: 15%;">100</span>
+                            <span class="absolute text-xs text-red-600 font-bold" style="top: 35%; right: 20%;">⚠</span>
+                        </div>
+                    </div>
+                    <div class="brass-plate mt-2 px-3 py-1 rounded text-xs text-amber-900 engraved-text">PRESSURE (PSI)
+                    </div>
+                </div>
+
+                <!-- Temperature Gauge -->
+                <div class="text-center">
+                    <div class="gauge-container w-32 h-32 md:w-40 md:h-40">
+                        <div class="gauge-face w-full h-full relative" id="tempGauge">
+                            <div class="gauge-needle" id="tempNeedle" style="transform: rotate(-30deg);"></div>
+                            <div class="gauge-center"></div>
+                            <span class="absolute text-xs font-bold text-gray-700"
+                                style="top: 70%; left: 15%;">0°</span>
+                            <span class="absolute text-xs font-bold text-gray-700"
+                                style="top: 20%; left: 50%; transform: translateX(-50%);">250°</span>
+                            <span class="absolute text-xs font-bold text-gray-700"
+                                style="top: 70%; right: 15%;">500°</span>
+                        </div>
+                    </div>
+                    <div class="brass-plate mt-2 px-3 py-1 rounded text-xs text-amber-900 engraved-text">TEMPERATURE
+                    </div>
+                </div>
+
+                <!-- Steam Output Gauge -->
+                <div class="text-center">
+                    <div class="gauge-container w-32 h-32 md:w-40 md:h-40">
+                        <div class="gauge-face w-full h-full relative" id="steamGauge">
+                            <div class="gauge-needle" id="steamNeedle" style="transform: rotate(0deg);"></div>
+                            <div class="gauge-center"></div>
+                            <span class="absolute text-xs font-bold text-gray-700"
+                                style="top: 70%; left: 15%;">LOW</span>
+                            <span class="absolute text-xs font-bold text-gray-700"
+                                style="top: 20%; left: 50%; transform: translateX(-50%);">MED</span>
+                            <span class="absolute text-xs font-bold text-gray-700"
+                                style="top: 70%; right: 15%;">HIGH</span>
+                        </div>
+                    </div>
+                    <div class="brass-plate mt-2 px-3 py-1 rounded text-xs text-amber-900 engraved-text">STEAM OUTPUT
+                    </div>
+                </div>
+            </div>
+
+            <!-- Middle Row - Gears and Controls -->
+            <div class="flex flex-wrap justify-center items-center gap-8 mb-8">
+                <!-- Left Gear Assembly -->
+                <div class="relative w-32 h-32">
+                    <div class="gear gear-spin absolute w-24 h-24 top-0 left-0" id="gear1">
+                        <div class="gear-tooth" style="transform: rotate(0deg);"></div>
+                        <div class="gear-tooth" style="transform: rotate(45deg); transform-origin: center 200%;"></div>
+                        <div class="gear-tooth" style="transform: rotate(90deg); transform-origin: center 200%;"></div>
+                        <div class="gear-tooth" style="transform: rotate(135deg); transform-origin: center 200%;"></div>
+                        <div class="gear-tooth" style="transform: rotate(180deg); transform-origin: center 200%;"></div>
+                        <div class="gear-tooth" style="transform: rotate(225deg); transform-origin: center 200%;"></div>
+                        <div class="gear-tooth" style="transform: rotate(270deg); transform-origin: center 200%;"></div>
+                        <div class="gear-tooth" style="transform: rotate(315deg); transform-origin: center 200%;"></div>
+                    </div>
+                    <div class="gear gear-spin-reverse absolute w-16 h-16 bottom-0 right-0" id="gear2">
+                        <div class="gear-tooth" style="transform: rotate(0deg);"></div>
+                        <div class="gear-tooth" style="transform: rotate(60deg); transform-origin: center 200%;"></div>
+                        <div class="gear-tooth" style="transform: rotate(120deg); transform-origin: center 200%;"></div>
+                        <div class="gear-tooth" style="transform: rotate(180deg); transform-origin: center 200%;"></div>
+                        <div class="gear-tooth" style="transform: rotate(240deg); transform-origin: center 200%;"></div>
+                        <div class="gear-tooth" style="transform: rotate(300deg); transform-origin: center 200%;"></div>
+                    </div>
+                </div>
+
+                <!-- Central Control Panel -->
+                <div
+                    class="bg-gradient-to-b from-gray-800 to-gray-900 p-6 rounded-lg border-4 border-amber-700 shadow-2xl">
+                    <!-- Digital Display -->
+                    <div class="digital-display p-3 rounded mb-4 text-center">
+                        <div class="text-lg" id="systemStatus">SYSTEM NOMINAL</div>
+                        <div class="text-sm text-green-400" id="powerOutput">POWER: <span id="powerValue">75</span>%
+                        </div>
+                    </div>
+
+                    <!-- Pressure Bar -->
+                    <div class="mb-4">
+                        <div class="text-xs text-amber-500 mb-1 engraved-text">BOILER PRESSURE</div>
+                        <div class="h-4 bg-gray-700 rounded overflow-hidden border-2 border-amber-800">
+                            <div class="pressure-bar" id="pressureBar" style="width: 65%;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Control Buttons -->
+                    <div class="flex justify-center gap-4 mb-4">
+                        <div class="text-center">
+                            <div class="button-brass w-12 h-12 flex items-center justify-center"
+                                onclick="activateSystem()">
+                                <span class="text-amber-900 font-bold text-xs">START</span>
+                            </div>
+                        </div>
+                        <div class="text-center">
+                            <div class="button-brass w-12 h-12 flex items-center justify-center"
+                                onclick="emergencyStop()">
+                                <span class="text-red-800 font-bold text-xs">STOP</span>
+                            </div>
+                        </div>
+                        <div class="text-center">
+                            <div class="button-brass w-12 h-12 flex items-center justify-center" onclick="boostPower()">
+                                <span class="text-amber-900 font-bold text-xs">BOOST</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Indicator Lights -->
+                    <div class="flex justify-center gap-6">
+                        <div class="text-center">
+                            <div class="indicator-light active mx-auto" id="powerLight"></div>
+                            <span class="text-xs text-amber-600">POWER</span>
+                        </div>
+                        <div class="text-center">
+                            <div class="indicator-light warning mx-auto" id="heatLight"></div>
+                            <span class="text-xs text-amber-600">HEAT</span>
+                        </div>
+                        <div class="text-center">
+                            <div class="indicator-light mx-auto" id="alertLight"></div>
+                            <span class="text-xs text-amber-600">ALERT</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Gear Assembly -->
+                <div class="relative w-32 h-32">
+                    <div class="gear gear-spin-slow absolute w-28 h-28 top-0 right-0" id="gear3">
+                        <div class="gear-tooth" style="transform: rotate(0deg);"></div>
+                        <div class="gear-tooth" style="transform: rotate(30deg); transform-origin: center 200%;"></div>
+                        <div class="gear-tooth" style="transform: rotate(60deg); transform-origin: center 200%;"></div>
+                        <div class="gear-tooth" style="transform: rotate(90deg); transform-origin: center 200%;"></div>
+                        <div class="gear-tooth" style="transform: rotate(120deg); transform-origin: center 200%;"></div>
+                        <div class="gear-tooth" style="transform: rotate(150deg); transform-origin: center 200%;"></div>
+                        <div class="gear-tooth" style="transform: rotate(180deg); transform-origin: center 200%;"></div>
+                        <div class="gear-tooth" style="transform: rotate(210deg); transform-origin: center 200%;"></div>
+                        <div class="gear-tooth" style="transform: rotate(240deg); transform-origin: center 200%;"></div>
+                        <div class="gear-tooth" style="transform: rotate(270deg); transform-origin: center 200%;"></div>
+                        <div class="gear-tooth" style="transform: rotate(300deg); transform-origin: center 200%;"></div>
+                        <div class="gear-tooth" style="transform: rotate(330deg); transform-origin: center 200%;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Row - Pipes, Valves, and Steam Vents -->
+            <div class="flex flex-wrap justify-center items-end gap-8">
+                <!-- Left Pipe with Valve -->
+                <div class="flex flex-col items-center">
+                    <div class="valve-wheel w-16 h-16 cursor-pointer" onclick="rotateValve(this)" id="valve1">
+                        <div class="valve-spoke"></div>
+                        <div class="valve-spoke" style="transform: rotate(60deg);"></div>
+                        <div class="valve-spoke" style="transform: rotate(120deg);"></div>
+                    </div>
+                    <div class="pipe w-8 h-20 rounded-full mt-2"></div>
+                    <div class="brass-plate px-2 py-1 rounded text-xs text-amber-900 engraved-text mt-1">INTAKE</div>
+                </div>
+
+                <!-- Steam Vent 1 -->
+                <div class="relative">
+                    <div class="steam-vent w-12 h-24 rounded-t-lg" id="steamVent1">
+                        <!-- Steam particles added by JS -->
+                    </div>
+                    <div class="brass-plate px-2 py-1 rounded text-xs text-amber-900 engraved-text mt-1">VENT A</div>
+                </div>
+
+                <!-- Lever Control -->
+                <div class="flex flex-col items-center">
+                    <div class="relative" id="leverContainer">
+                        <div class="lever" id="lever1" onclick="toggleLever(this)" style="transform: rotate(-20deg);">
+                            <div class="lever-handle"></div>
+                        </div>
+                    </div>
+                    <div class="brass-plate px-2 py-1 rounded text-xs text-amber-900 engraved-text mt-4">THROTTLE</div>
+                </div>
+
+                <!-- Central Pipes -->
+                <div class="flex gap-2">
+                    <div class="pipe w-6 h-32 rounded-full"></div>
+                    <div class="pipe w-6 h-24 rounded-full self-end"></div>
+                    <div class="pipe w-6 h-28 rounded-full"></div>
+                </div>
+
+                <!-- Steam Vent 2 -->
+                <div class="relative">
+                    <div class="steam-vent w-12 h-24 rounded-t-lg" id="steamVent2">
+                        <!-- Steam particles added by JS -->
+                    </div>
+                    <div class="brass-plate px-2 py-1 rounded text-xs text-amber-900 engraved-text mt-1">VENT B</div>
+                </div>
+
+                <!-- Right Pipe with Valve -->
+                <div class="flex flex-col items-center">
+                    <div class="valve-wheel w-16 h-16 cursor-pointer" onclick="rotateValve(this)" id="valve2">
+                        <div class="valve-spoke"></div>
+                        <div class="valve-spoke" style="transform: rotate(60deg);"></div>
+                        <div class="valve-spoke" style="transform: rotate(120deg);"></div>
+                    </div>
+                    <div class="pipe w-8 h-20 rounded-full mt-2"></div>
+                    <div class="brass-plate px-2 py-1 rounded text-xs text-amber-900 engraved-text mt-1">EXHAUST</div>
+                </div>
+            </div>
+
+            <!-- Extra Rivets along edges -->
+            <div class="absolute top-4 left-1/4 rivet"></div>
+            <div class="absolute top-4 right-1/4 rivet"></div>
+            <div class="absolute bottom-4 left-1/4 rivet"></div>
+            <div class="absolute bottom-4 right-1/4 rivet"></div>
+        </div>
+
+        <!-- Footer Plate -->
+        <div class="brass-plate rounded-lg p-3 mt-6 text-center">
+            <p class="text-amber-900 text-xs engraved-text">
+                ⚙️ CAUTION: HIGH PRESSURE STEAM - AUTHORIZED PERSONNEL ONLY ⚙️
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // System state
+        let systemActive = true;
+        let powerLevel = 75;
+        let pressure = 65;
+        let temperature = 45;
+        let steamOutput = 50;
+
+        // Create steam particles
+        function createSteamParticles() {
+            const vents = ['steamVent1', 'steamVent2'];
+            vents.forEach(ventId => {
+                const vent = document.getElementById(ventId);
+                setInterval(() => {
+                    if (systemActive) {
+                        const particle = document.createElement('div');
+                        particle.className = 'steam-particle';
+                        particle.style.width = Math.random() * 15 + 5 + 'px';
+                        particle.style.height = particle.style.width;
+                        particle.style.left = Math.random() * 30 + 'px';
+                        particle.style.bottom = '0px';
+                        particle.style.animationDuration = (Math.random() * 1 + 1.5) + 's';
+                        vent.appendChild(particle);
+
+                        setTimeout(() => particle.remove(), 2000);
+                    }
+                }, 200);
+            });
+        }
+
+        // Update gauges
+        function updateGauges() {
+            const pressureNeedle = document.getElementById('pressureNeedle');
+            const tempNeedle = document.getElementById('tempNeedle');
+            const steamNeedle = document.getElementById('steamNeedle');
+            const pressureBar = document.getElementById('pressureBar');
+
+            // Convert values to rotation angles (-90 to 90 degrees range)
+            const pressureAngle = (pressure / 100) * 180 - 90;
+            const tempAngle = (temperature / 100) * 180 - 90;
+            const steamAngle = (steamOutput / 100) * 180 - 90;
+
+            pressureNeedle.style.transform = `rotate(${pressureAngle}deg)`;
+            tempNeedle.style.transform = `rotate(${tempAngle}deg)`;
+            steamNeedle.style.transform = `rotate(${steamAngle}deg)`;
+            pressureBar.style.width = `${pressure}%`;
+
+            // Update power display
+            document.getElementById('powerValue').textContent = powerLevel;
+
+            // Update status lights based on values
+            const heatLight = document.getElementById('heatLight');
+            const alertLight = document.getElementById('alertLight');
+
+            if (temperature > 80) {
+                heatLight.className = 'indicator-light danger mx-auto';
+            } else if (temperature > 50) {
+                heatLight.className = 'indicator-light warning mx-auto';
+            } else {
+                heatLight.className = 'indicator-light active mx-auto';
+            }
+
+            if (pressure > 85 || temperature > 90) {
+                alertLight.className = 'indicator-light danger mx-auto';
+                document.getElementById('systemStatus').textContent = '⚠ WARNING ⚠';
+                document.getElementById('systemStatus').style.color = '#ff3333';
+            } else {
+                alertLight.className = 'indicator-light mx-auto';
+                if (systemActive) {
+                    document.getElementById('systemStatus').textContent = 'SYSTEM NOMINAL';
+                    document.getElementById('systemStatus').style.color = '#00ff88';
+                }
+            }
+        }
+
+        // Random fluctuations
+        function fluctuateValues() {
+            if (systemActive) {
+                pressure += (Math.random() - 0.5) * 5;
+                temperature += (Math.random() - 0.5) * 3;
+                steamOutput += (Math.random() - 0.5) * 4;
+
+                pressure = Math.max(20, Math.min(95, pressure));
+                temperature = Math.max(20, Math.min(95, temperature));
+                steamOutput = Math.max(20, Math.min(95, steamOutput));
+
+                updateGauges();
+            }
+        }
+
+        // Control functions
+        function activateSystem() {
+            systemActive = true;
+            powerLevel = 75;
+            document.getElementById('powerLight').className = 'indicator-light active mx-auto';
+            document.getElementById('systemStatus').textContent = 'SYSTEM ACTIVATED';
+            document.getElementById('systemStatus').style.color = '#00ff88';
+
+            // Resume gear animations
+            document.querySelectorAll('.gear').forEach(gear => {
+                gear.style.animationPlayState = 'running';
+            });
+        }
+
+        function emergencyStop() {
+            systemActive = false;
+            powerLevel = 0;
+            pressure = 20;
+            temperature = 20;
+            steamOutput = 20;
+            document.getElementById('powerLight').className = 'indicator-light mx-auto';
+            document.getElementById('systemStatus').textContent = 'SYSTEM OFFLINE';
+            document.getElementById('systemStatus').style.color = '#ff6666';
+            updateGauges();
+
+            // Pause gear animations
+            document.querySelectorAll('.gear').forEach(gear => {
+                gear.style.animationPlayState = 'paused';
+            });
+        }
+
+        function boostPower() {
+            if (systemActive) {
+                powerLevel = Math.min(100, powerLevel + 15);
+                pressure = Math.min(95, pressure + 10);
+                temperature = Math.min(95, temperature + 8);
+                steamOutput = Math.min(95, steamOutput + 12);
+                document.getElementById('systemStatus').textContent = 'BOOST ENGAGED!';
+                document.getElementById('systemStatus').style.color = '#ffaa00';
+                updateGauges();
+
+                setTimeout(() => {
+                    if (systemActive) {
+                        document.getElementById('systemStatus').textContent = 'SYSTEM NOMINAL';
+                        document.getElementById('systemStatus').style.color = '#00ff88';
+                    }
+                }, 2000);
+            }
+        }
+
+        function rotateValve(valve) {
+            const currentRotation = valve.dataset.rotation || 0;
+            const newRotation = parseInt(currentRotation) + 60;
+            valve.style.transform = `rotate(${newRotation}deg)`;
+            valve.style.transition = 'transform 0.3s ease';
+            valve.dataset.rotation = newRotation;
+
+            // Affect system values
+            if (systemActive) {
+                steamOutput = Math.min(95, steamOutput + 5);
+                updateGauges();
+            }
+        }
+
+        function toggleLever(lever) {
+            const isUp = lever.dataset.up === 'true';
+            lever.style.transform = isUp ? 'rotate(-20deg)' : 'rotate(20deg)';
+            lever.dataset.up = !isUp;
+
+            // Affect power
+            if (systemActive) {
+                powerLevel = isUp ? 50 : 90;
+                pressure = isUp ? 50 : 80;
+                updateGauges();
+            }
+        }
+
+        // Initialize
+        createSteamParticles();
+        updateGauges();
+        setInterval(fluctuateValues, 1000);
+
+        // Add ambient sounds indicator
+        console.log('🔊 Imagine the hissing of steam and clanking of gears...');
+    </script>
+</body>
+
+</html>
