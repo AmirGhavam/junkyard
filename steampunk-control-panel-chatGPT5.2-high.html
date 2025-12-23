@@ -1,0 +1,1280 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Steamworks Control Panel</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        :root {
+            --brass-1: #d6b15a;
+            --brass-2: #a97b2d;
+            --brass-3: #f1d18b;
+            --iron-1: #1a1b1f;
+            --iron-2: #2a2c33;
+            --wood-1: #2a1b12;
+            --wood-2: #3b2417;
+            --ink: #0c0c0e;
+            --paper: #f2e6c6;
+            --pressure: 45;
+            --gearSpeed: 4.2s;
+            --gearSpeed2: 5.6s;
+        }
+
+        /* Background: victorian industrial / wood + grime */
+        body {
+            background:
+                radial-gradient(1200px 900px at 20% 10%, rgba(255, 200, 120, .15), transparent 60%),
+                radial-gradient(900px 700px at 80% 30%, rgba(255, 220, 150, .10), transparent 55%),
+                linear-gradient(180deg, rgba(0, 0, 0, .55), rgba(0, 0, 0, .75)),
+                repeating-linear-gradient(90deg, rgba(255, 255, 255, .04) 0 2px, rgba(0, 0, 0, .06) 2px 6px),
+                linear-gradient(135deg, var(--wood-1), var(--wood-2));
+            color: #f7f3e7;
+        }
+
+        /* subtle noise overlay */
+        .noise::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            opacity: .14;
+            background-image:
+                radial-gradient(circle at 10% 20%, rgba(255, 255, 255, .12) 0 1px, transparent 2px),
+                radial-gradient(circle at 60% 30%, rgba(0, 0, 0, .30) 0 1px, transparent 2px),
+                radial-gradient(circle at 30% 80%, rgba(255, 255, 255, .10) 0 1px, transparent 2px);
+            background-size: 180px 180px, 210px 210px, 160px 160px;
+            mix-blend-mode: overlay;
+            filter: contrast(110%) blur(.2px);
+        }
+
+        .panel {
+            background:
+                radial-gradient(900px 420px at 35% 0%, rgba(255, 220, 150, .20), transparent 60%),
+                linear-gradient(180deg, rgba(0, 0, 0, .10), rgba(0, 0, 0, .25)),
+                linear-gradient(135deg, rgba(214, 177, 90, .18), rgba(169, 123, 45, .10)),
+                repeating-linear-gradient(45deg, rgba(255, 255, 255, .03) 0 2px, rgba(0, 0, 0, .05) 2px 7px),
+                linear-gradient(180deg, #221a14, #171218);
+            border: 2px solid rgba(241, 209, 139, .40);
+            box-shadow:
+                0 25px 70px rgba(0, 0, 0, .55),
+                inset 0 1px 0 rgba(255, 255, 255, .08),
+                inset 0 -1px 0 rgba(0, 0, 0, .35);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* rivets */
+        .panel::after {
+            content: "";
+            position: absolute;
+            inset: 10px;
+            border-radius: 18px;
+            pointer-events: none;
+            background:
+                radial-gradient(circle, rgba(0, 0, 0, .25) 0 2px, rgba(255, 255, 255, .10) 3px, transparent 4px) 0 0/ 48px 48px;
+            opacity: .45;
+            mix-blend-mode: overlay;
+            filter: blur(.2px);
+            mask:
+                linear-gradient(#000 0 0) content-box,
+                linear-gradient(#000 0 0);
+            -webkit-mask:
+                linear-gradient(#000 0 0) content-box,
+                linear-gradient(#000 0 0);
+            padding: 12px;
+            box-sizing: border-box;
+            border-radius: 22px;
+        }
+
+        .brass {
+            background:
+                radial-gradient(220px 180px at 30% 20%, rgba(255, 255, 255, .30), transparent 60%),
+                linear-gradient(135deg, var(--brass-3), var(--brass-1) 35%, var(--brass-2));
+            border: 1px solid rgba(0, 0, 0, .35);
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, .30),
+                inset 0 -10px 25px rgba(0, 0, 0, .22),
+                0 10px 25px rgba(0, 0, 0, .35);
+        }
+
+        .iron {
+            background:
+                radial-gradient(280px 220px at 30% 20%, rgba(255, 255, 255, .08), transparent 55%),
+                linear-gradient(135deg, var(--iron-2), var(--iron-1));
+            border: 1px solid rgba(255, 255, 255, .08);
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, .08),
+                inset 0 -12px 22px rgba(0, 0, 0, .35),
+                0 12px 30px rgba(0, 0, 0, .45);
+        }
+
+        .label-plate {
+            background:
+                radial-gradient(240px 150px at 20% 10%, rgba(255, 255, 255, .20), transparent 60%),
+                linear-gradient(180deg, rgba(0, 0, 0, .08), rgba(0, 0, 0, .20)),
+                linear-gradient(135deg, rgba(214, 177, 90, .25), rgba(169, 123, 45, .12));
+            border: 1px solid rgba(241, 209, 139, .35);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14);
+        }
+
+        .gauge-face {
+            background:
+                radial-gradient(180px 140px at 35% 30%, rgba(255, 255, 255, .28), transparent 55%),
+                radial-gradient(240px 180px at 50% 120%, rgba(0, 0, 0, .26), transparent 60%),
+                linear-gradient(180deg, rgba(255, 250, 235, .96), rgba(240, 228, 198, .92));
+            border: 1px solid rgba(0, 0, 0, .25);
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, .55),
+                inset 0 -18px 32px rgba(0, 0, 0, .10);
+        }
+
+        .glass {
+            background:
+                radial-gradient(140px 110px at 30% 25%, rgba(255, 255, 255, .45), transparent 55%),
+                radial-gradient(220px 180px at 50% 120%, rgba(0, 0, 0, .25), transparent 60%);
+            border: 1px solid rgba(255, 255, 255, .18);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, .20);
+            backdrop-filter: blur(2px);
+        }
+
+        .needle {
+            transform-origin: 50% 72%;
+            transition: transform 120ms linear;
+        }
+
+        .tick {
+            stroke: rgba(0, 0, 0, .65);
+            stroke-width: 2;
+            stroke-linecap: round;
+            opacity: .75;
+        }
+
+        .tick.minor {
+            opacity: .45;
+            stroke-width: 1.4;
+        }
+
+        .engrave {
+            text-shadow: 0 1px 0 rgba(255, 255, 255, .22), 0 -1px 0 rgba(0, 0, 0, .35);
+        }
+
+        .gear-rot {
+            animation: gear var(--gearSpeed) linear infinite;
+            transform-origin: 50% 50%;
+            filter: drop-shadow(0 8px 10px rgba(0, 0, 0, .35));
+        }
+
+        .gear-rot.reverse {
+            animation-direction: reverse;
+            animation-duration: var(--gearSpeed2);
+        }
+
+        @keyframes gear {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .steam-layer {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+
+        .steam {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            background: radial-gradient(circle, rgba(255, 255, 255, .85), rgba(255, 255, 255, .0) 70%);
+            filter: blur(.2px);
+            opacity: .0;
+            transform: translate(-50%, -50%) scale(.7);
+            animation: puff var(--dur) ease-out forwards;
+            mix-blend-mode: screen;
+        }
+
+        @keyframes puff {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(.6);
+            }
+
+            10% {
+                opacity: .55;
+            }
+
+            100% {
+                opacity: 0;
+                transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(var(--s));
+            }
+        }
+
+        .switch {
+            --on: 0;
+            background:
+                radial-gradient(40px 30px at 30% 30%, rgba(255, 255, 255, .25), transparent 60%),
+                linear-gradient(180deg, rgba(255, 255, 255, .07), rgba(0, 0, 0, .25)),
+                linear-gradient(135deg, rgba(214, 177, 90, .25), rgba(169, 123, 45, .10));
+            border: 1px solid rgba(241, 209, 139, .35);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12);
+        }
+
+        .switch .handle {
+            transform: translateX(calc(var(--on) * 30px));
+            transition: transform 180ms ease;
+            background:
+                radial-gradient(22px 18px at 30% 30%, rgba(255, 255, 255, .35), transparent 60%),
+                linear-gradient(135deg, #f6e3b4, #c89a43, #8c6121);
+            border: 1px solid rgba(0, 0, 0, .35);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, .35), inset 0 1px 0 rgba(255, 255, 255, .25);
+        }
+
+        .lever-track {
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, .08), rgba(0, 0, 0, .35)),
+                linear-gradient(135deg, rgba(42, 44, 51, .9), rgba(26, 27, 31, .9));
+            border: 1px solid rgba(255, 255, 255, .10);
+            box-shadow: inset 0 10px 18px rgba(0, 0, 0, .35);
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 14px;
+            border-radius: 999px;
+            background: linear-gradient(90deg, rgba(214, 177, 90, .85), rgba(169, 123, 45, .25));
+            outline: none;
+            box-shadow: inset 0 3px 8px rgba(0, 0, 0, .35);
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 999px;
+            background:
+                radial-gradient(18px 14px at 30% 30%, rgba(255, 255, 255, .35), transparent 60%),
+                linear-gradient(135deg, #f6e3b4, #c89a43, #8c6121);
+            border: 1px solid rgba(0, 0, 0, .38);
+            box-shadow: 0 12px 18px rgba(0, 0, 0, .35), inset 0 1px 0 rgba(255, 255, 255, .25);
+            cursor: grab;
+        }
+
+        input[type=range]:active::-webkit-slider-thumb {
+            cursor: grabbing;
+        }
+
+        .knob {
+            touch-action: none;
+            user-select: none;
+            cursor: grab;
+        }
+
+        .knob:active {
+            cursor: grabbing;
+        }
+
+        .knob .cap {
+            background:
+                radial-gradient(80px 60px at 30% 25%, rgba(255, 255, 255, .35), transparent 60%),
+                linear-gradient(135deg, #f6e3b4, #c89a43, #8c6121);
+            border: 1px solid rgba(0, 0, 0, .45);
+            box-shadow:
+                inset 0 2px 0 rgba(255, 255, 255, .25),
+                inset 0 -16px 24px rgba(0, 0, 0, .25),
+                0 14px 26px rgba(0, 0, 0, .35);
+        }
+
+        .knob .indicator {
+            position: absolute;
+            left: 50%;
+            top: 12%;
+            width: 6px;
+            height: 18px;
+            border-radius: 999px;
+            background: rgba(20, 12, 6, .75);
+            box-shadow: 0 1px 0 rgba(255, 255, 255, .25);
+            transform: translateX(-50%);
+        }
+
+        .warning {
+            color: #2b1403;
+            background:
+                radial-gradient(120px 70px at 20% 20%, rgba(255, 255, 255, .25), transparent 60%),
+                linear-gradient(135deg, #ffd95b, #c47a09);
+            border: 1px solid rgba(0, 0, 0, .35);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), 0 10px 20px rgba(0, 0, 0, .35);
+        }
+
+        .mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
+
+        .serif {
+            font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+        }
+
+        .glow-high {
+            box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+            transition: box-shadow 250ms ease;
+        }
+
+        .glow-high.on {
+            box-shadow: 0 0 30px rgba(255, 160, 60, .20), inset 0 0 30px rgba(255, 160, 60, .10);
+        }
+
+        /* Reduce motion */
+        @media (prefers-reduced-motion: reduce) {
+            .gear-rot {
+                animation: none !important;
+            }
+
+            .needle {
+                transition: none !important;
+            }
+
+            .steam {
+                animation-duration: 10ms !important;
+            }
+        }
+    </style>
+</head>
+
+<body class="min-h-dvh">
+    <div class="relative noise">
+        <div class="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
+            <header class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-5">
+                <div>
+                    <h1 class="serif tracking-wide text-2xl sm:text-3xl text-[#f6e8c7] engrave">Steamworks Control Panel
+                    </h1>
+                    <p class="text-sm text-white/70">Brass gauges • pressure dials • gears • steam vents • Victorian
+                        industrial aesthetic</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="label-plate rounded-xl px-3 py-2">
+                        <div class="text-[11px] uppercase tracking-widest text-white/70">Console ID</div>
+                        <div class="mono text-sm">AURORA-9 / BOILER BAY</div>
+                    </div>
+                    <button id="btnBlowoff" class="warning rounded-xl px-4 py-3 font-semibold text-sm">Emergency
+                        Blowoff</button>
+                </div>
+            </header>
+
+            <main class="panel rounded-3xl p-4 sm:p-6">
+                <div class="steam-layer" id="steamLayer" aria-hidden="true"></div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
+                    <!-- Left column: gauges -->
+                    <section class="lg:col-span-4 space-y-4">
+                        <div class="iron rounded-2xl p-4 glow-high" id="leftBlock">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="label-plate rounded-xl px-3 py-2">
+                                    <div class="text-[11px] uppercase tracking-widest text-white/70">Instruments</div>
+                                    <div class="serif text-base text-[#f6e8c7]">Boiler Readouts</div>
+                                </div>
+                                <div class="text-xs text-white/60">Needles update live</div>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-4">
+                                <!-- Gauge: Pressure -->
+                                <div class="brass rounded-2xl p-3">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <div class="serif text-sm text-[#2a1a0c] font-semibold">Pressure</div>
+                                        <div class="mono text-xs text-[#2a1a0c]/80"><span id="readPressure">45</span>
+                                            PSI</div>
+                                    </div>
+                                    <div class="relative aspect-square rounded-2xl gauge-face">
+                                        <svg class="absolute inset-0 w-full h-full" viewBox="0 0 200 200" role="img"
+                                            aria-label="Pressure gauge">
+                                            <defs>
+                                                <radialGradient id="brassRing" cx="30%" cy="25%">
+                                                    <stop offset="0" stop-color="#ffe8b7" stop-opacity=".95" />
+                                                    <stop offset=".55" stop-color="#d6b15a" stop-opacity=".95" />
+                                                    <stop offset="1" stop-color="#8c6121" stop-opacity=".95" />
+                                                </radialGradient>
+                                            </defs>
+                                            <circle cx="100" cy="100" r="92" fill="url(#brassRing)" opacity=".95" />
+                                            <circle cx="100" cy="100" r="78" fill="rgba(244,232,206,.96)"
+                                                stroke="rgba(0,0,0,.25)" />
+                                            <g class="ticks" data-ticks="21" data-minor="3"></g>
+                                            <text x="100" y="86" text-anchor="middle" font-size="14"
+                                                fill="rgba(0,0,0,.75)" font-family="Georgia">PSI</text>
+                                            <text x="100" y="156" text-anchor="middle" font-size="10"
+                                                fill="rgba(0,0,0,.55)" font-family="ui-monospace, SFMono-Regular">SAFE
+                                                0–60</text>
+                                            <g class="needle" id="needlePressure">
+                                                <path d="M98 148 L102 148 L104 98 L100 56 L96 98 Z" fill="#3a1f0b"
+                                                    opacity=".95" />
+                                                <circle cx="100" cy="100" r="10" fill="#3a1f0b" />
+                                                <circle cx="100" cy="100" r="6" fill="#f6e3b4" opacity=".85" />
+                                            </g>
+                                            <circle cx="100" cy="100" r="74" fill="transparent"
+                                                stroke="rgba(0,0,0,.12)" />
+                                        </svg>
+                                        <div class="absolute inset-0 rounded-2xl glass"></div>
+                                    </div>
+                                </div>
+
+                                <!-- Gauge: Temperature -->
+                                <div class="brass rounded-2xl p-3">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <div class="serif text-sm text-[#2a1a0c] font-semibold">Boiler Temp</div>
+                                        <div class="mono text-xs text-[#2a1a0c]/80"><span id="readTemp">340</span> °C
+                                        </div>
+                                    </div>
+                                    <div class="relative aspect-square rounded-2xl gauge-face">
+                                        <svg class="absolute inset-0 w-full h-full" viewBox="0 0 200 200" role="img"
+                                            aria-label="Temperature gauge">
+                                            <circle cx="100" cy="100" r="92" fill="url(#brassRing)" opacity=".95" />
+                                            <circle cx="100" cy="100" r="78" fill="rgba(244,232,206,.96)"
+                                                stroke="rgba(0,0,0,.25)" />
+                                            <g class="ticks" data-ticks="21" data-minor="3"></g>
+                                            <text x="100" y="86" text-anchor="middle" font-size="14"
+                                                fill="rgba(0,0,0,.75)" font-family="Georgia">°C</text>
+                                            <text x="100" y="156" text-anchor="middle" font-size="10"
+                                                fill="rgba(0,0,0,.55)"
+                                                font-family="ui-monospace, SFMono-Regular">REDLINE 520</text>
+                                            <g class="needle" id="needleTemp">
+                                                <path d="M98 148 L102 148 L104 98 L100 56 L96 98 Z" fill="#3a1f0b"
+                                                    opacity=".95" />
+                                                <circle cx="100" cy="100" r="10" fill="#3a1f0b" />
+                                                <circle cx="100" cy="100" r="6" fill="#f6e3b4" opacity=".85" />
+                                            </g>
+                                            <circle cx="100" cy="100" r="74" fill="transparent"
+                                                stroke="rgba(0,0,0,.12)" />
+                                        </svg>
+                                        <div class="absolute inset-0 rounded-2xl glass"></div>
+                                    </div>
+                                </div>
+
+                                <!-- Gauge: RPM -->
+                                <div class="brass rounded-2xl p-3">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <div class="serif text-sm text-[#2a1a0c] font-semibold">Flywheel RPM</div>
+                                        <div class="mono text-xs text-[#2a1a0c]/80"><span id="readRpm">1360</span> RPM
+                                        </div>
+                                    </div>
+                                    <div class="relative aspect-square rounded-2xl gauge-face">
+                                        <svg class="absolute inset-0 w-full h-full" viewBox="0 0 200 200" role="img"
+                                            aria-label="RPM gauge">
+                                            <circle cx="100" cy="100" r="92" fill="url(#brassRing)" opacity=".95" />
+                                            <circle cx="100" cy="100" r="78" fill="rgba(244,232,206,.96)"
+                                                stroke="rgba(0,0,0,.25)" />
+                                            <g class="ticks" data-ticks="21" data-minor="3"></g>
+                                            <text x="100" y="86" text-anchor="middle" font-size="14"
+                                                fill="rgba(0,0,0,.75)" font-family="Georgia">RPM</text>
+                                            <text x="100" y="156" text-anchor="middle" font-size="10"
+                                                fill="rgba(0,0,0,.55)"
+                                                font-family="ui-monospace, SFMono-Regular">GOVERNED</text>
+                                            <g class="needle" id="needleRpm">
+                                                <path d="M98 148 L102 148 L104 98 L100 56 L96 98 Z" fill="#3a1f0b"
+                                                    opacity=".95" />
+                                                <circle cx="100" cy="100" r="10" fill="#3a1f0b" />
+                                                <circle cx="100" cy="100" r="6" fill="#f6e3b4" opacity=".85" />
+                                            </g>
+                                            <circle cx="100" cy="100" r="74" fill="transparent"
+                                                stroke="rgba(0,0,0,.12)" />
+                                        </svg>
+                                        <div class="absolute inset-0 rounded-2xl glass"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="iron rounded-2xl p-4">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="label-plate rounded-xl px-3 py-2">
+                                    <div class="text-[11px] uppercase tracking-widest text-white/70">Vent Stack</div>
+                                    <div class="serif text-base text-[#f6e8c7]">Steam Vents</div>
+                                </div>
+                                <div class="mono text-xs text-white/60">AUTO-PURGE</div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="brass rounded-2xl p-3 relative">
+                                    <div class="flex items-center justify-between">
+                                        <div class="serif text-sm text-[#2a1a0c] font-semibold">Port Vent</div>
+                                        <div class="mono text-xs text-[#2a1a0c]/80" id="ventPortState">IDLE</div>
+                                    </div>
+                                    <div class="mt-3 h-16 rounded-xl iron relative overflow-hidden">
+                                        <div class="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full"
+                                            style="background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.18), transparent 60%), linear-gradient(135deg, #2f323a, #15161b);
+                      box-shadow: inset 0 1px 0 rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.08);"></div>
+                                        <div class="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-8 rounded-md"
+                                            style="background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(0,0,0,.30)), linear-gradient(135deg, #3a3c44, #14151b); border:1px solid rgba(255,255,255,.08);">
+                                        </div>
+                                        <div class="absolute left-12 right-12 top-1/2 -translate-y-1/2 h-4 rounded-full"
+                                            style="background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(0,0,0,.35)), linear-gradient(135deg, #2a2c33, #15161b); border:1px solid rgba(255,255,255,.08);">
+                                        </div>
+                                        <div class="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full"
+                                            style="background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.20), transparent 60%), linear-gradient(135deg, #b7b7b7, #3a3a3a); border:1px solid rgba(0,0,0,.35);">
+                                        </div>
+                                    </div>
+                                    <div class="mono text-[11px] text-[#2a1a0c]/70 mt-2">Vent ID: P-12</div>
+                                    <div class="absolute -right-2 -top-2 brass rounded-full w-7 h-7"
+                                        style="box-shadow: inset 0 1px 0 rgba(255,255,255,.25);"></div>
+                                </div>
+
+                                <div class="brass rounded-2xl p-3 relative">
+                                    <div class="flex items-center justify-between">
+                                        <div class="serif text-sm text-[#2a1a0c] font-semibold">Starboard Vent</div>
+                                        <div class="mono text-xs text-[#2a1a0c]/80" id="ventStarState">IDLE</div>
+                                    </div>
+                                    <div class="mt-3 h-16 rounded-xl iron relative overflow-hidden">
+                                        <div class="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full"
+                                            style="background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.18), transparent 60%), linear-gradient(135deg, #2f323a, #15161b);
+                      box-shadow: inset 0 1px 0 rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.08);"></div>
+                                        <div class="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-8 rounded-md"
+                                            style="background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(0,0,0,.30)), linear-gradient(135deg, #3a3c44, #14151b); border:1px solid rgba(255,255,255,.08);">
+                                        </div>
+                                        <div class="absolute left-12 right-12 top-1/2 -translate-y-1/2 h-4 rounded-full"
+                                            style="background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(0,0,0,.35)), linear-gradient(135deg, #2a2c33, #15161b); border:1px solid rgba(255,255,255,.08);">
+                                        </div>
+                                        <div class="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full"
+                                            style="background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.20), transparent 60%), linear-gradient(135deg, #b7b7b7, #3a3a3a); border:1px solid rgba(0,0,0,.35);">
+                                        </div>
+                                    </div>
+                                    <div class="mono text-[11px] text-[#2a1a0c]/70 mt-2">Vent ID: S-47</div>
+                                    <div class="absolute -right-2 -top-2 brass rounded-full w-7 h-7"
+                                        style="box-shadow: inset 0 1px 0 rgba(255,255,255,.25);"></div>
+                                </div>
+                            </div>
+
+                            <div class="mt-4">
+                                <div class="flex items-center justify-between mb-2">
+                                    <div class="serif text-sm">Manual Vent Valve</div>
+                                    <div class="mono text-xs text-white/70"><span id="readVent">0</span>%</div>
+                                </div>
+                                <div class="lever-track rounded-2xl p-3">
+                                    <input id="ventValve" type="range" min="0" max="100" value="0"
+                                        aria-label="Manual vent valve" />
+                                    <div class="mt-2 flex items-center justify-between text-[11px] text-white/60">
+                                        <span>SEALED</span><span>BLEED</span><span>FULL OPEN</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Center: big dial + gears -->
+                    <section class="lg:col-span-5 space-y-4">
+                        <div class="iron rounded-2xl p-4 glow-high" id="centerBlock">
+                            <div class="flex items-start justify-between gap-3 mb-3">
+                                <div class="label-plate rounded-xl px-3 py-2">
+                                    <div class="text-[11px] uppercase tracking-widest text-white/70">Primary Control
+                                    </div>
+                                    <div class="serif text-base text-[#f6e8c7]">Main Pressure Regulator</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-xs text-white/60">Target Pressure</div>
+                                    <div class="mono text-lg"><span id="readTarget">45</span> PSI</div>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+                                <div class="relative">
+                                    <div class="brass rounded-3xl p-4">
+                                        <div class="relative aspect-square rounded-3xl gauge-face" id="bigDialWrap">
+                                            <svg class="absolute inset-0 w-full h-full" viewBox="0 0 240 240" role="img"
+                                                aria-label="Main pressure dial">
+                                                <defs>
+                                                    <radialGradient id="ring" cx="30%" cy="22%">
+                                                        <stop offset="0" stop-color="#ffe8b7" stop-opacity=".96" />
+                                                        <stop offset=".55" stop-color="#d6b15a" stop-opacity=".96" />
+                                                        <stop offset="1" stop-color="#8c6121" stop-opacity=".96" />
+                                                    </radialGradient>
+                                                </defs>
+                                                <circle cx="120" cy="120" r="112" fill="url(#ring)" opacity=".98" />
+                                                <circle cx="120" cy="120" r="95" fill="rgba(244,232,206,.98)"
+                                                    stroke="rgba(0,0,0,.22)" />
+                                                <path d="M38 150 A92 92 0 0 0 202 150" fill="none"
+                                                    stroke="rgba(0,0,0,.10)" stroke-width="14" stroke-linecap="round" />
+                                                <g class="ticks" data-ticks="31" data-minor="4" data-view="240"></g>
+                                                <text x="120" y="96" text-anchor="middle" font-size="16"
+                                                    fill="rgba(0,0,0,.78)" font-family="Georgia">PRESSURE</text>
+                                                <text x="120" y="116" text-anchor="middle" font-size="11"
+                                                    fill="rgba(0,0,0,.55)"
+                                                    font-family="ui-monospace, SFMono-Regular">REGULATOR</text>
+                                                <g class="needle" id="needleBig">
+                                                    <path d="M116 182 L124 182 L127 124 L120 52 L113 124 Z"
+                                                        fill="#3a1f0b" opacity=".95" />
+                                                    <circle cx="120" cy="120" r="12" fill="#3a1f0b" />
+                                                    <circle cx="120" cy="120" r="7" fill="#f6e3b4" opacity=".88" />
+                                                </g>
+                                                <text x="120" y="176" text-anchor="middle" font-size="10"
+                                                    fill="rgba(0,0,0,.55)"
+                                                    font-family="ui-monospace, SFMono-Regular">0</text>
+                                                <text x="62" y="169" text-anchor="middle" font-size="10"
+                                                    fill="rgba(0,0,0,.55)"
+                                                    font-family="ui-monospace, SFMono-Regular">25</text>
+                                                <text x="178" y="169" text-anchor="middle" font-size="10"
+                                                    fill="rgba(0,0,0,.55)"
+                                                    font-family="ui-monospace, SFMono-Regular">75</text>
+                                                <text x="120" y="193" text-anchor="middle" font-size="10"
+                                                    fill="rgba(0,0,0,.55)"
+                                                    font-family="ui-monospace, SFMono-Regular">100</text>
+                                                <circle cx="120" cy="120" r="90" fill="transparent"
+                                                    stroke="rgba(0,0,0,.10)" />
+                                            </svg>
+                                            <div class="absolute inset-0 rounded-3xl glass"></div>
+
+                                            <!-- draggable knob overlay -->
+                                            <div class="absolute inset-0 flex items-center justify-center">
+                                                <div id="knob" class="knob relative w-28 h-28 sm:w-32 sm:h-32">
+                                                    <div class="cap absolute inset-0 rounded-full"></div>
+                                                    <div class="indicator"></div>
+                                                    <div class="absolute inset-0 rounded-full"
+                                                        style="box-shadow: inset 0 0 0 2px rgba(0,0,0,.22);"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="mt-3 flex items-center justify-between">
+                                            <div class="mono text-xs text-[#2a1a0c]/80">DRAG KNOB</div>
+                                            <div class="mono text-xs text-[#2a1a0c]/80">RANGE 0–100 PSI</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Gears + readout -->
+                                <div class="space-y-4">
+                                    <div class="brass rounded-3xl p-4">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <div class="serif text-sm text-[#2a1a0c] font-semibold">Gear Train</div>
+                                            <div class="mono text-xs text-[#2a1a0c]/80">SYNCED</div>
+                                        </div>
+
+                                        <div class="relative rounded-2xl iron p-3 overflow-hidden"
+                                            style="min-height: 210px;">
+                                            <div class="absolute inset-0" style="background:
+                        radial-gradient(220px 180px at 30% 25%, rgba(255,255,255,.06), transparent 55%),
+                        repeating-linear-gradient(0deg, rgba(255,255,255,.04) 0 1px, rgba(0,0,0,.08) 1px 6px);
+                        opacity:.85;"></div>
+
+                                            <svg class="relative w-full h-[190px]" viewBox="0 0 420 220"
+                                                aria-label="Rotating gears" role="img">
+                                                <defs>
+                                                    <linearGradient id="steel" x1="0" x2="1">
+                                                        <stop offset="0" stop-color="#d0d2d6" stop-opacity=".55" />
+                                                        <stop offset=".55" stop-color="#6c707a" stop-opacity=".65" />
+                                                        <stop offset="1" stop-color="#2a2c33" stop-opacity=".85" />
+                                                    </linearGradient>
+                                                    <linearGradient id="steel2" x1="1" x2="0">
+                                                        <stop offset="0" stop-color="#f1d18b" stop-opacity=".35" />
+                                                        <stop offset=".55" stop-color="#6c707a" stop-opacity=".70" />
+                                                        <stop offset="1" stop-color="#1a1b1f" stop-opacity=".90" />
+                                                    </linearGradient>
+                                                </defs>
+                                                <g transform="translate(150 120)">
+                                                    <g class="gear-rot" id="gear1">
+                                                        <path id="gearPath1" d="" fill="url(#steel)"
+                                                            stroke="rgba(0,0,0,.45)" stroke-width="2" />
+                                                        <circle r="24" fill="rgba(0,0,0,.35)" />
+                                                        <circle r="10" fill="rgba(241,209,139,.75)" />
+                                                    </g>
+                                                </g>
+                                                <g transform="translate(270 120)">
+                                                    <g class="gear-rot reverse" id="gear2">
+                                                        <path id="gearPath2" d="" fill="url(#steel2)"
+                                                            stroke="rgba(0,0,0,.45)" stroke-width="2" />
+                                                        <circle r="18" fill="rgba(0,0,0,.35)" />
+                                                        <circle r="8" fill="rgba(241,209,139,.75)" />
+                                                    </g>
+                                                </g>
+
+                                                <!-- pipes -->
+                                                <path d="M40 180 C80 160, 110 164, 140 152" fill="none"
+                                                    stroke="rgba(241,209,139,.25)" stroke-width="12"
+                                                    stroke-linecap="round" />
+                                                <path d="M360 180 C320 160, 300 164, 280 152" fill="none"
+                                                    stroke="rgba(241,209,139,.20)" stroke-width="12"
+                                                    stroke-linecap="round" />
+                                                <circle cx="40" cy="180" r="10" fill="rgba(241,209,139,.30)" />
+                                                <circle cx="360" cy="180" r="10" fill="rgba(241,209,139,.25)" />
+                                            </svg>
+
+                                            <div class="relative mt-2 grid grid-cols-3 gap-2">
+                                                <div class="label-plate rounded-xl px-3 py-2">
+                                                    <div class="text-[11px] uppercase tracking-widest text-white/70">
+                                                        Load</div>
+                                                    <div class="mono" id="readLoad">34%</div>
+                                                </div>
+                                                <div class="label-plate rounded-xl px-3 py-2">
+                                                    <div class="text-[11px] uppercase tracking-widest text-white/70">
+                                                        Torque</div>
+                                                    <div class="mono" id="readTorque">0.82</div>
+                                                </div>
+                                                <div class="label-plate rounded-xl px-3 py-2">
+                                                    <div class="text-[11px] uppercase tracking-widest text-white/70">
+                                                        Status</div>
+                                                    <div class="mono" id="readStatus">STEADY</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="iron rounded-2xl p-4">
+                                        <div class="flex items-center justify-between">
+                                            <div class="label-plate rounded-xl px-3 py-2">
+                                                <div class="text-[11px] uppercase tracking-widest text-white/70">Runic
+                                                    Telemetry</div>
+                                                <div class="serif text-base text-[#f6e8c7]">Operator Log</div>
+                                            </div>
+                                            <div class="mono text-xs text-white/60" id="clock">--:--:--</div>
+                                        </div>
+                                        <div class="mt-3 rounded-2xl bg-black/45 border border-white/10 p-3 mono text-xs leading-relaxed"
+                                            style="min-height: 126px;">
+                                            <div id="log" class="whitespace-pre-wrap"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Right column: switches -->
+                    <section class="lg:col-span-3 space-y-4">
+                        <div class="iron rounded-2xl p-4 glow-high" id="rightBlock">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="label-plate rounded-xl px-3 py-2">
+                                    <div class="text-[11px] uppercase tracking-widest text-white/70">Mechanisms</div>
+                                    <div class="serif text-base text-[#f6e8c7]">Auxiliary Controls</div>
+                                </div>
+                                <div class="mono text-xs text-white/60">MK-IV</div>
+                            </div>
+
+                            <div class="space-y-3">
+                                <div class="brass rounded-2xl p-3">
+                                    <div class="flex items-center justify-between">
+                                        <div class="serif text-sm text-[#2a1a0c] font-semibold">Ignition Coil</div>
+                                        <div class="mono text-xs text-[#2a1a0c]/80" id="readIgnition">OFF</div>
+                                    </div>
+                                    <div class="mt-3 switch rounded-2xl p-2 flex items-center justify-between"
+                                        role="group" aria-label="Ignition switch">
+                                        <button
+                                            class="px-3 py-2 rounded-xl bg-black/20 text-[#2a1a0c] text-xs font-semibold"
+                                            id="btnIgnition">Toggle</button>
+                                        <div class="w-16 h-10 rounded-2xl bg-black/20 border border-black/25 relative overflow-hidden"
+                                            id="swIgnition" aria-label="Ignition state" title="Ignition">
+                                            <div class="handle absolute top-1 left-1 w-8 h-8 rounded-xl"></div>
+                                        </div>
+                                    </div>
+                                    <div class="mono text-[11px] text-[#2a1a0c]/70 mt-2">Feeds governor & flywheel</div>
+                                </div>
+
+                                <div class="brass rounded-2xl p-3">
+                                    <div class="flex items-center justify-between">
+                                        <div class="serif text-sm text-[#2a1a0c] font-semibold">Governor</div>
+                                        <div class="mono text-xs text-[#2a1a0c]/80" id="readGovernor">MODERATE</div>
+                                    </div>
+                                    <div class="mt-3 lever-track rounded-2xl p-3">
+                                        <input id="governor" type="range" min="0" max="100" value="55"
+                                            aria-label="Governor" />
+                                        <div class="mt-2 flex items-center justify-between text-[11px] text-white/60">
+                                            <span>LOOSE</span><span>BALANCED</span><span>TIGHT</span>
+                                        </div>
+                                    </div>
+                                    <div class="mono text-[11px] text-[#2a1a0c]/70 mt-2">Stabilizes oscillations</div>
+                                </div>
+
+                                <div class="brass rounded-2xl p-3">
+                                    <div class="flex items-center justify-between">
+                                        <div class="serif text-sm text-[#2a1a0c] font-semibold">Condensor</div>
+                                        <div class="mono text-xs text-[#2a1a0c]/80" id="readCondensor">OPEN</div>
+                                    </div>
+                                    <div class="mt-3 flex items-center gap-3">
+                                        <label class="flex items-center gap-2 text-[#2a1a0c] text-sm">
+                                            <input id="condensor" type="checkbox" checked class="accent-[#8c6121]" />
+                                            Open loop
+                                        </label>
+                                    </div>
+                                    <div class="mono text-[11px] text-[#2a1a0c]/70 mt-2">Affects temp & steam density
+                                    </div>
+                                </div>
+
+                                <div class="iron rounded-2xl p-4">
+                                    <div class="flex items-center justify-between">
+                                        <div class="text-xs text-white/60">Instruction</div>
+                                        <div class="mono text-xs text-white/60">F1</div>
+                                    </div>
+                                    <p class="mt-2 text-sm text-white/80 leading-snug">
+                                        Drag the brass knob to set target pressure. Open the vent valve to bleed off
+                                        steam. The emergency blowoff triggers a short release.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="iron rounded-2xl p-4">
+                            <div class="flex items-center justify-between">
+                                <div class="label-plate rounded-xl px-3 py-2">
+                                    <div class="text-[11px] uppercase tracking-widest text-white/70">Plate</div>
+                                    <div class="serif text-base text-[#f6e8c7]">Maker’s Mark</div>
+                                </div>
+                                <div class="mono text-xs text-white/60">EST. 1887</div>
+                            </div>
+                            <div class="mt-3 label-plate rounded-2xl p-3">
+                                <div class="serif text-[#f6e8c7]">Harrington & Sons</div>
+                                <div class="text-sm text-white/75">Royal Steamworks • Manchester Works</div>
+                                <div class="mono text-xs text-white/60 mt-1">Serial: HRS-9021-VALVE</div>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </main>
+
+            <footer class="mt-5 text-xs text-white/55">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div class="mono">Tip: Pressure above 72 PSI will trigger auto-purge vents and faster gear rotation.
+                    </div>
+                    <div class="mono">Reduced motion respected via <code>prefers-reduced-motion</code>.</div>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <script>
+        // --- Utilities ---
+        const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+        const lerp = (a, b, t) => a + (b - a) * t;
+        const fmt = (n, d = 0) => Number(n).toFixed(d);
+
+        // Map a value to a dial sweep (-140..140 degrees)
+        const valueToDeg = (v, min = 0, max = 100) => {
+            const t = (clamp(v, min, max) - min) / (max - min);
+            return lerp(-140, 140, t);
+        };
+
+        // --- Tick generation for gauges (SVG) ---
+        function buildTicks() {
+            document.querySelectorAll('svg .ticks').forEach(g => {
+                const ticks = parseInt(g.getAttribute('data-ticks') || '21', 10);
+                const minorEvery = parseInt(g.getAttribute('data-minor') || '3', 10);
+                const view = parseInt(g.getAttribute('data-view') || '200', 10);
+                const cx = view / 2, cy = view / 2;
+                const rOuter = view === 240 ? 92 : 72;
+                const rInnerMajor = rOuter - (view === 240 ? 18 : 14);
+                const rInnerMinor = rOuter - (view === 240 ? 12 : 10);
+
+                // clear
+                while (g.firstChild) g.removeChild(g.firstChild);
+
+                for (let i = 0; i < ticks; i++) {
+                    const t = i / (ticks - 1);
+                    const deg = lerp(-140, 140, t);
+                    const rad = (deg - 90) * Math.PI / 180;
+                    const isMajor = i % minorEvery === 0;
+                    const rIn = isMajor ? rInnerMajor : rInnerMinor;
+                    const x1 = cx + Math.cos(rad) * rIn;
+                    const y1 = cy + Math.sin(rad) * rIn;
+                    const x2 = cx + Math.cos(rad) * rOuter;
+                    const y2 = cy + Math.sin(rad) * rOuter;
+
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', x1);
+                    line.setAttribute('y1', y1);
+                    line.setAttribute('x2', x2);
+                    line.setAttribute('y2', y2);
+                    line.setAttribute('class', 'tick' + (isMajor ? '' : ' minor'));
+                    g.appendChild(line);
+                }
+            });
+        }
+
+        // --- Gear path generation (SVG) ---
+        function gearPath(teeth = 12, rInner = 42, rOuter = 54, hole = 0) {
+            const pts = [];
+            const steps = teeth * 2;
+            for (let i = 0; i < steps; i++) {
+                const a = (i / steps) * Math.PI * 2;
+                const r = i % 2 === 0 ? rOuter : rInner;
+                pts.push([Math.cos(a) * r, Math.sin(a) * r]);
+            }
+            let d = `M ${pts[0][0].toFixed(2)} ${pts[0][1].toFixed(2)}`;
+            for (let i = 1; i < pts.length; i++) d += ` L ${pts[i][0].toFixed(2)} ${pts[i][1].toFixed(2)}`;
+            d += ' Z';
+            return d;
+        }
+
+        function buildGears() {
+            const p1 = document.getElementById('gearPath1');
+            const p2 = document.getElementById('gearPath2');
+            p1.setAttribute('d', gearPath(14, 48, 64));
+            p2.setAttribute('d', gearPath(10, 36, 50));
+        }
+
+        // --- Steam particles ---
+        const steamLayer = document.getElementById('steamLayer');
+        function spawnSteam(x, y, intensity = 1) {
+            const count = Math.round(2 + intensity * 5);
+            for (let i = 0; i < count; i++) {
+                const s = document.createElement('div');
+                s.className = 'steam';
+                const dx = (Math.random() * 2 - 1) * (60 + intensity * 40);
+                const dy = - (70 + Math.random() * 90 + intensity * 60);
+                const sc = 1.3 + Math.random() * 1.8 + intensity * 0.8;
+                const dur = (600 + Math.random() * 900 + intensity * 500);
+                s.style.left = x + 'px';
+                s.style.top = y + 'px';
+                s.style.setProperty('--dx', dx.toFixed(1) + 'px');
+                s.style.setProperty('--dy', dy.toFixed(1) + 'px');
+                s.style.setProperty('--s', sc.toFixed(2));
+                s.style.setProperty('--dur', dur.toFixed(0) + 'ms');
+                steamLayer.appendChild(s);
+                s.addEventListener('animationend', () => s.remove());
+            }
+        }
+
+        function elementCenter(el) {
+            const r = el.getBoundingClientRect();
+            return { x: r.left + r.width / 2, y: r.top + r.height / 2, rect: r };
+        }
+
+        // --- State ---
+        const state = {
+            pressure: 45,
+            target: 45,
+            temp: 340,
+            rpm: 1360,
+            ignition: false,
+            governor: 55,
+            ventValve: 0,
+            condensorOpen: true,
+            blowoff: 0,
+            logQueue: [],
+        };
+
+        // --- DOM refs ---
+        const readPressure = document.getElementById('readPressure');
+        const readTemp = document.getElementById('readTemp');
+        const readRpm = document.getElementById('readRpm');
+        const readTarget = document.getElementById('readTarget');
+        const readVent = document.getElementById('readVent');
+        const readLoad = document.getElementById('readLoad');
+        const readTorque = document.getElementById('readTorque');
+        const readStatus = document.getElementById('readStatus');
+        const readIgnition = document.getElementById('readIgnition');
+        const readGovernor = document.getElementById('readGovernor');
+        const readCondensor = document.getElementById('readCondensor');
+        const ventPortState = document.getElementById('ventPortState');
+        const ventStarState = document.getElementById('ventStarState');
+
+        const needlePressure = document.getElementById('needlePressure');
+        const needleTemp = document.getElementById('needleTemp');
+        const needleRpm = document.getElementById('needleRpm');
+        const needleBig = document.getElementById('needleBig');
+
+        const knob = document.getElementById('knob');
+        const ventValve = document.getElementById('ventValve');
+        const governor = document.getElementById('governor');
+        const condensor = document.getElementById('condensor');
+        const btnIgnition = document.getElementById('btnIgnition');
+        const btnBlowoff = document.getElementById('btnBlowoff');
+
+        const leftBlock = document.getElementById('leftBlock');
+        const centerBlock = document.getElementById('centerBlock');
+        const rightBlock = document.getElementById('rightBlock');
+
+        // --- Logging ---
+        const logEl = document.getElementById('log');
+        function pushLog(line) {
+            const t = new Date();
+            const ts = `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}:${String(t.getSeconds()).padStart(2, '0')}`;
+            state.logQueue.push(`[${ts}] ${line}`);
+            if (state.logQueue.length > 80) state.logQueue.shift();
+        }
+
+        function renderLog() {
+            logEl.textContent = state.logQueue.slice(-10).join('\n');
+        }
+
+        // --- Controls ---
+        function setTargetPressure(v) {
+            state.target = clamp(v, 0, 100);
+            readTarget.textContent = fmt(state.target, 0);
+            const deg = valueToDeg(state.target);
+            knob.style.transform = `rotate(${deg}deg)`;
+            pushLog(`Regulator set to ${fmt(state.target, 0)} PSI.`);
+            renderLog();
+        }
+
+        // knob drag
+        (function setupKnob() {
+            let dragging = false;
+            const sweepMin = -140, sweepMax = 140;
+
+            const updateFromPointer = (clientX, clientY) => {
+                const c = elementCenter(knob);
+                const angle = Math.atan2(clientY - c.y, clientX - c.x) * 180 / Math.PI; // -180..180
+                // Convert to dial degrees where up is -90.
+                // We'll map to [-140..140] around upward direction.
+                let deg = angle + 90;
+                // normalize to [-180..180]
+                deg = ((deg + 180) % 360) - 180;
+                deg = clamp(deg, sweepMin, sweepMax);
+                const t = (deg - sweepMin) / (sweepMax - sweepMin);
+                const v = lerp(0, 100, t);
+                setTargetPressure(v);
+            };
+
+            knob.addEventListener('pointerdown', (e) => {
+                dragging = true;
+                knob.setPointerCapture(e.pointerId);
+                updateFromPointer(e.clientX, e.clientY);
+            });
+            knob.addEventListener('pointermove', (e) => {
+                if (!dragging) return;
+                updateFromPointer(e.clientX, e.clientY);
+            });
+            knob.addEventListener('pointerup', () => { dragging = false; });
+            knob.addEventListener('pointercancel', () => { dragging = false; });
+
+            // keyboard fallback
+            knob.tabIndex = 0;
+            knob.setAttribute('role', 'slider');
+            knob.setAttribute('aria-valuemin', '0');
+            knob.setAttribute('aria-valuemax', '100');
+            knob.setAttribute('aria-label', 'Pressure regulator knob');
+            knob.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') setTargetPressure(state.target - 2);
+                if (e.key === 'ArrowRight' || e.key === 'ArrowUp') setTargetPressure(state.target + 2);
+                if (e.key === 'Home') setTargetPressure(0);
+                if (e.key === 'End') setTargetPressure(100);
+            });
+        })();
+
+        ventValve.addEventListener('input', () => {
+            state.ventValve = Number(ventValve.value);
+            readVent.textContent = String(state.ventValve);
+        });
+
+        governor.addEventListener('input', () => {
+            state.governor = Number(governor.value);
+            const g = state.governor;
+            readGovernor.textContent = g < 34 ? 'LOOSE' : g < 67 ? 'BALANCED' : 'TIGHT';
+        });
+
+        condensor.addEventListener('change', () => {
+            state.condensorOpen = condensor.checked;
+            readCondensor.textContent = state.condensorOpen ? 'OPEN' : 'CLOSED';
+            pushLog(state.condensorOpen ? 'Condensor opened (cooling improved).' : 'Condensor closed (steam thickens).');
+            renderLog();
+        });
+
+        btnIgnition.addEventListener('click', () => {
+            state.ignition = !state.ignition;
+            readIgnition.textContent = state.ignition ? 'ON' : 'OFF';
+            const sw = document.getElementById('swIgnition');
+            sw.style.setProperty('--on', state.ignition ? 1 : 0);
+            pushLog(state.ignition ? 'Ignition coil engaged.' : 'Ignition coil disengaged.');
+            renderLog();
+        });
+
+        btnBlowoff.addEventListener('click', () => {
+            state.blowoff = 1;
+            pushLog('EMERGENCY BLOWOFF: release sequence initiated.');
+            renderLog();
+            // Burst of steam from approximate vent locations (relative to viewport)
+            const p = elementCenter(document.getElementById('bigDialWrap'));
+            spawnSteam(p.x - 160, p.y + 170, 2.6);
+            spawnSteam(p.x + 180, p.y + 170, 2.6);
+        });
+
+        // --- Telemetry + animation loop ---
+        function setNeedle(el, deg) {
+            el.style.transform = `rotate(${deg}deg)`;
+        }
+
+        function updateGearSpeed(pressure) {
+            // higher pressure -> faster gears
+            const s1 = lerp(7.2, 1.6, pressure / 100);
+            const s2 = lerp(9.5, 2.2, pressure / 100);
+            document.documentElement.style.setProperty('--gearSpeed', s1.toFixed(2) + 's');
+            document.documentElement.style.setProperty('--gearSpeed2', s2.toFixed(2) + 's');
+        }
+
+        function updateWarningGlow(pressure) {
+            const high = pressure >= 72;
+            leftBlock.classList.toggle('on', high);
+            centerBlock.classList.toggle('on', high);
+            rightBlock.classList.toggle('on', high);
+
+            // Status
+            readStatus.textContent = high ? 'HOT' : (pressure < 20 ? 'LOW' : 'STEADY');
+        }
+
+        function updateVentStates(pressure) {
+            const ventingAuto = pressure >= 72;
+            const manual = state.ventValve > 0;
+            ventPortState.textContent = ventingAuto || manual ? 'VENTING' : 'IDLE';
+            ventStarState.textContent = ventingAuto || manual ? 'VENTING' : 'IDLE';
+        }
+
+        // Steam spawn cadence
+        let steamAcc = 0;
+
+        function step(dt) {
+            // dynamics
+            const ignitionFactor = state.ignition ? 1 : 0.35;
+            const governorTightness = state.governor / 100; // 0..1
+            const damping = lerp(0.04, 0.12, governorTightness);
+
+            // manual vent reduces pressure
+            const manualBleed = state.ventValve / 100;
+
+            // blowoff quickly vents for a short time
+            const blow = state.blowoff;
+            if (state.blowoff > 0) {
+                state.blowoff = Math.max(0, state.blowoff - dt * 1.6);
+            }
+
+            // pressure approaches target with response
+            const response = lerp(0.035, 0.11, ignitionFactor) * (1.0 - manualBleed * 0.5);
+            state.pressure += (state.target - state.pressure) * response;
+
+            // extra bleed + blowoff
+            state.pressure -= manualBleed * lerp(0.04, 0.12, ignitionFactor) * 100 * dt;
+            state.pressure -= blow * 0.20 * 100 * dt;
+
+            // clamp
+            state.pressure = clamp(state.pressure, 0, 100);
+
+            // derived metrics with damped noise
+            const baseTemp = 220 + state.pressure * 3.0;
+            const condenser = state.condensorOpen ? -18 : 22;
+            const jitter = (Math.sin(perf.now() / 720) + Math.sin(perf.now() / 1550) * 0.7) * lerp(12, 4, damping / 0.12);
+            state.temp = lerp(state.temp, baseTemp + condenser + jitter, 0.06 + damping);
+
+            const baseRpm = state.pressure * (state.ignition ? 34 : 18);
+            const rpmJ = Math.sin(perf.now() / 420) * lerp(120, 45, damping / 0.12);
+            state.rpm = lerp(state.rpm, baseRpm + rpmJ, 0.08 + damping);
+
+            // readouts
+            readPressure.textContent = fmt(state.pressure, 0);
+            readTemp.textContent = fmt(state.temp, 0);
+            readRpm.textContent = fmt(Math.max(0, state.rpm), 0);
+
+            const load = clamp((state.pressure / 100) * 0.9 + (state.ignition ? 0.08 : 0.0) - manualBleed * 0.25, 0, 1);
+            readLoad.textContent = fmt(load * 100, 0) + '%';
+            readTorque.textContent = fmt(lerp(0.22, 1.42, load), 2);
+
+            // needles
+            setNeedle(needlePressure, valueToDeg(state.pressure));
+            setNeedle(needleBig, valueToDeg(state.pressure));
+            // temp 160..560 mapped into 0..100
+            const tempT = clamp((state.temp - 160) / (560 - 160), 0, 1);
+            setNeedle(needleTemp, lerp(-140, 140, tempT));
+            // rpm 0..3400 mapped
+            const rpmT = clamp(state.rpm / 3400, 0, 1);
+            setNeedle(needleRpm, lerp(-140, 140, rpmT));
+
+            // knob aria
+            knob.setAttribute('aria-valuenow', fmt(state.target, 0));
+            knob.setAttribute('aria-valuetext', `${fmt(state.target, 0)} PSI`);
+
+            // warnings and gear speed
+            updateGearSpeed(state.pressure);
+            updateWarningGlow(state.pressure);
+            updateVentStates(state.pressure);
+
+            // auto steam vents + manual bleed visuals
+            const venting = (state.pressure >= 72) || (manualBleed > 0.01) || (blow > 0);
+            if (venting) {
+                const intensity = (state.pressure / 100) * (state.condensorOpen ? 1.0 : 1.35) + manualBleed * 0.8 + blow * 1.8;
+                steamAcc += dt * (0.8 + intensity * 1.5);
+                // spawn about every ~0.18..0.35 sec depending on intensity
+                const spawnEvery = lerp(0.35, 0.16, clamp(intensity, 0, 1));
+                while (steamAcc >= spawnEvery) {
+                    steamAcc -= spawnEvery;
+                    // vent positions near left and right vent boxes
+                    const port = document.getElementById('ventPortState').closest('.brass');
+                    const star = document.getElementById('ventStarState').closest('.brass');
+                    const p1 = port.getBoundingClientRect();
+                    const p2 = star.getBoundingClientRect();
+                    // spawn from the small "cap" on the right side of each box
+                    spawnSteam(p1.right - 42, p1.top + 78, intensity);
+                    spawnSteam(p2.right - 42, p2.top + 78, intensity);
+                }
+            } else {
+                steamAcc = Math.max(0, steamAcc - dt);
+            }
+
+            // highlight blocks on high
+            const high = state.pressure >= 72;
+            document.getElementById('leftBlock').classList.toggle('on', high);
+            document.getElementById('centerBlock').classList.toggle('on', high);
+            document.getElementById('rightBlock').classList.toggle('on', high);
+        }
+
+        const perf = {
+            now: () => (typeof performance !== 'undefined' ? performance.now() : Date.now())
+        };
+
+        let last = perf.now();
+        function loop() {
+            const t = perf.now();
+            const dt = clamp((t - last) / 1000, 0, 0.05);
+            last = t;
+            step(dt);
+            requestAnimationFrame(loop);
+        }
+
+        // --- Clock & initial log ---
+        function tickClock() {
+            const d = new Date();
+            document.getElementById('clock').textContent = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
+        }
+
+        // --- Help (F1) ---
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'F1') {
+                e.preventDefault();
+                pushLog('HELP: Drag knob = target PSI. Vent valve bleeds pressure. Ignition increases response. Governor damps oscillations.');
+                renderLog();
+            }
+        });
+
+        // Init
+        buildTicks();
+        buildGears();
+
+        // Seed logs
+        pushLog('Console awakened. Brass seals warmed.');
+        pushLog('Awaiting operator input.');
+        renderLog();
+
+        // Initial values
+        setTargetPressure(state.target);
+        readVent.textContent = String(state.ventValve);
+        readGovernor.textContent = 'BALANCED';
+        readCondensor.textContent = 'OPEN';
+        document.getElementById('swIgnition').style.setProperty('--on', 0);
+
+        setInterval(tickClock, 250);
+        tickClock();
+
+        // periodic log flavor
+        setInterval(() => {
+            const p = state.pressure;
+            const tags = [
+                p >= 80 ? 'WARNING: boiler singing at the seams.' : null,
+                p >= 72 ? 'Auto-purge engaged; vents whisper.' : null,
+                p < 18 ? 'Pressure low; stoker napping.' : null,
+                (!state.ignition) ? 'Ignition idle; flywheel coasts.' : null,
+                (state.ventValve > 0) ? `Manual bleed at ${state.ventValve}%.` : null,
+            ].filter(Boolean);
+            if (tags.length) {
+                pushLog(tags[Math.floor(Math.random() * tags.length)]);
+                renderLog();
+            }
+        }, 3500);
+
+        loop();
+    </script>
+</body>
+
+</html>
