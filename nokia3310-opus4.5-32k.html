@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nokia 3310 Simulator</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            font-family: 'VT323', monospace;
+        }
+
+        .nokia-body {
+            background: linear-gradient(180deg, #2d4a3e 0%, #1a3a2a 50%, #0d2818 100%);
+            border-radius: 25px 25px 45px 45px;
+            box-shadow:
+                inset 0 2px 10px rgba(255, 255, 255, 0.1),
+                0 20px 60px rgba(0, 0, 0, 0.5),
+                0 0 0 3px #1a2a1f;
+            position: relative;
+        }
+
+        .nokia-body::before {
+            content: 'NOKIA';
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #8ba888;
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+            font-size: 14px;
+            letter-spacing: 3px;
+        }
+
+        .screen-frame {
+            background: linear-gradient(180deg, #3d5a4a 0%, #2a4035 100%);
+            border-radius: 8px;
+            padding: 8px;
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5);
+        }
+
+        .lcd-screen {
+            background: #9bbc0f;
+            image-rendering: pixelated;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.2);
+            position: relative;
+        }
+
+        .lcd-screen::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: repeating-linear-gradient(0deg,
+                    transparent,
+                    transparent 2px,
+                    rgba(0, 0, 0, 0.03) 2px,
+                    rgba(0, 0, 0, 0.03) 4px);
+            pointer-events: none;
+        }
+
+        .pixel-text {
+            color: #0f380f;
+            text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        .nokia-btn {
+            background: linear-gradient(180deg, #4a6a55 0%, #3a5545 50%, #2a4035 100%);
+            border: none;
+            color: #ccc;
+            box-shadow:
+                0 4px 0 #1a2a1f,
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            transition: all 0.1s;
+        }
+
+        .nokia-btn:active {
+            transform: translateY(2px);
+            box-shadow:
+                0 2px 0 #1a2a1f,
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        .nav-btn {
+            background: linear-gradient(180deg, #5a7a65 0%, #4a6a55 100%);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            box-shadow:
+                0 3px 0 #2a4035,
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        }
+
+        .center-btn {
+            background: linear-gradient(180deg, #6a8a75 0%, #5a7a65 100%);
+            width: 30px;
+            height: 30px;
+        }
+
+        .number-btn {
+            width: 55px;
+            height: 38px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .snake-pixel {
+            background: #0f380f;
+        }
+
+        .food-pixel {
+            background: #306230;
+            animation: blink 0.5s infinite;
+        }
+
+        @keyframes blink {
+            50% {
+                opacity: 0.6;
+            }
+        }
+
+        .signal-bar {
+            width: 3px;
+            background: #0f380f;
+        }
+
+        .battery-icon {
+            border: 2px solid #0f380f;
+            width: 20px;
+            height: 10px;
+            position: relative;
+        }
+
+        .battery-icon::after {
+            content: '';
+            position: absolute;
+            right: -4px;
+            top: 2px;
+            width: 3px;
+            height: 4px;
+            background: #0f380f;
+        }
+
+        .visualizer-bar {
+            background: #0f380f;
+            transition: height 0.05s;
+        }
+    </style>
+</head>
+
+<body class="flex items-center justify-center p-4">
+    <div class="nokia-body w-72 p-6 pt-10">
+        <!-- Screen -->
+        <div class="screen-frame mb-4">
+            <div class="lcd-screen w-full h-48 rounded overflow-hidden">
+                <!-- Status Bar -->
+                <div class="flex justify-between items-center px-2 py-1 border-b border-[#306230]">
+                    <div class="flex items-center gap-1">
+                        <div class="signal-bar h-2"></div>
+                        <div class="signal-bar h-3"></div>
+                        <div class="signal-bar h-4"></div>
+                        <div class="signal-bar h-5"></div>
+                    </div>
+                    <span class="pixel-text text-xs" id="clock">12:00</span>
+                    <div class="battery-icon">
+                        <div class="absolute inset-0.5 bg-[#0f380f]" style="width: 80%"></div>
+                    </div>
+                </div>
+
+                <!-- Main Content -->
+                <div id="screen-content" class="h-40 flex flex-col items-center justify-center pixel-text">
+                    <!-- Menu will be rendered here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Soft Keys Labels -->
+        <div class="flex justify-between px-4 mb-2">
+            <span class="text-[#8ba888] text-xs" id="left-label">Menu</span>
+            <span class="text-[#8ba888] text-xs" id="right-label">Names</span>
+        </div>
+
+        <!-- Soft Keys -->
+        <div class="flex justify-between mb-3 px-2">
+            <button class="nokia-btn w-16 h-8 rounded-lg text-sm" id="left-soft">◀</button>
+            <button class="nokia-btn w-16 h-8 rounded-lg text-sm" id="right-soft">▶</button>
+        </div>
+
+        <!-- Navigation -->
+        <div class="flex justify-center mb-4">
+            <div class="relative w-32 h-32 flex items-center justify-center">
+                <button class="nav-btn absolute top-0" id="nav-up">▲</button>
+                <button class="nav-btn absolute bottom-0" id="nav-down">▼</button>
+                <button class="nav-btn absolute left-0" id="nav-left">◀</button>
+                <button class="nav-btn absolute right-0" id="nav-right">▶</button>
+                <button class="nav-btn center-btn" id="nav-ok">OK</button>
+            </div>
+        </div>
+
+        <!-- Call Buttons -->
+        <div class="flex justify-center gap-8 mb-4">
+            <button class="nokia-btn w-14 h-10 rounded-full text-green-400 text-lg">📞</button>
+            <button class="nokia-btn w-14 h-10 rounded-full text-red-400 text-lg" id="btn-end">📵</button>
+        </div>
+
+        <!-- Number Pad -->
+        <div class="grid grid-cols-3 gap-2 px-2">
+            <button class="nokia-btn number-btn" data-num="1" data-chars="">1</button>
+            <button class="nokia-btn number-btn" data-num="2" data-chars="abc">2<br><span
+                    class="text-[8px]">abc</span></button>
+            <button class="nokia-btn number-btn" data-num="3" data-chars="def">3<br><span
+                    class="text-[8px]">def</span></button>
+            <button class="nokia-btn number-btn" data-num="4" data-chars="ghi">4<br><span
+                    class="text-[8px]">ghi</span></button>
+            <button class="nokia-btn number-btn" data-num="5" data-chars="jkl">5<br><span
+                    class="text-[8px]">jkl</span></button>
+            <button class="nokia-btn number-btn" data-num="6" data-chars="mno">6<br><span
+                    class="text-[8px]">mno</span></button>
+            <button class="nokia-btn number-btn" data-num="7" data-chars="pqrs">7<br><span
+                    class="text-[8px]">pqrs</span></button>
+            <button class="nokia-btn number-btn" data-num="8" data-chars="tuv">8<br><span
+                    class="text-[8px]">tuv</span></button>
+            <button class="nokia-btn number-btn" data-num="9" data-chars="wxyz">9<br><span
+                    class="text-[8px]">wxyz</span></button>
+            <button class="nokia-btn number-btn" data-num="*" data-chars="">*</button>
+            <button class="nokia-btn number-btn" data-num="0" data-chars=" ">0<br><span
+                    class="text-[8px]">space</span></button>
+            <button class="nokia-btn number-btn" data-num="#" data-chars="">#</button>
+        </div>
+    </div>
+
+    <script>
+        // Audio Context for ringtone
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        // Game State
+        const state = {
+            currentScreen: 'menu',
+            menuIndex: 0,
+            menuItems: ['Snake', 'Messages', 'Ringtones'],
+            // Snake game
+            snake: [],
+            food: { x: 0, y: 0 },
+            direction: 'right',
+            nextDirection: 'right',
+            gameRunning: false,
+            score: 0,
+            gameSpeed: 150,
+            // SMS
+            smsText: '',
+            smsKeyIndex: 0,
+            smsLastKey: null,
+            smsTimeout: null,
+            // Ringtone
+            ringtoneIndex: 0,
+            ringtones: ['Nokia Tune', 'Beep Beep', 'Ascending'],
+            isPlaying: false,
+            visualizerBars: []
+        };
+
+        const screenContent = document.getElementById('screen-content');
+        const leftLabel = document.getElementById('left-label');
+        const rightLabel = document.getElementById('right-label');
+
+        // Key mappings for SMS
+        const keyMap = {
+            '2': 'abc2',
+            '3': 'def3',
+            '4': 'ghi4',
+            '5': 'jkl5',
+            '6': 'mno6',
+            '7': 'pqrs7',
+            '8': 'tuv8',
+            '9': 'wxyz9',
+            '0': ' 0',
+            '1': '.,!?1'
+        };
+
+        // Update clock
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('clock').textContent =
+                now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Render functions
+        function renderMenu() {
+            state.currentScreen = 'menu';
+            leftLabel.textContent = 'Select';
+            rightLabel.textContent = '';
+
+            let html = '<div class="text-center w-full">';
+            html += '<div class="text-lg mb-3">📱 Menu</div>';
+            state.menuItems.forEach((item, i) => {
+                const selected = i === state.menuIndex;
+                const icons = ['🐍', '✉️', '🎵'];
+                html += `<div class="${selected ? 'bg-[#0f380f] text-[#9bbc0f]' : ''} px-4 py-1">
+                    ${icons[i]} ${item}
+                </div>`;
+            });
+            html += '</div>';
+            screenContent.innerHTML = html;
+        }
+
+        function renderSnake() {
+            state.currentScreen = 'snake';
+            leftLabel.textContent = 'Pause';
+            rightLabel.textContent = 'Back';
+
+            const gridW = 20, gridH = 14;
+            let html = `<div class="w-full h-full relative" style="display: grid; grid-template-columns: repeat(${gridW}, 1fr); grid-template-rows: repeat(${gridH}, 1fr);">`;
+
+            // Create grid
+            for (let y = 0; y < gridH; y++) {
+                for (let x = 0; x < gridW; x++) {
+                    let cellClass = '';
+                    if (state.snake.some(s => s.x === x && s.y === y)) {
+                        cellClass = 'snake-pixel';
+                    } else if (state.food.x === x && state.food.y === y) {
+                        cellClass = 'food-pixel';
+                    }
+                    html += `<div class="${cellClass}"></div>`;
+                }
+            }
+            html += '</div>';
+            html += `<div class="absolute top-0 left-0 text-xs px-1">Score: ${state.score}</div>`;
+            screenContent.innerHTML = html;
+        }
+
+        function initSnake() {
+            state.snake = [
+                { x: 5, y: 7 },
+                { x: 4, y: 7 },
+                { x: 3, y: 7 }
+            ];
+            state.direction = 'right';
+            state.nextDirection = 'right';
+            state.score = 0;
+            state.gameSpeed = 150;
+            spawnFood();
+            state.gameRunning = true;
+            gameLoop();
+        }
+
+        function spawnFood() {
+            const gridW = 20, gridH = 14;
+            do {
+                state.food = {
+                    x: Math.floor(Math.random() * gridW),
+                    y: Math.floor(Math.random() * gridH)
+                };
+            } while (state.snake.some(s => s.x === state.food.x && s.y === state.food.y));
+        }
+
+        function gameLoop() {
+            if (!state.gameRunning) return;
+
+            state.direction = state.nextDirection;
+            const head = { ...state.snake[0] };
+
+            switch (state.direction) {
+                case 'up': head.y--; break;
+                case 'down': head.y++; break;
+                case 'left': head.x--; break;
+                case 'right': head.x++; break;
+            }
+
+            // Wrap around
+            const gridW = 20, gridH = 14;
+            if (head.x < 0) head.x = gridW - 1;
+            if (head.x >= gridW) head.x = 0;
+            if (head.y < 0) head.y = gridH - 1;
+            if (head.y >= gridH) head.y = 0;
+
+            // Check self collision
+            if (state.snake.some(s => s.x === head.x && s.y === head.y)) {
+                state.gameRunning = false;
+                renderGameOver();
+                return;
+            }
+
+            state.snake.unshift(head);
+
+            // Check food
+            if (head.x === state.food.x && head.y === state.food.y) {
+                state.score += 10;
+                state.gameSpeed = Math.max(80, state.gameSpeed - 5);
+                spawnFood();
+                playBeep(800, 50);
+            } else {
+                state.snake.pop();
+            }
+
+            renderSnake();
+            setTimeout(gameLoop, state.gameSpeed);
+        }
+
+        function renderGameOver() {
+            screenContent.innerHTML = `
+                <div class="text-center">
+                    <div class="text-xl mb-2">GAME OVER</div>
+                    <div class="text-lg mb-4">Score: ${state.score}</div>
+                    <div class="text-sm">Press OK to restart</div>
+                </div>
+            `;
+            leftLabel.textContent = '';
+            rightLabel.textContent = 'Back';
+        }
+
+        function renderSMS() {
+            state.currentScreen = 'sms';
+            leftLabel.textContent = 'Clear';
+            rightLabel.textContent = 'Back';
+
+            const displayText = state.smsText || 'Type message...';
+            const charCount = state.smsText.length;
+
+            screenContent.innerHTML = `
+                <div class="w-full h-full p-2 flex flex-col">
+                    <div class="text-sm mb-1">✉️ New Message</div>
+                    <div class="flex-1 border border-[#306230] p-1 text-sm overflow-hidden bg-[#8aac0f]">
+                        ${state.smsText}<span class="animate-pulse">▌</span>
+                    </div>
+                    <div class="text-xs mt-1 text-right">${charCount}/160</div>
+                </div>
+            `;
+        }
+
+        function renderRingtones() {
+            state.currentScreen = 'ringtones';
+            leftLabel.textContent = 'Play';
+            rightLabel.textContent = 'Back';
+
+            let html = '<div class="text-center w-full">';
+            html += '<div class="text-lg mb-2">🎵 Ringtones</div>';
+            state.ringtones.forEach((tone, i) => {
+                const selected = i === state.ringtoneIndex;
+                html += `<div class="${selected ? 'bg-[#0f380f] text-[#9bbc0f]' : ''} px-4 py-1">
+                    ${selected ? '▶' : ' '} ${tone}
+                </div>`;
+            });
+
+            // Visualizer
+            html += '<div class="flex justify-center items-end gap-1 h-10 mt-3">';
+            for (let i = 0; i < 12; i++) {
+                const height = state.isPlaying ? state.visualizerBars[i] || 5 : 5;
+                html += `<div class="visualizer-bar w-2" style="height: ${height}px"></div>`;
+            }
+            html += '</div></div>';
+            screenContent.innerHTML = html;
+        }
+
+        // Audio functions
+        function playBeep(freq, duration) {
+            if (!audioCtx) audioCtx = new AudioContext();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.frequency.value = freq;
+            osc.type = 'square';
+            gain.gain.value = 0.1;
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration / 1000);
+        }
+
+        function playNokiaTune() {
+            if (!audioCtx) audioCtx = new AudioContext();
+            state.isPlaying = true;
+
+            const notes = [
+                { f: 1318, d: 150 }, { f: 1174, d: 150 }, { f: 739, d: 300 }, { f: 830, d: 300 },
+                { f: 1108, d: 150 }, { f: 987, d: 150 }, { f: 587, d: 300 }, { f: 659, d: 300 },
+                { f: 987, d: 150 }, { f: 880, d: 150 }, { f: 554, d: 300 }, { f: 659, d: 300 },
+                { f: 880, d: 600 }
+            ];
+
+            let time = audioCtx.currentTime;
+            notes.forEach((note, i) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.frequency.value = note.f;
+                osc.type = 'square';
+                gain.gain.value = 0.1;
+                osc.start(time);
+                osc.stop(time + note.d / 1000);
+                time += note.d / 1000 + 0.05;
+            });
+
+            // Animate visualizer
+            const animateVisualizer = () => {
+                if (!state.isPlaying) return;
+                state.visualizerBars = Array(12).fill(0).map(() => 5 + Math.random() * 30);
+                renderRingtones();
+                requestAnimationFrame(animateVisualizer);
+            };
+            animateVisualizer();
+
+            setTimeout(() => {
+                state.isPlaying = false;
+                state.visualizerBars = Array(12).fill(5);
+                if (state.currentScreen === 'ringtones') renderRingtones();
+            }, 3000);
+        }
+
+        function playBeepBeep() {
+            for (let i = 0; i < 3; i++) {
+                setTimeout(() => playBeep(1000, 100), i * 200);
+            }
+        }
+
+        function playAscending() {
+            [400, 500, 600, 700, 800, 900, 1000].forEach((f, i) => {
+                setTimeout(() => playBeep(f, 100), i * 120);
+            });
+        }
+
+        // Input handlers
+        function handleNavUp() {
+            if (state.currentScreen === 'menu') {
+                state.menuIndex = (state.menuIndex - 1 + state.menuItems.length) % state.menuItems.length;
+                renderMenu();
+            } else if (state.currentScreen === 'snake' && state.direction !== 'down') {
+                state.nextDirection = 'up';
+            } else if (state.currentScreen === 'ringtones') {
+                state.ringtoneIndex = (state.ringtoneIndex - 1 + state.ringtones.length) % state.ringtones.length;
+                renderRingtones();
+            }
+        }
+
+        function handleNavDown() {
+            if (state.currentScreen === 'menu') {
+                state.menuIndex = (state.menuIndex + 1) % state.menuItems.length;
+                renderMenu();
+            } else if (state.currentScreen === 'snake' && state.direction !== 'up') {
+                state.nextDirection = 'down';
+            } else if (state.currentScreen === 'ringtones') {
+                state.ringtoneIndex = (state.ringtoneIndex + 1) % state.ringtones.length;
+                renderRingtones();
+            }
+        }
+
+        function handleNavLeft() {
+            if (state.currentScreen === 'snake' && state.direction !== 'right') {
+                state.nextDirection = 'left';
+            }
+        }
+
+        function handleNavRight() {
+            if (state.currentScreen === 'snake' && state.direction !== 'left') {
+                state.nextDirection = 'right';
+            }
+        }
+
+        function handleOK() {
+            if (state.currentScreen === 'menu') {
+                switch (state.menuIndex) {
+                    case 0: initSnake(); renderSnake(); break;
+                    case 1: state.smsText = ''; renderSMS(); break;
+                    case 2: renderRingtones(); break;
+                }
+            } else if (state.currentScreen === 'snake' && !state.gameRunning) {
+                initSnake();
+                renderSnake();
+            }
+        }
+
+        function handleLeftSoft() {
+            if (state.currentScreen === 'menu') {
+                handleOK();
+            } else if (state.currentScreen === 'snake') {
+                state.gameRunning = !state.gameRunning;
+                if (state.gameRunning) gameLoop();
+            } else if (state.currentScreen === 'sms') {
+                state.smsText = state.smsText.slice(0, -1);
+                renderSMS();
+            } else if (state.currentScreen === 'ringtones') {
+                if (!state.isPlaying) {
+                    state.isPlaying = true;
+                    switch (state.ringtoneIndex) {
+                        case 0: playNokiaTune(); break;
+                        case 1: playBeepBeep(); setTimeout(() => state.isPlaying = false, 600); break;
+                        case 2: playAscending(); setTimeout(() => state.isPlaying = false, 900); break;
+                    }
+                }
+            }
+        }
+
+        function handleRightSoft() {
+            if (state.currentScreen !== 'menu') {
+                state.gameRunning = false;
+                state.isPlaying = false;
+                renderMenu();
+            }
+        }
+
+        function handleNumber(key) {
+            if (state.currentScreen === 'sms' && keyMap[key]) {
+                const chars = keyMap[key];
+
+                if (state.smsLastKey === key && state.smsTimeout) {
+                    clearTimeout(state.smsTimeout);
+                    state.smsKeyIndex = (state.smsKeyIndex + 1) % chars.length;
+                    state.smsText = state.smsText.slice(0, -1) + chars[state.smsKeyIndex];
+                } else {
+                    state.smsKeyIndex = 0;
+                    state.smsText += chars[0];
+                }
+
+                state.smsLastKey = key;
+                state.smsTimeout = setTimeout(() => {
+                    state.smsLastKey = null;
+                    state.smsKeyIndex = 0;
+                }, 1000);
+
+                renderSMS();
+                playBeep(600, 30);
+            }
+        }
+
+        // Event listeners
+        document.getElementById('nav-up').addEventListener('click', handleNavUp);
+        document.getElementById('nav-down').addEventListener('click', handleNavDown);
+        document.getElementById('nav-left').addEventListener('click', handleNavLeft);
+        document.getElementById('nav-right').addEventListener('click', handleNavRight);
+        document.getElementById('nav-ok').addEventListener('click', handleOK);
+        document.getElementById('left-soft').addEventListener('click', handleLeftSoft);
+        document.getElementById('right-soft').addEventListener('click', handleRightSoft);
+        document.getElementById('btn-end').addEventListener('click', handleRightSoft);
+
+        document.querySelectorAll('.number-btn').forEach(btn => {
+            btn.addEventListener('click', () => handleNumber(btn.dataset.num));
+        });
+
+        // Keyboard support
+        document.addEventListener('keydown', (e) => {
+            switch (e.key) {
+                case 'ArrowUp': handleNavUp(); break;
+                case 'ArrowDown': handleNavDown(); break;
+                case 'ArrowLeft': handleNavLeft(); break;
+                case 'ArrowRight': handleNavRight(); break;
+                case 'Enter': handleOK(); break;
+                case 'Escape': handleRightSoft(); break;
+                case ' ': handleLeftSoft(); break;
+                default:
+                    if (/[0-9]/.test(e.key)) handleNumber(e.key);
+            }
+        });
+
+        // Initialize
+        renderMenu();
+    </script>
+</body>
+
+</html>
