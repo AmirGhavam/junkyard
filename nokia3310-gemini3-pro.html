@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nokia 3310 Simulator</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --lcd-bg: #c7f0d8;
+            --lcd-fg: #43523d;
+            --body-blue: #405066;
+            --body-grey: #aab6c5;
+            --key-text: #405066;
+        }
+
+        body {
+            font-family: 'VT323', monospace;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            user-select: none;
+        }
+
+        /* Nokia 3310 Shape */
+        .phone {
+            width: 300px;
+            height: 580px;
+            background-color: var(--body-blue);
+            border-radius: 40px 40px 50px 50px;
+            position: relative;
+            box-shadow:
+                inset 10px 0 20px rgba(0, 0, 0, 0.2),
+                inset -10px 0 20px rgba(255, 255, 255, 0.1),
+                0 20px 50px rgba(0, 0, 0, 0.3);
+            padding: 30px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-sizing: border-box;
+        }
+
+        /* Screen Area */
+        .screen-container {
+            width: 220px;
+            height: 180px;
+            background-color: #6a7a8f;
+            border-radius: 20px 20px 40px 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+            box-shadow: inset 0 5px 10px rgba(0, 0, 0, 0.3);
+            position: relative;
+            z-index: 10;
+        }
+
+        .screen-lens {
+            width: 160px;
+            height: 110px;
+            background-color: var(--lcd-bg);
+            border: 2px solid #556677;
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Pixel Grid Effect Overlay */
+        .screen-lens::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+            opacity: 0.4;
+        }
+
+        .lcd-content {
+            width: 100%;
+            height: 100%;
+            color: var(--lcd-fg);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* Controls Area */
+        .controls {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .nav-buttons {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            padding: 0 15px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+
+        .btn-action {
+            background: #ffffff;
+            border: none;
+            box-shadow: 0 3px 0 #ccc;
+            cursor: pointer;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        .btn-action:active {
+            transform: translateY(3px);
+            box-shadow: none;
+        }
+
+        .btn-c {
+            width: 45px;
+            height: 35px;
+            border-radius: 10px 5px 5px 15px;
+            font-weight: bold;
+            font-size: 18px;
+            color: var(--key-text);
+            transform: rotate(-10deg);
+            margin-top: 10px;
+        }
+
+        .btn-menu {
+            width: 80px;
+            height: 45px;
+            background: #ffffff;
+            border-radius: 10px;
+            border-bottom: 4px solid #ccc;
+            /* Simulate the ridge */
+            position: relative;
+            z-index: 5;
+            margin-top: -10px;
+        }
+
+        .btn-menu::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 50px;
+            height: 5px;
+            background: var(--body-blue);
+            opacity: 0.3;
+            border-radius: 2px;
+        }
+
+        .btn-arrows {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            transform: rotate(10deg);
+            margin-top: 5px;
+        }
+
+        .btn-arrow {
+            width: 40px;
+            height: 25px;
+            background: #fff;
+            border-radius: 5px;
+            font-size: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--key-text);
+        }
+
+        /* Keypad */
+        .keypad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            width: 100%;
+            padding: 0 10px;
+        }
+
+        .key {
+            height: 40px;
+            background: #fff;
+            border-radius: 15px 15px 20px 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 0 #999;
+            cursor: pointer;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        .key:active {
+            transform: translateY(4px);
+            box-shadow: none;
+        }
+
+        .key-num {
+            font-size: 20px;
+            font-weight: bold;
+            line-height: 1;
+            color: var(--key-text);
+        }
+
+        .key-letters {
+            font-size: 10px;
+            color: var(--key-text);
+            letter-spacing: 1px;
+        }
+
+        /* Applications */
+        .app-screen {
+            display: none;
+            width: 100%;
+            height: 100%;
+            padding: 2px;
+            box-sizing: border-box;
+        }
+
+        .app-screen.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Home Screen */
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            padding: 2px 4px;
+            font-size: 14px;
+            border-bottom: 1px dotted var(--lcd-fg);
+            margin-bottom: 2px;
+        }
+
+        .home-main {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        .clock-large {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .carrier-name {
+            font-size: 16px;
+        }
+
+        .soft-keys {
+            display: flex;
+            justify-content: center;
+            padding-bottom: 2px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        /* Menu */
+        .menu-title {
+            text-align: center;
+            font-size: 18px;
+            border-bottom: 1px solid var(--lcd-fg);
+            margin-bottom: 5px;
+        }
+
+        .menu-item {
+            font-size: 20px;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .menu-icon {
+            font-size: 30px;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        /* Snake */
+        #snake-canvas {
+            width: 100%;
+            height: 100%;
+            image-rendering: pixelated;
+        }
+
+        /* SMS */
+        .sms-input {
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            border: none;
+            font-family: 'VT323', monospace;
+            font-size: 18px;
+            color: var(--lcd-fg);
+            resize: none;
+            outline: none;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow: hidden;
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 16px;
+            background-color: var(--lcd-fg);
+            animation: blink 1s step-end infinite;
+            vertical-align: text-bottom;
+        }
+
+        @keyframes blink {
+            50% {
+                opacity: 0;
+            }
+        }
+
+        /* Visualizer */
+        .visualizer-bars {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-around;
+            height: 80%;
+            padding: 0 10px;
+        }
+
+        .bar {
+            width: 15px;
+            background-color: var(--lcd-fg);
+            height: 10%;
+            transition: height 0.1s ease;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="phone">
+        <!-- Brand -->
+        <div class="text-[#aab6c5] text-xl font-bold mb-4 tracking-widest opacity-80">NOKIA</div>
+
+        <!-- Screen -->
+        <div class="screen-container">
+            <div class="screen-lens">
+                <div id="lcd" class="lcd-content">
+
+                    <!-- Home Screen -->
+                    <div id="app-home" class="app-screen active">
+                        <div class="status-bar">
+                            <span id="signal">Y&#124;ll</span>
+                            <span id="battery">[|||]</span>
+                        </div>
+                        <div class="home-main">
+                            <div class="clock-large" id="clock">12:00</div>
+                            <div class="carrier-name">SIMULATOR</div>
+                        </div>
+                        <div class="soft-keys">Menu</div>
+                    </div>
+
+                    <!-- Main Menu -->
+                    <div id="app-menu" class="app-screen">
+                        <div class="menu-title">Menu</div>
+                        <div class="flex-grow flex flex-col justify-center items-center">
+                            <span id="menu-icon" class="menu-icon">🐍</span>
+                            <span id="menu-text" class="menu-item">Snake II</span>
+                        </div>
+                        <div class="text-center text-sm pb-1">Select</div>
+                    </div>
+
+                    <!-- Snake Game -->
+                    <div id="app-snake" class="app-screen">
+                        <canvas id="snake-canvas" width="84" height="48"></canvas>
+                    </div>
+
+                    <!-- Game Over Screen -->
+                    <div id="app-gameover" class="app-screen">
+                        <div class="flex flex-col items-center justify-center h-full text-center">
+                            <div class="text-xl font-bold mb-2">GAME OVER</div>
+                            <div class="text-lg">Score: <span id="final-score">0</span></div>
+                            <div class="mt-4 text-sm">Press Menu</div>
+                        </div>
+                    </div>
+
+                    <!-- SMS Composer -->
+                    <div id="app-sms" class="app-screen">
+                        <div class="text-sm border-b border-[#43523d] mb-1">Write message:</div>
+                        <div id="sms-display" class="break-words leading-none text-lg"></div>
+                    </div>
+
+                    <!-- Composer / Visualizer -->
+                    <div id="app-composer" class="app-screen">
+                        <div class="text-center border-b border-[#43523d] mb-2">Composer</div>
+                        <div class="visualizer-bars">
+                            <div class="bar"></div>
+                            <div class="bar"></div>
+                            <div class="bar"></div>
+                            <div class="bar"></div>
+                            <div class="bar"></div>
+                        </div>
+                        <div class="text-center text-xs mt-2">Playing...</div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <div class="nav-buttons">
+                <button class="btn-action btn-c" id="btn-c" data-key="Backspace">C</button>
+                <button class="btn-action btn-menu" id="btn-menu" data-key="Enter"></button>
+                <div class="btn-arrows">
+                    <button class="btn-action btn-arrow" id="btn-up" data-key="ArrowUp">▲</button>
+                    <button class="btn-action btn-arrow" id="btn-down" data-key="ArrowDown">▼</button>
+                </div>
+            </div>
+
+            <div class="keypad">
+                <div class="key" data-key="1">
+                    <span class="key-num">1</span>
+                    <span class="key-letters">oo</span>
+                </div>
+                <div class="key" data-key="2">
+                    <span class="key-num">2</span>
+                    <span class="key-letters">abc</span>
+                </div>
+                <div class="key" data-key="3">
+                    <span class="key-num">3</span>
+                    <span class="key-letters">def</span>
+                </div>
+                <div class="key" data-key="4">
+                    <span class="key-num">4</span>
+                    <span class="key-letters">ghi</span>
+                </div>
+                <div class="key" data-key="5">
+                    <span class="key-num">5</span>
+                    <span class="key-letters">jkl</span>
+                </div>
+                <div class="key" data-key="6">
+                    <span class="key-num">6</span>
+                    <span class="key-letters">mno</span>
+                </div>
+                <div class="key" data-key="7">
+                    <span class="key-num">7</span>
+                    <span class="key-letters">pqrs</span>
+                </div>
+                <div class="key" data-key="8">
+                    <span class="key-num">8</span>
+                    <span class="key-letters">tuv</span>
+                </div>
+                <div class="key" data-key="9">
+                    <span class="key-num">9</span>
+                    <span class="key-letters">wxyz</span>
+                </div>
+                <div class="key" data-key="*">
+                    <span class="key-num">*</span>
+                    <span class="key-letters">+</span>
+                </div>
+                <div class="key" data-key="0">
+                    <span class="key-num">0</span>
+                    <span class="key-letters">_</span>
+                </div>
+                <div class="key" data-key="#">
+                    <span class="key-num">#</span>
+                    <span class="key-letters">⇧</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // System State
+        const state = {
+            currentScreen: 'home', // home, menu, snake, sms, composer, gameover
+            menuIndex: 0,
+            menuItems: [
+                { id: 'snake', label: 'Snake II', icon: '🐍' },
+                { id: 'sms', label: 'Messages', icon: '✉️' },
+                { id: 'composer', label: 'Composer', icon: '🎵' }
+            ],
+            time: new Date(),
+            smsText: '',
+            lastKeyPressTime: 0,
+            lastQqKey: null,
+            tapCount: 0,
+        };
+
+        // Key Mappings (Multi-tap T9 simulation)
+        const keyMap = {
+            '1': ['.', ',', '?', '!', '1'],
+            '2': ['a', 'b', 'c', '2'],
+            '3': ['d', 'e', 'f', '3'],
+            '4': ['g', 'h', 'i', '4'],
+            '5': ['j', 'k', 'l', '5'],
+            '6': ['m', 'n', 'o', '6'],
+            '7': ['p', 'q', 'r', 's', '7'],
+            '8': ['t', 'u', 'v', '8'],
+            '9': ['w', 'x', 'y', 'z', '9'],
+            '0': [' ', '0'],
+            '*': ['*'],
+            '#': ['#']
+        };
+
+        // DOM Elements
+        const screens = {
+            home: document.getElementById('app-home'),
+            menu: document.getElementById('app-menu'),
+            snake: document.getElementById('app-snake'),
+            sms: document.getElementById('app-sms'),
+            composer: document.getElementById('app-composer'),
+            gameover: document.getElementById('app-gameover')
+        };
+        const clockEl = document.getElementById('clock');
+        const menuTextEl = document.getElementById('menu-text');
+        const menuIconEl = document.getElementById('menu-icon');
+        const smsDisplayEl = document.getElementById('sms-display');
+
+        // Snake Game Variables
+        let snakeGame = {
+            canvas: document.getElementById('snake-canvas'),
+            ctx: document.getElementById('snake-canvas').getContext('2d'),
+            grid: 4, // size of one grid square
+            snake: [],
+            dx: 4,
+            dy: 0,
+            food: null,
+            score: 0,
+            running: false,
+            loopId: null,
+            speed: 100 // ms
+        };
+
+        // Audio Context (Mock)
+        let visualizerInterval;
+
+        // --- System Functions ---
+
+        function init() {
+            updateClock();
+            setInterval(updateClock, 1000);
+            switchScreen('home');
+            setupControls();
+        }
+
+        function updateClock() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const mins = String(now.getMinutes()).padStart(2, '0');
+            clockEl.textContent = `${hours}:${mins}`;
+        }
+
+        function switchScreen(screenName) {
+            // Cleanup previous screen
+            if (state.currentScreen === 'snake') stopSnake();
+            if (state.currentScreen === 'composer') stopVisualizer();
+
+            // Hide all
+            Object.values(screens).forEach(el => el.classList.remove('active'));
+
+            // Show new
+            if (screens[screenName]) {
+                screens[screenName].classList.add('active');
+                state.currentScreen = screenName;
+            }
+
+            // Init specific logic
+            if (screenName === 'menu') updateMenuDisplay();
+            if (screenName === 'snake') startSnake();
+            if (screenName === 'sms') renderSMS();
+            if (screenName === 'composer') startVisualizer();
+        }
+
+        // --- Input Handling ---
+
+        function setupControls() {
+            // Click handlers
+            document.querySelectorAll('[data-key]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    // Prevent focus to keep keyboard working
+                    e.target.blur();
+                    handleInput(btn.dataset.key);
+                });
+            });
+
+            // Keyboard handlers
+            document.addEventListener('keydown', (e) => {
+                const key = e.key;
+                let mappedKey = null;
+
+                if (key === 'Enter') mappedKey = 'Enter';
+                if (key === 'Backspace') mappedKey = 'Backspace';
+                if (key === 'ArrowUp') mappedKey = 'ArrowUp';
+                if (key === 'ArrowDown') mappedKey = 'ArrowDown';
+                if (key === 'ArrowLeft') mappedKey = 'ArrowUp'; // Snake mapping fallback
+                if (key === 'ArrowRight') mappedKey = 'ArrowDown'; // Snake mapping fallback
+                if (/[0-9]/.test(key)) mappedKey = key;
+                if (key === '*') mappedKey = '*';
+                if (key === '#') mappedKey = '#';
+
+                if (mappedKey) handleInput(mappedKey);
+            });
+        }
+
+        function handleInput(key) {
+            // Global Navigation
+            if (state.currentScreen === 'home') {
+                if (key === 'Enter') switchScreen('menu');
+                return;
+            }
+
+            if (state.currentScreen === 'menu') {
+                if (key === 'ArrowDown') {
+                    state.menuIndex = (state.menuIndex + 1) % state.menuItems.length;
+                    updateMenuDisplay();
+                }
+                if (key === 'ArrowUp') {
+                    state.menuIndex = (state.menuIndex - 1 + state.menuItems.length) % state.menuItems.length;
+                    updateMenuDisplay();
+                }
+                if (key === 'Enter') {
+                    switchScreen(state.menuItems[state.menuIndex].id);
+                }
+                if (key === 'Backspace') {
+                    switchScreen('home');
+                }
+                return;
+            }
+
+            if (state.currentScreen === 'snake') {
+                handleSnakeInput(key);
+                if (key === 'Backspace') switchScreen('menu'); // Quit game
+                return;
+            }
+
+            if (state.currentScreen === 'gameover') {
+                if (key === 'Enter' || key === 'Backspace') switchScreen('menu');
+                return;
+            }
+
+            if (state.currentScreen === 'sms') {
+                if (key === 'Backspace') {
+                    if (state.smsText.length > 0) {
+                        state.smsText = state.smsText.slice(0, -1);
+                        renderSMS();
+                    } else {
+                        switchScreen('menu');
+                    }
+                } else if (key === 'Enter') {
+                    // Send/Clear
+                    state.smsText = "Sending...";
+                    renderSMS();
+                    setTimeout(() => {
+                        state.smsText = "Sent!";
+                        renderSMS();
+                        setTimeout(() => {
+                            state.smsText = "";
+                            renderSMS();
+                            switchScreen('menu');
+                        }, 1000);
+                    }, 1000);
+                } else {
+                    handleMultiTap(key);
+                }
+                return;
+            }
+
+            if (state.currentScreen === 'composer') {
+                if (key === 'Backspace') switchScreen('menu');
+                return;
+            }
+        }
+
+        // --- Menu Logic ---
+        function updateMenuDisplay() {
+            const item = state.menuItems[state.menuIndex];
+            menuTextEl.textContent = item.label;
+            menuIconEl.textContent = item.icon;
+        }
+
+        // --- Snake Game Logic ---
+        function startSnake() {
+            snakeGame.snake = [{ x: 40, y: 24 }, { x: 36, y: 24 }, { x: 32, y: 24 }];
+            snakeGame.dx = snakeGame.grid;
+            snakeGame.dy = 0;
+            snakeGame.score = 0;
+            snakeGame.running = true;
+            placeFood();
+
+            if (snakeGame.loopId) clearInterval(snakeGame.loopId);
+            snakeGame.loopId = setInterval(gameLoop, snakeGame.speed);
+        }
+
+        function stopSnake() {
+            snakeGame.running = false;
+            clearInterval(snakeGame.loopId);
+        }
+
+        function gameLoop() {
+            if (!snakeGame.running) return;
+
+            // Move Snake
+            const head = { x: snakeGame.snake[0].x + snakeGame.dx, y: snakeGame.snake[0].y + snakeGame.dy };
+
+            // Wrap walls (Nokia style usually wraps or dies, classic walls kills, but let's do wrap for fun or wall kill)
+            // Let's do wall kill for strictness
+            if (head.x < 0 || head.x >= snakeGame.canvas.width || head.y < 0 || head.y >= snakeGame.canvas.height) {
+                gameOver();
+                return;
+            }
+
+            // Self collision
+            for (let i = 0; i < snakeGame.snake.length; i++) {
+                if (head.x === snakeGame.snake[i].x && head.y === snakeGame.snake[i].y) {
+                    gameOver();
+                    return;
+                }
+            }
+
+            snakeGame.snake.unshift(head);
+
+            // Eat Food
+            if (head.x === snakeGame.food.x && head.y === snakeGame.food.y) {
+                snakeGame.score += 10;
+                placeFood();
+                // Speed up slightly
+                // clearInterval(snakeGame.loopId);
+                // snakeGame.speed = Math.max(50, snakeGame.speed - 2);
+                // snakeGame.loopId = setInterval(gameLoop, snakeGame.speed);
+            } else {
+                snakeGame.snake.pop();
+            }
+
+            drawSnake();
+        }
+
+        function drawSnake() {
+            const ctx = snakeGame.ctx;
+            ctx.fillStyle = '#c7f0d8'; // Clear screen color
+            ctx.fillRect(0, 0, snakeGame.canvas.width, snakeGame.canvas.height);
+
+            ctx.fillStyle = '#43523d'; // Pixel color
+
+            // Draw Snake
+            snakeGame.snake.forEach(part => {
+                ctx.fillRect(part.x, part.y, snakeGame.grid - 1, snakeGame.grid - 1);
+            });
+
+            // Draw Food
+            ctx.fillRect(snakeGame.food.x, snakeGame.food.y, snakeGame.grid - 1, snakeGame.grid - 1);
+        }
+
+        function placeFood() {
+            snakeGame.food = {
+                x: Math.floor(Math.random() * (snakeGame.canvas.width / snakeGame.grid)) * snakeGame.grid,
+                y: Math.floor(Math.random() * (snakeGame.canvas.height / snakeGame.grid)) * snakeGame.grid
+            };
+        }
+
+        function handleSnakeInput(key) {
+            const goingUp = snakeGame.dy === -snakeGame.grid;
+            const goingDown = snakeGame.dy === snakeGame.grid;
+            const goingRight = snakeGame.dx === snakeGame.grid;
+            const goingLeft = snakeGame.dx === -snakeGame.grid;
+
+            // Mapping 2=Up, 8=Down, 4=Left, 6=Right (Classic) + Arrow Keys
+            if ((key === 'ArrowUp' || key === '2') && !goingDown) {
+                snakeGame.dx = 0;
+                snakeGame.dy = -snakeGame.grid;
+            }
+            if ((key === 'ArrowDown' || key === '8') && !goingUp) {
+                snakeGame.dx = 0;
+                snakeGame.dy = snakeGame.grid;
+            }
+            if ((key === 'ArrowLeft' || key === '4') && !goingRight) {
+                snakeGame.dx = -snakeGame.grid;
+                snakeGame.dy = 0;
+            }
+            if ((key === 'ArrowRight' || key === '6') && !goingLeft) {
+                snakeGame.dx = snakeGame.grid;
+                snakeGame.dy = 0;
+            }
+        }
+
+        function gameOver() {
+            stopSnake();
+            document.getElementById('final-score').textContent = snakeGame.score;
+            switchScreen('gameover');
+        }
+
+        // --- SMS Logic (Multi-tap) ---
+        function handleMultiTap(key) {
+            if (!keyMap[key]) return;
+
+            const now = Date.now();
+            const chars = keyMap[key];
+
+            if (state.lastQqKey === key && (now - state.lastKeyPressTime) < 800) {
+                state.tapCount = (state.tapCount + 1) % chars.length;
+                // Replace last char
+                state.smsText = state.smsText.slice(0, -1) + chars[state.tapCount];
+            } else {
+                state.tapCount = 0;
+                state.smsText += chars[0];
+            }
+
+            state.lastQqKey = key;
+            state.lastKeyPressTime = now;
+            renderSMS();
+        }
+
+        function renderSMS() {
+            smsDisplayEl.innerHTML = state.smsText + '<span class="cursor"></span>';
+        }
+
+        // --- Composer / Visualizer Logic ---
+        function startVisualizer() {
+            const bars = document.querySelectorAll('.bar');
+            visualizerInterval = setInterval(() => {
+                bars.forEach(bar => {
+                    const height = Math.floor(Math.random() * 80) + 10;
+                    bar.style.height = height + '%';
+                });
+            }, 150);
+        }
+
+        function stopVisualizer() {
+            clearInterval(visualizerInterval);
+        }
+
+        // Initialize
+        init();
+
+    </script>
+</body>
+
+</html>
