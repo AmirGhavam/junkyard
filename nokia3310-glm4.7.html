@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nokia 3310</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        * {
+            image-rendering: pixelated;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            font-family: 'VT323', monospace;
+        }
+
+        .phone-body {
+            background: linear-gradient(145deg, #4a6fa5 0%, #2d4a6f 50%, #1e3a5f 100%);
+            border-radius: 30px;
+            box-shadow:
+                0 20px 60px rgba(0, 0, 0, 0.5),
+                inset 0 2px 10px rgba(255, 255, 255, 0.2),
+                inset 0 -5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .screen-bezel {
+            background: linear-gradient(145deg, #2a2a2a 0%, #1a1a1a 100%);
+            border-radius: 10px;
+            box-shadow: inset 0 5px 15px rgba(0, 0, 0, 0.8);
+        }
+
+        .screen {
+            background: #9cb870;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.3);
+            font-family: 'VT323', monospace;
+        }
+
+        .pixel-text {
+            text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .nokia-btn {
+            background: linear-gradient(145deg, #5a7fb5 0%, #3d5a80 100%);
+            border-radius: 8px;
+            box-shadow:
+                0 4px 0 #1e3a5f,
+                0 6px 10px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+            transition: all 0.1s;
+        }
+
+        .nokia-btn:active {
+            transform: translateY(2px);
+            box-shadow:
+                0 2px 0 #1e3a5f,
+                0 3px 5px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        }
+
+        .nokia-btn-blue {
+            background: linear-gradient(145deg, #4a90d9 0%, #2d5a8f 100%);
+        }
+
+        .menu-btn {
+            background: linear-gradient(145deg, #6b8cba 0%, #4a6fa5 100%);
+        }
+
+        .nav-btn {
+            background: linear-gradient(145deg, #5a7fb5 0%, #3d5a80 100%);
+            width: 50px;
+            height: 40px;
+        }
+
+        .keypad-btn {
+            width: 45px;
+            height: 35px;
+            font-size: 18px;
+            color: #fff;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        .snake-pixel {
+            background: #1a1a1a;
+        }
+
+        .food-pixel {
+            background: #1a1a1a;
+            animation: pulse 0.5s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .visualizer-bar {
+            background: #1a1a1a;
+            transition: height 0.05s;
+        }
+
+        .screen-overlay {
+            background: repeating-linear-gradient(0deg,
+                    transparent,
+                    transparent 2px,
+                    rgba(0, 0, 0, 0.03) 2px,
+                    rgba(0, 0, 0, 0.03) 4px);
+            pointer-events: none;
+        }
+
+        .icon {
+            font-size: 16px;
+        }
+
+        .highlight {
+            background: #1a1a1a;
+            color: #9cb870;
+        }
+
+        .cursor {
+            animation: blink 0.8s infinite;
+        }
+
+        @keyframes blink {
+
+            0%,
+            50% {
+                opacity: 1;
+            }
+
+            51%,
+            100% {
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+
+<body class="flex items-center justify-center p-4">
+    <div class="phone-body p-6 w-80">
+        <!-- Speaker -->
+        <div class="flex justify-center mb-3">
+            <div class="flex gap-1">
+                <div class="w-8 h-2 bg-gray-800 rounded-full"></div>
+                <div class="w-8 h-2 bg-gray-800 rounded-full"></div>
+            </div>
+        </div>
+
+        <!-- Screen -->
+        <div class="screen-bezel p-3 mb-4">
+            <div class="screen relative overflow-hidden" style="width: 220px; height: 130px;">
+                <div class="screen-overlay absolute inset-0 z-10"></div>
+                <div id="screen-content" class="relative z-0 p-2 text-xl h-full flex flex-col">
+                    <!-- Dynamic content here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Control Buttons -->
+        <div class="flex justify-between items-center mb-4 px-2">
+            <button onclick="handleMenuBtn()" class="menu-btn nokia-btn px-3 py-1 text-white text-sm">Menu</button>
+            <div class="flex gap-1">
+                <button onclick="handleUp()"
+                    class="nav-btn nokia-btn flex items-center justify-center text-white text-2xl">▲</button>
+            </div>
+        </div>
+
+        <!-- Navigation Cluster -->
+        <div class="flex justify-center items-center gap-2 mb-4">
+            <button onclick="handleLeft()"
+                class="nav-btn nokia-btn flex items-center justify-center text-white text-2xl">◀</button>
+            <button onclick="handleSelect()"
+                class="nokia-btn-blue w-12 h-12 rounded-full flex items-center justify-center text-white text-xl font-bold border-4 border-blue-400/30">OK</button>
+            <button onclick="handleRight()"
+                class="nav-btn nokia-btn flex items-center justify-center text-white text-2xl">▶</button>
+        </div>
+
+        <div class="flex justify-center mb-4">
+            <button onclick="handleDown()"
+                class="nav-btn nokia-btn flex items-center justify-center text-white text-2xl">▼</button>
+        </div>
+
+        <!-- Keypad -->
+        <div class="grid grid-cols-3 gap-2 px-2 mb-4">
+            <button onclick="handleKey('1')" class="keypad-btn nokia-btn">1</button>
+            <button onclick="handleKey('2')" class="keypad-btn nokia-btn">2 abc</button>
+            <button onclick="handleKey('3')" class="keypad-btn nokia-btn">3 def</button>
+            <button onclick="handleKey('4')" class="keypad-btn nokia-btn">4 ghi</button>
+            <button onclick="handleKey('5')" class="keypad-btn nokia-btn">5 jkl</button>
+            <button onclick="handleKey('6')" class="keypad-btn nokia-btn">6 mno</button>
+            <button onclick="handleKey('7')" class="keypad-btn nokia-btn">7 pqrs</button>
+            <button onclick="handleKey('8')" class="keypad-btn nokia-btn">8 tuv</button>
+            <button onclick="handleKey('9')" class="keypad-btn nokia-btn">9 wxyz</button>
+            <button onclick="handleKey('*')" class="keypad-btn nokia-btn">*</button>
+            <button onclick="handleKey('0')" class="keypad-btn nokia-btn">0 space</button>
+            <button onclick="handleKey('#')" class="keypad-btn nokia-btn">#</button>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex justify-between px-4">
+            <button onclick="handleCall()" class="nokia-btn px-4 py-2 text-green-300 text-lg font-bold">📞</button>
+            <button onclick="handleEnd()" class="nokia-btn px-4 py-2 text-red-300 text-lg font-bold">✕</button>
+        </div>
+
+        <!-- Brand -->
+        <div class="text-center mt-4 text-white/50 text-xs tracking-widest">NOKIA</div>
+    </div>
+
+    <script>
+        // State Management
+        let currentState = 'home';
+        let snake = [];
+        let food = {};
+        let direction = 'right';
+        let gameLoop = null;
+        let score = 0;
+        let menuIndex = 0;
+        let smsText = '';
+        let smsRecipient = '';
+        let smsMode = 'recipient';
+        let visualizerBars = [];
+        let visualizerInterval = null;
+        let toneIndex = 0;
+
+        const menus = {
+            home: [
+                { name: 'Games', icon: '🎮', action: 'games' },
+                { name: 'Messages', icon: '✉️', action: 'sms' },
+                { name: 'Tones', icon: '🎵', action: 'tones' },
+                { name: 'Settings', icon: '⚙️', action: 'settings' }
+            ],
+            games: [
+                { name: 'Snake', icon: '🐍', action: 'snake' },
+                { name: '← Back', icon: '◀', action: 'home' }
+            ],
+            sms: [
+                { name: 'Write Msg', icon: '✏️', action: 'writeSms' },
+                { name: 'Inbox', icon: '📥', action: 'inbox' },
+                { name: '← Back', icon: '◀', action: 'home' }
+            ],
+            tones: [
+                { name: 'Ringtone', icon: '🔔', action: 'ringtone' },
+                { name: 'Composer', icon: '🎼', action: 'composer' },
+                { name: '← Back', icon: '◀', action: 'home' }
+            ],
+            settings: [
+                { name: 'Time', icon: '🕐', action: 'time' },
+                { name: '← Back', icon: '◀', action: 'home' }
+            ]
+        };
+
+        // Ringtone pattern for visualizer (Nokia Tune)
+        const nokiaTune = [
+            [2, 4, 3, 5, 2, 4, 3, 5, 2, 4, 6, 8, 5, 7, 4, 6],
+            [1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 3, 4, 2, 3, 1, 2],
+            [3, 5, 4, 6, 3, 5, 4, 6, 3, 5, 7, 8, 6, 7, 5, 6],
+            [2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 4, 5, 3, 4, 2, 3]
+        ];
+
+        // Render functions
+        function renderHome() {
+            const now = new Date();
+            const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+            return `
+                <div class="text-center text-2xl font-bold">${time}</div>
+                <div class="text-center text-sm mt-1">${now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
+                <div class="mt-3 border-t border-black/30 pt-2">
+                    <div class="text-sm">Menu</div>
+                </div>
+            `;
+        }
+
+        function renderMenu(menuName) {
+            const menu = menus[menuName];
+            let html = `<div class="text-lg mb-2">${menuName.charAt(0).toUpperCase() + menuName.slice(1)}</div>`;
+            menu.forEach((item, index) => {
+                const isHighlighted = index === menuIndex;
+                html += `<div class="${isHighlighted ? 'highlight' : ''} px-1">${item.icon} ${item.name}</div>`;
+            });
+            return html;
+        }
+
+        function renderSnakeGame() {
+            let html = `<div class="flex justify-between text-sm mb-1"><span>Score: ${score}</span><span>🐍</span></div>`;
+
+            // Game grid
+            const gridSize = 10;
+            const gridWidth = 20;
+            const gridHeight = 8;
+
+            html += '<div class="grid gap-px" style="grid-template-columns: repeat(' + gridWidth + ', ' + gridSize + 'px);">';
+
+            for (let y = 0; y < gridHeight; y++) {
+                for (let x = 0; x < gridWidth; x++) {
+                    const isSnake = snake.some(s => s.x === x && s.y === y);
+                    const isFood = food.x === x && food.y === y;
+                    let cellClass = 'bg-transparent';
+                    let content = '';
+
+                    if (isSnake) {
+                        cellClass = 'snake-pixel';
+                    } else if (isFood) {
+                        cellClass = 'food-pixel';
+                        content = '●';
+                    }
+
+                    html += `<div class="${cellClass} flex items-center justify-center" style="width:${gridSize}px;height:${gridSize}px;font-size:8px;">${content}</div>`;
+                }
+            }
+
+            html += '</div>';
+            return html;
+        }
+
+        function renderSMS() {
+            let html = `<div class="text-lg mb-1">✏️ Write Message</div>`;
+
+            if (smsMode === 'recipient') {
+                html += `<div class="text-sm mb-1">To:</div>`;
+                html += `<div class="border border-black/50 p-1 h-8">${smsRecipient}<span class="cursor">_</span></div>`;
+            } else {
+                html += `<div class="text-sm mb-1">To: ${smsRecipient}</div>`;
+                html += `<div class="border border-black/50 p-1 h-16 text-sm overflow-hidden">${smsText}<span class="cursor">_</span></div>`;
+                html += `<div class="text-xs mt-1">${smsText.length}/459</div>`;
+            }
+
+            html += `<div class="text-xs mt-2 mt-auto">Options: Send | Clear</div>`;
+            return html;
+        }
+
+        function renderVisualizer() {
+            let html = `<div class="text-lg text-center mb-2">🎵 Nokia Tune</div>`;
+            html += `<div class="flex items-end justify-center gap-1 h-16">`;
+
+            for (let i = 0; i < 16; i++) {
+                const height = visualizerBars[i] || 2;
+                html += `<div class="visualizer-bar w-2" style="height: ${height * 4}px;"></div>`;
+            }
+
+            html += `</div>`;
+            html += `<div class="text-xs text-center mt-2">Playing...</div>`;
+            return html;
+        }
+
+        function renderInbox() {
+            return `
+                <div class="text-lg mb-2">📥 Inbox</div>
+                <div class="text-sm px-1">📩 Mom: "Call me when you can!"</div>
+                <div class="text-sm px-1 mt-1">📩 Service: "Your balance: $5.00"</div>
+                <div class="text-xs mt-2">← Back</div>
+            `;
+        }
+
+        function renderSettings() {
+            const now = new Date();
+            return `
+                <div class="text-lg mb-2">⚙️ Settings</div>
+                <div class="text-sm px-1">🕐 Time: ${now.toLocaleTimeString()}</div>
+                <div class="text-sm px-1 mt-1">📅 Date: ${now.toLocaleDateString()}</div>
+                <div class="text-sm px-1 mt-1">🔊 Ringtone: Nokia Tune</div>
+                <div class="text-xs mt-2">← Back</div>
+            `;
+        }
+
+        function renderScreen() {
+            const screenContent = document.getElementById('screen-content');
+
+            switch (currentState) {
+                case 'home':
+                    screenContent.innerHTML = renderHome();
+                    break;
+                case 'menu':
+                    screenContent.innerHTML = renderMenu('home');
+                    break;
+                case 'games':
+                    screenContent.innerHTML = renderMenu('games');
+                    break;
+                case 'snake':
+                    screenContent.innerHTML = renderSnakeGame();
+                    break;
+                case 'sms':
+                    screenContent.innerHTML = renderMenu('sms');
+                    break;
+                case 'writeSms':
+                    screenContent.innerHTML = renderSMS();
+                    break;
+                case 'inbox':
+                    screenContent.innerHTML = renderInbox();
+                    break;
+                case 'tones':
+                    screenContent.innerHTML = renderMenu('tones');
+                    break;
+                case 'ringtone':
+                    screenContent.innerHTML = renderVisualizer();
+                    break;
+                case 'settings':
+                    screenContent.innerHTML = renderSettings();
+                    break;
+                default:
+                    screenContent.innerHTML = renderHome();
+            }
+        }
+
+        // Snake game logic
+        function initSnake() {
+            snake = [{ x: 5, y: 4 }, { x: 4, y: 4 }, { x: 3, y: 4 }];
+            direction = 'right';
+            score = 0;
+            spawnFood();
+            if (gameLoop) clearInterval(gameLoop);
+            gameLoop = setInterval(updateSnake, 200);
+        }
+
+        function spawnFood() {
+            const x = Math.floor(Math.random() * 20);
+            const y = Math.floor(Math.random() * 8);
+            food = { x, y };
+        }
+
+        function updateSnake() {
+            const head = { ...snake[0] };
+
+            switch (direction) {
+                case 'up': head.y--; break;
+                case 'down': head.y++; break;
+                case 'left': head.x--; break;
+                case 'right': head.x++; break;
+            }
+
+            // Wrap around
+            if (head.x < 0) head.x = 19;
+            if (head.x > 19) head.x = 0;
+            if (head.y < 0) head.y = 7;
+            if (head.y > 7) head.y = 0;
+
+            // Check collision with self
+            if (snake.some(s => s.x === head.x && s.y === head.y)) {
+                snake = [{ x: 5, y: 4 }, { x: 4, y: 4 }, { x: 3, y: 4 }];
+                score = 0;
+                direction = 'right';
+                spawnFood();
+                return;
+            }
+
+            snake.unshift(head);
+
+            // Check food
+            if (head.x === food.x && head.y === food.y) {
+                score += 10;
+                spawnFood();
+            } else {
+                snake.pop();
+            }
+
+            renderScreen();
+        }
+
+        // Visualizer logic
+        function startVisualizer() {
+            visualizerBars = new Array(16).fill(2);
+            toneIndex = 0;
+
+            if (visualizerInterval) clearInterval(visualizerInterval);
+
+            visualizerInterval = setInterval(() => {
+                const pattern = nokiaTune[Math.floor(Math.random() * 4)];
+                visualizerBars = pattern.map(() => Math.random() * 6 + 2);
+                renderScreen();
+            }, 150);
+        }
+
+        function stopVisualizer() {
+            if (visualizerInterval) clearInterval(visualizerInterval);
+        }
+
+        // Button handlers
+        function handleMenuBtn() {
+            currentState = 'menu';
+            menuIndex = 0;
+            stopVisualizer();
+            if (gameLoop) clearInterval(gameLoop);
+            renderScreen();
+        }
+
+        function handleUp() {
+            if (currentState === 'snake') {
+                if (direction !== 'down') direction = 'up';
+            } else if (currentState.includes('menu') || currentState === 'games' || currentState === 'sms' || currentState === 'tones') {
+                const menu = menus[currentState.replace('menu', 'home') === currentState ? currentState : currentState] || menus[currentState];
+                menuIndex = Math.max(0, menuIndex - 1);
+                renderScreen();
+            }
+        }
+
+        function handleDown() {
+            if (currentState === 'snake') {
+                if (direction !== 'up') direction = 'down';
+            } else if (currentState.includes('menu') || currentState === 'games' || currentState === 'sms' || currentState === 'tones') {
+                const menu = menus[currentState];
+                menuIndex = Math.min(menu.length - 1, menuIndex + 1);
+                renderScreen();
+            }
+        }
+
+        function handleLeft() {
+            if (currentState === 'snake') {
+                if (direction !== 'right') direction = 'left';
+            }
+        }
+
+        function handleRight() {
+            if (currentState === 'snake') {
+                if (direction !== 'left') direction = 'right';
+            }
+        }
+
+        function handleSelect() {
+            if (currentState === 'menu') {
+                const menu = menus.home;
+                const selected = menu[menuIndex];
+                if (selected.action === 'games') currentState = 'games';
+                else if (selected.action === 'sms') currentState = 'sms';
+                else if (selected.action === 'tones') currentState = 'tones';
+                else if (selected.action === 'settings') currentState = 'settings';
+                menuIndex = 0;
+            } else if (currentState === 'games') {
+                const menu = menus.games;
+                const selected = menu[menuIndex];
+                if (selected.action === 'snake') {
+                    currentState = 'snake';
+                    initSnake();
+                } else if (selected.action === 'home') {
+                    currentState = 'home';
+                }
+            } else if (currentState === 'sms') {
+                const menu = menus.sms;
+                const selected = menu[menuIndex];
+                if (selected.action === 'writeSms') {
+                    currentState = 'writeSms';
+                    smsMode = 'recipient';
+                    smsRecipient = '';
+                    smsText = '';
+                } else if (selected.action === 'inbox') {
+                    currentState = 'inbox';
+                } else if (selected.action === 'home') {
+                    currentState = 'home';
+                }
+            } else if (currentState === 'tones') {
+                const menu = menus.tones;
+                const selected = menu[menuIndex];
+                if (selected.action === 'ringtone') {
+                    currentState = 'ringtone';
+                    startVisualizer();
+                } else if (selected.action === 'home') {
+                    currentState = 'home';
+                }
+            } else if (currentState === 'writeSms') {
+                if (smsMode === 'recipient') {
+                    smsMode = 'message';
+                } else {
+                    // Send message simulation
+                    currentState = 'sms';
+                }
+            } else if (currentState === 'inbox' || currentState === 'settings' || currentState === 'ringtone') {
+                currentState = 'home';
+                stopVisualizer();
+            }
+            menuIndex = 0;
+            renderScreen();
+        }
+
+        function handleKey(key) {
+            if (currentState === 'writeSms') {
+                if (smsMode === 'recipient') {
+                    if (key === '#') {
+                        smsMode = 'message';
+                    } else if (smsRecipient.length < 15) {
+                        smsRecipient += key;
+                    }
+                } else {
+                    if (key === '#') {
+                        // Send
+                        currentState = 'sms';
+                    } else if (key === '*' && smsText.length > 0) {
+                        smsText = smsText.slice(0, -1);
+                    } else if (key === '0') {
+                        if (smsText.length < 459) smsText += ' ';
+                    } else if (smsText.length < 459) {
+                        smsText += key;
+                    }
+                }
+                renderScreen();
+            }
+        }
+
+        function handleCall() {
+            if (currentState === 'writeSms' && smsMode === 'message') {
+                alert(`Message sent to ${smsRecipient}!\n"${smsText}"`);
+                currentState = 'sms';
+                renderScreen();
+            } else if (currentState !== 'snake') {
+                currentState = 'ringtone';
+                startVisualizer();
+                renderScreen();
+            }
+        }
+
+        function handleEnd() {
+            currentState = 'home';
+            stopVisualizer();
+            if (gameLoop) clearInterval(gameLoop);
+            menuIndex = 0;
+            renderScreen();
+        }
+
+        // Keyboard support
+        document.addEventListener('keydown', (e) => {
+            switch (e.key) {
+                case 'ArrowUp': handleUp(); break;
+                case 'ArrowDown': handleDown(); break;
+                case 'ArrowLeft': handleLeft(); break;
+                case 'ArrowRight': handleRight(); break;
+                case 'Enter': handleSelect(); break;
+                case 'Escape': handleEnd(); break;
+                case '1': case '2': case '3': case '4': case '5':
+                case '6': case '7': case '8': case '9': case '0':
+                case '*': case '#': handleKey(e.key); break;
+            }
+        });
+
+        // Clock update
+        setInterval(() => {
+            if (currentState === 'home') renderScreen();
+        }, 1000);
+
+        // Initial render
+        renderScreen();
+    </script>
+</body>
+
+</html>
