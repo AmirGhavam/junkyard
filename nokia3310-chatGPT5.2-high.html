@@ -1,0 +1,1157 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nokia 3310 — Snake, SMS, Ringtone</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --screen-bg: #c6d7a0;
+            --screen-ink: #1b2a18;
+            --screen-border: #6f7c59;
+        }
+
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            background: radial-gradient(1000px 600px at 50% 20%, #1f2937 0%, #0b1220 55%, #060b14 100%);
+        }
+
+        /* Phone shell */
+        .phone-shell {
+            background: linear-gradient(180deg, #e8edf2 0%, #cfd7df 45%, #b8c3cf 100%);
+            box-shadow:
+                0 24px 80px rgba(0, 0, 0, .55),
+                inset 0 1px 0 rgba(255, 255, 255, .7),
+                inset 0 -12px 24px rgba(0, 0, 0, .12);
+            border: 1px solid rgba(255, 255, 255, .35);
+        }
+
+        .phone-bezel {
+            background: linear-gradient(180deg, #e6ebf0 0%, #c9d2dc 100%);
+            box-shadow: inset 0 2px 2px rgba(255, 255, 255, .6), inset 0 -2px 6px rgba(0, 0, 0, .12);
+        }
+
+        /* Pixel screen */
+        .screen-frame {
+            background: linear-gradient(180deg, #9aa37a 0%, #7b8560 100%);
+            box-shadow: inset 0 2px 12px rgba(0, 0, 0, .35);
+            border: 1px solid rgba(0, 0, 0, .25);
+        }
+
+        .screen {
+            background: linear-gradient(180deg, rgba(255, 255, 255, .22), rgba(255, 255, 255, 0)), var(--screen-bg);
+            border: 2px solid var(--screen-border);
+            box-shadow:
+                inset 0 0 0 2px rgba(255, 255, 255, .18),
+                inset 0 10px 18px rgba(255, 255, 255, .12),
+                inset 0 -16px 24px rgba(0, 0, 0, .10);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .screen::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background:
+                repeating-linear-gradient(to bottom,
+                    rgba(0, 0, 0, .06) 0px,
+                    rgba(0, 0, 0, .06) 1px,
+                    rgba(255, 255, 255, 0) 2px,
+                    rgba(255, 255, 255, 0) 4px);
+            opacity: .25;
+            pointer-events: none;
+            mix-blend-mode: multiply;
+        }
+
+        .lcd {
+            font-family: "Press Start 2P", ui-monospace, monospace;
+            color: var(--screen-ink);
+            -webkit-font-smoothing: none;
+            -moz-osx-font-smoothing: grayscale;
+            font-smooth: never;
+            text-rendering: geometricPrecision;
+            letter-spacing: .02em;
+        }
+
+        canvas.pixel {
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+
+        /* Buttons */
+        .btn-key {
+            background: linear-gradient(180deg, #f7fafc 0%, #e7edf5 60%, #dbe5ef 100%);
+            border: 1px solid rgba(30, 41, 59, .25);
+            box-shadow:
+                0 2px 0 rgba(0, 0, 0, .25),
+                inset 0 1px 0 rgba(255, 255, 255, .8);
+        }
+
+        .btn-key:active {
+            transform: translateY(1px);
+            box-shadow:
+                0 1px 0 rgba(0, 0, 0, .25),
+                inset 0 1px 0 rgba(255, 255, 255, .7);
+        }
+
+        .btn-soft {
+            background: linear-gradient(180deg, #f6f8fb 0%, #e6edf5 100%);
+            border: 1px solid rgba(30, 41, 59, .22);
+            box-shadow: 0 2px 0 rgba(0, 0, 0, .18), inset 0 1px 0 rgba(255, 255, 255, .75);
+        }
+
+        .shake {
+            animation: shake 120ms linear 0s 2;
+        }
+
+        @keyframes shake {
+            0% {
+                transform: translate(0, 0) rotate(0deg)
+            }
+
+            25% {
+                transform: translate(1px, 0) rotate(.2deg)
+            }
+
+            50% {
+                transform: translate(-1px, 0) rotate(-.2deg)
+            }
+
+            75% {
+                transform: translate(1px, 0) rotate(.1deg)
+            }
+
+            100% {
+                transform: translate(0, 0) rotate(0deg)
+            }
+        }
+
+        .pill {
+            border: 1px solid rgba(0, 0, 0, .18);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, .65);
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex items-center justify-center p-6">
+    <main class="w-full max-w-5xl flex flex-col items-center gap-5">
+        <header class="text-center text-slate-100">
+            <h1 class="text-2xl md:text-3xl font-semibold tracking-tight">Nokia 3310</h1>
+            <p class="text-slate-300 text-sm md:text-base">Pixel screen • Snake • SMS (multi‑tap) • Classic ringtone
+                visualizer</p>
+        </header>
+
+        <section class="phone-shell rounded-[44px] w-[380px] sm:w-[420px] p-6 sm:p-7">
+            <!-- Top cap / speaker -->
+            <div class="flex items-center justify-between mb-4">
+                <div class="h-3 w-24 rounded-full phone-bezel mx-auto"></div>
+            </div>
+
+            <!-- Screen bezel -->
+            <div class="screen-frame rounded-2xl p-4">
+                <div id="screen" class="screen rounded-xl w-full aspect-[4/3] p-3">
+                    <!-- Status bar -->
+                    <div class="lcd text-[9px] leading-none flex items-center justify-between select-none">
+                        <div class="flex items-center gap-2">
+                            <span id="sig">▂▃▅▇</span>
+                            <span id="carrier">NOKIA</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span id="clock">12:00</span>
+                            <span id="bat">▮▮▮▯</span>
+                        </div>
+                    </div>
+
+                    <!-- Viewport -->
+                    <div class="mt-2 h-[calc(100%-44px)]">
+                        <!-- MENU -->
+                        <div id="view-menu" class="lcd h-full">
+                            <div class="text-[10px] leading-snug">
+                                <div class="text-center text-[11px]">Menu</div>
+                                <div class="mt-2">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex-1">
+                                            <div id="menuItem0" class="px-2 py-1 rounded-sm">1 Snake</div>
+                                            <div id="menuItem1" class="px-2 py-1 rounded-sm">2 Messages</div>
+                                            <div id="menuItem2" class="px-2 py-1 rounded-sm">3 Ringtone</div>
+                                        </div>
+                                    </div>
+                                    <div class="mt-3 text-[8px] leading-snug opacity-90">
+                                        Use ▲▼ or 2/8 to navigate • Select to open • Back to return
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SNAKE -->
+                        <div id="view-snake" class="hidden h-full">
+                            <div class="flex items-center justify-between lcd text-[9px] mb-1">
+                                <div>Snake</div>
+                                <div>Score: <span id="snakeScore">0</span></div>
+                            </div>
+                            <div class="w-full flex items-center justify-center">
+                                <canvas id="snakeCanvas" class="pixel w-full h-[170px] rounded-md" width="84"
+                                    height="48" aria-label="Snake screen" role="img"></canvas>
+                            </div>
+                            <div class="lcd text-[8px] mt-1 flex items-center justify-between select-none">
+                                <span>2/4/6/8 move</span>
+                                <span>5 pause</span>
+                            </div>
+                        </div>
+
+                        <!-- SMS -->
+                        <div id="view-sms" class="hidden lcd h-full">
+                            <div class="flex items-center justify-between text-[9px]">
+                                <div>Write message</div>
+                                <div><span id="smsCount">0</span>/160</div>
+                            </div>
+                            <div
+                                class="mt-2 rounded-md border border-black/20 bg-black/5 p-2 h-[150px] overflow-hidden">
+                                <pre id="smsBox" class="whitespace-pre-wrap break-words text-[10px] leading-snug"></pre>
+                                <div id="smsCaret" class="inline-block w-[8px] h-[10px] bg-black/40 align-middle"></div>
+                            </div>
+                            <div class="mt-2 text-[8px] leading-snug opacity-90">
+                                <div>Multi‑tap: press keys repeatedly (2=ABC...) • 0=space • *=backspace • #=mode</div>
+                                <div>Mode: <span id="smsMode">abc</span> • Send: press Call/Green</div>
+                            </div>
+                        </div>
+
+                        <!-- RINGTONE -->
+                        <div id="view-ring" class="hidden h-full">
+                            <div class="flex items-center justify-between lcd text-[9px] mb-1">
+                                <div>Ringtone</div>
+                                <div id="ringState">Stopped</div>
+                            </div>
+                            <div class="w-full flex items-center justify-center">
+                                <canvas id="ringCanvas" class="pixel w-full h-[170px] rounded-md" width="84" height="48"
+                                    aria-label="Ringtone visualizer" role="img"></canvas>
+                            </div>
+                            <div class="lcd text-[8px] mt-1 flex items-center justify-between select-none">
+                                <span>OK: Play/Stop</span>
+                                <span>Vol: ▲▼</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Soft keys line -->
+                    <div
+                        class="absolute left-3 right-3 bottom-2 flex items-center justify-between lcd text-[9px] select-none">
+                        <span id="softLeft">Select</span>
+                        <span id="softMid">OK</span>
+                        <span id="softRight">Back</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Branding strip -->
+            <div class="mt-5 flex items-center justify-center">
+                <div
+                    class="pill rounded-full px-4 py-1 bg-white/40 text-slate-700 font-semibold tracking-widest text-xs">
+                    NOKIA</div>
+            </div>
+
+            <!-- Soft keys + D-pad + call/end -->
+            <div class="mt-4 grid grid-cols-3 gap-3 items-center">
+                <button class="btn-soft rounded-xl py-3 text-slate-800 font-semibold"
+                    data-action="softLeft">Soft</button>
+                <div class="grid place-items-center">
+                    <div class="grid grid-cols-3 grid-rows-3 gap-1">
+                        <button class="btn-soft rounded-lg w-12 h-10" data-action="up">▲</button>
+                        <div></div>
+                        <button class="btn-soft rounded-lg w-12 h-10" data-action="right">▶</button>
+                        <button class="btn-soft rounded-lg w-12 h-10" data-action="left">◀</button>
+                        <button class="btn-soft rounded-lg w-12 h-10 font-bold" data-action="ok">OK</button>
+                        <div></div>
+                        <div></div>
+                        <button class="btn-soft rounded-lg w-12 h-10" data-action="down">▼</button>
+                        <div></div>
+                    </div>
+                </div>
+                <button class="btn-soft rounded-xl py-3 text-slate-800 font-semibold"
+                    data-action="softRight">Soft</button>
+            </div>
+
+            <div class="mt-3 grid grid-cols-2 gap-3">
+                <button class="btn-soft rounded-xl py-3 text-green-900 font-bold" data-action="call">Call</button>
+                <button class="btn-soft rounded-xl py-3 text-red-900 font-bold" data-action="end">End</button>
+            </div>
+
+            <!-- Numeric keypad -->
+            <div class="mt-4 grid grid-cols-3 gap-3">
+                <button class="btn-key rounded-2xl py-3" data-key="1">
+                    <div class="text-slate-900 font-bold text-lg leading-none">1</div>
+                    <div class="text-[10px] text-slate-700 mt-1">.</div>
+                </button>
+                <button class="btn-key rounded-2xl py-3" data-key="2">
+                    <div class="text-slate-900 font-bold text-lg leading-none">2</div>
+                    <div class="text-[10px] text-slate-700 mt-1">ABC</div>
+                </button>
+                <button class="btn-key rounded-2xl py-3" data-key="3">
+                    <div class="text-slate-900 font-bold text-lg leading-none">3</div>
+                    <div class="text-[10px] text-slate-700 mt-1">DEF</div>
+                </button>
+                <button class="btn-key rounded-2xl py-3" data-key="4">
+                    <div class="text-slate-900 font-bold text-lg leading-none">4</div>
+                    <div class="text-[10px] text-slate-700 mt-1">GHI</div>
+                </button>
+                <button class="btn-key rounded-2xl py-3" data-key="5">
+                    <div class="text-slate-900 font-bold text-lg leading-none">5</div>
+                    <div class="text-[10px] text-slate-700 mt-1">JKL</div>
+                </button>
+                <button class="btn-key rounded-2xl py-3" data-key="6">
+                    <div class="text-slate-900 font-bold text-lg leading-none">6</div>
+                    <div class="text-[10px] text-slate-700 mt-1">MNO</div>
+                </button>
+                <button class="btn-key rounded-2xl py-3" data-key="7">
+                    <div class="text-slate-900 font-bold text-lg leading-none">7</div>
+                    <div class="text-[10px] text-slate-700 mt-1">PQRS</div>
+                </button>
+                <button class="btn-key rounded-2xl py-3" data-key="8">
+                    <div class="text-slate-900 font-bold text-lg leading-none">8</div>
+                    <div class="text-[10px] text-slate-700 mt-1">TUV</div>
+                </button>
+                <button class="btn-key rounded-2xl py-3" data-key="9">
+                    <div class="text-slate-900 font-bold text-lg leading-none">9</div>
+                    <div class="text-[10px] text-slate-700 mt-1">WXYZ</div>
+                </button>
+                <button class="btn-key rounded-2xl py-3" data-key="*">
+                    <div class="text-slate-900 font-bold text-lg leading-none">*</div>
+                    <div class="text-[10px] text-slate-700 mt-1">⌫</div>
+                </button>
+                <button class="btn-key rounded-2xl py-3" data-key="0">
+                    <div class="text-slate-900 font-bold text-lg leading-none">0</div>
+                    <div class="text-[10px] text-slate-700 mt-1">Space</div>
+                </button>
+                <button class="btn-key rounded-2xl py-3" data-key="#">
+                    <div class="text-slate-900 font-bold text-lg leading-none">#</div>
+                    <div class="text-[10px] text-slate-700 mt-1">Mode</div>
+                </button>
+            </div>
+
+            <footer class="mt-4 text-center text-slate-700 text-xs">
+                Tip: your keyboard works too (arrows, 2/4/6/8, Enter=OK, Esc=Back)
+            </footer>
+        </section>
+
+        <section class="text-slate-300 text-xs max-w-xl text-center leading-relaxed">
+            <p>
+                This is a lightweight homage UI (not an emulator): the screen is intentionally low-res (84×48) and
+                scaled with crisp pixels.
+                Audio uses WebAudio; you may need to interact once before playback.
+            </p>
+        </section>
+    </main>
+
+    <script>
+        // ---------- Utilities ----------
+        const $ = (sel) => document.querySelector(sel);
+        const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+        function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+
+        // ---------- Global UI State ----------
+        const views = {
+            menu: $('#view-menu'),
+            snake: $('#view-snake'),
+            sms: $('#view-sms'),
+            ring: $('#view-ring'),
+        };
+
+        let app = 'menu';
+        let menuIndex = 0;
+        const menuItems = [
+            { id: 'snake', label: 'Snake' },
+            { id: 'sms', label: 'Messages' },
+            { id: 'ring', label: 'Ringtone' },
+        ];
+
+        const soft = {
+            left: $('#softLeft'),
+            mid: $('#softMid'),
+            right: $('#softRight'),
+        };
+
+        function setSoftKeys(l, m, r) {
+            soft.left.textContent = l ?? '';
+            soft.mid.textContent = m ?? '';
+            soft.right.textContent = r ?? '';
+        }
+
+        function showApp(next) {
+            app = next;
+            for (const k of Object.keys(views)) views[k].classList.toggle('hidden', k !== next);
+
+            if (app === 'menu') {
+                setSoftKeys('Select', 'OK', 'Back');
+                renderMenu();
+            } else if (app === 'snake') {
+                setSoftKeys('Restart', 'Pause', 'Back');
+                snakeStart();
+            } else if (app === 'sms') {
+                setSoftKeys('Options', 'OK', 'Back');
+                smsRender();
+            } else if (app === 'ring') {
+                setSoftKeys('Tune', 'Play', 'Back');
+                ringRenderOnce();
+            }
+        }
+
+        function renderMenu() {
+            for (let i = 0; i < menuItems.length; i++) {
+                const el = $('#menuItem' + i);
+                const active = i === menuIndex;
+                el.classList.toggle('bg-black/25', active);
+                el.classList.toggle('text-black', true);
+            }
+        }
+
+        // ---------- Clock ----------
+        function pad2(n) { return String(n).padStart(2, '0'); }
+        function tickClock() {
+            const d = new Date();
+            $('#clock').textContent = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+        }
+        tickClock();
+        setInterval(tickClock, 1000);
+
+        // ---------- Snake (84x48 canvas; grid 21x12) ----------
+        const snake = {
+            w: 21,
+            h: 12,
+            cellPx: 4,
+            running: false,
+            paused: false,
+            dir: { x: 1, y: 0 },
+            nextDir: { x: 1, y: 0 },
+            body: [],
+            food: { x: 10, y: 6 },
+            score: 0,
+            speedMs: 130,
+            t: null,
+        };
+
+        const snakeCanvas = $('#snakeCanvas');
+        const sctx = snakeCanvas.getContext('2d');
+
+        function snakeReset() {
+            snake.dir = { x: 1, y: 0 };
+            snake.nextDir = { x: 1, y: 0 };
+            snake.body = [{ x: 5, y: 6 }, { x: 4, y: 6 }, { x: 3, y: 6 }];
+            snake.score = 0;
+            snake.paused = false;
+            snake.speedMs = 130;
+            snakePlaceFood();
+            $('#snakeScore').textContent = snake.score;
+            snakeDraw();
+        }
+
+        function snakePlaceFood() {
+            const occupied = new Set(snake.body.map(p => `${p.x},${p.y}`));
+            let x, y;
+            do {
+                x = Math.floor(Math.random() * snake.w);
+                y = Math.floor(Math.random() * snake.h);
+            } while (occupied.has(`${x},${y}`));
+            snake.food = { x, y };
+        }
+
+        function snakeStart() {
+            if (!snake.running) {
+                snake.running = true;
+            }
+            snakeReset();
+            if (snake.t) clearInterval(snake.t);
+            snake.t = setInterval(snakeStep, snake.speedMs);
+        }
+
+        function snakeStop() {
+            snake.running = false;
+            if (snake.t) clearInterval(snake.t);
+            snake.t = null;
+        }
+
+        function snakeTogglePause() {
+            snake.paused = !snake.paused;
+            $('#snakeScore').textContent = snake.score;
+        }
+
+        function snakeStep() {
+            if (app !== 'snake') return;
+            if (snake.paused) { snakeDraw(true); return; }
+
+            snake.dir = snake.nextDir;
+            const head = snake.body[0];
+            const nx = (head.x + snake.dir.x + snake.w) % snake.w;
+            const ny = (head.y + snake.dir.y + snake.h) % snake.h;
+            const newHead = { x: nx, y: ny };
+
+            // collision with self
+            if (snake.body.some((p, idx) => idx !== 0 && p.x === newHead.x && p.y === newHead.y)) {
+                // game over -> reset with a little shake
+                $('#screen').classList.add('shake');
+                setTimeout(() => $('#screen').classList.remove('shake'), 260);
+                snakeReset();
+                return;
+            }
+
+            snake.body.unshift(newHead);
+
+            if (nx === snake.food.x && ny === snake.food.y) {
+                snake.score += 10;
+                $('#snakeScore').textContent = snake.score;
+                snakePlaceFood();
+                // speed up slightly
+                const next = clamp(snake.speedMs - 4, 70, 160);
+                if (next !== snake.speedMs) {
+                    snake.speedMs = next;
+                    clearInterval(snake.t);
+                    snake.t = setInterval(snakeStep, snake.speedMs);
+                }
+            } else {
+                snake.body.pop();
+            }
+
+            snakeDraw();
+        }
+
+        function snakeDraw(pausedOverlay = false) {
+            // background
+            sctx.clearRect(0, 0, 84, 48);
+            // subtle dither
+            sctx.fillStyle = 'rgba(0,0,0,0.06)';
+            for (let y = 0; y < 48; y += 2) { for (let x = (y % 4 === 0 ? 0 : 1); x < 84; x += 2) { sctx.fillRect(x, y, 1, 1); } }
+
+            // draw border
+            sctx.strokeStyle = 'rgba(0,0,0,0.25)';
+            sctx.strokeRect(0.5, 0.5, 83, 47);
+
+            // food
+            sctx.fillStyle = 'rgba(0,0,0,0.85)';
+            sctx.fillRect(snake.food.x * snake.cellPx + 1, snake.food.y * snake.cellPx + 1, snake.cellPx - 2, snake.cellPx - 2);
+
+            // snake
+            for (let i = 0; i < snake.body.length; i++) {
+                const p = snake.body[i];
+                const shade = i === 0 ? 0.95 : 0.70;
+                sctx.fillStyle = `rgba(0,0,0,${shade})`;
+                sctx.fillRect(p.x * snake.cellPx, p.y * snake.cellPx, snake.cellPx, snake.cellPx);
+            }
+
+            if (pausedOverlay) {
+                sctx.fillStyle = 'rgba(0,0,0,0.18)';
+                sctx.fillRect(0, 0, 84, 48);
+                sctx.fillStyle = 'rgba(0,0,0,0.85)';
+                // draw simple PAUSE text with rectangles (tiny)
+                const blocks = [
+                    // P
+                    [10, 14], [10, 15], [10, 16], [10, 17], [11, 14], [12, 14], [12, 15], [11, 16],
+                    // A
+                    [18, 17], [18, 16], [18, 15], [19, 14], [20, 14], [21, 15], [21, 16], [21, 17], [20, 16], [19, 16],
+                    // U
+                    [27, 14], [27, 15], [27, 16], [27, 17], [28, 17], [29, 17], [30, 17], [31, 14], [31, 15], [31, 16], [31, 17],
+                    // S
+                    [37, 14], [38, 14], [39, 14], [37, 15], [37, 16], [38, 16], [39, 16], [39, 17], [38, 17], [37, 17],
+                    // E
+                    [45, 14], [46, 14], [47, 14], [45, 15], [45, 16], [46, 16], [47, 16], [45, 17], [46, 17], [47, 17]
+                ];
+                for (const [x, y] of blocks) { sctx.fillRect(x, y, 1, 1); }
+            }
+        }
+
+        function snakeSetDir(dx, dy) {
+            // Prevent direct reverse
+            if (snake.dir.x === -dx && snake.dir.y === -dy) return;
+            snake.nextDir = { x: dx, y: dy };
+        }
+
+        // ---------- SMS Composer (multi-tap) ----------
+        const sms = {
+            text: '',
+            modeIndex: 0,
+            modes: ['abc', 'Abc', 'ABC', '123'],
+            pendingKey: null,
+            pendingIndex: 0,
+            pendingTimer: null,
+            lastKeyTime: 0,
+            multiTapWindow: 900,
+            sentToastUntil: 0,
+        };
+
+        const keyMap = {
+            '1': ['.', ',', '?', '!', '\'', '"', '1'],
+            '2': ['a', 'b', 'c', '2'],
+            '3': ['d', 'e', 'f', '3'],
+            '4': ['g', 'h', 'i', '4'],
+            '5': ['j', 'k', 'l', '5'],
+            '6': ['m', 'n', 'o', '6'],
+            '7': ['p', 'q', 'r', 's', '7'],
+            '8': ['t', 'u', 'v', '8'],
+            '9': ['w', 'x', 'y', 'z', '9'],
+        };
+
+        function smsMode() { return sms.modes[sms.modeIndex]; }
+
+        function smsCommitPending() {
+            if (!sms.pendingKey) return;
+            const mode = smsMode();
+            if (mode === '123') {
+                sms.text = (sms.text + sms.pendingKey).slice(0, 160);
+            } else {
+                const letters = keyMap[sms.pendingKey] || [];
+                if (letters.length) {
+                    let ch = letters[sms.pendingIndex % letters.length];
+                    if (mode === 'ABC') ch = ch.toUpperCase();
+                    if (mode === 'Abc') {
+                        // Title case-ish: uppercase at start or after sentence-ending punctuation/space
+                        const prev = sms.text.slice(-1);
+                        const shouldCap = sms.text.length === 0 || /[.!?]\s*$/.test(sms.text) || prev === ' ';
+                        ch = shouldCap ? ch.toUpperCase() : ch;
+                    }
+                    sms.text = (sms.text + ch).slice(0, 160);
+                }
+            }
+            sms.pendingKey = null;
+            sms.pendingIndex = 0;
+            if (sms.pendingTimer) clearTimeout(sms.pendingTimer);
+            sms.pendingTimer = null;
+        }
+
+        function smsPressKey(k) {
+            const mode = smsMode();
+
+            if (k === '#') {
+                smsCommitPending();
+                sms.modeIndex = (sms.modeIndex + 1) % sms.modes.length;
+                smsRender();
+                return;
+            }
+
+            if (k === '*') {
+                // backspace either pending or committed
+                if (sms.pendingKey) {
+                    sms.pendingKey = null;
+                    sms.pendingIndex = 0;
+                    if (sms.pendingTimer) clearTimeout(sms.pendingTimer);
+                    sms.pendingTimer = null;
+                } else {
+                    sms.text = sms.text.slice(0, -1);
+                }
+                smsRender();
+                return;
+            }
+
+            if (k === '0') {
+                smsCommitPending();
+                if (sms.text.length < 160) sms.text += ' ';
+                smsRender();
+                return;
+            }
+
+            // numeric entry
+            if (mode === '123') {
+                smsCommitPending();
+                if (sms.text.length < 160) sms.text += k;
+                smsRender();
+                return;
+            }
+
+            if (!keyMap[k]) return;
+
+            const now = performance.now();
+            const within = (sms.pendingKey === k) && (now - sms.lastKeyTime) <= sms.multiTapWindow;
+
+            if (!within) {
+                smsCommitPending();
+                sms.pendingKey = k;
+                sms.pendingIndex = 0;
+            } else {
+                sms.pendingIndex++;
+            }
+
+            sms.lastKeyTime = now;
+            if (sms.pendingTimer) clearTimeout(sms.pendingTimer);
+            sms.pendingTimer = setTimeout(() => {
+                smsCommitPending();
+                smsRender();
+            }, sms.multiTapWindow);
+
+            smsRender();
+        }
+
+        function smsPreviewText() {
+            if (!sms.pendingKey) return sms.text;
+            const mode = smsMode();
+            if (mode === '123') return sms.text + sms.pendingKey;
+            const letters = keyMap[sms.pendingKey] || [];
+            let ch = letters[sms.pendingIndex % letters.length] || '';
+            if (mode === 'ABC') ch = ch.toUpperCase();
+            if (mode === 'Abc') {
+                const prev = sms.text.slice(-1);
+                const shouldCap = sms.text.length === 0 || /[.!?]\s*$/.test(sms.text) || prev === ' ';
+                ch = shouldCap ? ch.toUpperCase() : ch;
+            }
+            return sms.text + ch;
+        }
+
+        function wrapMono(text, cols = 18) {
+            // Soft wrap to approximate the old LCD width.
+            const words = text.split(/(\s+)/);
+            const lines = [];
+            let line = '';
+            for (const w of words) {
+                if (w === '') continue;
+                if (w.match(/^\s+$/)) {
+                    // keep single spaces
+                    if (line.length < cols) line += ' ';
+                    continue;
+                }
+                if ((line + w).length > cols) {
+                    if (line) lines.push(line.trimEnd());
+                    line = w;
+                } else {
+                    line += w;
+                }
+            }
+            if (line) lines.push(line.trimEnd());
+            // clamp visible
+            const maxLines = 7;
+            return lines.slice(-maxLines).join('\n');
+        }
+
+        function smsRender() {
+            const preview = smsPreviewText().slice(0, 160);
+            $('#smsBox').textContent = wrapMono(preview, 18);
+            $('#smsCount').textContent = preview.length;
+            $('#smsMode').textContent = smsMode();
+
+            // caret blink
+            $('#smsCaret').style.opacity = (Math.floor(Date.now() / 450) % 2) ? '0.15' : '0.6';
+        }
+        setInterval(() => { if (app === 'sms') smsRender(); }, 200);
+
+        function smsSend() {
+            smsCommitPending();
+            const msg = sms.text.trim();
+            if (!msg) {
+                flashStatus('Empty');
+                return;
+            }
+            flashStatus('Sending…');
+            setTimeout(() => {
+                flashStatus('Sent');
+                sms.text = '';
+                smsRender();
+            }, 450);
+        }
+
+        // ---------- Ringtone + Visualizer ----------
+        const ring = {
+            ctx: null,
+            master: null,
+            analyser: null,
+            gain: 0.25,
+            playing: false,
+            stopAt: 0,
+            raf: null,
+            // Nokia tune (approx.) in Hz + duration beats
+            tempo: 180, // bpm-ish
+            seq: [],
+        };
+
+        const ringCanvas = $('#ringCanvas');
+        const rctx = ringCanvas.getContext('2d');
+
+        function noteFreq(name) {
+            // A4=440
+            const A4 = 440;
+            const map = { C: 0, 'C#': 1, Db: 1, D: 2, 'D#': 3, Eb: 3, E: 4, F: 5, 'F#': 6, Gb: 6, G: 7, 'G#': 8, Ab: 8, A: 9, 'A#': 10, Bb: 10, B: 11 };
+            if (name === 'R') return 0;
+            const m = name.match(/^([A-G])(#|b)?(\d)$/);
+            if (!m) return 0;
+            const note = m[1] + (m[2] || '');
+            const octave = parseInt(m[3], 10);
+            const n = map[note] + (octave - 4) * 12;
+            return A4 * Math.pow(2, (n - 9) / 12);
+        }
+
+        function buildNokiaTune() {
+            // A recognizable approximation of the classic Nokia Tune phrase.
+            // Format: [noteName, beats]
+            const s = [
+                ['E5', 0.5], ['D5', 0.5], ['F#4', 0.75], ['G#4', 0.25],
+                ['C#5', 0.5], ['B4', 0.5], ['D4', 0.75], ['E4', 0.25],
+                ['B4', 0.5], ['A4', 0.5], ['C#4', 0.75], ['E4', 0.25],
+                ['A4', 1.0], ['R', 0.5],
+            ];
+            ring.seq = s.map(([n, b]) => ({ f: noteFreq(n), b }));
+        }
+        buildNokiaTune();
+
+        function ringEnsureAudio() {
+            if (ring.ctx) return;
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const master = ctx.createGain();
+            const analyser = ctx.createAnalyser();
+            analyser.fftSize = 256;
+            master.gain.value = ring.gain;
+            master.connect(analyser);
+            analyser.connect(ctx.destination);
+            ring.ctx = ctx;
+            ring.master = master;
+            ring.analyser = analyser;
+        }
+
+        function ringSetGain(g) {
+            ring.gain = clamp(g, 0, 1);
+            if (ring.master) ring.master.gain.value = ring.gain;
+            ringRenderOnce();
+        }
+
+        function ringPlay() {
+            ringEnsureAudio();
+            ring.ctx.resume();
+
+            // stop any existing
+            ringStop(false);
+
+            const ctx = ring.ctx;
+            const beat = 60 / ring.tempo;
+            let t = ctx.currentTime + 0.04;
+
+            ring.playing = true;
+            $('#ringState').textContent = 'Playing';
+
+            for (const n of ring.seq) {
+                const dur = n.b * beat;
+                if (n.f > 0) {
+                    const osc = ctx.createOscillator();
+                    const g = ctx.createGain();
+                    osc.type = 'square';
+                    osc.frequency.value = n.f;
+
+                    // clickless envelope
+                    g.gain.setValueAtTime(0.0001, t);
+                    g.gain.exponentialRampToValueAtTime(0.12, t + 0.01);
+                    g.gain.exponentialRampToValueAtTime(0.0001, t + dur - 0.01);
+
+                    osc.connect(g);
+                    g.connect(ring.master);
+                    osc.start(t);
+                    osc.stop(t + dur);
+                }
+                t += dur;
+            }
+
+            ring.stopAt = t;
+            ringStartViz();
+
+            // auto-stop flag
+            setTimeout(() => {
+                if (ring.playing && ring.ctx && ring.ctx.currentTime >= ring.stopAt - 0.05) {
+                    ringStop(true);
+                }
+            }, (t - ctx.currentTime + 0.2) * 1000);
+        }
+
+        function ringStop(updateUI = true) {
+            if (!ring.playing) {
+                if (updateUI) $('#ringState').textContent = 'Stopped';
+                return;
+            }
+            ring.playing = false;
+            ringStopViz();
+            if (updateUI) $('#ringState').textContent = 'Stopped';
+            ringRenderOnce();
+        }
+
+        function ringToggle() {
+            if (ring.playing) ringStop(true);
+            else ringPlay();
+        }
+
+        function ringRenderOnce() {
+            rctx.clearRect(0, 0, 84, 48);
+            // background
+            rctx.fillStyle = 'rgba(0,0,0,0.06)';
+            for (let y = 0; y < 48; y += 2) { for (let x = (y % 4 === 0 ? 0 : 1); x < 84; x += 2) { rctx.fillRect(x, y, 1, 1); } }
+
+            rctx.strokeStyle = 'rgba(0,0,0,0.25)';
+            rctx.strokeRect(0.5, 0.5, 83, 47);
+
+            // static bars representing volume
+            const vol = ring.gain;
+            const bars = 10;
+            const maxH = 34;
+            for (let i = 0; i < bars; i++) {
+                const bx = 6 + i * 7;
+                const h = Math.floor((0.15 + vol * 0.85) * maxH * (0.55 + 0.45 * Math.sin(i * 1.1 + 1)));
+                rctx.fillStyle = 'rgba(0,0,0,0.55)';
+                rctx.fillRect(bx, 44 - h, 4, h);
+            }
+
+            // labels as pixels
+            const label = ring.playing ? 'PLAY' : 'STOP';
+            drawTinyText(rctx, 6, 7, label);
+            drawTinyText(rctx, 6, 16, `VOL ${Math.round(vol * 9)}`);
+        }
+
+        function ringStartViz() {
+            if (ring.raf) cancelAnimationFrame(ring.raf);
+            const data = new Uint8Array(ring.analyser.frequencyBinCount);
+
+            const loop = () => {
+                if (app !== 'ring') {
+                    ring.raf = requestAnimationFrame(loop);
+                    return;
+                }
+                rctx.clearRect(0, 0, 84, 48);
+
+                // background + border
+                rctx.fillStyle = 'rgba(0,0,0,0.06)';
+                for (let y = 0; y < 48; y += 2) { for (let x = (y % 4 === 0 ? 0 : 1); x < 84; x += 2) { rctx.fillRect(x, y, 1, 1); } }
+                rctx.strokeStyle = 'rgba(0,0,0,0.25)';
+                rctx.strokeRect(0.5, 0.5, 83, 47);
+
+                ring.analyser.getByteFrequencyData(data);
+
+                // draw bars
+                const bars = 14;
+                const step = Math.floor(data.length / bars);
+                for (let i = 0; i < bars; i++) {
+                    const v = data[i * step] / 255;
+                    const h = Math.floor(v * 38);
+                    const x = 4 + i * 5;
+                    rctx.fillStyle = 'rgba(0,0,0,0.82)';
+                    rctx.fillRect(x, 46 - h, 3, h);
+                }
+
+                // scrolling note dots (purely visual)
+                const t = performance.now() / 1000;
+                for (let i = 0; i < 8; i++) {
+                    const x = Math.floor((84 - ((t * 18 + i * 12) % 96)));
+                    const y = 10 + (i % 3) * 6;
+                    rctx.fillStyle = 'rgba(0,0,0,0.7)';
+                    if (x >= 2 && x < 82) rctx.fillRect(x, y, 2, 2);
+                }
+
+                drawTinyText(rctx, 6, 7, 'NOKIA');
+                drawTinyText(rctx, 6, 16, 'TUNE');
+
+                ring.raf = requestAnimationFrame(loop);
+            };
+            ring.raf = requestAnimationFrame(loop);
+        }
+
+        function ringStopViz() {
+            if (ring.raf) cancelAnimationFrame(ring.raf);
+            ring.raf = null;
+        }
+
+        // tiny 3x5-ish pixel font for canvas labels
+        const tinyFont = {
+            'A': [0b010, 0b101, 0b111, 0b101, 0b101],
+            'B': [0b110, 0b101, 0b110, 0b101, 0b110],
+            'C': [0b011, 0b100, 0b100, 0b100, 0b011],
+            'E': [0b111, 0b100, 0b110, 0b100, 0b111],
+            'I': [0b111, 0b010, 0b010, 0b010, 0b111],
+            'K': [0b101, 0b110, 0b100, 0b110, 0b101],
+            'L': [0b100, 0b100, 0b100, 0b100, 0b111],
+            'N': [0b101, 0b111, 0b111, 0b111, 0b101],
+            'O': [0b010, 0b101, 0b101, 0b101, 0b010],
+            'P': [0b110, 0b101, 0b110, 0b100, 0b100],
+            'S': [0b011, 0b100, 0b010, 0b001, 0b110],
+            'T': [0b111, 0b010, 0b010, 0b010, 0b010],
+            'U': [0b101, 0b101, 0b101, 0b101, 0b111],
+            'V': [0b101, 0b101, 0b101, 0b101, 0b010],
+            'Y': [0b101, 0b101, 0b010, 0b010, 0b010],
+            '0': [0b111, 0b101, 0b101, 0b101, 0b111],
+            '1': [0b010, 0b110, 0b010, 0b010, 0b111],
+            '2': [0b110, 0b001, 0b010, 0b100, 0b111],
+            '3': [0b111, 0b001, 0b010, 0b001, 0b111],
+            '4': [0b101, 0b101, 0b111, 0b001, 0b001],
+            '5': [0b111, 0b100, 0b110, 0b001, 0b110],
+            '6': [0b011, 0b100, 0b110, 0b101, 0b010],
+            '7': [0b111, 0b001, 0b010, 0b100, 0b100],
+            '8': [0b010, 0b101, 0b010, 0b101, 0b010],
+            '9': [0b010, 0b101, 0b011, 0b001, 0b110],
+            ' ': [0, 0, 0, 0, 0],
+        };
+
+        function drawTinyText(ctx, x, y, text) {
+            let cx = x;
+            for (const ch of String(text).toUpperCase()) {
+                const glyph = tinyFont[ch] || tinyFont[' '];
+                ctx.fillStyle = 'rgba(0,0,0,0.85)';
+                for (let row = 0; row < glyph.length; row++) {
+                    const bits = glyph[row];
+                    for (let col = 0; col < 3; col++) {
+                        if (bits & (1 << (2 - col))) {
+                            ctx.fillRect(cx + col, y + row, 1, 1);
+                        }
+                    }
+                }
+                cx += 4;
+            }
+        }
+
+        // ---------- Status flash ----------
+        let statusFlashTimer = null;
+        function flashStatus(text) {
+            const old = $('#carrier').textContent;
+            $('#carrier').textContent = text;
+            if (statusFlashTimer) clearTimeout(statusFlashTimer);
+            statusFlashTimer = setTimeout(() => { $('#carrier').textContent = old; }, 900);
+        }
+
+        // ---------- Input handling ----------
+        function handleNav(action) {
+            if (action === 'softRight' || action === 'end') {
+                if (app !== 'menu') {
+                    // stop app-specific activity
+                    if (app === 'snake') snakeStop();
+                    if (app === 'ring') ringStop(false);
+                    showApp('menu');
+                } else {
+                    flashStatus('Menu');
+                }
+                return;
+            }
+
+            if (app === 'menu') {
+                if (action === 'up') menuIndex = (menuIndex + menuItems.length - 1) % menuItems.length;
+                if (action === 'down') menuIndex = (menuIndex + 1) % menuItems.length;
+                if (action === 'ok' || action === 'softLeft' || action === 'softMid') showApp(menuItems[menuIndex].id);
+                renderMenu();
+                return;
+            }
+
+            if (app === 'snake') {
+                if (action === 'softLeft') snakeReset();
+                if (action === 'softMid' || action === 'ok') snakeTogglePause();
+                if (action === 'up') snakeSetDir(0, -1);
+                if (action === 'down') snakeSetDir(0, 1);
+                if (action === 'left') snakeSetDir(-1, 0);
+                if (action === 'right') snakeSetDir(1, 0);
+                return;
+            }
+
+            if (app === 'sms') {
+                if (action === 'softLeft') flashStatus('Options');
+                if (action === 'ok' || action === 'softMid') smsCommitPending();
+                if (action === 'call') smsSend();
+                return;
+            }
+
+            if (app === 'ring') {
+                if (action === 'ok' || action === 'softMid') ringToggle();
+                if (action === 'softLeft') ringToggle();
+                if (action === 'up') ringSetGain(ring.gain + 0.05);
+                if (action === 'down') ringSetGain(ring.gain - 0.05);
+                return;
+            }
+        }
+
+        function handleKeyPress(k) {
+            if (app === 'menu') {
+                if (k === '2') handleNav('up');
+                if (k === '8') handleNav('down');
+                if (k === '5') handleNav('ok');
+                if (k === '0') handleNav('softRight');
+                if (k === '1') { menuIndex = 0; renderMenu(); showApp('snake'); }
+                if (k === '2') { /* already handled */ }
+                if (k === '3') { menuIndex = 2; renderMenu(); showApp('ring'); }
+                if (k === '4') { /* */ }
+                if (k === '6') { /* */ }
+                if (k === '7') { /* */ }
+                if (k === '9') { /* */ }
+                return;
+            }
+
+            if (app === 'snake') {
+                if (k === '2') snakeSetDir(0, -1);
+                if (k === '8') snakeSetDir(0, 1);
+                if (k === '4') snakeSetDir(-1, 0);
+                if (k === '6') snakeSetDir(1, 0);
+                if (k === '5') snakeTogglePause();
+                if (k === '1') snakeReset();
+                if (k === '0') handleNav('softRight');
+                return;
+            }
+
+            if (app === 'sms') {
+                if (/[0-9*#]/.test(k)) smsPressKey(k);
+                return;
+            }
+
+            if (app === 'ring') {
+                if (k === '5') ringToggle();
+                if (k === '2') ringSetGain(ring.gain + 0.05);
+                if (k === '8') ringSetGain(ring.gain - 0.05);
+                if (k === '0') handleNav('softRight');
+                return;
+            }
+        }
+
+        // Keyboard
+        window.addEventListener('keydown', (e) => {
+            // prevent scroll
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
+
+            if (e.key === 'Escape') return handleNav('softRight');
+            if (e.key === 'Enter') return handleNav('ok');
+
+            if (e.key === 'ArrowUp') return handleNav('up');
+            if (e.key === 'ArrowDown') return handleNav('down');
+            if (e.key === 'ArrowLeft') return handleNav('left');
+            if (e.key === 'ArrowRight') return handleNav('right');
+
+            // digits, * #
+            if (/^[0-9]$/.test(e.key)) return handleKeyPress(e.key);
+            if (e.key === '*') return handleKeyPress('*');
+            if (e.key === '#') return handleKeyPress('#');
+
+            // backspace in SMS
+            if (e.key === 'Backspace' && app === 'sms') {
+                e.preventDefault();
+                smsPressKey('*');
+            }
+        }, { passive: false });
+
+        // On-screen keypad (numeric)
+        $$('[data-key]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const k = btn.getAttribute('data-key');
+                handleKeyPress(k);
+            });
+        });
+
+        // Nav buttons
+        $$('[data-action]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const action = btn.getAttribute('data-action');
+                handleNav(action);
+            });
+        });
+
+        // Initial draw
+        renderMenu();
+        snakeDraw();
+        ringRenderOnce();
+        smsRender();
+
+        // Start in menu
+        showApp('menu');
+    </script>
+</body>
+
+</html>
