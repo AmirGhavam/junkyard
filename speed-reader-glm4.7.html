@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpeedReader Pro - Read Faster, Learn More</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .word-display {
+            text-shadow: 0 0 40px rgba(99, 102, 241, 0.3);
+        }
+
+        .word-display .highlight-letter {
+            color: #f43f5e;
+            font-weight: 700;
+        }
+
+        .gradient-bg {
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .progress-bar {
+            background: linear-gradient(90deg, #6366f1, #8b5cf6, #a855f7);
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.5);
+        }
+
+        .pulse-ring {
+            animation: pulse-ring 2s infinite;
+        }
+
+        @keyframes pulse-ring {
+            0% {
+                transform: scale(0.95);
+                opacity: 0.7;
+            }
+
+            50% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            100% {
+                transform: scale(0.95);
+                opacity: 0.7;
+            }
+        }
+
+        .slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #6366f1, #a855f7);
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+        }
+
+        .slider::-webkit-slider-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        .btn-glow:hover {
+            box-shadow: 0 0 30px rgba(99, 102, 241, 0.4);
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .tab-active {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.5);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body class="gradient-bg min-h-screen text-white">
+    <!-- Header -->
+    <header class="p-6 border-b border-white/10">
+        <div class="max-w-6xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div
+                    class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                    <i class="fas fa-bolt text-white"></i>
+                </div>
+                <h1
+                    class="text-2xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
+                    SpeedReader Pro
+                </h1>
+            </div>
+            <div class="flex items-center gap-4">
+                <button id="darkModeToggle" class="p-2 rounded-lg glass-card hover:bg-white/10 transition">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <button id="fullscreenBtn" class="p-2 rounded-lg glass-card hover:bg-white/10 transition">
+                    <i class="fas fa-expand"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto p-6">
+        <!-- Input Section -->
+        <section id="inputSection" class="mb-8">
+            <div class="glass-card rounded-2xl p-6">
+                <div class="flex gap-2 mb-4">
+                    <button id="tabText" class="tab-btn tab-active px-6 py-2 rounded-lg font-medium transition">
+                        <i class="fas fa-font mr-2"></i>Paste Text
+                    </button>
+                    <button id="tabPdf"
+                        class="tab-btn px-6 py-2 rounded-lg font-medium bg-white/5 hover:bg-white/10 transition">
+                        <i class="fas fa-file-pdf mr-2"></i>Upload PDF
+                    </button>
+                    <button id="tabExamples"
+                        class="tab-btn px-6 py-2 rounded-lg font-medium bg-white/5 hover:bg-white/10 transition">
+                        <i class="fas fa-book mr-2"></i>Examples
+                    </button>
+                </div>
+
+                <!-- Text Input -->
+                <div id="textInputPanel" class="tab-panel">
+                    <textarea id="textInput" rows="8"
+                        class="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white placeholder-white/40 focus:outline-none focus:border-indigo-500 resize-none"
+                        placeholder="Paste your text here or try one of the examples..."></textarea>
+                </div>
+
+                <!-- PDF Input -->
+                <div id="pdfInputPanel" class="tab-panel hidden">
+                    <div id="dropZone"
+                        class="border-2 border-dashed border-white/20 rounded-xl p-12 text-center hover:border-indigo-500 transition cursor-pointer">
+                        <i class="fas fa-cloud-upload-alt text-5xl text-white/40 mb-4"></i>
+                        <p class="text-white/60 mb-2">Drag & drop your PDF here</p>
+                        <p class="text-white/40 text-sm">or click to browse</p>
+                        <input type="file" id="pdfInput" accept=".pdf" class="hidden">
+                    </div>
+                    <div id="pdfInfo" class="hidden mt-4 p-4 bg-green-500/20 rounded-xl border border-green-500/30">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-check-circle text-green-400"></i>
+                            <span id="pdfFileName" class="text-green-300"></span>
+                            <button id="removePdf" class="ml-auto text-white/60 hover:text-white">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Examples -->
+                <div id="examplesPanel" class="tab-panel hidden">
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div class="example-card p-4 bg-white/5 rounded-xl border border-white/10 hover:border-indigo-500 transition cursor-pointer"
+                            data-example="short">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span
+                                    class="px-2 py-1 bg-indigo-500/30 text-indigo-300 text-xs rounded-full">Short</span>
+                                <span class="text-white/40 text-sm">~50 words</span>
+                            </div>
+                            <h3 class="font-medium mb-1">Quick Demo</h3>
+                            <p class="text-white/50 text-sm line-clamp-2">A brief sample text to test the speed reader
+                                functionality quickly...</p>
+                        </div>
+                        <div class="example-card p-4 bg-white/5 rounded-xl border border-white/10 hover:border-indigo-500 transition cursor-pointer"
+                            data-example="medium">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span
+                                    class="px-2 py-1 bg-purple-500/30 text-purple-300 text-xs rounded-full">Medium</span>
+                                <span class="text-white/40 text-sm">~200 words</span>
+                            </div>
+                            <h3 class="font-medium mb-1">Article Sample</h3>
+                            <p class="text-white/50 text-sm line-clamp-2">An engaging article about the science of speed
+                                reading and learning...</p>
+                        </div>
+                        <div class="example-card p-4 bg-white/5 rounded-xl border border-white/10 hover:border-indigo-500 transition cursor-pointer"
+                            data-example="long">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="px-2 py-1 bg-pink-500/30 text-pink-300 text-xs rounded-full">Long</span>
+                                <span class="text-white/40 text-sm">~500 words</span>
+                            </div>
+                            <h3 class="font-medium mb-1">Chapter Excerpt</h3>
+                            <p class="text-white/50 text-sm line-clamp-2">A chapter from a book about productivity and
+                                focus techniques...</p>
+                        </div>
+                        <div class="example-card p-4 bg-white/5 rounded-xl border border-white/10 hover:border-indigo-500 transition cursor-pointer"
+                            data-example="tech">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span
+                                    class="px-2 py-1 bg-cyan-500/30 text-cyan-300 text-xs rounded-full">Technical</span>
+                                <span class="text-white/40 text-sm">~300 words</span>
+                            </div>
+                            <h3 class="font-medium mb-1">Tech Documentation</h3>
+                            <p class="text-white/50 text-sm line-clamp-2">Sample technical documentation for software
+                                development...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats -->
+                <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="p-3 bg-white/5 rounded-xl text-center">
+                        <div class="text-2xl font-bold text-indigo-400" id="wordCount">0</div>
+                        <div class="text-white/50 text-sm">Words</div>
+                    </div>
+                    <div class="p-3 bg-white/5 rounded-xl text-center">
+                        <div class="text-2xl font-bold text-purple-400" id="charCount">0</div>
+                        <div class="text-white/50 text-sm">Characters</div>
+                    </div>
+                    <div class="p-3 bg-white/5 rounded-xl text-center">
+                        <div class="text-2xl font-bold text-pink-400" id="pageCount">0</div>
+                        <div class="text-white/50 text-sm">Pages</div>
+                    </div>
+                    <div class="p-3 bg-white/5 rounded-xl text-center">
+                        <div class="text-2xl font-bold text-cyan-400" id="estimatedTime">0:00</div>
+                        <div class="text-white/50 text-sm">Est. Time</div>
+                    </div>
+                </div>
+
+                <!-- Start Button -->
+                <button id="startBtn"
+                    class="mt-6 w-full py-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 font-semibold text-lg btn-glow transition transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100">
+                    <i class="fas fa-play mr-2"></i>Start Speed Reading
+                </button>
+            </div>
+        </section>
+
+        <!-- Reader Section -->
+        <section id="readerSection" class="hidden">
+            <!-- Controls Bar -->
+            <div class="glass-card rounded-2xl p-4 mb-6">
+                <div class="flex flex-wrap items-center gap-4">
+                    <div class="flex items-center gap-2">
+                        <button id="restartBtn" class="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition"
+                            title="Restart">
+                            <i class="fas fa-backward"></i>
+                        </button>
+                        <button id="playPauseBtn"
+                            class="p-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-90 transition"
+                            title="Play/Pause">
+                            <i class="fas fa-pause"></i>
+                        </button>
+                        <button id="stopBtn" class="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition"
+                            title="Stop">
+                            <i class="fas fa-stop"></i>
+                        </button>
+                    </div>
+
+                    <div class="flex-1 min-w-[200px]">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-sm text-white/60">Speed</span>
+                            <span class="text-sm font-medium text-indigo-400"><span id="wpmDisplay">400</span>
+                                WPM</span>
+                        </div>
+                        <input type="range" id="wpmSlider" min="100" max="1000" value="400"
+                            class="slider w-full h-2 rounded-lg appearance-none cursor-pointer">
+                        <div class="flex justify-between text-xs text-white/40 mt-1">
+                            <span>100</span>
+                            <span>1000</span>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-2">
+                        <button class="wpm-preset px-3 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-sm"
+                            data-wpm="200">200</button>
+                        <button class="wpm-preset px-3 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-sm"
+                            data-wpm="400">400</button>
+                        <button class="wpm-preset px-3 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-sm"
+                            data-wpm="600">600</button>
+                        <button class="wpm-preset px-3 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-sm"
+                            data-wpm="800">800</button>
+                    </div>
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="mt-4">
+                    <div class="h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div id="progressBar" class="progress-bar h-full rounded-full transition-all duration-300"
+                            style="width: 0%"></div>
+                    </div>
+                    <div class="flex justify-between mt-2 text-sm text-white/60">
+                        <span id="currentWordNum">0 / 0 words</span>
+                        <span id="timeRemaining">--:-- remaining</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Word Display -->
+            <div class="glass-card rounded-2xl p-12 mb-6 text-center">
+                <div class="mb-4 flex items-center justify-center gap-2">
+                    <span class="text-white/40 text-sm">Page</span>
+                    <span id="currentPage" class="text-indigo-400 font-medium">1</span>
+                    <span class="text-white/40 text-sm">of</span>
+                    <span id="totalPages" class="text-white/60">1</span>
+                </div>
+
+                <div id="wordContainer"
+                    class="word-display text-6xl md:text-8xl font-bold text-white min-h-[160px] flex items-center justify-center fade-in">
+                    Ready
+                </div>
+
+                <div class="mt-6 flex items-center justify-center gap-6 text-white/40 text-sm">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-green-400"></span>
+                        <span><kbd class="px-2 py-1 bg-white/10 rounded">Space</kbd> Play/Pause</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-yellow-400"></span>
+                        <span><kbd class="px-2 py-1 bg-white/10 rounded">←</kbd><kbd
+                                class="px-2 py-1 bg-white/10 rounded">→</kbd> Skip</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-purple-400"></span>
+                        <span><kbd class="px-2 py-1 bg-white/10 rounded">+/-</kbd> Speed</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings -->
+            <div class="glass-card rounded-2xl p-4">
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-2">
+                            <span class="text-white/60 text-sm">Font Size:</span>
+                            <button id="fontDown" class="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition">
+                                <i class="fas fa-minus text-xs"></i>
+                            </button>
+                            <span id="fontSizeDisplay" class="text-sm font-medium w-8 text-center">6xl</span>
+                            <button id="fontUp" class="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition">
+                                <i class="fas fa-plus text-xs"></i>
+                            </button>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <span class="text-white/60 text-sm">Chunk:</span>
+                            <select id="chunkSize"
+                                class="bg-white/5 border border-white/10 rounded-lg px-3 py-1 text-sm focus:outline-none focus:border-indigo-500">
+                                <option value="1">1 word</option>
+                                <option value="2">2 words</option>
+                                <option value="3">3 words</option>
+                            </select>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="highlightCenter" checked class="sr-only peer">
+                                <div
+                                    class="w-10 h-5 bg-white/10 peer-checked:bg-indigo-600 rounded-full relative transition after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-4 after:h-4 after:bg-white after:rounded-full after:transition peer-checked:after:translate-x-5">
+                                </div>
+                                <span class="text-white/60 text-sm">Highlight Center</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 text-white/40 text-sm">
+                        <i class="fas fa-clock"></i>
+                        <span>Elapsed: </span>
+                        <span id="elapsedTime" class="text-white">0:00</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="p-6 text-center text-white/30 text-sm border-t border-white/10 mt-8">
+        <p>SpeedReader Pro — Read faster, comprehend better</p>
+    </footer>
+
+    <script>
+        // PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        // Example texts
+        const examples = {
+            short: `The quick brown fox jumps over the lazy dog. Speed reading can help you consume information faster. Practice makes perfect when learning new skills. Reading is one of the best ways to learn new things. Your brain adapts quickly to new reading patterns.`,
+
+            medium: `Speed reading is a collection of reading methods which attempt to increase rates of reading without substantially reducing comprehension or retention. Methods include chunking and eliminating subvocalization. The many available speed reading training programs include books, videos, software, and seminars.
+
+There is little scientific evidence regarding speed reading. It has been claimed that speed readers can achieve up to 1000 words per minute while maintaining 85% comprehension. However, some critics argue that such speeds are not achievable without significant loss of comprehension.
+
+The brain processes information faster than we can speak. By learning to recognize words as visual patterns rather than sounding them out internally, you can dramatically increase your reading speed. This takes practice but becomes natural over time.`,
+
+            long: `Deep work is the ability to focus without distraction on a cognitively demanding task. It's a skill that allows you to quickly master complicated information and produce better results in less time. In our increasingly distracted world, the ability to perform deep work is becoming both rare and valuable.
+
+Cal Newport, the author who popularized this concept, argues that deep work is like a superpower in our increasingly competitive twenty-first century economy. And yet, most people have lost the ability to go deep—spending their days instead in a frantic blur of email and social media.
+
+To succeed at deep work, you must rewire your brain to be comfortable resisting distracting urges. This is difficult. The ability to concentrate intensely is a skill that must be trained. You don't just naturally find yourself in a state of deep work. You have to cultivate it.
+
+The first step to developing your deep work habit is to decide on your philosophy. Do you want to isolate yourself for long periods? Or do you prefer to rhythmically dive into and out of depth? There's no right answer—different styles work for different personalities and situations.
+
+Remember: To produce the absolute best work you're capable of, you need long periods of uninterrupted focus. This is non-negotiable. Shallow work—non-cognitively demanding, logistical-style tasks, often performed while distracted—keeps you from reaching your potential.`,
+
+            tech: `RESTful API Design Principles
+
+Representational State Transfer (REST) is an architectural style that defines a set of constraints for creating web services. REST APIs are designed around resources, which are any kind of object, data, or service that can be accessed.
+
+Key principles include:
+
+1. Stateless: Each request from a client contains all the information needed to understand and process the request. The server does not store client context between requests.
+
+2. Client-Server: The client and server are separate concerns. The client handles the user interface, while the server handles data storage and business logic.
+
+3. Cacheable: Responses must define themselves as cacheable or not to prevent clients from reusing stale or inappropriate data.
+
+4. Uniform Interface: The interface between components must be uniform, simplifying the architecture and enabling independent evolution.
+
+Standard HTTP methods are used: GET (retrieve), POST (create), PUT/PATCH (update), and DELETE (remove). Resources are identified by URIs, and representations use standard formats like JSON.`
+        };
+
+        // App state
+        let state = {
+            words: [],
+            currentIndex: 0,
+            isPlaying: false,
+            wpm: 400,
+            interval: null,
+            fontSizeLevel: 2,
+            fontSizes: ['4xl', '5xl', '6xl', '7xl', '8xl', '9xl'],
+            chunkSize: 1,
+            highlightCenter: true,
+            elapsedTime: 0,
+            elapsedInterval: null,
+            pdfText: ''
+        };
+
+        // DOM Elements
+        const elements = {
+            textInput: document.getElementById('textInput'),
+            pdfInput: document.getElementById('pdfInput'),
+            dropZone: document.getElementById('dropZone'),
+            pdfInfo: document.getElementById('pdfInfo'),
+            pdfFileName: document.getElementById('pdfFileName'),
+            removePdf: document.getElementById('removePdf'),
+            wordCount: document.getElementById('wordCount'),
+            charCount: document.getElementById('charCount'),
+            pageCount: document.getElementById('pageCount'),
+            estimatedTime: document.getElementById('estimatedTime'),
+            startBtn: document.getElementById('startBtn'),
+            inputSection: document.getElementById('inputSection'),
+            readerSection: document.getElementById('readerSection'),
+            wordContainer: document.getElementById('wordContainer'),
+            playPauseBtn: document.getElementById('playPauseBtn'),
+            stopBtn: document.getElementById('stopBtn'),
+            restartBtn: document.getElementById('restartBtn'),
+            wpmSlider: document.getElementById('wpmSlider'),
+            wpmDisplay: document.getElementById('wpmDisplay'),
+            progressBar: document.getElementById('progressBar'),
+            currentWordNum: document.getElementById('currentWordNum'),
+            timeRemaining: document.getElementById('timeRemaining'),
+            currentPage: document.getElementById('currentPage'),
+            totalPages: document.getElementById('totalPages'),
+            elapsedTime: document.getElementById('elapsedTime'),
+            chunkSize: document.getElementById('chunkSize'),
+            highlightCenter: document.getElementById('highlightCenter'),
+            fontSizeDisplay: document.getElementById('fontSizeDisplay'),
+            fontUp: document.getElementById('fontUp'),
+            fontDown: document.getElementById('fontDown')
+        };
+
+        // Tab switching
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => {
+                    b.classList.remove('tab-active');
+                    b.classList.add('bg-white/5');
+                });
+                btn.classList.add('tab-active');
+                btn.classList.remove('bg-white/5');
+
+                document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+                const panelId = btn.id.replace('tab', '').toLowerCase() + 'Panel';
+                document.getElementById(panelId).classList.remove('hidden');
+            });
+        });
+
+        // Example cards
+        document.querySelectorAll('.example-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const example = card.dataset.example;
+                elements.textInput.value = examples[example];
+                updateStats();
+                document.getElementById('tabText').click();
+            });
+        });
+
+        // PDF handling
+        elements.dropZone.addEventListener('click', () => elements.pdfInput.click());
+        elements.dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            elements.dropZone.classList.add('border-indigo-500');
+        });
+        elements.dropZone.addEventListener('dragleave', () => {
+            elements.dropZone.classList.remove('border-indigo-500');
+        });
+        elements.dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            elements.dropZone.classList.remove('border-indigo-500');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type === 'application/pdf') {
+                handlePdf(file);
+            }
+        });
+        elements.pdfInput.addEventListener('change', (e) => {
+            if (e.target.files[0]) {
+                handlePdf(e.target.files[0]);
+            }
+        });
+        elements.removePdf.addEventListener('click', () => {
+            state.pdfText = '';
+            elements.pdfInput.value = '';
+            elements.pdfInfo.classList.add('hidden');
+            updateStats();
+        });
+
+        async function handlePdf(file) {
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                let fullText = '';
+
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const pageText = textContent.items.map(item => item.str).join(' ');
+                    fullText += pageText + '\n';
+                }
+
+                state.pdfText = fullText;
+                elements.pdfFileName.textContent = file.name;
+                elements.pdfInfo.classList.remove('hidden');
+                updateStats();
+            } catch (error) {
+                alert('Error reading PDF: ' + error.message);
+            }
+        }
+
+        // Text input stats
+        elements.textInput.addEventListener('input', updateStats);
+
+        function updateStats() {
+            const text = state.pdfText || elements.textInput.value;
+            const words = text.trim().split(/\s+/).filter(w => w.length > 0);
+            const chars = text.length;
+            const pages = Math.ceil(words.length / 250); // ~250 words per page
+            const minutes = words.length / state.wpm;
+
+            elements.wordCount.textContent = words.length;
+            elements.charCount.textContent = chars;
+            elements.pageCount.textContent = pages;
+            elements.estimatedTime.textContent = formatTime(minutes * 60);
+        }
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // WPM slider
+        elements.wpmSlider.addEventListener('input', (e) => {
+            state.wpm = parseInt(e.target.value);
+            elements.wpmDisplay.textContent = state.wpm;
+            updateStats();
+            if (state.isPlaying) {
+                stopReading();
+                startReading();
+            }
+        });
+
+        // WPM presets
+        document.querySelectorAll('.wpm-preset').forEach(btn => {
+            btn.addEventListener('click', () => {
+                state.wpm = parseInt(btn.dataset.wpm);
+                elements.wpmSlider.value = state.wpm;
+                elements.wpmDisplay.textContent = state.wpm;
+                updateStats();
+                if (state.isPlaying) {
+                    stopReading();
+                    startReading();
+                }
+            });
+        });
+
+        // Font size
+        elements.fontUp.addEventListener('click', () => {
+            if (state.fontSizeLevel < state.fontSizes.length - 1) {
+                state.fontSizeLevel++;
+                updateFontSize();
+            }
+        });
+        elements.fontDown.addEventListener('click', () => {
+            if (state.fontSizeLevel > 0) {
+                state.fontSizeLevel--;
+                updateFontSize();
+            }
+        });
+
+        function updateFontSize() {
+            const size = state.fontSizes[state.fontSizeLevel];
+            elements.wordContainer.classList.remove(...state.fontSizes);
+            elements.wordContainer.classList.add(size);
+            elements.fontSizeDisplay.textContent = size;
+        }
+
+        // Chunk size
+        elements.chunkSize.addEventListener('change', (e) => {
+            state.chunkSize = parseInt(e.target.value);
+        });
+
+        // Highlight center
+        elements.highlightCenter.addEventListener('change', (e) => {
+            state.highlightCenter = e.target.checked;
+            if (!state.isPlaying) {
+                displayWord();
+            }
+        });
+
+        // Start reading
+        elements.startBtn.addEventListener('click', startReadingSession);
+
+        function startReadingSession() {
+            const text = state.pdfText || elements.textInput.value;
+            if (!text.trim()) {
+                alert('Please enter some text or upload a PDF');
+                return;
+            }
+
+            state.words = text.trim().split(/\s+/).filter(w => w.length > 0);
+            if (state.words.length === 0) {
+                alert('No words to read');
+                return;
+            }
+
+            state.currentIndex = 0;
+            state.elapsedTime = 0;
+
+            elements.inputSection.classList.add('hidden');
+            elements.readerSection.classList.remove('hidden');
+            elements.totalPages.textContent = Math.ceil(state.words.length / 250) || 1;
+
+            displayWord();
+            updateProgress();
+            startReading();
+        }
+
+        function displayWord() {
+            const wordsToShow = state.words.slice(state.currentIndex, state.currentIndex + state.chunkSize);
+            let displayText = wordsToShow.join(' ');
+
+            if (state.highlightCenter && wordsToShow.length === 1) {
+                const word = wordsToShow[0];
+                const centerIndex = Math.floor(word.length / 2);
+                displayText = word.substring(0, centerIndex) +
+                    `<span class="highlight-letter">${word[centerIndex] || ''}</span>` +
+                    word.substring(centerIndex + 1);
+            }
+
+            elements.wordContainer.innerHTML = displayText;
+            elements.wordContainer.classList.remove('fade-in');
+            void elements.wordContainer.offsetWidth; // Trigger reflow
+            elements.wordContainer.classList.add('fade-in');
+        }
+
+        function startReading() {
+            if (state.interval) clearInterval(state.interval);
+            if (state.elapsedInterval) clearInterval(state.elapsedInterval);
+
+            state.isPlaying = true;
+            updatePlayPauseButton();
+
+            const intervalMs = (60 / state.wpm) * 1000;
+            state.interval = setInterval(() => {
+                state.currentIndex += state.chunkSize;
+                if (state.currentIndex >= state.words.length) {
+                    stopReading();
+                    return;
+                }
+                displayWord();
+                updateProgress();
+            }, intervalMs);
+
+            state.elapsedInterval = setInterval(() => {
+                state.elapsedTime++;
+                elements.elapsedTime.textContent = formatTime(state.elapsedTime);
+            }, 1000);
+        }
+
+        function stopReading() {
+            if (state.interval) {
+                clearInterval(state.interval);
+                state.interval = null;
+            }
+            if (state.elapsedInterval) {
+                clearInterval(state.elapsedInterval);
+                state.elapsedInterval = null;
+            }
+            state.isPlaying = false;
+            updatePlayPauseButton();
+        }
+
+        function updatePlayPauseButton() {
+            const icon = elements.playPauseBtn.querySelector('i');
+            if (state.isPlaying) {
+                icon.className = 'fas fa-pause';
+            } else {
+                icon.className = 'fas fa-play';
+            }
+        }
+
+        function updateProgress() {
+            const progress = (state.currentIndex / state.words.length) * 100;
+            elements.progressBar.style.width = progress + '%';
+            elements.currentWordNum.textContent = `${state.currentIndex} / ${state.words.length} words`;
+
+            const wordsRemaining = state.words.length - state.currentIndex;
+            const timeRemaining = wordsRemaining / state.wpm * 60;
+            elements.timeRemaining.textContent = formatTime(timeRemaining) + ' remaining';
+
+            const currentPage = Math.ceil(state.currentIndex / 250) + 1;
+            elements.currentPage.textContent = currentPage;
+        }
+
+        // Control buttons
+        elements.playPauseBtn.addEventListener('click', () => {
+            if (state.isPlaying) {
+                stopReading();
+            } else {
+                if (state.currentIndex >= state.words.length) {
+                    state.currentIndex = 0;
+                }
+                startReading();
+            }
+        });
+
+        elements.stopBtn.addEventListener('click', () => {
+            stopReading();
+            state.currentIndex = 0;
+            displayWord();
+            updateProgress();
+        });
+
+        elements.restartBtn.addEventListener('click', () => {
+            stopReading();
+            state.currentIndex = 0;
+            state.elapsedTime = 0;
+            elements.elapsedTime.textContent = '0:00';
+            displayWord();
+            updateProgress();
+            startReading();
+        });
+
+        // Back to input
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !elements.readerSection.classList.contains('hidden')) {
+                stopReading();
+                elements.readerSection.classList.add('hidden');
+                elements.inputSection.classList.remove('hidden');
+            }
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (elements.readerSection.classList.contains('hidden')) return;
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            switch (e.key) {
+                case ' ':
+                    e.preventDefault();
+                    elements.playPauseBtn.click();
+                    break;
+                case 'ArrowRight':
+                    stopReading();
+                    state.currentIndex = Math.min(state.currentIndex + state.chunkSize, state.words.length - 1);
+                    displayWord();
+                    updateProgress();
+                    break;
+                case 'ArrowLeft':
+                    stopReading();
+                    state.currentIndex = Math.max(state.currentIndex - state.chunkSize, 0);
+                    displayWord();
+                    updateProgress();
+                    break;
+                case '+':
+                case '=':
+                    state.wpm = Math.min(state.wpm + 50, 1000);
+                    elements.wpmSlider.value = state.wpm;
+                    elements.wpmDisplay.textContent = state.wpm;
+                    updateStats();
+                    break;
+                case '-':
+                    state.wpm = Math.max(state.wpm - 50, 100);
+                    elements.wpmSlider.value = state.wpm;
+                    elements.wpmDisplay.textContent = state.wpm;
+                    updateStats();
+                    break;
+            }
+        });
+
+        // Fullscreen
+        document.getElementById('fullscreenBtn').addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        });
+
+        // Dark mode (visual toggle only, as we're using a gradient background)
+        document.getElementById('darkModeToggle').addEventListener('click', () => {
+            const icon = document.querySelector('#darkModeToggle i');
+            icon.className = icon.className === 'fas fa-moon' ? 'fas fa-sun' : 'fas fa-moon';
+        });
+
+        // Initialize
+        updateStats();
+    </script>
+</body>
+
+</html>
