@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SwiftRead - Speed Reader App</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .reader-font {
+            font-family: 'Inter', sans-serif;
+            /* Clean sans-serif is usually better for RSVP than monospace, but we align manually */
+        }
+
+        /* Focus Point Alignment */
+        .rsvp-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            height: 120px;
+        }
+
+        .word-part {
+            display: inline-block;
+            white-space: pre;
+        }
+
+        .word-left {
+            text-align: right;
+            width: 45%;
+        }
+
+        .word-center {
+            text-align: center;
+            width: 10%;
+            /* Fixed width for the focus character */
+            color: #ef4444;
+            /* Red-500 */
+            font-weight: 700;
+        }
+
+        .word-right {
+            text-align: left;
+            width: 45%;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1f2937;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6b7280;
+        }
+
+        /* Range Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: transparent;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+        }
+
+        input[type=range]:focus {
+            outline: none;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-900 text-gray-100 h-full flex flex-col overflow-hidden">
+
+    <!-- Header -->
+    <header class="bg-gray-800 border-b border-gray-700 p-4 flex justify-between items-center shadow-md z-10">
+        <div class="flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                stroke="currentColor" class="w-8 h-8 text-blue-500">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+            </svg>
+            <h1
+                class="text-2xl font-bold tracking-tight bg-gradient-to-r from-blue-400 to-teal-400 bg-clip-text text-transparent">
+                SwiftRead</h1>
+        </div>
+        <div class="text-sm text-gray-400">
+            <span id="word-count-display">0 words loaded</span>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col md:flex-row overflow-hidden">
+
+        <!-- Left Panel: Input & Settings -->
+        <aside class="w-full md:w-1/3 lg:w-1/4 bg-gray-800 border-r border-gray-700 flex flex-col overflow-y-auto">
+
+            <!-- Tabs -->
+            <div class="flex border-b border-gray-700">
+                <button id="tab-text"
+                    class="flex-1 py-3 text-sm font-medium bg-gray-700 text-white border-b-2 border-blue-500 focus:outline-none transition-colors"
+                    onclick="switchTab('text')">Text Input</button>
+                <button id="tab-pdf"
+                    class="flex-1 py-3 text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-750 focus:outline-none transition-colors"
+                    onclick="switchTab('pdf')">Upload PDF</button>
+            </div>
+
+            <!-- Text Input Area -->
+            <div id="content-text" class="p-4 flex-1 flex flex-col min-h-[300px]">
+                <textarea id="text-input"
+                    class="flex-1 bg-gray-900 border border-gray-700 rounded-lg p-3 text-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none text-sm leading-relaxed placeholder-gray-600"
+                    placeholder="Paste your text here..."></textarea>
+                <div class="mt-3 flex gap-2">
+                    <button onclick="loadExample(1)"
+                        class="flex-1 py-2 bg-gray-700 hover:bg-gray-600 rounded text-xs text-gray-300 transition-colors">Example
+                        1 (Sci-Fi)</button>
+                    <button onclick="loadExample(2)"
+                        class="flex-1 py-2 bg-gray-700 hover:bg-gray-600 rounded text-xs text-gray-300 transition-colors">Example
+                        2 (History)</button>
+                </div>
+                <button id="load-text-btn"
+                    class="mt-3 w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg shadow-lg transition-all transform active:scale-95">
+                    Load Text to Reader
+                </button>
+            </div>
+
+            <!-- PDF Input Area -->
+            <div id="content-pdf" class="p-4 hidden flex-col items-center justify-center min-h-[300px]">
+                <div
+                    class="w-full h-48 border-2 border-dashed border-gray-600 rounded-lg flex flex-col items-center justify-center hover:border-blue-500 hover:bg-gray-750 transition-all cursor-pointer relative">
+                    <input type="file" id="pdf-upload" accept="application/pdf"
+                        class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-gray-500 mb-2" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1"
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <p class="text-sm text-gray-400 font-medium">Click or Drag PDF here</p>
+                </div>
+                <div id="pdf-status" class="mt-4 text-sm text-gray-400 text-center hidden">Processing...</div>
+            </div>
+
+            <!-- Stats Panel -->
+            <div class="p-4 border-t border-gray-700 bg-gray-900">
+                <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Statistics</h3>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-gray-800 p-3 rounded border border-gray-700">
+                        <div class="text-xs text-gray-400">Reading Speed</div>
+                        <div class="text-xl font-bold text-blue-400"><span id="stat-wpm">400</span> <span
+                                class="text-xs font-normal text-gray-500">WPM</span></div>
+                    </div>
+                    <div class="bg-gray-800 p-3 rounded border border-gray-700">
+                        <div class="text-xs text-gray-400">Throughput</div>
+                        <div class="text-xl font-bold text-teal-400"><span id="stat-pages">80</span> <span
+                                class="text-xs font-normal text-gray-500">pg/hr</span></div>
+                    </div>
+                    <div class="bg-gray-800 p-3 rounded border border-gray-700 col-span-2">
+                        <div class="text-xs text-gray-400">Estimated Time Left</div>
+                        <div class="text-xl font-bold text-purple-400" id="stat-time-left">0m 0s</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Right Panel: Reader -->
+        <section class="flex-1 flex flex-col relative bg-gray-900">
+
+            <!-- Reader Display -->
+            <div class="flex-1 flex items-center justify-center p-8 relative">
+                <!-- Guide Lines -->
+                <div id="guide-h"
+                    class="absolute top-1/2 left-0 right-0 h-px bg-gray-800 -translate-y-1/2 pointer-events-none"></div>
+                <div id="guide-v"
+                    class="absolute top-0 bottom-0 left-1/2 w-px bg-gray-800 -translate-x-1/2 pointer-events-none">
+                </div>
+
+                <!-- Word Container -->
+                <div class="rsvp-container text-5xl md:text-6xl lg:text-7xl reader-font select-none w-full max-w-4xl">
+                    <span id="word-left" class="word-part word-left text-gray-400">Swift</span><span id="word-center"
+                        class="word-part word-center">R</span><span id="word-right"
+                        class="word-part word-right text-gray-400">ead</span>
+                </div>
+
+                <!-- Helper Message -->
+                <div id="start-message" class="absolute bottom-20 text-gray-500 text-sm animate-pulse">
+                    Load text and press Space to start
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="bg-gray-800 border-t border-gray-700 p-6 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.3)] z-20">
+
+                <!-- Progress Bar -->
+                <div class="mb-6 group relative">
+                    <div class="h-2 bg-gray-700 rounded-full cursor-pointer overflow-hidden" id="progress-container">
+                        <div id="progress-bar"
+                            class="h-full bg-gradient-to-r from-blue-500 to-teal-400 w-0 transition-all duration-100 ease-out">
+                        </div>
+                    </div>
+                    <div class="flex justify-between text-xs text-gray-500 mt-1">
+                        <span id="progress-current">0%</span>
+                        <span id="progress-total">Word 0 / 0</span>
+                    </div>
+                    <!-- Tooltip for hover position could go here -->
+                </div>
+
+                <!-- Main Controls Row -->
+                <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+
+                    <!-- WPM Slider -->
+                    <div class="flex items-center gap-4 w-full md:w-auto min-w-[250px]">
+                        <span class="text-sm font-medium text-gray-400 w-12">Speed</span>
+                        <input type="range" id="wpm-slider" min="100" max="1000" step="10" value="400"
+                            class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-500 [&::-webkit-slider-thumb]:shadow-lg hover:[&::-webkit-slider-thumb]:bg-blue-400 transition-all">
+                        <span class="text-sm font-bold text-blue-400 w-16 text-right" id="wpm-display">400</span>
+                    </div>
+
+                    <!-- Playback Controls -->
+                    <div class="flex items-center gap-4">
+                        <button id="btn-restart"
+                            class="p-3 rounded-full text-gray-400 hover:text-white hover:bg-gray-700 transition-all"
+                            title="Restart">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                        </button>
+
+                        <button id="btn-rewind"
+                            class="p-3 rounded-full text-gray-400 hover:text-white hover:bg-gray-700 transition-all"
+                            title="-10 Words">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.333 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z" />
+                            </svg>
+                        </button>
+
+                        <button id="btn-play"
+                            class="p-4 rounded-full bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/30 transform hover:scale-105 active:scale-95 transition-all">
+                            <!-- Play Icon -->
+                            <svg id="icon-play" xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 ml-1" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <!-- Pause Icon (Hidden) -->
+                            <svg id="icon-pause" xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 hidden" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </button>
+
+                        <button id="btn-forward"
+                            class="p-3 rounded-full text-gray-400 hover:text-white hover:bg-gray-700 transition-all"
+                            title="+10 Words">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Visual Settings -->
+                    <div class="hidden md:flex items-center gap-2">
+                        <button id="theme-btn"
+                            class="text-xs font-semibold text-gray-500 hover:text-white uppercase tracking-wider transition-colors"
+                            onclick="toggleTheme()">Light Mode</button>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // State
+        const state = {
+            isDarkMode: true,
+            words: ["Welcome", "to", "SwiftRead", "Load", "text", "to", "begin!"],
+            currentIndex: 0,
+            isPlaying: false,
+            wpm: 400,
+            intervalId: null,
+            wordsPerPage: 300 // Industry standard paperback
+        };
+
+        // DOM Elements
+        const els = {
+            wordLeft: document.getElementById('word-left'),
+            wordCenter: document.getElementById('word-center'),
+            wordRight: document.getElementById('word-right'),
+            playBtn: document.getElementById('btn-play'),
+            iconPlay: document.getElementById('icon-play'),
+            iconPause: document.getElementById('icon-pause'),
+            wpmSlider: document.getElementById('wpm-slider'),
+            wpmDisplay: document.getElementById('wpm-display'),
+            statWpm: document.getElementById('stat-wpm'),
+            statPages: document.getElementById('stat-pages'),
+            statTimeLeft: document.getElementById('stat-time-left'),
+            textInput: document.getElementById('text-input'),
+            loadTextBtn: document.getElementById('load-text-btn'),
+            pdfUpload: document.getElementById('pdf-upload'),
+            pdfStatus: document.getElementById('pdf-status'),
+            progressBar: document.getElementById('progress-bar'),
+            progressContainer: document.getElementById('progress-container'),
+            progressCurrent: document.getElementById('progress-current'),
+            progressTotal: document.getElementById('progress-total'),
+            wordCountDisplay: document.getElementById('word-count-display'),
+            startMessage: document.getElementById('start-message'),
+            contentSections: {
+                text: document.getElementById('content-text'),
+                pdf: document.getElementById('content-pdf')
+            },
+            tabs: {
+                text: document.getElementById('tab-text'),
+                pdf: document.getElementById('tab-pdf')
+            }
+        };
+
+        // --- Core Logic ---
+
+        function init() {
+            updateStats();
+            renderWord();
+            setupEventListeners();
+        }
+
+        function setupEventListeners() {
+            // Speed Control
+            els.wpmSlider.addEventListener('input', (e) => {
+                state.wpm = parseInt(e.target.value);
+                els.wpmDisplay.textContent = state.wpm;
+                updateStats();
+                if (state.isPlaying) {
+                    stop();
+                    play(); // Restart with new speed
+                }
+            });
+
+            // Play/Pause
+            els.playBtn.addEventListener('click', togglePlay);
+            document.addEventListener('keydown', (e) => {
+                if (e.code === 'Space' && document.activeElement.tagName !== 'TEXTAREA') {
+                    e.preventDefault();
+                    togglePlay();
+                }
+                if (e.code === 'ArrowLeft') jump(-10);
+                if (e.code === 'ArrowRight') jump(10);
+            });
+
+            // Navigation
+            document.getElementById('btn-restart').addEventListener('click', () => jumpTo(0));
+            document.getElementById('btn-rewind').addEventListener('click', () => jump(-10));
+            document.getElementById('btn-forward').addEventListener('click', () => jump(10));
+
+            // Progress Bar Click
+            els.progressContainer.addEventListener('click', (e) => {
+                const rect = els.progressContainer.getBoundingClientRect();
+                const percent = (e.clientX - rect.left) / rect.width;
+                const newIndex = Math.floor(percent * state.words.length);
+                jumpTo(newIndex);
+            });
+
+            // Text Loading
+            els.loadTextBtn.addEventListener('click', () => {
+                const text = els.textInput.value.trim();
+                if (text) loadContent(text);
+            });
+
+            // PDF Loading
+            els.pdfUpload.addEventListener('change', handlePdfUpload);
+        }
+
+        function togglePlay() {
+            if (state.isPlaying) {
+                stop();
+            } else {
+                play();
+            }
+        }
+
+        function play() {
+            if (state.currentIndex >= state.words.length) {
+                state.currentIndex = 0;
+            }
+            state.isPlaying = true;
+            els.iconPlay.classList.add('hidden');
+            els.iconPause.classList.remove('hidden');
+            els.startMessage.classList.add('opacity-0');
+
+            const intervalMs = 60000 / state.wpm;
+
+            state.intervalId = setInterval(() => {
+                state.currentIndex++;
+                if (state.currentIndex >= state.words.length) {
+                    stop();
+                    state.currentIndex = state.words.length - 1; // Keep at end
+                }
+                renderWord();
+                updateProgress();
+            }, intervalMs);
+        }
+
+        function stop() {
+            state.isPlaying = false;
+            els.iconPlay.classList.remove('hidden');
+            els.iconPause.classList.add('hidden');
+            clearInterval(state.intervalId);
+        }
+
+        function jump(offset) {
+            let newIndex = state.currentIndex + offset;
+            jumpTo(newIndex);
+        }
+
+        function jumpTo(index) {
+            state.currentIndex = Math.max(0, Math.min(index, state.words.length - 1));
+            renderWord();
+            updateProgress();
+            // If playing, the interval continues from new index naturally
+        }
+
+        // --- Rendering & Algorithm ---
+
+        function renderWord() {
+            const word = state.words[state.currentIndex] || "";
+            const pivot = getPivotPoint(word);
+
+            const left = word.slice(0, pivot);
+            const center = word.charAt(pivot);
+            const right = word.slice(pivot + 1);
+
+            els.wordLeft.textContent = left;
+            els.wordCenter.textContent = center;
+            els.wordRight.textContent = right;
+        }
+
+        // Optimal Recognition Point Algorithm
+        // Typically slightly to the left of center
+        function getPivotPoint(word) {
+            const len = word.length;
+            if (len === 1) return 0;
+            if (len >= 2 && len <= 5) return 1; // 2nd letter
+            if (len >= 6 && len <= 9) return 2; // 3rd letter
+            if (len >= 10 && len <= 13) return 3; // 4th letter
+            return 4; // Max pivot at 5th letter usually
+        }
+
+        function updateProgress() {
+            const total = state.words.length;
+            const current = state.currentIndex + 1;
+            const percent = total === 0 ? 0 : (current / total) * 100;
+
+            els.progressBar.style.width = `${percent}%`;
+            els.progressCurrent.textContent = `${Math.round(percent)}%`;
+            els.progressTotal.textContent = `Word ${current} / ${total}`;
+
+            // Time left
+            const wordsLeft = total - current;
+            const minsLeft = wordsLeft / state.wpm;
+            const m = Math.floor(minsLeft);
+            const s = Math.floor((minsLeft - m) * 60);
+            els.statTimeLeft.textContent = `${m}m ${s}s`;
+        }
+
+        function updateStats() {
+            els.statWpm.textContent = state.wpm;
+
+            // Pages per hour calculation
+            // Formula: (WPM * 60) / WordsPerPage
+            const pagesPerHour = Math.round((state.wpm * 60) / state.wordsPerPage);
+            els.statPages.textContent = pagesPerHour;
+
+            updateProgress(); // To update time left based on new speed
+        }
+
+        // --- Content Loading ---
+
+        function loadContent(text) {
+            // Basic sanitization and splitting
+            // Remove excessive whitespace, handle newlines
+            const cleanText = text.replace(/\s+/g, ' ').trim();
+            if (!cleanText) return;
+
+            state.words = cleanText.split(' ');
+            state.currentIndex = 0;
+            els.wordCountDisplay.textContent = `${state.words.length} words loaded`;
+
+            stop();
+            renderWord();
+            updateProgress();
+
+            // Visual feedback
+            els.startMessage.textContent = "Press Space to read";
+            els.startMessage.classList.remove('opacity-0');
+        }
+
+        // --- Examples ---
+        const examples = {
+            1: `The sky above the port was the color of television, tuned to a dead channel. It was not like this before the war. The city had been vibrant, alive with the hum of millions of souls connecting, trading, living. Now, the silence was deafening, broken only by the rhythmic thud of heavy machinery clearing the rubble in sector 7G. Kaito pulled his collar up against the acid rain. He had a job to do.`,
+            2: `The Industrial Revolution was a period of major mechanization and innovation that began in Great Britain during the mid-18th century and early 19th century and later spread throughout much of the world. The Industrial Revolution was marked by a transition from hand production methods to machines, new chemical manufacturing and iron production processes, the increasing use of steam power and water power, the development of machine tools and the rise of the mechanized factory system.`
+        };
+
+        function loadExample(id) {
+            els.textInput.value = examples[id];
+        }
+
+        // --- Theme & Tabs ---
+
+        state.isDarkMode = true;
+
+        window.toggleTheme = function () {
+            state.isDarkMode = !state.isDarkMode;
+            const isDark = state.isDarkMode;
+            const btn = document.getElementById('theme-btn');
+            btn.textContent = isDark ? "Light Mode" : "Dark Mode";
+
+            const swap = (el, darkCls, lightCls) => {
+                if (!el) return;
+                el.className = isDark ? darkCls : lightCls;
+            };
+
+            // Reader Area
+            swap(document.querySelector('section'),
+                "flex-1 flex flex-col relative bg-gray-900",
+                "flex-1 flex flex-col relative bg-gray-50");
+
+            // Controls
+            swap(document.querySelector('section > div:last-child'),
+                "bg-gray-800 border-t border-gray-700 p-6 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.3)] z-20",
+                "bg-white border-t border-gray-200 p-6 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-20");
+
+            // Word Colors
+            swap(els.wordLeft, "word-part word-left text-gray-400", "word-part word-left text-gray-600");
+            swap(els.wordRight, "word-part word-right text-gray-400", "word-part word-right text-gray-600");
+
+            // Guide Lines
+            const guideH = document.getElementById('guide-h');
+            const guideV = document.getElementById('guide-v');
+
+            if (guideH) guideH.className = isDark
+                ? "absolute top-1/2 left-0 right-0 h-px bg-gray-800 -translate-y-1/2 pointer-events-none"
+                : "absolute top-1/2 left-0 right-0 h-px bg-gray-300 -translate-y-1/2 pointer-events-none";
+
+            if (guideV) guideV.className = isDark
+                ? "absolute top-0 bottom-0 left-1/2 w-px bg-gray-800 -translate-x-1/2 pointer-events-none"
+                : "absolute top-0 bottom-0 left-1/2 w-px bg-gray-300 -translate-x-1/2 pointer-events-none";
+        };
+
+        window.switchTab = function (tab) {
+            if (tab === 'text') {
+                els.tabs.text.classList.add('border-b-2', 'border-blue-500', 'text-white');
+                els.tabs.text.classList.remove('text-gray-400');
+                els.tabs.pdf.classList.remove('border-b-2', 'border-blue-500', 'text-white');
+                els.tabs.pdf.classList.add('text-gray-400');
+
+                els.contentSections.text.classList.remove('hidden');
+                els.contentSections.text.classList.add('flex');
+                els.contentSections.pdf.classList.add('hidden');
+                els.contentSections.pdf.classList.remove('flex');
+            } else {
+                els.tabs.pdf.classList.add('border-b-2', 'border-blue-500', 'text-white');
+                els.tabs.pdf.classList.remove('text-gray-400');
+                els.tabs.text.classList.remove('border-b-2', 'border-blue-500', 'text-white');
+                els.tabs.text.classList.add('text-gray-400');
+
+                els.contentSections.pdf.classList.remove('hidden');
+                els.contentSections.pdf.classList.add('flex');
+                els.contentSections.text.classList.add('hidden');
+                els.contentSections.text.classList.remove('flex');
+            }
+        }
+
+        // --- PDF Processing ---
+        async function handlePdfUpload(e) {
+            const file = e.target.files[0];
+            if (!file || file.type !== 'application/pdf') return;
+
+            els.pdfStatus.classList.remove('hidden');
+            els.pdfStatus.textContent = `Reading ${file.name}...`;
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+                let fullText = '';
+                const totalPages = pdf.numPages;
+
+                for (let i = 1; i <= totalPages; i++) {
+                    els.pdfStatus.textContent = `Processing page ${i} of ${totalPages}...`;
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const pageText = textContent.items.map(item => item.str).join(' ');
+                    fullText += pageText + ' ';
+                }
+
+                els.pdfStatus.textContent = 'Done!';
+                setTimeout(() => els.pdfStatus.classList.add('hidden'), 2000);
+
+                loadContent(fullText);
+                switchTab('text'); // Switch back to see stats
+                els.textInput.value = "(PDF Content Loaded)";
+
+            } catch (err) {
+                console.error(err);
+                els.pdfStatus.textContent = 'Error reading PDF.';
+                els.pdfStatus.classList.add('text-red-500');
+            }
+        }
+
+        // Initialize
+        init();
+
+    </script>
+</body>
+
+</html>
