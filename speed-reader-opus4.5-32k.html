@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpeedReader Pro - Read Faster, Learn More</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .dark .glass {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .word-display {
+            min-height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .focus-letter {
+            color: #ef4444;
+        }
+
+        .progress-bar {
+            transition: width 0.1s linear;
+        }
+
+        .pulse-glow {
+            animation: pulse-glow 2s infinite;
+        }
+
+        @keyframes pulse-glow {
+
+            0%,
+            100% {
+                box-shadow: 0 0 20px rgba(102, 126, 234, 0.4);
+            }
+
+            50% {
+                box-shadow: 0 0 40px rgba(102, 126, 234, 0.8);
+            }
+        }
+
+        .slide-up {
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            height: 8px;
+            border-radius: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: white;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .dark input[type="range"]::-webkit-slider-thumb {
+            background: #1f2937;
+            border: 2px solid #667eea;
+        }
+    </style>
+</head>
+
+<body
+    class="min-h-screen transition-colors duration-300 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800">
+    <div id="app" class="container mx-auto px-4 py-8 max-w-5xl">
+        <!-- Header -->
+        <header class="flex justify-between items-center mb-8 slide-up">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 gradient-bg rounded-xl flex items-center justify-center">
+                    <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800 dark:text-white">SpeedReader Pro</h1>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Read faster, learn more</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <button id="themeToggle"
+                    class="p-3 rounded-xl bg-white dark:bg-gray-700 shadow-lg hover:scale-105 transition-transform">
+                    <svg class="w-6 h-6 text-yellow-500 dark:hidden" fill="currentColor" viewBox="0 0 24 24">
+                        <path
+                            d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894 6.166a.75.75 0 00-1.06-1.06l-1.591 1.59a.75.75 0 101.06 1.061l1.591-1.59zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0 010-1.5H21a.75.75 0 01.75.75zM17.834 18.894a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 10-1.061 1.06l1.59 1.591zM12 18a.75.75 0 01.75.75V21a.75.75 0 01-1.5 0v-2.25A.75.75 0 0112 18zM7.758 17.303a.75.75 0 00-1.061-1.06l-1.591 1.59a.75.75 0 001.06 1.061l1.591-1.59zM6 12a.75.75 0 01-.75.75H3a.75.75 0 010-1.5h2.25A.75.75 0 016 12zM6.697 7.757a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 00-1.061 1.06l1.59 1.591z" />
+                    </svg>
+                    <svg class="w-6 h-6 text-blue-400 hidden dark:block" fill="currentColor" viewBox="0 0 24 24">
+                        <path
+                            d="M9.528 1.718a.75.75 0 01.162.819A8.97 8.97 0 009 6a9 9 0 009 9 8.97 8.97 0 003.463-.69.75.75 0 01.981.98 10.503 10.503 0 01-9.694 6.46c-5.799 0-10.5-4.701-10.5-10.5 0-4.368 2.667-8.112 6.46-9.694a.75.75 0 01.818.162z" />
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="grid lg:grid-cols-3 gap-6">
+            <!-- Left Panel - Input -->
+            <div class="lg:col-span-1 space-y-4 slide-up" style="animation-delay: 0.1s">
+                <!-- File Upload -->
+                <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-xl">
+                    <h3 class="font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
+                        Upload File
+                    </h3>
+                    <label
+                        class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-purple-300 dark:border-purple-600 rounded-xl cursor-pointer hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors">
+                        <svg class="w-10 h-10 text-purple-400 mb-2" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span class="text-sm text-gray-500 dark:text-gray-400">PDF or TXT files</span>
+                        <input type="file" id="fileInput" accept=".pdf,.txt" class="hidden">
+                    </label>
+                </div>
+
+                <!-- Text Input -->
+                <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-xl">
+                    <h3 class="font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        Paste Text
+                    </h3>
+                    <textarea id="textInput" rows="5"
+                        class="w-full p-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-white resize-none focus:ring-2 focus:ring-purple-500 outline-none"
+                        placeholder="Paste your text here..."></textarea>
+                    <button id="loadTextBtn"
+                        class="w-full mt-3 py-2 px-4 gradient-bg text-white rounded-xl font-medium hover:opacity-90 transition-opacity">
+                        Load Text
+                    </button>
+                </div>
+
+                <!-- Example Texts -->
+                <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-xl">
+                    <h3 class="font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                        </svg>
+                        Sample Texts
+                    </h3>
+                    <div class="space-y-2">
+                        <button
+                            class="example-btn w-full text-left p-3 rounded-xl bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/30 dark:to-blue-900/30 hover:from-purple-100 hover:to-blue-100 dark:hover:from-purple-900/50 dark:hover:to-blue-900/50 transition-colors"
+                            data-example="science">
+                            <span class="font-medium text-gray-800 dark:text-white">🔬 Science Article</span>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">~250 words</p>
+                        </button>
+                        <button
+                            class="example-btn w-full text-left p-3 rounded-xl bg-gradient-to-r from-green-50 to-teal-50 dark:from-green-900/30 dark:to-teal-900/30 hover:from-green-100 hover:to-teal-100 dark:hover:from-green-900/50 dark:hover:to-teal-900/50 transition-colors"
+                            data-example="philosophy">
+                            <span class="font-medium text-gray-800 dark:text-white">📚 Philosophy</span>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">~300 words</p>
+                        </button>
+                        <button
+                            class="example-btn w-full text-left p-3 rounded-xl bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/30 dark:to-red-900/30 hover:from-orange-100 hover:to-red-100 dark:hover:from-orange-900/50 dark:hover:to-red-900/50 transition-colors"
+                            data-example="technology">
+                            <span class="font-medium text-gray-800 dark:text-white">💻 Technology</span>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">~200 words</p>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel - Reader -->
+            <div class="lg:col-span-2 space-y-4 slide-up" style="animation-delay: 0.2s">
+                <!-- Word Display -->
+                <div id="readerPanel" class="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-xl">
+                    <div class="word-display mb-6">
+                        <div id="wordContainer" class="text-center">
+                            <span id="currentWord"
+                                class="mono text-5xl md:text-6xl font-medium text-gray-800 dark:text-white tracking-wide"></span>
+                            <p id="placeholderText" class="text-gray-400 dark:text-gray-500 text-lg">Load text to start
+                                reading</p>
+                        </div>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="relative h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-4">
+                        <div id="progressBar" class="progress-bar absolute left-0 top-0 h-full gradient-bg rounded-full"
+                            style="width: 0%"></div>
+                    </div>
+
+                    <!-- Stats Row -->
+                    <div class="grid grid-cols-4 gap-4 mb-6">
+                        <div class="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-xl">
+                            <p class="text-2xl font-bold text-purple-600 dark:text-purple-400 mono" id="currentWordNum">
+                                0</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Word</p>
+                        </div>
+                        <div class="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-xl">
+                            <p class="text-2xl font-bold text-blue-600 dark:text-blue-400 mono" id="totalWords">0</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Total</p>
+                        </div>
+                        <div class="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-xl">
+                            <p class="text-2xl font-bold text-green-600 dark:text-green-400 mono" id="timeRemaining">
+                                0:00</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Remaining</p>
+                        </div>
+                        <div class="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-xl">
+                            <p class="text-2xl font-bold text-orange-600 dark:text-orange-400 mono" id="timeElapsed">
+                                0:00</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Elapsed</p>
+                        </div>
+                    </div>
+
+                    <!-- Controls -->
+                    <div class="flex justify-center items-center gap-4 mb-6">
+                        <button id="skipBackBtn"
+                            class="p-3 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                            <svg class="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.333 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z" />
+                            </svg>
+                        </button>
+                        <button id="playPauseBtn"
+                            class="p-5 rounded-full gradient-bg shadow-lg hover:opacity-90 transition-opacity pulse-glow">
+                            <svg id="playIcon" class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M8 5v14l11-7z" />
+                            </svg>
+                            <svg id="pauseIcon" class="w-8 h-8 text-white hidden" fill="currentColor"
+                                viewBox="0 0 24 24">
+                                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                            </svg>
+                        </button>
+                        <button id="stopBtn"
+                            class="p-3 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                            <svg class="w-6 h-6 text-gray-600 dark:text-gray-300" fill="currentColor"
+                                viewBox="0 0 24 24">
+                                <path d="M6 6h12v12H6z" />
+                            </svg>
+                        </button>
+                        <button id="skipForwardBtn"
+                            class="p-3 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                            <svg class="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M11.933 12.8a1 1 0 000-1.6L6.6 7.2A1 1 0 005 8v8a1 1 0 001.6.8l5.333-4zM19.933 12.8a1 1 0 000-1.6l-5.333-4A1 1 0 0013 8v8a1 1 0 001.6.8l5.333-4z" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Speed Control -->
+                    <div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-4">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-sm font-medium text-gray-600 dark:text-gray-300">Reading Speed</span>
+                            <span class="text-lg font-bold text-purple-600 dark:text-purple-400 mono"><span
+                                    id="wpmValue">300</span> WPM</span>
+                        </div>
+                        <input type="range" id="speedSlider" min="100" max="1000" value="300" step="25" class="w-full">
+                        <div class="flex justify-between text-xs text-gray-400 mt-2">
+                            <span>100</span>
+                            <span>Slow</span>
+                            <span>Normal</span>
+                            <span>Fast</span>
+                            <span>1000</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings & Stats -->
+                <div class="grid md:grid-cols-2 gap-4">
+                    <!-- Settings -->
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-xl">
+                        <h3 class="font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
+                            <svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            Settings
+                        </h3>
+
+                        <div class="space-y-4">
+                            <!-- Font Size -->
+                            <div>
+                                <label class="text-sm text-gray-600 dark:text-gray-400 mb-2 block">Font Size</label>
+                                <div class="flex gap-2">
+                                    <button
+                                        class="font-size-btn flex-1 py-2 px-3 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors text-sm"
+                                        data-size="small">Small</button>
+                                    <button
+                                        class="font-size-btn flex-1 py-2 px-3 rounded-lg bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 transition-colors text-sm font-medium"
+                                        data-size="medium">Medium</button>
+                                    <button
+                                        class="font-size-btn flex-1 py-2 px-3 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors text-sm"
+                                        data-size="large">Large</button>
+                                </div>
+                            </div>
+
+                            <!-- Focus Point -->
+                            <div class="flex items-center justify-between">
+                                <label class="text-sm text-gray-600 dark:text-gray-400">Focus Point Highlight</label>
+                                <button id="focusToggle"
+                                    class="relative w-12 h-6 bg-purple-500 rounded-full transition-colors">
+                                    <span
+                                        class="absolute right-1 top-1 w-4 h-4 bg-white rounded-full transition-transform"></span>
+                                </button>
+                            </div>
+
+                            <!-- Chunk Size -->
+                            <div>
+                                <label class="text-sm text-gray-600 dark:text-gray-400 mb-2 block">Words per
+                                    chunk</label>
+                                <div class="flex gap-2">
+                                    <button
+                                        class="chunk-btn flex-1 py-2 px-3 rounded-lg bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 transition-colors text-sm font-medium"
+                                        data-chunk="1">1</button>
+                                    <button
+                                        class="chunk-btn flex-1 py-2 px-3 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors text-sm"
+                                        data-chunk="2">2</button>
+                                    <button
+                                        class="chunk-btn flex-1 py-2 px-3 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors text-sm"
+                                        data-chunk="3">3</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Page Stats -->
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-xl">
+                        <h3 class="font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
+                            <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            </svg>
+                            Reading Stats
+                        </h3>
+
+                        <div class="space-y-3">
+                            <div
+                                class="flex justify-between items-center p-3 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-xl">
+                                <span class="text-gray-600 dark:text-gray-400">Pages/minute</span>
+                                <span class="font-bold text-purple-600 dark:text-purple-400 mono"
+                                    id="pagesPerMin">0.0</span>
+                            </div>
+                            <div
+                                class="flex justify-between items-center p-3 bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20 rounded-xl">
+                                <span class="text-gray-600 dark:text-gray-400">Pages/hour</span>
+                                <span class="font-bold text-blue-600 dark:text-blue-400 mono"
+                                    id="pagesPerHour">0.0</span>
+                            </div>
+                            <div
+                                class="flex justify-between items-center p-3 bg-gradient-to-r from-green-50 to-teal-50 dark:from-green-900/20 dark:to-teal-900/20 rounded-xl">
+                                <span class="text-gray-600 dark:text-gray-400">Document pages</span>
+                                <span class="font-bold text-green-600 dark:text-green-400 mono" id="docPages">0</span>
+                            </div>
+                            <div
+                                class="flex justify-between items-center p-3 bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 rounded-xl">
+                                <span class="text-gray-600 dark:text-gray-400">Est. finish time</span>
+                                <span class="font-bold text-orange-600 dark:text-orange-400 mono"
+                                    id="finishTime">--:--</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Keyboard Shortcuts -->
+                <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-xl">
+                    <h3 class="font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                        </svg>
+                        Keyboard Shortcuts
+                    </h3>
+                    <div class="flex flex-wrap gap-3">
+                        <div class="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                            <kbd
+                                class="px-2 py-1 bg-white dark:bg-gray-600 rounded text-sm font-mono shadow">Space</kbd>
+                            <span class="text-sm text-gray-600 dark:text-gray-300">Play/Pause</span>
+                        </div>
+                        <div class="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                            <kbd class="px-2 py-1 bg-white dark:bg-gray-600 rounded text-sm font-mono shadow">←</kbd>
+                            <span class="text-sm text-gray-600 dark:text-gray-300">Skip Back</span>
+                        </div>
+                        <div class="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                            <kbd class="px-2 py-1 bg-white dark:bg-gray-600 rounded text-sm font-mono shadow">→</kbd>
+                            <span class="text-sm text-gray-600 dark:text-gray-300">Skip Forward</span>
+                        </div>
+                        <div class="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                            <kbd class="px-2 py-1 bg-white dark:bg-gray-600 rounded text-sm font-mono shadow">↑</kbd>
+                            <span class="text-sm text-gray-600 dark:text-gray-300">Speed Up</span>
+                        </div>
+                        <div class="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                            <kbd class="px-2 py-1 bg-white dark:bg-gray-600 rounded text-sm font-mono shadow">↓</kbd>
+                            <span class="text-sm text-gray-600 dark:text-gray-300">Speed Down</span>
+                        </div>
+                        <div class="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                            <kbd class="px-2 py-1 bg-white dark:bg-gray-600 rounded text-sm font-mono shadow">R</kbd>
+                            <span class="text-sm text-gray-600 dark:text-gray-300">Reset</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        // Example texts
+        const examples = {
+            science: `The human brain is perhaps the most complex organ in the known universe. Containing approximately 86 billion neurons, each connected to thousands of others through synaptic connections, it creates a network of unparalleled computational power. Recent advances in neuroscience have revealed that the brain is far more plastic than previously thought, capable of rewiring itself throughout our entire lives. This neuroplasticity allows us to learn new skills, recover from injuries, and adapt to changing environments. Scientists have discovered that activities like meditation, exercise, and learning new languages can physically alter the structure of the brain, increasing gray matter density in specific regions. The implications for education and mental health treatment are profound. Understanding how the brain learns and changes opens new possibilities for treating conditions like depression, anxiety, and cognitive decline. As we continue to unlock the secrets of the mind, we move closer to understanding what makes us uniquely human.`,
+
+            philosophy: `The question of consciousness remains one of philosophy's greatest mysteries. What is it that transforms mere biological processes into subjective experience? The philosopher David Chalmers famously called this the "hard problem" of consciousness, distinguishing it from the "easy problems" of explaining cognitive functions. While neuroscience can map the correlations between brain activity and mental states, explaining why there is something it is like to be conscious seems to require a different kind of answer altogether. Some philosophers argue for dualism, suggesting mind and matter are fundamentally different substances. Others advocate for physicalism, insisting consciousness must ultimately be explained in terms of physical processes. More recently, theories like integrated information theory and global workspace theory have attempted to bridge the gap between philosophy and neuroscience. Perhaps consciousness is not a binary property but exists on a spectrum, present in varying degrees throughout nature. The implications for artificial intelligence are significant: could a sufficiently complex computer system become conscious? And if so, what moral obligations would we have toward it? These questions challenge our deepest assumptions about the nature of mind and reality.`,
+
+            technology: `Artificial intelligence is transforming every aspect of modern life at an unprecedented pace. From the algorithms that curate our social media feeds to the systems that diagnose diseases and drive autonomous vehicles, AI has become woven into the fabric of society. Machine learning, a subset of AI, enables computers to improve their performance through experience without being explicitly programmed. Deep learning, inspired by the structure of biological neural networks, has achieved remarkable breakthroughs in image recognition, natural language processing, and game playing. The potential benefits are enormous: more efficient energy systems, personalized medicine, and solutions to complex global challenges. However, these advances also raise important questions about privacy, employment, and the concentration of power. As AI systems become more capable, ensuring they remain aligned with human values becomes increasingly critical. The development of beneficial AI requires collaboration between technologists, ethicists, policymakers, and the public to navigate this transformative technology responsibly.`
+        };
+
+        // App State
+        let words = [];
+        let currentIndex = 0;
+        let isPlaying = false;
+        let intervalId = null;
+        let wpm = 300;
+        let chunkSize = 1;
+        let focusHighlight = true;
+        let fontSize = 'medium';
+        let startTime = null;
+        let elapsedTime = 0;
+
+        // DOM Elements
+        const fileInput = document.getElementById('fileInput');
+        const textInput = document.getElementById('textInput');
+        const loadTextBtn = document.getElementById('loadTextBtn');
+        const currentWordEl = document.getElementById('currentWord');
+        const placeholderText = document.getElementById('placeholderText');
+        const progressBar = document.getElementById('progressBar');
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const playIcon = document.getElementById('playIcon');
+        const pauseIcon = document.getElementById('pauseIcon');
+        const stopBtn = document.getElementById('stopBtn');
+        const skipBackBtn = document.getElementById('skipBackBtn');
+        const skipForwardBtn = document.getElementById('skipForwardBtn');
+        const speedSlider = document.getElementById('speedSlider');
+        const wpmValue = document.getElementById('wpmValue');
+        const themeToggle = document.getElementById('themeToggle');
+        const focusToggle = document.getElementById('focusToggle');
+
+        // Stats Elements
+        const currentWordNum = document.getElementById('currentWordNum');
+        const totalWords = document.getElementById('totalWords');
+        const timeRemaining = document.getElementById('timeRemaining');
+        const timeElapsed = document.getElementById('timeElapsed');
+        const pagesPerMin = document.getElementById('pagesPerMin');
+        const pagesPerHour = document.getElementById('pagesPerHour');
+        const docPages = document.getElementById('docPages');
+        const finishTime = document.getElementById('finishTime');
+
+        // Constants
+        const WORDS_PER_PAGE = 250;
+
+        // Initialize theme
+        if (localStorage.getItem('theme') === 'dark' ||
+            (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        }
+
+        // Theme Toggle
+        themeToggle.addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+        });
+
+        // Focus Toggle
+        focusToggle.addEventListener('click', () => {
+            focusHighlight = !focusHighlight;
+            focusToggle.classList.toggle('bg-purple-500', focusHighlight);
+            focusToggle.classList.toggle('bg-gray-300', !focusHighlight);
+            focusToggle.querySelector('span').classList.toggle('translate-x-0', !focusHighlight);
+            focusToggle.querySelector('span').style.transform = focusHighlight ? 'translateX(0)' : 'translateX(-24px)';
+            if (words.length > 0) displayWord();
+        });
+
+        // Font Size
+        document.querySelectorAll('.font-size-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.font-size-btn').forEach(b => {
+                    b.classList.remove('bg-purple-100', 'dark:bg-purple-900/30', 'text-purple-600', 'dark:text-purple-400', 'font-medium');
+                    b.classList.add('bg-gray-100', 'dark:bg-gray-700', 'text-gray-600', 'dark:text-gray-300');
+                });
+                btn.classList.remove('bg-gray-100', 'dark:bg-gray-700', 'text-gray-600', 'dark:text-gray-300');
+                btn.classList.add('bg-purple-100', 'dark:bg-purple-900/30', 'text-purple-600', 'dark:text-purple-400', 'font-medium');
+
+                fontSize = btn.dataset.size;
+                const sizes = { small: 'text-4xl md:text-5xl', medium: 'text-5xl md:text-6xl', large: 'text-6xl md:text-7xl' };
+                currentWordEl.className = `mono ${sizes[fontSize]} font-medium text-gray-800 dark:text-white tracking-wide`;
+            });
+        });
+
+        // Chunk Size
+        document.querySelectorAll('.chunk-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.chunk-btn').forEach(b => {
+                    b.classList.remove('bg-purple-100', 'dark:bg-purple-900/30', 'text-purple-600', 'dark:text-purple-400', 'font-medium');
+                    b.classList.add('bg-gray-100', 'dark:bg-gray-700', 'text-gray-600', 'dark:text-gray-300');
+                });
+                btn.classList.remove('bg-gray-100', 'dark:bg-gray-700', 'text-gray-600', 'dark:text-gray-300');
+                btn.classList.add('bg-purple-100', 'dark:bg-purple-900/30', 'text-purple-600', 'dark:text-purple-400', 'font-medium');
+                chunkSize = parseInt(btn.dataset.chunk);
+            });
+        });
+
+        // Example Texts
+        document.querySelectorAll('.example-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                loadText(examples[btn.dataset.example]);
+            });
+        });
+
+        // File Input
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (file.type === 'application/pdf') {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+                let text = '';
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const content = await page.getTextContent();
+                    text += content.items.map(item => item.str).join(' ') + ' ';
+                }
+                loadText(text);
+            } else {
+                const text = await file.text();
+                loadText(text);
+            }
+        });
+
+        // Load Text Button
+        loadTextBtn.addEventListener('click', () => {
+            if (textInput.value.trim()) {
+                loadText(textInput.value);
+            }
+        });
+
+        // Load Text Function
+        function loadText(text) {
+            words = text.trim().split(/\s+/).filter(w => w.length > 0);
+            currentIndex = 0;
+            elapsedTime = 0;
+            updateStats();
+            displayWord();
+            placeholderText.classList.add('hidden');
+            stopPlayback();
+        }
+
+        // Display Word
+        function displayWord() {
+            if (words.length === 0) return;
+
+            const chunk = words.slice(currentIndex, currentIndex + chunkSize).join(' ');
+
+            if (focusHighlight && chunk.length > 0) {
+                const focusIndex = Math.floor(chunk.length / 3);
+                const before = chunk.slice(0, focusIndex);
+                const focus = chunk[focusIndex];
+                const after = chunk.slice(focusIndex + 1);
+                currentWordEl.innerHTML = `${before}<span class="focus-letter">${focus}</span>${after}`;
+            } else {
+                currentWordEl.textContent = chunk;
+            }
+
+            updateStats();
+        }
+
+        // Update Stats
+        function updateStats() {
+            const progress = words.length > 0 ? ((currentIndex + 1) / words.length) * 100 : 0;
+            progressBar.style.width = `${Math.min(progress, 100)}%`;
+
+            currentWordNum.textContent = Math.min(currentIndex + 1, words.length);
+            totalWords.textContent = words.length;
+
+            const wordsRemaining = Math.max(0, words.length - currentIndex - 1);
+            const minutesRemaining = wordsRemaining / wpm;
+            timeRemaining.textContent = formatTime(minutesRemaining * 60);
+            timeElapsed.textContent = formatTime(elapsedTime);
+
+            // Page calculations
+            const ppm = wpm / WORDS_PER_PAGE;
+            pagesPerMin.textContent = ppm.toFixed(1);
+            pagesPerHour.textContent = (ppm * 60).toFixed(1);
+            docPages.textContent = (words.length / WORDS_PER_PAGE).toFixed(1);
+
+            // Finish time
+            if (isPlaying && minutesRemaining > 0) {
+                const finish = new Date(Date.now() + minutesRemaining * 60 * 1000);
+                finishTime.textContent = finish.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            } else {
+                finishTime.textContent = '--:--';
+            }
+        }
+
+        // Format Time
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // Play/Pause
+        function togglePlayPause() {
+            if (words.length === 0) return;
+
+            if (isPlaying) {
+                pausePlayback();
+            } else {
+                startPlayback();
+            }
+        }
+
+        function startPlayback() {
+            if (words.length === 0 || currentIndex >= words.length) return;
+
+            isPlaying = true;
+            playIcon.classList.add('hidden');
+            pauseIcon.classList.remove('hidden');
+            startTime = Date.now() - elapsedTime * 1000;
+
+            const interval = (60 / wpm) * 1000 * chunkSize;
+            intervalId = setInterval(() => {
+                currentIndex += chunkSize;
+                elapsedTime = (Date.now() - startTime) / 1000;
+
+                if (currentIndex >= words.length) {
+                    currentIndex = words.length - 1;
+                    stopPlayback();
+                    return;
+                }
+
+                displayWord();
+            }, interval);
+
+            updateStats();
+        }
+
+        function pausePlayback() {
+            isPlaying = false;
+            playIcon.classList.remove('hidden');
+            pauseIcon.classList.add('hidden');
+            clearInterval(intervalId);
+            updateStats();
+        }
+
+        function stopPlayback() {
+            pausePlayback();
+            currentIndex = 0;
+            elapsedTime = 0;
+            if (words.length > 0) displayWord();
+            updateStats();
+        }
+
+        // Event Listeners
+        playPauseBtn.addEventListener('click', togglePlayPause);
+        stopBtn.addEventListener('click', stopPlayback);
+
+        skipBackBtn.addEventListener('click', () => {
+            currentIndex = Math.max(0, currentIndex - 10 * chunkSize);
+            displayWord();
+        });
+
+        skipForwardBtn.addEventListener('click', () => {
+            currentIndex = Math.min(words.length - 1, currentIndex + 10 * chunkSize);
+            displayWord();
+        });
+
+        speedSlider.addEventListener('input', (e) => {
+            wpm = parseInt(e.target.value);
+            wpmValue.textContent = wpm;
+            updateStats();
+
+            if (isPlaying) {
+                pausePlayback();
+                startPlayback();
+            }
+        });
+
+        // Keyboard Shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+
+            switch (e.code) {
+                case 'Space':
+                    e.preventDefault();
+                    togglePlayPause();
+                    break;
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    currentIndex = Math.max(0, currentIndex - 10 * chunkSize);
+                    displayWord();
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    currentIndex = Math.min(words.length - 1, currentIndex + 10 * chunkSize);
+                    displayWord();
+                    break;
+                case 'ArrowUp':
+                    e.preventDefault();
+                    speedSlider.value = Math.min(1000, wpm + 25);
+                    speedSlider.dispatchEvent(new Event('input'));
+                    break;
+                case 'ArrowDown':
+                    e.preventDefault();
+                    speedSlider.value = Math.max(100, wpm - 25);
+                    speedSlider.dispatchEvent(new Event('input'));
+                    break;
+                case 'KeyR':
+                    e.preventDefault();
+                    stopPlayback();
+                    break;
+            }
+        });
+
+        // Initial stats update
+        updateStats();
+    </script>
+</body>
+
+</html>
