@@ -1,0 +1,739 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Scratch Map — Visited Countries</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
+    <style>
+        :root {
+            --bg: #0b1220;
+        }
+
+        html,
+        body {
+            height: 100%;
+            background: var(--bg);
+        }
+
+        /* make SVG crisp */
+        svg {
+            shape-rendering: geometricPrecision;
+        }
+
+        .country {
+            cursor: pointer;
+        }
+
+        .country:focus {
+            outline: none;
+        }
+
+        .no-select {
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* subtle animated shimmer for visited */
+        @keyframes shimmer {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            100% {
+                background-position: 100% 50%;
+            }
+        }
+    </style>
+</head>
+
+<body class="text-slate-100">
+    <div class="min-h-screen flex flex-col">
+        <!-- Header -->
+        <header class="sticky top-0 z-20 border-b border-white/10 bg-slate-950/70 backdrop-blur">
+            <div class="mx-auto max-w-7xl px-4 py-3 flex items-center gap-3">
+                <div class="flex-1">
+                    <h1 class="text-lg sm:text-xl font-semibold tracking-tight">Scratch Map</h1>
+                    <p class="text-xs text-slate-300">Scratch off visited countries, track stats, and see coverage</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="btnExport"
+                        class="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 text-sm">Export</button>
+                    <label
+                        class="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 text-sm cursor-pointer">
+                        Import
+                        <input id="fileImport" type="file" accept="application/json" class="hidden" />
+                    </label>
+                    <button id="btnReset"
+                        class="px-3 py-2 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-sm text-rose-200">Reset</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main -->
+        <main class="flex-1 mx-auto max-w-7xl w-full px-4 py-4">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                <!-- Sidebar -->
+                <aside class="lg:col-span-4 xl:col-span-3">
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <div class="text-sm text-slate-300">Coverage (area)</div>
+                                <div class="text-2xl font-semibold tabular-nums"><span id="coveragePct">0.0</span>%
+                                </div>
+                                <div class="text-xs text-slate-400">Based on projected land-area share (not population).
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-sm text-slate-300">Visited (count)</div>
+                                <div class="text-2xl font-semibold tabular-nums"><span id="visitedCount">0</span>/<span
+                                        id="totalCount">0</span></div>
+                                <div class="text-xs text-slate-400"><span id="countPct">0.0</span>% of countries</div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4">
+                            <div class="h-3 w-full rounded-full bg-white/10 overflow-hidden border border-white/10">
+                                <div id="progressBar" class="h-full w-0 bg-gradient-to-r from-emerald-400 to-cyan-400">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-5 grid grid-cols-2 gap-2">
+                            <div class="col-span-2">
+                                <div class="text-xs text-slate-400 mb-1">Scratch mode</div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <button id="brushVisit"
+                                        class="px-3 py-2 rounded-xl border text-sm bg-emerald-500/15 border-emerald-400/30 hover:bg-emerald-500/20">Visit
+                                        brush</button>
+                                    <button id="brushErase"
+                                        class="px-3 py-2 rounded-xl border text-sm bg-white/5 border-white/10 hover:bg-white/10">Erase
+                                        brush</button>
+                                </div>
+                            </div>
+                            <label class="col-span-2 mt-2 flex items-center gap-2 text-sm text-slate-200 select-none">
+                                <input id="toggleDrag" type="checkbox" class="accent-emerald-400" checked />
+                                Drag to scratch (mouse / touch)
+                            </label>
+                            <button id="btnFit"
+                                class="col-span-2 px-3 py-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-sm">Fit
+                                map</button>
+                        </div>
+
+                        <div class="mt-5">
+                            <div class="flex items-center justify-between gap-2">
+                                <div class="text-sm font-medium">Countries</div>
+                                <div class="text-xs text-slate-400"><span id="selectedName">—</span></div>
+                            </div>
+                            <div class="mt-2">
+                                <input id="search" type="text" placeholder="Search (e.g., Japan, Brazil, Kenya…)"
+                                    class="w-full px-3 py-2 rounded-xl bg-slate-950/40 border border-white/10 outline-none focus:ring-2 focus:ring-emerald-400/40" />
+                            </div>
+                            <div class="mt-3 flex items-center gap-2 text-xs text-slate-300">
+                                <button id="filterAll"
+                                    class="px-2 py-1 rounded-lg border border-white/10 bg-white/10">All</button>
+                                <button id="filterVisited"
+                                    class="px-2 py-1 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10">Visited</button>
+                                <button id="filterUnvisited"
+                                    class="px-2 py-1 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10">Unvisited</button>
+                            </div>
+                            <div id="countryList" class="mt-3 max-h-[46vh] lg:max-h-[52vh] overflow-auto pr-1"></div>
+                        </div>
+                    </div>
+
+                    <div
+                        class="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-xs text-slate-300 leading-relaxed">
+                        <div class="font-medium text-slate-200">Tips</div>
+                        <ul class="mt-2 list-disc list-inside space-y-1">
+                            <li>Click a country to toggle visited.</li>
+                            <li>Enable <span class="text-slate-100">Drag to scratch</span> and drag across countries to
+                                mark quickly.</li>
+                            <li>Export/Import to back up your progress.</li>
+                        </ul>
+                    </div>
+                </aside>
+
+                <!-- Map -->
+                <section class="lg:col-span-8 xl:col-span-9">
+                    <div class="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
+                        <div class="px-4 py-3 border-b border-white/10 flex items-center justify-between gap-2">
+                            <div class="text-sm text-slate-200 font-medium">World map</div>
+                            <div class="flex items-center gap-2 text-xs text-slate-300">
+                                <span class="inline-flex items-center gap-2"><span
+                                        class="w-3 h-3 rounded bg-slate-500/40 border border-white/10 inline-block"></span>
+                                    Unvisited</span>
+                                <span class="inline-flex items-center gap-2"><span
+                                        class="w-3 h-3 rounded bg-emerald-400/70 border border-white/10 inline-block"></span>
+                                    Visited</span>
+                            </div>
+                        </div>
+                        <div class="relative">
+                            <div id="mapWrap"
+                                class="w-full aspect-[16/9] md:aspect-[2/1] lg:aspect-[16/9] xl:aspect-[2/1]">
+                                <!-- SVG injected here -->
+                            </div>
+                            <div id="tooltip"
+                                class="pointer-events-none absolute hidden px-3 py-2 rounded-xl border border-white/10 bg-slate-950/80 backdrop-blur text-xs text-slate-100">
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <footer class="border-t border-white/10 bg-slate-950/40">
+            <div class="mx-auto max-w-7xl px-4 py-3 text-xs text-slate-400">
+                Data: Natural Earth via <span class="text-slate-300">world-atlas</span>. Stored locally in your browser.
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // --- Config / State ---
+        const STORAGE_KEY = 'scratchmap.visited.v1';
+        const STORAGE_VIEW = 'scratchmap.view.v1';
+
+        const ui = {
+            mapWrap: document.getElementById('mapWrap'),
+            tooltip: document.getElementById('tooltip'),
+            visitedCount: document.getElementById('visitedCount'),
+            totalCount: document.getElementById('totalCount'),
+            countPct: document.getElementById('countPct'),
+            coveragePct: document.getElementById('coveragePct'),
+            progressBar: document.getElementById('progressBar'),
+            selectedName: document.getElementById('selectedName'),
+
+            brushVisit: document.getElementById('brushVisit'),
+            brushErase: document.getElementById('brushErase'),
+            toggleDrag: document.getElementById('toggleDrag'),
+            btnFit: document.getElementById('btnFit'),
+
+            search: document.getElementById('search'),
+            filterAll: document.getElementById('filterAll'),
+            filterVisited: document.getElementById('filterVisited'),
+            filterUnvisited: document.getElementById('filterUnvisited'),
+            countryList: document.getElementById('countryList'),
+
+            btnExport: document.getElementById('btnExport'),
+            fileImport: document.getElementById('fileImport'),
+            btnReset: document.getElementById('btnReset'),
+        };
+
+        let svg, g, path, projection;
+        let features = [];
+        let idToName = new Map();
+        let areas = new Map();
+        let totalArea = 0;
+
+        let visited = new Set(loadVisited());
+
+        // brush mode
+        let brushMode = 'visit'; // 'visit' | 'erase'
+        let isPointerDown = false;
+        let lastPaintedId = null;
+
+        // list filter
+        let listFilter = 'all'; // all | visited | unvisited
+
+        function loadVisited() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return [];
+                const arr = JSON.parse(raw);
+                if (!Array.isArray(arr)) return [];
+                return arr.map(String);
+            } catch {
+                return [];
+            }
+        }
+
+        function saveVisited() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify([...visited]));
+        }
+
+        function setBrush(mode) {
+            brushMode = mode;
+            const isVisit = mode === 'visit';
+            ui.brushVisit.className = isVisit
+                ? 'px-3 py-2 rounded-xl border text-sm bg-emerald-500/15 border-emerald-400/30 hover:bg-emerald-500/20'
+                : 'px-3 py-2 rounded-xl border text-sm bg-white/5 border-white/10 hover:bg-white/10';
+            ui.brushErase.className = !isVisit
+                ? 'px-3 py-2 rounded-xl border text-sm bg-amber-400/10 border-amber-300/25 hover:bg-amber-400/15'
+                : 'px-3 py-2 rounded-xl border text-sm bg-white/5 border-white/10 hover:bg-white/10';
+        }
+
+        function fmtPct(x) {
+            if (!isFinite(x)) return '0.0';
+            return (Math.max(0, Math.min(100, x))).toFixed(1);
+        }
+
+        function countryFill(d) {
+            const id = String(d.id);
+            return visited.has(id) ? 'url(#visitedGrad)' : 'url(#unvisitedPattern)';
+        }
+
+        function countryStroke(d) {
+            return visited.has(String(d.id)) ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.18)';
+        }
+
+        function applyVisited(id, value) {
+            id = String(id);
+            if (value) visited.add(id); else visited.delete(id);
+            saveVisited();
+            updateVisuals();
+        }
+
+        function toggleVisited(id) {
+            id = String(id);
+            applyVisited(id, !visited.has(id));
+        }
+
+        function updateStats() {
+            const total = features.length;
+            const vCount = visited.size;
+            ui.totalCount.textContent = total;
+            ui.visitedCount.textContent = vCount;
+
+            const countPct = total ? (vCount / total) * 100 : 0;
+            ui.countPct.textContent = fmtPct(countPct);
+
+            // area coverage
+            let vArea = 0;
+            for (const id of visited) vArea += (areas.get(String(id)) || 0);
+            const aPct = totalArea ? (vArea / totalArea) * 100 : 0;
+            ui.coveragePct.textContent = fmtPct(aPct);
+
+            ui.progressBar.style.width = `${Math.max(0, Math.min(100, aPct))}%`;
+        }
+
+        function updateMapStyles() {
+            if (!g) return;
+            g.selectAll('path.country')
+                .attr('fill', d => countryFill(d))
+                .attr('stroke', d => countryStroke(d));
+        }
+
+        function renderCountryList() {
+            const q = ui.search.value.trim().toLowerCase();
+            const items = features
+                .map(f => ({ id: String(f.id), name: f.properties.name || String(f.id) }))
+                .filter(x => {
+                    if (q && !x.name.toLowerCase().includes(q)) return false;
+                    const isV = visited.has(x.id);
+                    if (listFilter === 'visited') return isV;
+                    if (listFilter === 'unvisited') return !isV;
+                    return true;
+                })
+                .sort((a, b) => a.name.localeCompare(b.name));
+
+            ui.countryList.innerHTML = '';
+            const wrap = document.createElement('div');
+            wrap.className = 'space-y-1';
+
+            for (const item of items) {
+                const isV = visited.has(item.id);
+                const row = document.createElement('button');
+                row.type = 'button';
+                row.className = `w-full text-left px-3 py-2 rounded-xl border transition ${isV ? 'bg-emerald-400/10 border-emerald-400/20 hover:bg-emerald-400/15' : 'bg-white/5 border-white/10 hover:bg-white/10'}`;
+                row.innerHTML = `
+          <div class="flex items-center justify-between gap-2">
+            <div class="truncate">
+              <div class="text-sm text-slate-100 truncate">${escapeHtml(item.name)}</div>
+              <div class="text-[11px] text-slate-400">${isV ? 'Visited' : 'Unvisited'}</div>
+            </div>
+            <div class="text-[11px] text-slate-400 tabular-nums">#${item.id}</div>
+          </div>
+        `;
+                row.addEventListener('mouseenter', () => highlightCountry(item.id, true));
+                row.addEventListener('mouseleave', () => highlightCountry(item.id, false));
+                row.addEventListener('click', () => {
+                    toggleVisited(item.id);
+                    focusCountry(item.id);
+                });
+                wrap.appendChild(row);
+            }
+
+            ui.countryList.appendChild(wrap);
+        }
+
+        function updateVisuals() {
+            updateStats();
+            updateMapStyles();
+            renderCountryList();
+        }
+
+        function escapeHtml(s) {
+            return String(s)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+        }
+
+        function showTooltip(html, x, y) {
+            ui.tooltip.innerHTML = html;
+            ui.tooltip.classList.remove('hidden');
+            const pad = 14;
+            const rect = ui.mapWrap.getBoundingClientRect();
+            const tt = ui.tooltip;
+
+            // position relative to mapWrap
+            const maxX = rect.width - pad;
+            const maxY = rect.height - pad;
+            const posX = Math.max(pad, Math.min(maxX, x));
+            const posY = Math.max(pad, Math.min(maxY, y));
+            tt.style.left = posX + 'px';
+            tt.style.top = posY + 'px';
+        }
+
+        function hideTooltip() {
+            ui.tooltip.classList.add('hidden');
+        }
+
+        function highlightCountry(id, on) {
+            if (!g) return;
+            const sel = g.select(`path.country[data-id="${CSS.escape(String(id))}"]`);
+            if (sel.empty()) return;
+            sel.attr('stroke-width', on ? 1.6 : 0.8)
+                .attr('filter', on ? 'url(#glow)' : null);
+        }
+
+        function focusCountry(id) {
+            // purely visual: highlight and set selected label
+            const name = idToName.get(String(id)) || '—';
+            ui.selectedName.textContent = name;
+            highlightCountry(id, true);
+            setTimeout(() => highlightCountry(id, false), 700);
+        }
+
+        function serializeExport() {
+            const version = 1;
+            return {
+                version,
+                exportedAt: new Date().toISOString(),
+                visited: [...visited],
+            };
+        }
+
+        function downloadJson(obj, filename) {
+            const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 250);
+        }
+
+        function applyImport(obj) {
+            if (!obj || typeof obj !== 'object') throw new Error('Invalid file');
+            const arr = obj.visited;
+            if (!Array.isArray(arr)) throw new Error('Missing visited array');
+            visited = new Set(arr.map(String));
+            saveVisited();
+            updateVisuals();
+        }
+
+        // --- Map rendering ---
+        function buildSvg() {
+            ui.mapWrap.innerHTML = '';
+            const w = ui.mapWrap.clientWidth;
+            const h = ui.mapWrap.clientHeight;
+
+            svg = d3.select(ui.mapWrap)
+                .append('svg')
+                .attr('width', '100%')
+                .attr('height', '100%')
+                .attr('viewBox', `0 0 ${w} ${h}`)
+                .attr('class', 'no-select');
+
+            // defs
+            const defs = svg.append('defs');
+
+            // unvisited pattern: subtle "scratch" hatch
+            const pat = defs.append('pattern')
+                .attr('id', 'unvisitedPattern')
+                .attr('patternUnits', 'userSpaceOnUse')
+                .attr('width', 10)
+                .attr('height', 10)
+                .attr('patternTransform', 'rotate(25)');
+
+            pat.append('rect')
+                .attr('width', 10)
+                .attr('height', 10)
+                .attr('fill', 'rgba(148,163,184,0.14)');
+
+            pat.append('path')
+                .attr('d', 'M 0 0 L 0 10')
+                .attr('stroke', 'rgba(255,255,255,0.10)')
+                .attr('stroke-width', 3);
+
+            pat.append('path')
+                .attr('d', 'M 5 0 L 5 10')
+                .attr('stroke', 'rgba(0,0,0,0.10)')
+                .attr('stroke-width', 2);
+
+            // visited gradient
+            const grad = defs.append('linearGradient')
+                .attr('id', 'visitedGrad')
+                .attr('x1', '0%').attr('y1', '0%')
+                .attr('x2', '100%').attr('y2', '100%');
+            grad.append('stop').attr('offset', '0%').attr('stop-color', 'rgba(52,211,153,0.80)');
+            grad.append('stop').attr('offset', '50%').attr('stop-color', 'rgba(34,211,238,0.70)');
+            grad.append('stop').attr('offset', '100%').attr('stop-color', 'rgba(16,185,129,0.75)');
+
+            // subtle glow filter for hover
+            const glow = defs.append('filter').attr('id', 'glow');
+            glow.append('feDropShadow')
+                .attr('dx', 0)
+                .attr('dy', 0)
+                .attr('stdDeviation', 2.2)
+                .attr('flood-color', 'rgba(34,211,238,0.45)');
+
+            // ocean background
+            svg.append('rect')
+                .attr('x', 0)
+                .attr('y', 0)
+                .attr('width', w)
+                .attr('height', h)
+                .attr('fill', 'rgba(2,6,23,0.25)');
+
+            g = svg.append('g');
+
+            projection = d3.geoNaturalEarth1();
+            path = d3.geoPath(projection);
+
+            fitProjection();
+            drawCountries();
+            attachGlobalPointerHandlers();
+        }
+
+        function fitProjection() {
+            if (!projection || !features.length) return;
+            const w = ui.mapWrap.clientWidth;
+            const h = ui.mapWrap.clientHeight;
+            const padding = 16;
+            projection.fitExtent([[padding, padding], [w - padding, h - padding]], { type: 'FeatureCollection', features });
+            svg?.attr('viewBox', `0 0 ${w} ${h}`);
+            g?.selectAll('path.country').attr('d', path);
+        }
+
+        function drawCountries() {
+            if (!g) return;
+
+            g.selectAll('*').remove();
+
+            g.append('path')
+                .datum({ type: 'Sphere' })
+                .attr('d', path)
+                .attr('fill', 'rgba(15,23,42,0.30)')
+                .attr('stroke', 'rgba(255,255,255,0.10)')
+                .attr('stroke-width', 0.8);
+
+            const countries = g.append('g').attr('class', 'countries');
+
+            countries.selectAll('path')
+                .data(features)
+                .join('path')
+                .attr('class', 'country')
+                .attr('data-id', d => String(d.id))
+                .attr('d', path)
+                .attr('fill', d => countryFill(d))
+                .attr('stroke', d => countryStroke(d))
+                .attr('stroke-width', 0.8)
+                .attr('vector-effect', 'non-scaling-stroke')
+                .attr('tabindex', 0)
+                .on('mouseenter', function (event, d) {
+                    highlightCountry(d.id, true);
+                    const name = d.properties.name || 'Unknown';
+                    ui.selectedName.textContent = name;
+                })
+                .on('mouseleave', function (event, d) {
+                    highlightCountry(d.id, false);
+                })
+                .on('mousemove', function (event, d) {
+                    const [x, y] = d3.pointer(event, ui.mapWrap);
+                    const name = d.properties.name || 'Unknown';
+                    const isV = visited.has(String(d.id));
+                    const html = `
+            <div class="font-medium">${escapeHtml(name)}</div>
+            <div class="text-slate-300">${isV ? 'Visited' : 'Unvisited'} • click to toggle</div>
+          `;
+                    showTooltip(html, x + 14, y + 14);
+                })
+                .on('mouseout', function () {
+                    hideTooltip();
+                })
+                .on('click', function (event, d) {
+                    if (ui.toggleDrag.checked && isPointerDown) return; // prevent duplicate when drag painting
+                    toggleVisited(d.id);
+                })
+                .on('pointerdown', function (event, d) {
+                    // allow "scratch" painting to begin on a country
+                    if (!ui.toggleDrag.checked) return;
+                    isPointerDown = true;
+                    event.currentTarget.setPointerCapture?.(event.pointerId);
+                    paintCountry(d.id);
+                })
+                .on('pointerenter', function (event, d) {
+                    if (ui.toggleDrag.checked && isPointerDown) paintCountry(d.id);
+                })
+                .on('keydown', function (event, d) {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        toggleVisited(d.id);
+                    }
+                });
+
+            updateVisuals();
+        }
+
+        function paintCountry(id) {
+            id = String(id);
+            if (id === lastPaintedId) return;
+            lastPaintedId = id;
+            applyVisited(id, brushMode === 'visit');
+        }
+
+        function attachGlobalPointerHandlers() {
+            const end = () => { isPointerDown = false; lastPaintedId = null; };
+            window.addEventListener('pointerup', end);
+            window.addEventListener('pointercancel', end);
+            window.addEventListener('blur', end);
+        }
+
+        async function loadWorldData() {
+            const topoUrl = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
+            const namesUrl = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.tsv';
+
+            const [world, tsvText] = await Promise.all([
+                fetch(topoUrl).then(r => r.json()),
+                fetch(namesUrl).then(r => r.text())
+            ]);
+
+            const nameRows = d3.tsvParse(tsvText);
+            idToName = new Map(nameRows.map(r => [String(r.id), r.name]));
+
+            const geo = topojson.feature(world, world.objects.countries);
+            features = geo.features
+                .filter(f => f && f.geometry)
+                .map(f => {
+                    f.id = String(f.id);
+                    f.properties = f.properties || {};
+                    f.properties.name = idToName.get(String(f.id)) || f.properties.name || `Country ${f.id}`;
+                    return f;
+                });
+
+            // area computations
+            areas = new Map();
+            totalArea = 0;
+            for (const f of features) {
+                // geoArea uses spherical area in steradians; fine for % coverage
+                const a = d3.geoArea(f);
+                areas.set(String(f.id), a);
+                totalArea += a;
+            }
+
+            // clean visited set in case ids changed
+            const validIds = new Set(features.map(f => String(f.id)));
+            visited = new Set([...visited].filter(id => validIds.has(String(id))));
+            saveVisited();
+
+            buildSvg();
+        }
+
+        // --- UI wiring ---
+        ui.brushVisit.addEventListener('click', () => setBrush('visit'));
+        ui.brushErase.addEventListener('click', () => setBrush('erase'));
+
+        ui.btnFit.addEventListener('click', () => {
+            fitProjection();
+        });
+
+        ui.search.addEventListener('input', () => renderCountryList());
+
+        function setFilter(next) {
+            listFilter = next;
+            ui.filterAll.className = `px-2 py-1 rounded-lg border border-white/10 ${next === 'all' ? 'bg-white/10' : 'bg-white/5 hover:bg-white/10'}`;
+            ui.filterVisited.className = `px-2 py-1 rounded-lg border border-white/10 ${next === 'visited' ? 'bg-white/10' : 'bg-white/5 hover:bg-white/10'}`;
+            ui.filterUnvisited.className = `px-2 py-1 rounded-lg border border-white/10 ${next === 'unvisited' ? 'bg-white/10' : 'bg-white/5 hover:bg-white/10'}`;
+            renderCountryList();
+        }
+
+        ui.filterAll.addEventListener('click', () => setFilter('all'));
+        ui.filterVisited.addEventListener('click', () => setFilter('visited'));
+        ui.filterUnvisited.addEventListener('click', () => setFilter('unvisited'));
+
+        ui.btnExport.addEventListener('click', () => {
+            const payload = serializeExport();
+            const ts = new Date().toISOString().replaceAll(':', '-');
+            downloadJson(payload, `scratchmap-${ts}.json`);
+        });
+
+        ui.fileImport.addEventListener('change', async (e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            try {
+                const text = await file.text();
+                const obj = JSON.parse(text);
+                applyImport(obj);
+            } catch (err) {
+                alert('Import failed: ' + (err?.message || String(err)));
+            } finally {
+                ui.fileImport.value = '';
+            }
+        });
+
+        ui.btnReset.addEventListener('click', () => {
+            const ok = confirm('Reset all visited countries?');
+            if (!ok) return;
+            visited = new Set();
+            saveVisited();
+            updateVisuals();
+        });
+
+        // Resize handling
+        const ro = new ResizeObserver(() => {
+            if (!svg) return;
+            fitProjection();
+        });
+        ro.observe(ui.mapWrap);
+
+        // Keyboard shortcuts
+        window.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+                // keep browser find, but also focus search quickly if already on the page
+                setTimeout(() => ui.search.focus(), 0);
+            }
+            if (e.key === 'v') setBrush('visit');
+            if (e.key === 'e') setBrush('erase');
+            if (e.key === 'Escape') hideTooltip();
+        });
+
+        // Init
+        setBrush('visit');
+        setFilter('all');
+
+        (async function init() {
+            try {
+                await loadWorldData();
+            } catch (e) {
+                ui.mapWrap.innerHTML = `
+          <div class="p-6">
+            <div class="text-lg font-semibold">Failed to load map data</div>
+            <div class="text-sm text-slate-300 mt-1">This app fetches world data from a CDN. Check your connection and refresh.</div>
+            <pre class="text-xs text-slate-400 mt-3 whitespace-pre-wrap">${escapeHtml(e?.stack || String(e))}</pre>
+          </div>
+        `;
+            }
+        })();
+    </script>
+</body>
+
+</html>
