@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scratch Off World Map - Travel Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+
+        body {
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .country {
+            fill: #1e293b;
+            stroke: #334155;
+            stroke-width: 0.5;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .country:hover {
+            fill: #475569;
+            transform: scale(1.01);
+        }
+
+        .country.visited {
+            fill: #10b981;
+            stroke: #059669;
+        }
+
+        .country.visited:hover {
+            fill: #34d399;
+        }
+
+        .scratch-effect {
+            animation: scratch 0.5s ease-out;
+        }
+
+        @keyframes scratch {
+            0% {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .stat-card {
+            backdrop-filter: blur(10px);
+            background: rgba(30, 41, 59, 0.8);
+        }
+
+        .progress-ring {
+            transform: rotate(-90deg);
+        }
+
+        .glow {
+            box-shadow: 0 0 30px rgba(16, 185, 129, 0.3);
+        }
+
+        #map-container {
+            cursor: grab;
+        }
+
+        #map-container:active {
+            cursor: grabbing;
+        }
+
+        .tooltip {
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-900 min-h-screen text-white">
+    <!-- Header -->
+    <header class="bg-slate-800/80 backdrop-blur-md sticky top-0 z-50 border-b border-slate-700">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <span class="text-3xl">🌍</span>
+                <h1
+                    class="text-2xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+                    Travel Scratch Map
+                </h1>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="resetMap()"
+                    class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition flex items-center gap-2">
+                    <span>🔄</span> Reset
+                </button>
+                <button onclick="exportData()"
+                    class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg transition flex items-center gap-2">
+                    <span>📥</span> Export
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 py-6">
+        <!-- Stats Section -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <!-- Coverage Circle -->
+            <div class="stat-card rounded-2xl p-6 text-center col-span-2 md:col-span-1 glow">
+                <div class="relative inline-block">
+                    <svg class="w-32 h-32" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="45" fill="none" stroke="#334155" stroke-width="8" />
+                        <circle id="progress-circle" class="progress-ring" cx="50" cy="50" r="45" fill="none"
+                            stroke="url(#gradient)" stroke-width="8" stroke-linecap="round" stroke-dasharray="283"
+                            stroke-dashoffset="283" />
+                        <defs>
+                            <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" stop-color="#10b981" />
+                                <stop offset="100%" stop-color="#06b6d4" />
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <span id="percentage" class="text-2xl font-bold">0%</span>
+                    </div>
+                </div>
+                <p class="text-slate-400 mt-2">World Coverage</p>
+            </div>
+
+            <!-- Countries Visited -->
+            <div class="stat-card rounded-2xl p-6 text-center">
+                <div class="text-4xl mb-2">🗺️</div>
+                <div id="countries-count" class="text-3xl font-bold text-emerald-400">0</div>
+                <p class="text-slate-400">Countries Visited</p>
+            </div>
+
+            <!-- Continents -->
+            <div class="stat-card rounded-2xl p-6 text-center">
+                <div class="text-4xl mb-2">🌎</div>
+                <div id="continents-count" class="text-3xl font-bold text-cyan-400">0/7</div>
+                <p class="text-slate-400">Continents</p>
+            </div>
+
+            <!-- Achievement -->
+            <div class="stat-card rounded-2xl p-6 text-center">
+                <div id="achievement-icon" class="text-4xl mb-2">🌱</div>
+                <div id="achievement-title" class="text-lg font-bold text-amber-400">Beginner</div>
+                <p class="text-slate-400">Traveler Rank</p>
+            </div>
+        </div>
+
+        <!-- Continent Progress -->
+        <div class="stat-card rounded-2xl p-6 mb-6">
+            <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                <span>📊</span> Continent Progress
+            </h3>
+            <div id="continent-bars" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+
+        <!-- Map Container -->
+        <div class="stat-card rounded-2xl p-4 overflow-hidden relative">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold flex items-center gap-2">
+                    <span>🗺️</span> Click countries to scratch them off!
+                </h3>
+                <div class="flex gap-2">
+                    <button onclick="zoomIn()"
+                        class="w-10 h-10 bg-slate-700 hover:bg-slate-600 rounded-lg transition text-xl">+</button>
+                    <button onclick="zoomOut()"
+                        class="w-10 h-10 bg-slate-700 hover:bg-slate-600 rounded-lg transition text-xl">−</button>
+                    <button onclick="resetZoom()"
+                        class="px-3 h-10 bg-slate-700 hover:bg-slate-600 rounded-lg transition text-sm">Reset
+                        View</button>
+                </div>
+            </div>
+            <div id="map-container" class="overflow-hidden rounded-xl bg-slate-800" style="height: 500px;">
+                <svg id="world-map" viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid meet" class="w-full h-full">
+                    <!-- Countries will be added by JS -->
+                </svg>
+            </div>
+            <!-- Tooltip -->
+            <div id="tooltip"
+                class="tooltip fixed bg-slate-800 px-3 py-2 rounded-lg shadow-xl opacity-0 z-50 border border-slate-600">
+                <span id="tooltip-text"></span>
+            </div>
+        </div>
+
+        <!-- Recently Visited -->
+        <div class="stat-card rounded-2xl p-6 mt-6">
+            <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                <span>✈️</span> Recently Visited
+            </h3>
+            <div id="recent-list" class="flex flex-wrap gap-2">
+                <span class="text-slate-500">Click on countries to start your journey!</span>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center py-6 text-slate-500">
+        <p>Made with ❤️ for travelers everywhere</p>
+    </footer>
+
+    <script>
+        // Country data with simplified paths and continent info
+        const countries = [
+            // North America
+            { id: "US", name: "United States", continent: "North America", path: "M 130 140 L 230 140 L 240 180 L 230 200 L 130 200 L 120 170 Z" },
+            { id: "CA", name: "Canada", continent: "North America", path: "M 100 80 L 260 80 L 270 130 L 240 140 L 120 140 L 90 120 Z" },
+            { id: "MX", name: "Mexico", continent: "North America", path: "M 120 200 L 180 200 L 190 240 L 160 260 L 130 240 Z" },
+            { id: "GT", name: "Guatemala", continent: "North America", path: "M 160 260 L 175 260 L 178 275 L 162 275 Z" },
+            { id: "BZ", name: "Belize", continent: "North America", path: "M 175 255 L 182 255 L 182 265 L 175 265 Z" },
+            { id: "HN", name: "Honduras", continent: "North America", path: "M 175 268 L 195 268 L 195 280 L 175 280 Z" },
+            { id: "SV", name: "El Salvador", continent: "North America", path: "M 165 275 L 175 275 L 175 282 L 165 282 Z" },
+            { id: "NI", name: "Nicaragua", continent: "North America", path: "M 178 280 L 198 280 L 198 295 L 178 295 Z" },
+            { id: "CR", name: "Costa Rica", continent: "North America", path: "M 180 295 L 195 295 L 195 308 L 180 308 Z" },
+            { id: "PA", name: "Panama", continent: "North America", path: "M 190 305 L 210 305 L 215 315 L 195 315 Z" },
+            { id: "CU", name: "Cuba", continent: "North America", path: "M 200 220 L 250 215 L 255 225 L 205 230 Z" },
+            { id: "JM", name: "Jamaica", continent: "North America", path: "M 225 240 L 240 240 L 240 248 L 225 248 Z" },
+            { id: "HT", name: "Haiti", continent: "North America", path: "M 255 230 L 270 230 L 270 245 L 255 245 Z" },
+            { id: "DO", name: "Dominican Republic", continent: "North America", path: "M 270 230 L 290 230 L 290 245 L 270 245 Z" },
+
+            // South America
+            { id: "BR", name: "Brazil", continent: "South America", path: "M 270 320 L 350 300 L 370 380 L 320 430 L 260 400 Z" },
+            { id: "AR", name: "Argentina", continent: "South America", path: "M 250 420 L 290 400 L 300 480 L 270 500 L 240 460 Z" },
+            { id: "CL", name: "Chile", continent: "South America", path: "M 235 380 L 250 380 L 260 500 L 245 500 Z" },
+            { id: "PE", name: "Peru", continent: "South America", path: "M 210 320 L 260 320 L 250 380 L 200 370 Z" },
+            { id: "CO", name: "Colombia", continent: "South America", path: "M 210 280 L 260 280 L 270 320 L 220 330 Z" },
+            { id: "VE", name: "Venezuela", continent: "South America", path: "M 260 270 L 310 260 L 320 290 L 270 300 Z" },
+            { id: "EC", name: "Ecuador", continent: "South America", path: "M 195 310 L 220 310 L 220 340 L 195 340 Z" },
+            { id: "BO", name: "Bolivia", continent: "South America", path: "M 255 370 L 295 360 L 300 400 L 260 405 Z" },
+            { id: "PY", name: "Paraguay", continent: "South America", path: "M 290 395 L 320 390 L 325 420 L 295 420 Z" },
+            { id: "UY", name: "Uruguay", continent: "South America", path: "M 305 425 L 325 420 L 330 445 L 310 445 Z" },
+            { id: "GY", name: "Guyana", continent: "South America", path: "M 305 285 L 325 280 L 330 305 L 310 305 Z" },
+            { id: "SR", name: "Suriname", continent: "South America", path: "M 325 280 L 345 280 L 348 300 L 328 302 Z" },
+
+            // Europe
+            { id: "GB", name: "United Kingdom", continent: "Europe", path: "M 440 115 L 460 110 L 465 140 L 445 145 Z" },
+            { id: "FR", name: "France", continent: "Europe", path: "M 445 150 L 480 145 L 485 185 L 450 190 Z" },
+            { id: "DE", name: "Germany", continent: "Europe", path: "M 485 130 L 515 130 L 520 165 L 490 165 Z" },
+            { id: "IT", name: "Italy", continent: "Europe", path: "M 490 175 L 510 170 L 525 210 L 500 215 Z" },
+            { id: "ES", name: "Spain", continent: "Europe", path: "M 420 175 L 460 170 L 460 205 L 420 210 Z" },
+            { id: "PT", name: "Portugal", continent: "Europe", path: "M 405 175 L 420 175 L 420 210 L 405 210 Z" },
+            { id: "PL", name: "Poland", continent: "Europe", path: "M 515 125 L 550 125 L 550 155 L 515 155 Z" },
+            { id: "NL", name: "Netherlands", continent: "Europe", path: "M 470 125 L 485 125 L 485 138 L 470 138 Z" },
+            { id: "BE", name: "Belgium", continent: "Europe", path: "M 465 138 L 480 138 L 480 150 L 465 150 Z" },
+            { id: "SE", name: "Sweden", continent: "Europe", path: "M 510 70 L 530 65 L 540 115 L 515 120 Z" },
+            { id: "NO", name: "Norway", continent: "Europe", path: "M 485 55 L 515 50 L 520 105 L 495 110 Z" },
+            { id: "FI", name: "Finland", continent: "Europe", path: "M 545 55 L 575 55 L 575 100 L 545 100 Z" },
+            { id: "DK", name: "Denmark", continent: "Europe", path: "M 495 115 L 515 115 L 515 130 L 495 130 Z" },
+            { id: "IE", name: "Ireland", continent: "Europe", path: "M 420 115 L 440 115 L 440 140 L 420 140 Z" },
+            { id: "AT", name: "Austria", continent: "Europe", path: "M 500 160 L 530 158 L 530 172 L 500 172 Z" },
+            { id: "CH", name: "Switzerland", continent: "Europe", path: "M 478 160 L 498 158 L 498 172 L 478 172 Z" },
+            { id: "CZ", name: "Czech Republic", continent: "Europe", path: "M 505 145 L 530 145 L 530 158 L 505 158 Z" },
+            { id: "GR", name: "Greece", continent: "Europe", path: "M 530 195 L 555 190 L 560 220 L 535 225 Z" },
+            { id: "UA", name: "Ukraine", continent: "Europe", path: "M 555 130 L 610 125 L 615 165 L 560 170 Z" },
+            { id: "RO", name: "Romania", continent: "Europe", path: "M 540 165 L 575 162 L 578 185 L 543 188 Z" },
+            { id: "HU", name: "Hungary", continent: "Europe", path: "M 520 160 L 545 158 L 545 175 L 520 175 Z" },
+            { id: "SK", name: "Slovakia", continent: "Europe", path: "M 520 148 L 550 146 L 550 160 L 520 160 Z" },
+
+            // Asia
+            { id: "RU", name: "Russia", continent: "Asia", path: "M 550 50 L 850 40 L 880 150 L 620 160 L 580 100 Z" },
+            { id: "CN", name: "China", continent: "Asia", path: "M 720 180 L 830 170 L 850 260 L 740 270 L 700 230 Z" },
+            { id: "IN", name: "India", continent: "Asia", path: "M 660 230 L 720 220 L 740 310 L 680 330 L 650 280 Z" },
+            { id: "JP", name: "Japan", continent: "Asia", path: "M 870 180 L 895 175 L 900 230 L 875 235 Z" },
+            { id: "KR", name: "South Korea", continent: "Asia", path: "M 850 200 L 870 198 L 872 225 L 852 227 Z" },
+            { id: "TH", name: "Thailand", continent: "Asia", path: "M 755 280 L 775 275 L 780 320 L 760 325 Z" },
+            { id: "VN", name: "Vietnam", continent: "Asia", path: "M 780 270 L 800 265 L 810 320 L 785 325 Z" },
+            { id: "ID", name: "Indonesia", continent: "Asia", path: "M 770 350 L 870 345 L 875 380 L 775 385 Z" },
+            { id: "MY", name: "Malaysia", continent: "Asia", path: "M 765 320 L 800 318 L 802 345 L 767 347 Z" },
+            { id: "PH", name: "Philippines", continent: "Asia", path: "M 840 280 L 865 278 L 868 325 L 843 327 Z" },
+            { id: "SA", name: "Saudi Arabia", continent: "Asia", path: "M 580 230 L 640 220 L 650 280 L 590 290 Z" },
+            { id: "AE", name: "UAE", continent: "Asia", path: "M 630 265 L 650 263 L 652 280 L 632 282 Z" },
+            { id: "IR", name: "Iran", continent: "Asia", path: "M 610 195 L 665 190 L 670 235 L 615 240 Z" },
+            { id: "TR", name: "Turkey", continent: "Asia", path: "M 545 180 L 610 175 L 615 205 L 550 210 Z" },
+            { id: "IL", name: "Israel", continent: "Asia", path: "M 565 215 L 575 215 L 576 240 L 566 240 Z" },
+            { id: "PK", name: "Pakistan", continent: "Asia", path: "M 650 210 L 690 205 L 695 255 L 655 260 Z" },
+            { id: "BD", name: "Bangladesh", continent: "Asia", path: "M 720 260 L 740 258 L 742 285 L 722 287 Z" },
+            { id: "MM", name: "Myanmar", continent: "Asia", path: "M 740 260 L 758 258 L 762 310 L 744 312 Z" },
+            { id: "KZ", name: "Kazakhstan", continent: "Asia", path: "M 600 150 L 700 145 L 705 190 L 605 195 Z" },
+            { id: "SG", name: "Singapore", continent: "Asia", path: "M 780 338 L 790 338 L 790 348 L 780 348 Z" },
+            { id: "NP", name: "Nepal", continent: "Asia", path: "M 700 240 L 730 238 L 730 252 L 700 252 Z" },
+            { id: "LK", name: "Sri Lanka", continent: "Asia", path: "M 695 320 L 710 318 L 712 340 L 697 340 Z" },
+
+            // Africa
+            { id: "EG", name: "Egypt", continent: "Africa", path: "M 540 220 L 580 215 L 585 260 L 545 265 Z" },
+            { id: "ZA", name: "South Africa", continent: "Africa", path: "M 520 420 L 575 415 L 580 470 L 525 475 Z" },
+            { id: "NG", name: "Nigeria", continent: "Africa", path: "M 470 300 L 510 295 L 515 340 L 475 345 Z" },
+            { id: "KE", name: "Kenya", continent: "Africa", path: "M 560 320 L 590 315 L 595 360 L 565 365 Z" },
+            { id: "MA", name: "Morocco", continent: "Africa", path: "M 420 210 L 455 205 L 458 245 L 423 248 Z" },
+            { id: "DZ", name: "Algeria", continent: "Africa", path: "M 455 210 L 510 205 L 515 270 L 460 275 Z" },
+            { id: "TN", name: "Tunisia", continent: "Africa", path: "M 492 200 L 508 200 L 510 230 L 494 230 Z" },
+            { id: "LY", name: "Libya", continent: "Africa", path: "M 505 225 L 550 220 L 555 280 L 510 285 Z" },
+            { id: "ET", name: "Ethiopia", continent: "Africa", path: "M 565 295 L 605 290 L 610 330 L 570 335 Z" },
+            { id: "GH", name: "Ghana", continent: "Africa", path: "M 450 305 L 470 303 L 472 340 L 452 342 Z" },
+            { id: "CI", name: "Ivory Coast", continent: "Africa", path: "M 430 305 L 452 303 L 454 340 L 432 342 Z" },
+            { id: "SN", name: "Senegal", continent: "Africa", path: "M 400 280 L 425 278 L 427 300 L 402 302 Z" },
+            { id: "TZ", name: "Tanzania", continent: "Africa", path: "M 555 345 L 590 340 L 595 390 L 560 395 Z" },
+            { id: "CD", name: "DR Congo", continent: "Africa", path: "M 510 335 L 560 330 L 565 395 L 515 400 Z" },
+            { id: "AO", name: "Angola", continent: "Africa", path: "M 490 370 L 540 365 L 545 420 L 495 425 Z" },
+            { id: "MZ", name: "Mozambique", continent: "Africa", path: "M 565 385 L 590 382 L 595 445 L 570 448 Z" },
+            { id: "ZM", name: "Zambia", continent: "Africa", path: "M 535 380 L 575 375 L 578 410 L 538 413 Z" },
+            { id: "ZW", name: "Zimbabwe", continent: "Africa", path: "M 545 405 L 575 402 L 578 430 L 548 432 Z" },
+            { id: "BW", name: "Botswana", continent: "Africa", path: "M 525 410 L 555 407 L 558 445 L 528 448 Z" },
+            { id: "NA", name: "Namibia", continent: "Africa", path: "M 495 405 L 530 402 L 533 465 L 498 468 Z" },
+            { id: "UG", name: "Uganda", continent: "Africa", path: "M 555 315 L 580 312 L 582 340 L 557 342 Z" },
+
+            // Oceania
+            { id: "AU", name: "Australia", continent: "Oceania", path: "M 780 390 L 890 380 L 910 470 L 800 480 Z" },
+            { id: "NZ", name: "New Zealand", continent: "Oceania", path: "M 935 450 L 955 445 L 960 490 L 940 495 Z" },
+            { id: "PG", name: "Papua New Guinea", continent: "Oceania", path: "M 875 350 L 910 345 L 915 380 L 880 385 Z" },
+            { id: "FJ", name: "Fiji", continent: "Oceania", path: "M 960 400 L 975 398 L 977 415 L 962 417 Z" },
+
+            // Antarctica (bonus)
+            { id: "AQ", name: "Antarctica", continent: "Antarctica", path: "M 200 490 L 800 485 L 800 500 L 200 500 Z" },
+        ];
+
+        const continentData = {
+            "North America": { color: "#f59e0b", countries: 0, total: 0 },
+            "South America": { color: "#ef4444", countries: 0, total: 0 },
+            "Europe": { color: "#3b82f6", countries: 0, total: 0 },
+            "Asia": { color: "#8b5cf6", countries: 0, total: 0 },
+            "Africa": { color: "#10b981", countries: 0, total: 0 },
+            "Oceania": { color: "#06b6d4", countries: 0, total: 0 },
+            "Antarctica": { color: "#94a3b8", countries: 0, total: 0 }
+        };
+
+        // Count total countries per continent
+        countries.forEach(c => {
+            if (continentData[c.continent]) {
+                continentData[c.continent].total++;
+            }
+        });
+
+        let visitedCountries = new Set();
+        let recentVisits = [];
+        let scale = 1;
+        let translateX = 0;
+        let translateY = 0;
+        let isDragging = false;
+        let startX, startY;
+
+        // Initialize map
+        function initMap() {
+            const svg = document.getElementById('world-map');
+
+            countries.forEach(country => {
+                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                path.setAttribute("d", country.path);
+                path.setAttribute("id", country.id);
+                path.setAttribute("class", "country");
+                path.setAttribute("data-name", country.name);
+                path.setAttribute("data-continent", country.continent);
+
+                path.addEventListener("click", () => toggleCountry(country.id));
+                path.addEventListener("mouseenter", (e) => showTooltip(e, country.name));
+                path.addEventListener("mousemove", (e) => moveTooltip(e));
+                path.addEventListener("mouseleave", hideTooltip);
+
+                svg.appendChild(path);
+            });
+
+            // Load saved data
+            loadData();
+            updateStats();
+            renderContinentBars();
+            setupPanZoom();
+        }
+
+        function setupPanZoom() {
+            const container = document.getElementById('map-container');
+            const svg = document.getElementById('world-map');
+
+            container.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                startX = e.clientX - translateX;
+                startY = e.clientY - translateY;
+            });
+
+            container.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                translateX = e.clientX - startX;
+                translateY = e.clientY - startY;
+                updateTransform();
+            });
+
+            container.addEventListener('mouseup', () => isDragging = false);
+            container.addEventListener('mouseleave', () => isDragging = false);
+
+            container.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const delta = e.deltaY > 0 ? 0.9 : 1.1;
+                scale = Math.min(Math.max(0.5, scale * delta), 5);
+                updateTransform();
+            });
+        }
+
+        function updateTransform() {
+            const svg = document.getElementById('world-map');
+            svg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+        }
+
+        function zoomIn() {
+            scale = Math.min(scale * 1.3, 5);
+            updateTransform();
+        }
+
+        function zoomOut() {
+            scale = Math.max(scale / 1.3, 0.5);
+            updateTransform();
+        }
+
+        function resetZoom() {
+            scale = 1;
+            translateX = 0;
+            translateY = 0;
+            updateTransform();
+        }
+
+        function toggleCountry(id) {
+            const element = document.getElementById(id);
+            const country = countries.find(c => c.id === id);
+
+            if (visitedCountries.has(id)) {
+                visitedCountries.delete(id);
+                element.classList.remove('visited');
+                recentVisits = recentVisits.filter(c => c.id !== id);
+            } else {
+                visitedCountries.add(id);
+                element.classList.add('visited', 'scratch-effect');
+                setTimeout(() => element.classList.remove('scratch-effect'), 500);
+
+                // Add to recent visits
+                recentVisits = recentVisits.filter(c => c.id !== id);
+                recentVisits.unshift(country);
+                if (recentVisits.length > 10) recentVisits.pop();
+            }
+
+            saveData();
+            updateStats();
+        }
+
+        function updateStats() {
+            const total = countries.length;
+            const visited = visitedCountries.size;
+            const percentage = Math.round((visited / total) * 100);
+
+            // Update percentage display
+            document.getElementById('percentage').textContent = percentage + '%';
+            document.getElementById('countries-count').textContent = visited;
+
+            // Update progress circle
+            const circle = document.getElementById('progress-circle');
+            const offset = 283 - (283 * percentage / 100);
+            circle.style.strokeDashoffset = offset;
+
+            // Count continents
+            const continentVisits = {};
+            Object.keys(continentData).forEach(c => {
+                continentData[c].countries = 0;
+            });
+
+            visitedCountries.forEach(id => {
+                const country = countries.find(c => c.id === id);
+                if (country) {
+                    continentData[country.continent].countries++;
+                }
+            });
+
+            const continentsVisited = Object.values(continentData).filter(c => c.countries > 0).length;
+            document.getElementById('continents-count').textContent = continentsVisited + '/7';
+
+            // Update achievement
+            updateAchievement(visited);
+
+            // Update recent visits
+            updateRecentList();
+
+            // Update continent bars
+            renderContinentBars();
+        }
+
+        function updateAchievement(visited) {
+            const icon = document.getElementById('achievement-icon');
+            const title = document.getElementById('achievement-title');
+
+            if (visited === 0) {
+                icon.textContent = '🌱';
+                title.textContent = 'Beginner';
+            } else if (visited < 5) {
+                icon.textContent = '🎒';
+                title.textContent = 'Explorer';
+            } else if (visited < 15) {
+                icon.textContent = '✈️';
+                title.textContent = 'Adventurer';
+            } else if (visited < 30) {
+                icon.textContent = '🌟';
+                title.textContent = 'Globetrotter';
+            } else if (visited < 50) {
+                icon.textContent = '🏆';
+                title.textContent = 'World Traveler';
+            } else if (visited < 75) {
+                icon.textContent = '👑';
+                title.textContent = 'Travel Master';
+            } else {
+                icon.textContent = '🌍';
+                title.textContent = 'World Conqueror';
+            }
+        }
+
+        function renderContinentBars() {
+            const container = document.getElementById('continent-bars');
+            container.innerHTML = '';
+
+            Object.entries(continentData).forEach(([name, data]) => {
+                const percent = data.total > 0 ? Math.round((data.countries / data.total) * 100) : 0;
+                const div = document.createElement('div');
+                div.innerHTML = `
+                    <div class="flex justify-between mb-1">
+                        <span class="text-sm">${name}</span>
+                        <span class="text-sm text-slate-400">${data.countries}/${data.total}</span>
+                    </div>
+                    <div class="h-2 bg-slate-700 rounded-full overflow-hidden">
+                        <div class="h-full rounded-full transition-all duration-500" 
+                             style="width: ${percent}%; background-color: ${data.color}"></div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function updateRecentList() {
+            const container = document.getElementById('recent-list');
+
+            if (recentVisits.length === 0) {
+                container.innerHTML = '<span class="text-slate-500">Click on countries to start your journey!</span>';
+                return;
+            }
+
+            container.innerHTML = recentVisits.map(country => `
+                <span class="px-3 py-1 bg-emerald-500/20 text-emerald-400 rounded-full text-sm border border-emerald-500/30">
+                    ${country.name}
+                </span>
+            `).join('');
+        }
+
+        function showTooltip(e, name) {
+            const tooltip = document.getElementById('tooltip');
+            document.getElementById('tooltip-text').textContent = name;
+            tooltip.style.opacity = '1';
+            moveTooltip(e);
+        }
+
+        function moveTooltip(e) {
+            const tooltip = document.getElementById('tooltip');
+            tooltip.style.left = e.clientX + 15 + 'px';
+            tooltip.style.top = e.clientY + 15 + 'px';
+        }
+
+        function hideTooltip() {
+            document.getElementById('tooltip').style.opacity = '0';
+        }
+
+        function saveData() {
+            localStorage.setItem('visitedCountries', JSON.stringify([...visitedCountries]));
+            localStorage.setItem('recentVisits', JSON.stringify(recentVisits));
+        }
+
+        function loadData() {
+            const saved = localStorage.getItem('visitedCountries');
+            const recent = localStorage.getItem('recentVisits');
+
+            if (saved) {
+                visitedCountries = new Set(JSON.parse(saved));
+                visitedCountries.forEach(id => {
+                    const element = document.getElementById(id);
+                    if (element) element.classList.add('visited');
+                });
+            }
+
+            if (recent) {
+                recentVisits = JSON.parse(recent);
+            }
+        }
+
+        function resetMap() {
+            if (confirm('Are you sure you want to reset all visited countries?')) {
+                visitedCountries.clear();
+                recentVisits = [];
+                document.querySelectorAll('.country.visited').forEach(el => {
+                    el.classList.remove('visited');
+                });
+                saveData();
+                updateStats();
+            }
+        }
+
+        function exportData() {
+            const data = {
+                visited: [...visitedCountries],
+                countries: [...visitedCountries].map(id => {
+                    const c = countries.find(country => country.id === id);
+                    return c ? c.name : id;
+                }),
+                stats: {
+                    total: visitedCountries.size,
+                    percentage: Math.round((visitedCountries.size / countries.length) * 100)
+                }
+            };
+
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'travel-map-data.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', initMap);
+    </script>
+</body>
+
+</html>
