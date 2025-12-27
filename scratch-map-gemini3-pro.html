@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scratch-Off World Map</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://unpkg.com/topojson-client@3"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+
+        .map-container {
+            width: 100%;
+            height: 600px;
+            overflow: hidden;
+            background-color: #e5e7eb;
+            border-radius: 0.5rem;
+            position: relative;
+            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+        }
+
+        .country {
+            stroke: #fff;
+            stroke-width: 0.5px;
+            cursor: pointer;
+            transition: fill 0.3s ease;
+        }
+
+        .country:hover {
+            opacity: 0.8;
+        }
+
+        /* Scratch-off style: Gold/Bronze for unvisited */
+        .unvisited {
+            fill: #DAA520;
+            /* GoldenRod */
+        }
+
+        .unvisited:hover {
+            fill: #B8860B;
+            /* Darker Gold on hover */
+        }
+
+        /* Reveal style: Colorful for visited */
+        .visited {
+            fill: #10b981;
+            /* Emerald Green */
+        }
+
+        .visited:hover {
+            fill: #059669;
+            /* Darker Green on hover */
+        }
+
+        .tooltip {
+            position: absolute;
+            text-align: center;
+            padding: 6px;
+            font-size: 12px;
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            border-radius: 4px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+    </style>
+</head>
+
+<body class="flex flex-col min-h-screen">
+
+    <header class="bg-white shadow-sm py-4 px-6 mb-6">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center">
+            <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                🌍 Scratch-Off World Map
+            </h1>
+            <div class="flex gap-6 mt-4 md:mt-0 text-gray-600">
+                <div class="text-center">
+                    <span id="count-stat" class="block text-2xl font-bold text-blue-600">0</span>
+                    <span class="text-xs uppercase tracking-wide">Countries</span>
+                </div>
+                <div class="text-center">
+                    <span id="percent-stat" class="block text-2xl font-bold text-blue-600">0%</span>
+                    <span class="text-xs uppercase tracking-wide">Coverage</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow container mx-auto px-4 max-w-7xl flex flex-col items-center">
+
+        <div class="w-full bg-white p-4 rounded-xl shadow-lg mb-6">
+            <div id="map" class="map-container relative flex items-center justify-center">
+                <span class="text-gray-400 animate-pulse">Loading World Map...</span>
+            </div>
+            <div id="tooltip" class="tooltip"></div>
+        </div>
+
+        <div class="flex gap-4 mb-8">
+            <button onclick="resetMap()"
+                class="px-4 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition font-medium">
+                Reset Map
+            </button>
+            <button onclick="exportMap()"
+                class="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition font-medium">
+                Save Progress
+            </button>
+        </div>
+
+    </main>
+
+    <footer class="bg-white py-6 border-t border-gray-200 mt-auto">
+        <div class="container mx-auto px-4 text-center text-gray-500 text-sm">
+            <p>Scratch off the countries you've visited! Data is saved automatically.</p>
+        </div>
+    </footer>
+
+    <script>
+        // State
+        let visitedCountries = new Set();
+        let worldData = null;
+        let totalCountries = 0;
+
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            loadState();
+            initMap();
+        });
+
+        function loadState() {
+            const stored = localStorage.getItem('visitedCountries');
+            if (stored) {
+                visitedCountries = new Set(JSON.parse(stored));
+            }
+        }
+
+        function saveState() {
+            localStorage.setItem('visitedCountries', JSON.stringify([...visitedCountries]));
+            updateStats();
+        }
+
+        function updateStats() {
+            const count = visitedCountries.size;
+            document.getElementById('count-stat').textContent = count;
+
+            if (totalCountries > 0) {
+                const percent = ((count / totalCountries) * 100).toFixed(1);
+                document.getElementById('percent-stat').textContent = percent + '%';
+            }
+        }
+
+        function resetMap() {
+            if (confirm("Are you sure you want to reset your map? This cannot be undone.")) {
+                visitedCountries.clear();
+                saveState();
+                d3.selectAll('.country')
+                    .classed('visited', false)
+                    .classed('unvisited', true);
+            }
+        }
+
+        function exportMap() {
+            const dataStr = JSON.stringify([...visitedCountries], null, 2);
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "scratch-map-progress.json";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        async function initMap() {
+            const width = document.getElementById('map').clientWidth;
+            const height = 600;
+            const tooltip = d3.select("#tooltip");
+
+            // Clear container (removes loading text or previous map)
+            document.getElementById('map').innerHTML = '';
+
+            const svg = d3.select("#map")
+                .append("svg")
+                .attr("width", width)
+                .attr("height", height)
+                .attr("viewBox", `0 0 ${width} ${height}`)
+                .style("background", "#bae6fd"); // Light Ocean Blue
+
+            // Projection
+            const projection = d3.geoMercator()
+                .scale(width / 6.5)
+                .translate([width / 2, height / 1.5]);
+
+            const path = d3.geoPath().projection(projection);
+
+            // Zoom behavior
+            const zoom = d3.zoom()
+                .scaleExtent([1, 8])
+                .on('zoom', (event) => {
+                    g.attr('transform', event.transform);
+                });
+
+            svg.call(zoom);
+
+            const g = svg.append("g");
+
+            try {
+                // Fetch World Atlas TopoJSON (v1 includes names in tsv usually, but we can use a version with names or fetch names separately)
+                // Using a geojson from a reliable source that includes names in properties
+                const response = await fetch('https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson');
+                const data = await response.json();
+
+                // For GeoJSON we don't need topojson.feature
+                worldData = data;
+                totalCountries = worldData.features.length;
+
+                // Update initial stats
+                updateStats();
+
+                g.selectAll("path")
+                    .data(worldData.features)
+                    .enter()
+                    .append("path")
+                    .attr("d", path)
+                    .attr("class", d => {
+                        const id = d.id || d.properties.name;
+                        return visitedCountries.has(id) ? "country visited" : "country unvisited";
+                    })
+                    .on("click", function (event, d) {
+                        const id = d.id || d.properties.name;
+                        if (visitedCountries.has(id)) {
+                            visitedCountries.delete(id);
+                            d3.select(this).classed("visited", false).classed("unvisited", true);
+                        } else {
+                            visitedCountries.add(id);
+                            d3.select(this).classed("visited", true).classed("unvisited", false);
+                        }
+                        saveState();
+                    })
+                    .on("mouseover", function (event, d) {
+                        d3.select(this).style("stroke", "#333");
+                        tooltip.transition().duration(200).style("opacity", .9);
+                        tooltip.html(d.properties.name || "Unknown")
+                            .style("left", (event.pageX + 10) + "px")
+                            .style("top", (event.pageY - 28) + "px");
+                    })
+                    .on("mousemove", function (event) {
+                        tooltip
+                            .style("left", (event.pageX + 10) + "px")
+                            .style("top", (event.pageY - 28) + "px");
+                    })
+                    .on("mouseout", function (d) {
+                        d3.select(this).style("stroke", "#fff");
+                        tooltip.transition().duration(500).style("opacity", 0);
+                    });
+
+            } catch (error) {
+                console.error("Error loading map data:", error);
+                document.getElementById('map').innerHTML = `<div class="flex items-center justify-center h-full text-red-500 p-4">Error loading map data. If this persists, the data source might be blocked.</div>`;
+            }
+        }
+
+        // Handle resize
+        window.addEventListener('resize', () => {
+            d3.select("#map svg").remove();
+            initMap();
+        });
+
+    </script>
+</body>
+
+</html>
