@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>World Map - Scratch Off Visited Countries</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh;
+            color: #f8fafc;
+        }
+
+        .country {
+            fill: #334155;
+            stroke: #475569;
+            stroke-width: 0.5;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .country:hover {
+            fill: #475569;
+        }
+
+        .country.visited {
+            fill: #10b981;
+        }
+
+        .country.scratching {
+            fill: #10b981 !important;
+        }
+
+        .scratch-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+
+        .tooltip {
+            position: absolute;
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            border-radius: 6px;
+            font-size: 14px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 1000;
+        }
+
+        .stat-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            background: rgba(30, 41, 59, 0.9);
+            transform: translateY(-5px);
+        }
+
+        .scratch-brush {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(16, 185, 129, 0.2);
+            border: 2px solid #10b981;
+            position: absolute;
+            pointer-events: none;
+            z-index: 1001;
+            display: none;
+        }
+
+        .progress-ring {
+            transform: rotate(-90deg);
+        }
+
+        .progress-ring-circle {
+            transition: stroke-dashoffset 0.5s ease;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen p-4 md:p-6">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <header class="mb-8 text-center">
+            <h1
+                class="text-3xl md:text-4xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
+                <i class="fas fa-globe-americas mr-3"></i>World Travel Scratch Map
+            </h1>
+            <p class="text-slate-300">Scratch off countries you've visited and track your travel statistics</p>
+        </header>
+
+        <div class="flex flex-col lg:flex-row gap-6">
+            <!-- Left Panel - Stats -->
+            <div class="lg:w-1/4">
+                <div class="space-y-6">
+                    <!-- Stats Card -->
+                    <div class="stat-card rounded-2xl p-6 shadow-xl">
+                        <h2 class="text-xl font-semibold mb-4 flex items-center">
+                            <i class="fas fa-chart-bar mr-2 text-emerald-400"></i> Travel Statistics
+                        </h2>
+
+                        <div class="space-y-4">
+                            <!-- Progress Ring -->
+                            <div class="relative flex justify-center mb-4">
+                                <svg class="w-40 h-40" viewBox="0 0 100 100">
+                                    <circle cx="50" cy="50" r="45" fill="none" stroke="#334155" stroke-width="8" />
+                                    <circle id="progress-ring" class="progress-ring-circle" cx="50" cy="50" r="45"
+                                        fill="none" stroke="url(#gradient)" stroke-width="8" stroke-linecap="round"
+                                        stroke-dasharray="282.6" stroke-dashoffset="282.6" />
+                                    <defs>
+                                        <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                            <stop offset="0%" stop-color="#10b981" />
+                                            <stop offset="100%" stop-color="#0ea5e9" />
+                                        </linearGradient>
+                                    </defs>
+                                    <text x="50" y="50" text-anchor="middle" dy="0.3em"
+                                        class="text-2xl font-bold fill-white">0%</text>
+                                </svg>
+                            </div>
+
+                            <!-- Stats Grid -->
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="text-center p-3 bg-slate-800/50 rounded-xl">
+                                    <div class="text-2xl font-bold text-emerald-400" id="visited-count">0</div>
+                                    <div class="text-sm text-slate-300">Visited</div>
+                                </div>
+                                <div class="text-center p-3 bg-slate-800/50 rounded-xl">
+                                    <div class="text-2xl font-bold text-cyan-400" id="total-count">38</div>
+                                    <div class="text-sm text-slate-300">Total</div>
+                                </div>
+                            </div>
+
+                            <!-- Details -->
+                            <div class="pt-4 border-t border-slate-700">
+                                <div class="flex justify-between mb-2">
+                                    <span class="text-slate-300">Coverage:</span>
+                                    <span class="font-medium" id="coverage-percent">0%</span>
+                                </div>
+                                <div class="flex justify-between mb-2">
+                                    <span class="text-slate-300">Last visited:</span>
+                                    <span class="font-medium" id="last-visited">-</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-slate-300">First visited:</span>
+                                    <span class="font-medium" id="first-visited">-</span>
+                                </div>
+                            </div>
+
+                            <!-- Visited Countries List -->
+                            <div class="pt-4 border-t border-slate-700">
+                                <h3 class="font-medium mb-2 text-slate-300">Visited Countries</h3>
+                                <div id="visited-list" class="max-h-40 overflow-y-auto text-sm space-y-1">
+                                    <div class="text-slate-400 italic">No countries visited yet</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Controls Card -->
+                    <div class="stat-card rounded-2xl p-6 shadow-xl">
+                        <h2 class="text-xl font-semibold mb-4 flex items-center">
+                            <i class="fas fa-sliders-h mr-2 text-cyan-400"></i> Controls
+                        </h2>
+
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-300">Scratch Mode</span>
+                                <div class="relative">
+                                    <input type="checkbox" id="scratch-mode" class="sr-only" checked>
+                                    <label for="scratch-mode"
+                                        class="block w-12 h-6 rounded-full bg-slate-700 cursor-pointer"></label>
+                                    <span
+                                        class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition transform"></span>
+                                </div>
+                            </div>
+
+                            <div class="pt-2">
+                                <label class="text-slate-300 block mb-2">Brush Size: <span
+                                        id="brush-size-value">30</span>px</label>
+                                <input type="range" id="brush-size" min="10" max="60" value="30"
+                                    class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3 pt-2">
+                                <button id="reset-btn"
+                                    class="py-3 px-4 bg-rose-600 hover:bg-rose-700 rounded-xl font-medium transition flex items-center justify-center">
+                                    <i class="fas fa-redo mr-2"></i> Reset All
+                                </button>
+                                <button id="demo-btn"
+                                    class="py-3 px-4 bg-amber-600 hover:bg-amber-700 rounded-xl font-medium transition flex items-center justify-center">
+                                    <i class="fas fa-magic mr-2"></i> Demo Fill
+                                </button>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3 pt-2">
+                                <button id="export-btn"
+                                    class="py-3 px-4 bg-slate-700 hover:bg-slate-600 rounded-xl font-medium transition flex items-center justify-center">
+                                    <i class="fas fa-download mr-2"></i> Export
+                                </button>
+                                <button id="import-btn"
+                                    class="py-3 px-4 bg-slate-700 hover:bg-slate-600 rounded-xl font-medium transition flex items-center justify-center">
+                                    <i class="fas fa-upload mr-2"></i> Import
+                                </button>
+                            </div>
+
+                            <div class="pt-4 border-t border-slate-700 text-sm text-slate-400">
+                                <p class="flex items-center">
+                                    <i class="fas fa-info-circle mr-2 text-cyan-400"></i>
+                                    Drag over countries to scratch them off
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Legend Card -->
+                    <div class="stat-card rounded-2xl p-6 shadow-xl">
+                        <h2 class="text-xl font-semibold mb-4 flex items-center">
+                            <i class="fas fa-map-signs mr-2 text-violet-400"></i> Legend
+                        </h2>
+
+                        <div class="space-y-3">
+                            <div class="flex items-center">
+                                <div class="w-6 h-6 rounded bg-slate-600 mr-3"></div>
+                                <span>Not visited</span>
+                            </div>
+                            <div class="flex items-center">
+                                <div class="w-6 h-6 rounded bg-emerald-500 mr-3"></div>
+                                <span>Visited</span>
+                            </div>
+                            <div class="flex items-center">
+                                <div class="w-6 h-6 rounded bg-cyan-500 mr-3"></div>
+                                <span>Currently scratching</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel - Map -->
+            <div class="lg:w-3/4">
+                <div class="stat-card rounded-2xl p-4 md:p-6 shadow-xl h-full">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-semibold flex items-center">
+                            <i class="fas fa-map mr-3 text-amber-400"></i> World Map
+                        </h2>
+                        <div class="flex items-center space-x-2">
+                            <div class="px-3 py-1 bg-slate-800 rounded-lg">
+                                <span class="text-slate-300">Click or drag to scratch</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Map Container -->
+                    <div class="relative bg-slate-900/50 rounded-xl p-4 border border-slate-700">
+                        <div id="map-container" class="relative overflow-auto max-h-[70vh] min-h-[500px]">
+                            <svg id="world-map" width="1100" height="600" viewBox="0 0 1100 600" class="w-full h-auto">
+                                <!-- Simplified world map with representative countries -->
+                                <g id="countries">
+                                    <!-- North America -->
+                                    <path id="canada" class="country" data-name="Canada" data-code="CA"
+                                        data-continent="north-america"
+                                        d="M150,50 L250,30 L280,100 L220,120 L180,90 Z" />
+                                    <path id="usa" class="country" data-name="United States" data-code="US"
+                                        data-continent="north-america"
+                                        d="M150,100 L250,80 L280,180 L220,220 L180,180 L150,150 Z" />
+                                    <path id="mexico" class="country" data-name="Mexico" data-code="MX"
+                                        data-continent="north-america"
+                                        d="M150,180 L220,220 L250,250 L200,280 L150,240 Z" />
+
+                                    <!-- South America -->
+                                    <path id="colombia" class="country" data-name="Colombia" data-code="CO"
+                                        data-continent="south-america" d="M200,280 L250,250 L280,300 L230,320 Z" />
+                                    <path id="brazil" class="country" data-name="Brazil" data-code="BR"
+                                        data-continent="south-america"
+                                        d="M230,300 L320,280 L350,400 L250,420 L220,350 Z" />
+                                    <path id="argentina" class="country" data-name="Argentina" data-code="AR"
+                                        data-continent="south-america"
+                                        d="M250,400 L320,380 L350,500 L280,520 L230,450 Z" />
+                                    <path id="peru" class="country" data-name="Peru" data-code="PE"
+                                        data-continent="south-america" d="M200,320 L250,300 L280,350 L230,380 Z" />
+                                    <path id="chile" class="country" data-name="Chile" data-code="CL"
+                                        data-continent="south-america" d="M230,420 L280,400 L300,480 L250,500 Z" />
+                                    <path id="venezuela" class="country" data-name="Venezuela" data-code="VE"
+                                        data-continent="south-america" d="M220,250 L260,230 L280,280 L240,300 Z" />
+
+                                    <!-- Europe -->
+                                    <path id="uk" class="country" data-name="United Kingdom" data-code="GB"
+                                        data-continent="europe" d="M450,100 L480,90 L500,120 L470,130 Z" />
+                                    <path id="france" class="country" data-name="France" data-code="FR"
+                                        data-continent="europe" d="M480,130 L520,120 L530,160 L490,170 Z" />
+                                    <path id="germany" class="country" data-name="Germany" data-code="DE"
+                                        data-continent="europe" d="M520,120 L560,110 L570,150 L530,160 Z" />
+                                    <path id="italy" class="country" data-name="Italy" data-code="IT"
+                                        data-continent="europe" d="M520,160 L540,150 L550,190 L530,200 Z" />
+                                    <path id="spain" class="country" data-name="Spain" data-code="ES"
+                                        data-continent="europe" d="M460,150 L490,140 L500,180 L470,190 Z" />
+                                    <path id="sweden" class="country" data-name="Sweden" data-code="SE"
+                                        data-continent="europe" d="M530,80 L560,70 L570,110 L540,120 Z" />
+                                    <path id="norway" class="country" data-name="Norway" data-code="NO"
+                                        data-continent="europe" d="M520,70 L550,60 L560,100 L530,110 Z" />
+                                    <path id="netherlands" class="country" data-name="Netherlands" data-code="NL"
+                                        data-continent="europe" d="M510,130 L530,125 L535,145 L515,150 Z" />
+                                    <path id="portugal" class="country" data-name="Portugal" data-code="PT"
+                                        data-continent="europe" d="M450,170 L470,165 L475,190 L455,195 Z" />
+                                    <path id="poland" class="country" data-name="Poland" data-code="PL"
+                                        data-continent="europe" d="M560,130 L590,125 L595,155 L565,160 Z" />
+
+                                    <!-- Africa -->
+                                    <path id="egypt" class="country" data-name="Egypt" data-code="EG"
+                                        data-continent="africa" d="M550,150 L580,140 L590,180 L560,190 Z" />
+                                    <path id="nigeria" class="country" data-name="Nigeria" data-code="NG"
+                                        data-continent="africa" d="M500,220 L540,210 L550,250 L510,260 Z" />
+                                    <path id="south-africa" class="country" data-name="South Africa" data-code="ZA"
+                                        data-continent="africa" d="M520,300 L560,290 L570,350 L530,360 Z" />
+                                    <path id="kenya" class="country" data-name="Kenya" data-code="KE"
+                                        data-continent="africa" d="M580,220 L610,210 L620,250 L590,260 Z" />
+                                    <path id="morocco" class="country" data-name="Morocco" data-code="MA"
+                                        data-continent="africa" d="M470,180 L500,170 L510,210 L480,220 Z" />
+
+                                    <!-- Asia -->
+                                    <path id="russia" class="country" data-name="Russia" data-code="RU"
+                                        data-continent="asia" d="M600,30 L750,20 L770,150 L650,160 L620,100 Z" />
+                                    <path id="china" class="country" data-name="China" data-code="CN"
+                                        data-continent="asia" d="M650,150 L750,140 L770,250 L700,260 L670,200 Z" />
+                                    <path id="india" class="country" data-name="India" data-code="IN"
+                                        data-continent="asia" d="M680,220 L730,210 L740,280 L690,290 Z" />
+                                    <path id="japan" class="country" data-name="Japan" data-code="JP"
+                                        data-continent="asia" d="M800,150 L830,145 L840,190 L810,195 Z" />
+                                    <path id="korea" class="country" data-name="South Korea" data-code="KR"
+                                        data-continent="asia" d="M760,180 L780,175 L785,210 L765,215 Z" />
+                                    <path id="thailand" class="country" data-name="Thailand" data-code="TH"
+                                        data-continent="asia" d="M720,250 L750,240 L760,290 L730,300 Z" />
+                                    <path id="vietnam" class="country" data-name="Vietnam" data-code="VN"
+                                        data-continent="asia" d="M740,260 L770,250 L775,300 L745,310 Z" />
+                                    <path id="indonesia" class="country" data-name="Indonesia" data-code="ID"
+                                        data-continent="asia" d="M750,300 L780,290 L790,350 L760,360 Z" />
+                                    <path id="turkey" class="country" data-name="Turkey" data-code="TR"
+                                        data-continent="asia" d="M580,160 L610,150 L620,190 L590,200 Z" />
+                                    <path id="saudi-arabia" class="country" data-name="Saudi Arabia" data-code="SA"
+                                        data-continent="asia" d="M600,180 L650,170 L660,230 L610,240 Z" />
+                                    <path id="iran" class="country" data-name="Iran" data-code="IR"
+                                        data-continent="asia" d="M630,190 L680,180 L690,240 L640,250 Z" />
+                                    <path id="pakistan" class="country" data-name="Pakistan" data-code="PK"
+                                        data-continent="asia" d="M660,210 L700,200 L710,260 L670,270 Z" />
+
+                                    <!-- Oceania -->
+                                    <path id="australia" class="country" data-name="Australia" data-code="AU"
+                                        data-continent="oceania" d="M800,320 L900,300 L920,450 L820,470 L800,380 Z" />
+                                    <path id="new-zealand" class="country" data-name="New Zealand" data-code="NZ"
+                                        data-continent="oceania" d="M850,400 L880,390 L890,430 L860,440 Z" />
+                                </g>
+                            </svg>
+
+                            <!-- Scratch brush indicator -->
+                            <div id="scratch-brush" class="scratch-brush"></div>
+                        </div>
+
+                        <!-- Tooltip -->
+                        <div id="tooltip" class="tooltip"></div>
+                    </div>
+
+                    <!-- Instructions -->
+                    <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="p-4 bg-slate-800/50 rounded-xl">
+                            <div class="flex items-center mb-2">
+                                <div
+                                    class="w-10 h-10 rounded-full bg-emerald-900/30 flex items-center justify-center mr-3">
+                                    <i class="fas fa-mouse-pointer text-emerald-400"></i>
+                                </div>
+                                <h3 class="font-medium">Click to Toggle</h3>
+                            </div>
+                            <p class="text-sm text-slate-300">Click on any country to mark it as visited or not visited.
+                            </p>
+                        </div>
+
+                        <div class="p-4 bg-slate-800/50 rounded-xl">
+                            <div class="flex items-center mb-2">
+                                <div
+                                    class="w-10 h-10 rounded-full bg-cyan-900/30 flex items-center justify-center mr-3">
+                                    <i class="fas fa-hand-paper text-cyan-400"></i>
+                                </div>
+                                <h3 class="font-medium">Drag to Scratch</h3>
+                            </div>
+                            <p class="text-sm text-slate-300">Drag your mouse over countries while scratch mode is on.
+                            </p>
+                        </div>
+
+                        <div class="p-4 bg-slate-800/50 rounded-xl">
+                            <div class="flex items-center mb-2">
+                                <div
+                                    class="w-10 h-10 rounded-full bg-violet-900/30 flex items-center justify-center mr-3">
+                                    <i class="fas fa-save text-violet-400"></i>
+                                </div>
+                                <h3 class="font-medium">Auto Save</h3>
+                            </div>
+                            <p class="text-sm text-slate-300">Your visited countries are automatically saved in your
+                                browser.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="mt-8 text-center text-slate-400 text-sm">
+            <p>World Travel Scratch Map &copy; 2023 | Data is stored locally in your browser</p>
+        </footer>
+    </div>
+
+    <script>
+        // Application state
+        const state = {
+            visitedCountries: new Set(),
+            totalCountries: 38,
+            isScratching: false,
+            brushSize: 30,
+            scratchMode: true,
+            lastVisited: null,
+            firstVisited: null
+        };
+
+        // DOM elements
+        const worldMap = document.getElementById('world-map');
+        const countries = document.querySelectorAll('.country');
+        const scratchBrush = document.getElementById('scratch-brush');
+        const tooltip = document.getElementById('tooltip');
+        const visitedCountEl = document.getElementById('visited-count');
+        const totalCountEl = document.getElementById('total-count');
+        const coveragePercentEl = document.getElementById('coverage-percent');
+        const lastVisitedEl = document.getElementById('last-visited');
+        const firstVisitedEl = document.getElementById('first-visited');
+        const progressRing = document.getElementById('progress-ring');
+        const progressText = document.querySelector('#progress-ring + text');
+        const scratchModeToggle = document.getElementById('scratch-mode');
+        const brushSizeSlider = document.getElementById('brush-size');
+        const brushSizeValue = document.getElementById('brush-size-value');
+        const resetBtn = document.getElementById('reset-btn');
+        const demoBtn = document.getElementById('demo-btn');
+
+        // Initialize the application
+        function init() {
+            loadVisitedCountries();
+            setupEventListeners();
+            updateStatistics();
+            updateMapDisplay();
+
+            // Initialize toggle switch
+            const toggle = document.querySelector('input[type="checkbox"]');
+            if (toggle) {
+                toggle.addEventListener('change', function () {
+                    state.scratchMode = this.checked;
+                    document.querySelector('.dot').style.transform = this.checked ? 'translateX(24px)' : 'translateX(0)';
+                    document.querySelector('label[for="scratch-mode"]').style.backgroundColor = this.checked ? '#10b981' : '#475569';
+                });
+
+                // Set initial state
+                toggle.checked = state.scratchMode;
+                document.querySelector('.dot').style.transform = state.scratchMode ? 'translateX(24px)' : 'translateX(0)';
+                document.querySelector('label[for="scratch-mode"]').style.backgroundColor = state.scratchMode ? '#10b981' : '#475569';
+            }
+        }
+
+        // Load visited countries from localStorage
+        function loadVisitedCountries() {
+            const saved = localStorage.getItem('worldMapVisitedCountries');
+            if (saved) {
+                const countries = JSON.parse(saved);
+                state.visitedCountries = new Set(countries);
+
+                // Get first and last visited
+                const countryArray = Array.from(countries);
+                if (countryArray.length > 0) {
+                    state.firstVisited = countryArray[0];
+                    state.lastVisited = countryArray[countryArray.length - 1];
+                }
+            }
+        }
+
+        // Save visited countries to localStorage
+        function saveVisitedCountries() {
+            const countriesArray = Array.from(state.visitedCountries);
+            localStorage.setItem('worldMapVisitedCountries', JSON.stringify(countriesArray));
+        }
+
+        // Set up event listeners
+        function setupEventListeners() {
+            // Country click events
+            countries.forEach(country => {
+                country.addEventListener('click', handleCountryClick);
+                country.addEventListener('mouseenter', handleCountryMouseEnter);
+                country.addEventListener('mouseleave', handleCountryMouseLeave);
+            });
+
+            // Map mouse events for scratching
+            worldMap.addEventListener('mousedown', startScratching);
+            worldMap.addEventListener('mousemove', handleScratching);
+            worldMap.addEventListener('mouseup', stopScratching);
+            worldMap.addEventListener('mouseleave', stopScratching);
+
+            // Brush size slider
+            brushSizeSlider.addEventListener('input', function () {
+                state.brushSize = parseInt(this.value);
+                brushSizeValue.textContent = state.brushSize;
+                updateBrushSize();
+            });
+
+            // Control buttons
+            resetBtn.addEventListener('click', resetAll);
+            demoBtn.addEventListener('click', fillDemoCountries);
+
+            // Export/Import buttons
+            document.getElementById('export-btn').addEventListener('click', exportData);
+            document.getElementById('import-btn').addEventListener('click', importData);
+
+            // Initialize brush size display
+            updateBrushSize();
+        }
+
+        // Handle country click
+        function handleCountryClick(event) {
+            const country = event.currentTarget;
+            const countryId = country.id;
+            const countryName = country.getAttribute('data-name');
+
+            if (state.scratchMode) {
+                // In scratch mode, just mark as visited
+                if (!state.visitedCountries.has(countryId)) {
+                    markCountryAsVisited(countryId, countryName);
+                }
+            } else {
+                // In toggle mode, toggle visited state
+                if (state.visitedCountries.has(countryId)) {
+                    markCountryAsNotVisited(countryId);
+                } else {
+                    markCountryAsVisited(countryId, countryName);
+                }
+            }
+
+            updateMapDisplay();
+            updateStatistics();
+            saveVisitedCountries();
+        }
+
+        // Handle mouse enter on country
+        function handleCountryMouseEnter(event) {
+            const country = event.currentTarget;
+            const countryName = country.getAttribute('data-name');
+
+            // Show tooltip
+            tooltip.textContent = countryName;
+            tooltip.style.opacity = '1';
+
+            // Update tooltip position
+            const rect = country.getBoundingClientRect();
+            const mapRect = worldMap.getBoundingClientRect();
+
+            tooltip.style.left = (rect.left - mapRect.left + rect.width / 2) + 'px';
+            tooltip.style.top = (rect.top - mapRect.top - 40) + 'px';
+
+            // If scratching and mouse is down, mark as visited
+            if (state.isScratching && state.scratchMode) {
+                const countryId = country.id;
+                if (!state.visitedCountries.has(countryId)) {
+                    markCountryAsVisited(countryId, countryName);
+                    country.classList.add('scratching');
+
+                    // Remove the scratching class after a short delay
+                    setTimeout(() => {
+                        country.classList.remove('scratching');
+                    }, 300);
+                }
+            }
+        }
+
+        // Handle mouse leave from country
+        function handleCountryMouseLeave() {
+            tooltip.style.opacity = '0';
+        }
+
+        // Start scratching
+        function startScratching(event) {
+            if (!state.scratchMode) return;
+
+            state.isScratching = true;
+            scratchBrush.style.display = 'block';
+            updateBrushPosition(event);
+
+            // Mark country under cursor if any
+            const elementUnderCursor = document.elementFromPoint(event.clientX, event.clientY);
+            if (elementUnderCursor && elementUnderCursor.classList.contains('country')) {
+                const countryId = elementUnderCursor.id;
+                const countryName = elementUnderCursor.getAttribute('data-name');
+
+                if (!state.visitedCountries.has(countryId)) {
+                    markCountryAsVisited(countryId, countryName);
+                    elementUnderCursor.classList.add('scratching');
+
+                    setTimeout(() => {
+                        elementUnderCursor.classList.remove('scratching');
+                    }, 300);
+                }
+            }
+        }
+
+        // Handle scratching (mouse move while dragging)
+        function handleScratching(event) {
+            updateBrushPosition(event);
+
+            if (!state.isScratching || !state.scratchMode) return;
+
+            // Get element at cursor position
+            const elementUnderCursor = document.elementFromPoint(event.clientX, event.clientY);
+            if (elementUnderCursor && elementUnderCursor.classList.contains('country')) {
+                const countryId = elementUnderCursor.id;
+                const countryName = elementUnderCursor.getAttribute('data-name');
+
+                if (!state.visitedCountries.has(countryId)) {
+                    markCountryAsVisited(countryId, countryName);
+                    elementUnderCursor.classList.add('scratching');
+
+                    setTimeout(() => {
+                        elementUnderCursor.classList.remove('scratching');
+                    }, 300);
+                }
+            }
+        }
+
+        // Stop scratching
+        function stopScratching() {
+            state.isScratching = false;
+            scratchBrush.style.display = 'none';
+
+            // Save after scratching session
+            saveVisitedCountries();
+            updateStatistics();
+        }
+
+        // Update brush position
+        function updateBrushPosition(event) {
+            const mapRect = worldMap.getBoundingClientRect();
+            const x = event.clientX - mapRect.left - state.brushSize / 2;
+            const y = event.clientY - mapRect.top - state.brushSize / 2;
+
+            scratchBrush.style.left = x + 'px';
+            scratchBrush.style.top = y + 'px';
+        }
+
+        // Update brush size visual
+        function updateBrushSize() {
+            scratchBrush.style.width = state.brushSize + 'px';
+            scratchBrush.style.height = state.brushSize + 'px';
+        }
+
+        // Mark country as visited
+        function markCountryAsVisited(countryId, countryName) {
+            state.visitedCountries.add(countryId);
+
+            // Update last visited
+            state.lastVisited = countryName;
+
+            // Update first visited if not set
+            if (!state.firstVisited) {
+                state.firstVisited = countryName;
+            }
+        }
+
+        // Mark country as not visited
+        function markCountryAsNotVisited(countryId) {
+            state.visitedCountries.delete(countryId);
+
+            // Update first/last visited if needed
+            const countriesArray = Array.from(state.visitedCountries);
+            if (countriesArray.length > 0) {
+                // This is simplified - in a real app you'd track timestamps
+                state.firstVisited = document.getElementById(countriesArray[0])?.getAttribute('data-name') || '-';
+                state.lastVisited = document.getElementById(countriesArray[countriesArray.length - 1])?.getAttribute('data-name') || '-';
+            } else {
+                state.firstVisited = null;
+                state.lastVisited = null;
+            }
+        }
+
+        // Update map display
+        function updateMapDisplay() {
+            countries.forEach(country => {
+                const countryId = country.id;
+                if (state.visitedCountries.has(countryId)) {
+                    country.classList.add('visited');
+                } else {
+                    country.classList.remove('visited');
+                }
+            });
+        }
+
+        // Update statistics
+        function updateStatistics() {
+            const visitedCount = state.visitedCountries.size;
+            const totalCount = state.totalCountries;
+            const coveragePercent = totalCount > 0 ? Math.round((visitedCount / totalCount) * 100) : 0;
+
+            // Update displayed values
+            visitedCountEl.textContent = visitedCount;
+            totalCountEl.textContent = totalCount;
+            coveragePercentEl.textContent = coveragePercent + '%';
+
+            // Update first/last visited
+            firstVisitedEl.textContent = state.firstVisited || '-';
+            lastVisitedEl.textContent = state.lastVisited || '-';
+
+            // Update progress ring
+            const circumference = 2 * Math.PI * 45; // r=45
+            const offset = circumference - (coveragePercent / 100) * circumference;
+            progressRing.style.strokeDashoffset = offset;
+            progressText.textContent = coveragePercent + '%';
+
+            // Update progress ring color based on percentage
+            let color;
+            if (coveragePercent < 25) {
+                color = '#ef4444'; // red
+            } else if (coveragePercent < 50) {
+                color = '#f59e0b'; // amber
+            } else if (coveragePercent < 75) {
+                color = '#10b981'; // emerald
+            } else {
+                color = '#0ea5e9'; // cyan
+            }
+            progressRing.style.stroke = color;
+
+            // Update visited countries list
+            updateVisitedList();
+        }
+
+        // Update visited countries list
+        function updateVisitedList() {
+            const visitedListEl = document.getElementById('visited-list');
+            if (!visitedListEl) return;
+
+            if (state.visitedCountries.size === 0) {
+                visitedListEl.innerHTML = '<div class=\"text-slate-400 italic\">No countries visited yet</div>';
+                return;
+            }
+
+            // Create list of visited country names
+            const countryNames = Array.from(state.visitedCountries).map(countryId => {
+                const countryEl = document.getElementById(countryId);
+                return countryEl ? countryEl.getAttribute('data-name') : countryId;
+            }).sort();
+
+            // Create HTML for the list
+            visitedListEl.innerHTML = countryNames.map(name =>
+                `<div class=\"flex items-center py-1 px-2 hover:bg-slate-800/50 rounded\">
+                    <div class=\"w-2 h-2 rounded-full bg-emerald-500 mr-2\"></div>
+                    <span class=\"truncate\">${name}</span>
+                </div>`
+            ).join('');
+        }
+
+        // Reset all visited countries
+        function resetAll() {
+            if (confirm('Are you sure you want to reset all visited countries? This cannot be undone.')) {
+                state.visitedCountries.clear();
+                state.firstVisited = null;
+                state.lastVisited = null;
+
+                updateMapDisplay();
+                updateStatistics();
+                saveVisitedCountries();
+
+                // Show confirmation
+                showNotification('All countries have been reset!', 'success');
+            }
+        }
+
+        // Fill with demo countries (random selection)
+        function fillDemoCountries() {
+            const allCountries = Array.from(countries);
+            const randomCount = Math.floor(Math.random() * 10) + 10; // 10-20 countries
+
+            // Clear current visited
+            state.visitedCountries.clear();
+
+            // Select random countries
+            for (let i = 0; i < randomCount; i++) {
+                const randomIndex = Math.floor(Math.random() * allCountries.length);
+                const country = allCountries[randomIndex];
+                const countryId = country.id;
+                const countryName = country.getAttribute('data-name');
+
+                if (!state.visitedCountries.has(countryId)) {
+                    state.visitedCountries.add(countryId);
+
+                    // Set first visited
+                    if (i === 0) {
+                        state.firstVisited = countryName;
+                    }
+
+                    // Set last visited
+                    state.lastVisited = countryName;
+                }
+            }
+
+            updateMapDisplay();
+            updateStatistics();
+            saveVisitedCountries();
+
+            showNotification(`Demo: ${state.visitedCountries.size} random countries marked as visited!`, 'info');
+        }
+
+        // Export data to JSON file
+        function exportData() {
+            const data = {
+                visitedCountries: Array.from(state.visitedCountries),
+                exportDate: new Date().toISOString(),
+                totalCountries: state.totalCountries
+            };
+
+            const dataStr = JSON.stringify(data, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+
+            const exportFileDefaultName = 'world-map-visited-countries.json';
+
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+
+            showNotification('Data exported successfully!', 'success');
+        }
+
+        // Import data from JSON file
+        function importData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'application/json';
+
+            input.onchange = function (event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    try {
+                        const data = JSON.parse(e.target.result);
+
+                        // Validate the data structure
+                        if (!Array.isArray(data.visitedCountries)) {
+                            throw new Error('Invalid data format');
+                        }
+
+                        // Clear current visited countries
+                        state.visitedCountries.clear();
+
+                        // Add imported countries
+                        data.visitedCountries.forEach(countryId => {
+                            if (document.getElementById(countryId)) {
+                                state.visitedCountries.add(countryId);
+                            }
+                        });
+
+                        // Update first and last visited (simplified)
+                        const countryArray = Array.from(state.visitedCountries);
+                        if (countryArray.length > 0) {
+                            const firstCountry = document.getElementById(countryArray[0]);
+                            const lastCountry = document.getElementById(countryArray[countryArray.length - 1]);
+                            state.firstVisited = firstCountry ? firstCountry.getAttribute('data-name') : countryArray[0];
+                            state.lastVisited = lastCountry ? lastCountry.getAttribute('data-name') : countryArray[countryArray.length - 1];
+                        } else {
+                            state.firstVisited = null;
+                            state.lastVisited = null;
+                        }
+
+                        updateMapDisplay();
+                        updateStatistics();
+                        saveVisitedCountries();
+
+                        showNotification(`Imported ${state.visitedCountries.size} countries!`, 'success');
+                    } catch (error) {
+                        showNotification('Error importing data. Invalid file format.', 'error');
+                        console.error('Import error:', error);
+                    }
+                };
+
+                reader.readAsText(file);
+            };
+
+            input.click();
+        }
+
+        // Show notification
+        function showNotification(message, type = 'info') {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 px-6 py-3 rounded-xl shadow-xl z-50 transform transition-all duration-300 ${type === 'success' ? 'bg-emerald-800 text-emerald-100' :
+                    type === 'error' ? 'bg-rose-800 text-rose-100' :
+                        'bg-cyan-800 text-cyan-100'
+                }`;
+            notification.textContent = message;
+
+            // Add to body
+            document.body.appendChild(notification);
+
+            // Remove after 3 seconds
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 300);
+            }, 3000);
+        }
+
+        // Initialize the app when DOM is loaded
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+
+</html>
