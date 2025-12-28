@@ -1,0 +1,1661 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OmniConvert — Units • Currency • Crypto • Metals</title>
+    <meta name="description"
+        content="Modern unit converter with live currency, crypto, gold & silver prices. Favorites, history, shareable links, and price alerts." />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        :root {
+            color-scheme: dark;
+        }
+
+        /* Subtle animated background */
+        .bg-aurora {
+            background:
+                radial-gradient(1200px 600px at 10% 10%, rgba(99, 102, 241, 0.28), transparent 55%),
+                radial-gradient(900px 500px at 90% 30%, rgba(56, 189, 248, 0.22), transparent 55%),
+                radial-gradient(900px 600px at 40% 90%, rgba(244, 114, 182, 0.18), transparent 55%),
+                linear-gradient(180deg, rgba(2, 6, 23, 1) 0%, rgba(2, 6, 23, 0.92) 100%);
+        }
+
+        .glass {
+            background: rgba(15, 23, 42, 0.62);
+            border: 1px solid rgba(255, 255, 255, 0.10);
+            box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+            backdrop-filter: blur(14px);
+        }
+
+        .mono {
+            font-variant-numeric: tabular-nums;
+        }
+
+        .focus-ring:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.35);
+            border-color: rgba(99, 102, 241, 0.55);
+        }
+
+        /* Skeleton shimmer */
+        .shimmer {
+            position: relative;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .shimmer:after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            transform: translateX(-100%);
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.10), transparent);
+            animation: shimmer 1.2s infinite;
+        }
+
+        @keyframes shimmer {
+            100% {
+                transform: translateX(100%);
+            }
+        }
+
+        /* Reduce motion */
+        @media (prefers-reduced-motion: reduce) {
+            .shimmer:after {
+                animation: none;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-aurora min-h-screen text-slate-100 antialiased">
+    <div class="max-w-7xl mx-auto px-4 py-8 md:px-8 md:py-10">
+        <header class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+                <div class="inline-flex items-center gap-2">
+                    <span
+                        class="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-500/15 border border-indigo-300/20 shadow">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+                            class="text-indigo-200">
+                            <path d="M4 7h16M7 4v6M17 4v6M5 21h14a2 2 0 0 0 2-2V9H3v10a2 2 0 0 0 2 2Z"
+                                stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                            <path d="M7.5 13.5h4M7.5 17h7" stroke="currentColor" stroke-width="1.8"
+                                stroke-linecap="round" />
+                        </svg>
+                    </span>
+                    <h1 class="text-2xl md:text-3xl font-semibold tracking-tight">OmniConvert</h1>
+                </div>
+                <p class="text-slate-300 mt-2 max-w-2xl">Units, currency, crypto, and precious metals—fast conversions
+                    with live prices, favorites, history, and shareable links.</p>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2 md:gap-3">
+                <button id="btnShare" class="px-3 py-2 rounded-xl glass hover:bg-white/10 transition text-sm"
+                    title="Copy a shareable link">
+                    <span class="inline-flex items-center gap-2">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+                            class="text-slate-200">
+                            <path d="M12 16v-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                            <path d="M8.5 10.5 12 7l3.5 3.5" stroke="currentColor" stroke-width="1.8"
+                                stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M6 16.5v2A2.5 2.5 0 0 0 8.5 21h7A2.5 2.5 0 0 0 18 18.5v-2" stroke="currentColor"
+                                stroke-width="1.8" stroke-linecap="round" />
+                        </svg>
+                        Share
+                    </span>
+                </button>
+                <button id="btnCmd" class="px-3 py-2 rounded-xl glass hover:bg-white/10 transition text-sm"
+                    title="Quick command (/)">
+                    <span class="inline-flex items-center gap-2">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+                            class="text-slate-200">
+                            <path d="M7 7h10M7 12h7M7 17h10" stroke="currentColor" stroke-width="1.8"
+                                stroke-linecap="round" />
+                        </svg>
+                        Command
+                        <span
+                            class="ml-2 px-1.5 py-0.5 rounded-lg bg-white/10 border border-white/10 text-xs text-slate-300">/</span>
+                    </span>
+                </button>
+                <button id="btnTheme" class="px-3 py-2 rounded-xl glass hover:bg-white/10 transition text-sm"
+                    title="Toggle theme (dark/light)">
+                    <span id="themeLabel" class="inline-flex items-center gap-2">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+                            class="text-slate-200">
+                            <path d="M21 12.6A8.4 8.4 0 1 1 11.4 3a6.8 6.8 0 0 0 9.6 9.6Z" stroke="currentColor"
+                                stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        Dark
+                    </span>
+                </button>
+            </div>
+        </header>
+
+        <main class="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Converter -->
+            <section class="lg:col-span-2 glass rounded-3xl p-5 md:p-7">
+                <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div>
+                        <h2 class="text-lg md:text-xl font-semibold">Converter</h2>
+                        <p class="text-slate-300 text-sm mt-1">Live results while you type. Swap units, set precision,
+                            and save favorites.</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button id="btnSwap"
+                            class="px-3 py-2 rounded-xl bg-indigo-500/15 border border-indigo-300/20 hover:bg-indigo-500/25 transition text-sm"
+                            title="Swap from/to">
+                            <span class="inline-flex items-center gap-2">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+                                    class="text-indigo-200">
+                                    <path d="M7 7h12l-2.5-2.5M17 17H5l2.5 2.5" stroke="currentColor" stroke-width="1.8"
+                                        stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                                Swap
+                            </span>
+                        </button>
+                        <button id="btnFavorite" class="px-3 py-2 rounded-xl glass hover:bg-white/10 transition text-sm"
+                            title="Save as favorite">
+                            <span class="inline-flex items-center gap-2">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+                                    class="text-slate-200">
+                                    <path
+                                        d="M12 17.3 6.8 20l1-5.8L3.6 10l5.8-.8L12 4l2.6 5.2 5.8.8-4.2 4.2 1 5.8L12 17.3Z"
+                                        stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+                                </svg>
+                                Favorite
+                            </span>
+                        </button>
+                        <button id="btnCopy" class="px-3 py-2 rounded-xl glass hover:bg-white/10 transition text-sm"
+                            title="Copy result">
+                            <span class="inline-flex items-center gap-2">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+                                    class="text-slate-200">
+                                    <path d="M9 9h10v10H9V9Z" stroke="currentColor" stroke-width="1.8" />
+                                    <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"
+                                        stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                                </svg>
+                                Copy
+                            </span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-sm text-slate-300">Category</label>
+                        <select id="selCategory"
+                            class="mt-2 w-full px-3 py-2 rounded-xl bg-slate-950/50 border border-white/10 focus-ring">
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-sm text-slate-300">Precision</label>
+                        <div class="mt-2 flex items-center gap-3">
+                            <input id="rngPrecision" type="range" min="0" max="12" value="6"
+                                class="w-full accent-indigo-400" />
+                            <span id="precisionLabel" class="mono text-sm text-slate-200 w-10 text-right">6</span>
+                        </div>
+                        <div class="mt-2 flex flex-wrap gap-2">
+                            <button id="btnFmtNormal"
+                                class="px-2.5 py-1.5 rounded-lg text-xs border border-white/10 bg-white/5 hover:bg-white/10 transition">Normal</button>
+                            <button id="btnFmtSci"
+                                class="px-2.5 py-1.5 rounded-lg text-xs border border-white/10 bg-transparent hover:bg-white/10 transition">Scientific</button>
+                            <button id="btnFmtEng"
+                                class="px-2.5 py-1.5 rounded-lg text-xs border border-white/10 bg-transparent hover:bg-white/10 transition">Engineering</button>
+                            <span class="ml-auto text-xs text-slate-400">Tip: Press <span
+                                    class="px-1.5 py-0.5 rounded bg-white/10 border border-white/10">/</span> for quick
+                                commands</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <label class="text-sm text-slate-300">From</label>
+                            <span id="fromMeta" class="text-xs text-slate-400"></span>
+                        </div>
+                        <div class="mt-2 flex gap-2">
+                            <input id="inpValue" inputmode="decimal" autocomplete="off" spellcheck="false"
+                                class="w-full px-3 py-2 rounded-xl bg-slate-950/50 border border-white/10 focus-ring mono"
+                                placeholder="Enter a value" />
+                        </div>
+                        <select id="selFrom"
+                            class="mt-2 w-full px-3 py-2 rounded-xl bg-slate-950/50 border border-white/10 focus-ring"></select>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <label class="text-sm text-slate-300">To</label>
+                            <span id="toMeta" class="text-xs text-slate-400"></span>
+                        </div>
+                        <div class="mt-2">
+                            <div class="w-full px-3 py-2 rounded-xl bg-slate-950/30 border border-white/10 mono"
+                                aria-live="polite">
+                                <div class="text-xs text-slate-400">Result</div>
+                                <div id="outValue" class="text-2xl md:text-3xl font-semibold tracking-tight mt-1">—
+                                </div>
+                            </div>
+                        </div>
+                        <select id="selTo"
+                            class="mt-2 w-full px-3 py-2 rounded-xl bg-slate-950/50 border border-white/10 focus-ring"></select>
+                    </div>
+                </div>
+
+                <div class="mt-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                    <div class="text-sm text-slate-300">
+                        <div id="formula" class="text-slate-400">Ready.</div>
+                        <div id="status" class="mt-1 text-xs text-slate-500"></div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button id="btnClear"
+                            class="px-3 py-2 rounded-xl glass hover:bg-white/10 transition text-sm">Clear</button>
+                        <button id="btnReverse" class="px-3 py-2 rounded-xl glass hover:bg-white/10 transition text-sm"
+                            title="Convert back using the result">Reverse</button>
+                    </div>
+                </div>
+
+                <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-semibold">Favorites</h3>
+                            <button id="btnClearFav" class="text-xs text-slate-300 hover:text-white">Clear</button>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-1">Save frequently used pairs. Click to load.</p>
+                        <div id="favList" class="mt-3 flex flex-col gap-2"></div>
+                    </div>
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-semibold">History</h3>
+                            <button id="btnClearHistory" class="text-xs text-slate-300 hover:text-white">Clear</button>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-1">Recent conversions on this device.</p>
+                        <div id="histList" class="mt-3 flex flex-col gap-2"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sidebar -->
+            <aside class="flex flex-col gap-6">
+                <section class="glass rounded-3xl p-5 md:p-6">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <h2 class="text-lg font-semibold">Live Markets</h2>
+                            <p class="text-slate-300 text-sm mt-1">Fiat FX, crypto, and precious metals prices. Cached
+                                offline.</p>
+                        </div>
+                        <button id="btnRefresh"
+                            class="px-3 py-2 rounded-xl bg-emerald-500/15 border border-emerald-300/20 hover:bg-emerald-500/25 transition text-sm"
+                            title="Refresh prices">
+                            <span class="inline-flex items-center gap-2">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+                                    class="text-emerald-200">
+                                    <path d="M20 12a8 8 0 1 1-2.34-5.66" stroke="currentColor" stroke-width="1.8"
+                                        stroke-linecap="round" />
+                                    <path d="M20 4v6h-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+                                        stroke-linejoin="round" />
+                                </svg>
+                                Refresh
+                            </span>
+                        </button>
+                    </div>
+
+                    <div class="mt-4 grid grid-cols-2 gap-3">
+                        <div id="cardEUR" class="rounded-2xl border border-white/10 bg-white/5 p-3">
+                            <div class="text-xs text-slate-400">EURUSD</div>
+                            <div class="mt-1 text-lg font-semibold mono shimmer"
+                                style="height: 1.4em; border-radius: 0.5rem;"></div>
+                            <div class="text-xs text-slate-500 mt-1">1 EUR in USD</div>
+                        </div>
+                        <div id="cardGBP" class="rounded-2xl border border-white/10 bg-white/5 p-3">
+                            <div class="text-xs text-slate-400">GBPUSD</div>
+                            <div class="mt-1 text-lg font-semibold mono shimmer"
+                                style="height: 1.4em; border-radius: 0.5rem;"></div>
+                            <div class="text-xs text-slate-500 mt-1">1 GBP in USD</div>
+                        </div>
+                        <div id="cardBTC" class="rounded-2xl border border-white/10 bg-white/5 p-3">
+                            <div class="text-xs text-slate-400">BTCUSD</div>
+                            <div class="mt-1 text-lg font-semibold mono shimmer"
+                                style="height: 1.4em; border-radius: 0.5rem;"></div>
+                            <div class="text-xs text-slate-500 mt-1">1 BTC in USD</div>
+                        </div>
+                        <div id="cardETH" class="rounded-2xl border border-white/10 bg-white/5 p-3">
+                            <div class="text-xs text-slate-400">ETHUSD</div>
+                            <div class="mt-1 text-lg font-semibold mono shimmer"
+                                style="height: 1.4em; border-radius: 0.5rem;"></div>
+                            <div class="text-xs text-slate-500 mt-1">1 ETH in USD</div>
+                        </div>
+                        <div id="cardXAU" class="rounded-2xl border border-white/10 bg-white/5 p-3">
+                            <div class="text-xs text-slate-400">XAUUSD</div>
+                            <div class="mt-1 text-lg font-semibold mono shimmer"
+                                style="height: 1.4em; border-radius: 0.5rem;"></div>
+                            <div class="text-xs text-slate-500 mt-1">Gold (spot, USD/oz)</div>
+                        </div>
+                        <div id="cardXAG" class="rounded-2xl border border-white/10 bg-white/5 p-3">
+                            <div class="text-xs text-slate-400">XAGUSD</div>
+                            <div class="mt-1 text-lg font-semibold mono shimmer"
+                                style="height: 1.4em; border-radius: 0.5rem;"></div>
+                            <div class="text-xs text-slate-500 mt-1">Silver (spot, USD/oz)</div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 flex items-center justify-between text-xs text-slate-400">
+                        <div>
+                            <div>Last update: <span id="lastUpdated">—</span></div>
+                            <div class="mt-1">Auto refresh: <span id="autoRefreshLabel">5 min</span></div>
+                        </div>
+                        <div class="text-right">
+                            <div id="netStatus" class="inline-flex items-center gap-2">
+                                <span id="netDot" class="h-2 w-2 rounded-full bg-slate-500"></span>
+                                <span id="netText">Checking…</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-semibold">Price Alerts</h3>
+                            <button id="btnClearAlerts" class="text-xs text-slate-300 hover:text-white">Clear</button>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-1">Notify when an asset crosses a target price (USD). Works
+                            while this tab is open.</p>
+
+                        <div class="mt-3 grid grid-cols-1 gap-2">
+                            <div class="grid grid-cols-3 gap-2">
+                                <select id="selAlertAsset"
+                                    class="px-3 py-2 rounded-xl bg-slate-950/50 border border-white/10 focus-ring text-sm"></select>
+                                <select id="selAlertDir"
+                                    class="px-3 py-2 rounded-xl bg-slate-950/50 border border-white/10 focus-ring text-sm">
+                                    <option value="above">Above</option>
+                                    <option value="below">Below</option>
+                                </select>
+                                <input id="inpAlertPrice"
+                                    class="px-3 py-2 rounded-xl bg-slate-950/50 border border-white/10 focus-ring text-sm mono"
+                                    placeholder="Price" inputmode="decimal" />
+                            </div>
+                            <button id="btnAddAlert"
+                                class="px-3 py-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition text-sm">Add
+                                alert</button>
+                            <div id="alertsList" class="mt-1 flex flex-col gap-2"></div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 text-xs text-slate-500 leading-relaxed">
+                        Data sources: <a class="underline hover:text-slate-200" href="https://open.er-api.com/"
+                            target="_blank" rel="noreferrer">open.er-api</a> (fiat FX), <a
+                            class="underline hover:text-slate-200" href="https://www.coingecko.com/en/api"
+                            target="_blank" rel="noreferrer">CoinGecko</a> (crypto), <a
+                            class="underline hover:text-slate-200" href="https://metals.live/" target="_blank"
+                            rel="noreferrer">metals.live</a> (metals). Availability may vary.
+                    </div>
+                </section>
+
+                <section class="glass rounded-3xl p-5 md:p-6">
+                    <h2 class="text-lg font-semibold">Quick Guide</h2>
+                    <ul class="mt-3 space-y-2 text-sm text-slate-300">
+                        <li class="flex gap-2"><span class="text-indigo-200">•</span>Swap units instantly, or use <span
+                                class="mono px-2 py-0.5 rounded bg-white/10 border border-white/10">Reverse</span> to
+                            convert back.</li>
+                        <li class="flex gap-2"><span class="text-indigo-200">•</span>Use the command bar for expressions
+                            like <span class="mono px-2 py-0.5 rounded bg-white/10 border border-white/10">10 km to
+                                mi</span> or <span
+                                class="mono px-2 py-0.5 rounded bg-white/10 border border-white/10">0.5 btc to
+                                eur</span>.</li>
+                        <li class="flex gap-2"><span class="text-indigo-200">•</span>In Money/Markets, you can convert
+                            between fiat, crypto, and metals via USD reference prices.</li>
+                    </ul>
+                </section>
+            </aside>
+        </main>
+
+        <!-- Command Palette Modal -->
+        <div id="cmdOverlay"
+            class="fixed inset-0 hidden items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4 z-50"
+            role="dialog" aria-modal="true" aria-label="Command">
+            <div class="w-full max-w-2xl rounded-3xl glass p-4 md:p-5">
+                <div class="flex items-center justify-between gap-3">
+                    <div>
+                        <h3 class="font-semibold">Quick Command</h3>
+                        <p class="text-xs text-slate-400 mt-1">Examples: <span class="mono">25 c to f</span>, <span
+                                class="mono">10 usd to eur</span>, <span class="mono">2.5 gal to l</span></p>
+                    </div>
+                    <button id="btnCmdClose"
+                        class="px-3 py-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition text-sm">Esc</button>
+                </div>
+                <div class="mt-3">
+                    <input id="inpCmd"
+                        class="w-full px-4 py-3 rounded-2xl bg-slate-950/50 border border-white/10 focus-ring mono"
+                        placeholder="Type a conversion…" autocomplete="off" />
+                    <div id="cmdHint" class="mt-2 text-xs text-slate-400">Press Enter to apply.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast -->
+        <div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 hidden z-50">
+            <div class="px-4 py-3 rounded-2xl glass text-sm border border-white/10">
+                <span id="toastText"></span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ---------- Utilities ----------
+        const $ = (id) => document.getElementById(id);
+        const clamp = (n, a, b) => Math.min(b, Math.max(a, n));
+
+        const STORAGE_KEYS = {
+            theme: 'omni.theme',
+            favorites: 'omni.favorites',
+            history: 'omni.history',
+            marketCache: 'omni.marketCache',
+            alerts: 'omni.alerts',
+            priceHistory: 'omni.priceHistory'
+        };
+
+        function nowISO() { return new Date().toISOString(); }
+
+        function toast(msg, ms = 2200) {
+            const el = $('toast');
+            $('toastText').textContent = msg;
+            el.classList.remove('hidden');
+            clearTimeout(toast._t);
+            toast._t = setTimeout(() => el.classList.add('hidden'), ms);
+        }
+
+        function safeJsonParse(str, fallback) {
+            try { return JSON.parse(str); } catch { return fallback; }
+        }
+
+        function formatNumber(x, { mode = 'normal', precision = 6 } = {}) {
+            if (!Number.isFinite(x)) return '—';
+            if (mode === 'normal') {
+                // Use significant digits but avoid stripping small values to 0.
+                const abs = Math.abs(x);
+                let sig = clamp(precision, 0, 12);
+                if (abs !== 0 && abs < 1e-6) sig = Math.max(sig, 8);
+                return new Intl.NumberFormat(undefined, {
+                    maximumSignificantDigits: Math.max(1, sig),
+                    useGrouping: true
+                }).format(x);
+            }
+            if (mode === 'scientific') {
+                const p = clamp(precision, 0, 12);
+                return x.toExponential(p);
+            }
+            if (mode === 'engineering') {
+                if (x === 0) return '0';
+                const p = clamp(precision, 0, 12);
+                const exp = Math.floor(Math.log10(Math.abs(x)) / 3) * 3;
+                const mant = x / Math.pow(10, exp);
+                return mant.toFixed(p) + 'e' + (exp >= 0 ? '+' : '') + exp;
+            }
+            return String(x);
+        }
+
+        function debounce(fn, ms = 80) {
+            let t;
+            return (...args) => {
+                clearTimeout(t);
+                t = setTimeout(() => fn(...args), ms);
+            };
+        }
+
+        function setOnlineStatus() {
+            const online = navigator.onLine;
+            $('netDot').className = 'h-2 w-2 rounded-full ' + (online ? 'bg-emerald-400' : 'bg-amber-400');
+            $('netText').textContent = online ? 'Online' : 'Offline';
+        }
+
+        // ---------- Unit Catalog ----------
+        const CATALOG = {
+            'Length': {
+                kind: 'linear',
+                base: 'm',
+                units: {
+                    m: { label: 'Meter (m)', factor: 1, aliases: ['meter', 'metre', 'm'] },
+                    km: { label: 'Kilometer (km)', factor: 1000, aliases: ['kilometer', 'kilometre', 'km'] },
+                    cm: { label: 'Centimeter (cm)', factor: 0.01, aliases: ['centimeter', 'cm'] },
+                    mm: { label: 'Millimeter (mm)', factor: 0.001, aliases: ['millimeter', 'mm'] },
+                    in: { label: 'Inch (in)', factor: 0.0254, aliases: ['inch', 'in'] },
+                    ft: { label: 'Foot (ft)', factor: 0.3048, aliases: ['foot', 'feet', 'ft'] },
+                    yd: { label: 'Yard (yd)', factor: 0.9144, aliases: ['yard', 'yd'] },
+                    mi: { label: 'Mile (mi)', factor: 1609.344, aliases: ['mile', 'mi'] },
+                    nmi: { label: 'Nautical mile (nmi)', factor: 1852, aliases: ['nauticalmile', 'nmi'] }
+                }
+            },
+            'Mass': {
+                kind: 'linear',
+                base: 'kg',
+                units: {
+                    kg: { label: 'Kilogram (kg)', factor: 1, aliases: ['kilogram', 'kg'] },
+                    g: { label: 'Gram (g)', factor: 0.001, aliases: ['gram', 'g'] },
+                    mg: { label: 'Milligram (mg)', factor: 1e-6, aliases: ['milligram', 'mg'] },
+                    lb: { label: 'Pound (lb)', factor: 0.45359237, aliases: ['pound', 'lb', 'lbs'] },
+                    oz: { label: 'Ounce (oz)', factor: 0.028349523125, aliases: ['ounce', 'oz'] },
+                    st: { label: 'Stone (st)', factor: 6.35029318, aliases: ['stone', 'st'] },
+                    t: { label: 'Metric ton (t)', factor: 1000, aliases: ['tonne', 't', 'metricton'] }
+                }
+            },
+            'Temperature': {
+                kind: 'temperature',
+                base: 'c',
+                units: {
+                    c: { label: 'Celsius (°C)', aliases: ['c', 'celsius', '°c'] },
+                    f: { label: 'Fahrenheit (°F)', aliases: ['f', 'fahrenheit', '°f'] },
+                    k: { label: 'Kelvin (K)', aliases: ['k', 'kelvin'] },
+                    r: { label: 'Rankine (°R)', aliases: ['r', 'rankine', '°r'] }
+                }
+            },
+            'Area': {
+                kind: 'linear',
+                base: 'm2',
+                units: {
+                    m2: { label: 'Square meter (m²)', factor: 1, aliases: ['m2', 'sqm', 'squaremeter'] },
+                    km2: { label: 'Square kilometer (km²)', factor: 1e6, aliases: ['km2', 'sqkm'] },
+                    cm2: { label: 'Square centimeter (cm²)', factor: 1e-4, aliases: ['cm2'] },
+                    ha: { label: 'Hectare (ha)', factor: 10000, aliases: ['ha', 'hectare'] },
+                    acre: { label: 'Acre', factor: 4046.8564224, aliases: ['acre'] },
+                    ft2: { label: 'Square foot (ft²)', factor: 0.09290304, aliases: ['ft2', 'sqft'] },
+                    in2: { label: 'Square inch (in²)', factor: 0.00064516, aliases: ['in2', 'sqin'] }
+                }
+            },
+            'Volume': {
+                kind: 'linear',
+                base: 'l',
+                units: {
+                    l: { label: 'Liter (L)', factor: 1, aliases: ['l', 'liter', 'litre'] },
+                    ml: { label: 'Milliliter (mL)', factor: 0.001, aliases: ['ml', 'milliliter'] },
+                    m3: { label: 'Cubic meter (m³)', factor: 1000, aliases: ['m3', 'cubicmeter'] },
+                    cm3: { label: 'Cubic centimeter (cm³)', factor: 0.001, aliases: ['cm3', 'cc'] },
+                    gal: { label: 'US gallon (gal)', factor: 3.785411784, aliases: ['gal', 'gallon'] },
+                    qt: { label: 'US quart (qt)', factor: 0.946352946, aliases: ['qt', 'quart'] },
+                    pt: { label: 'US pint (pt)', factor: 0.473176473, aliases: ['pt', 'pint'] },
+                    cup: { label: 'US cup', factor: 0.2365882365, aliases: ['cup'] },
+                    floz: { label: 'US fluid ounce (fl oz)', factor: 0.0295735295625, aliases: ['floz', 'fl-oz', 'fluidounce'] }
+                }
+            },
+            'Speed': {
+                kind: 'linear',
+                base: 'mps',
+                units: {
+                    mps: { label: 'm/s', factor: 1, aliases: ['mps', 'm/s'] },
+                    kph: { label: 'km/h', factor: 0.2777777777778, aliases: ['kph', 'km/h'] },
+                    mph: { label: 'mph', factor: 0.44704, aliases: ['mph'] },
+                    knot: { label: 'knot (kn)', factor: 0.514444444444, aliases: ['knot', 'kn'] }
+                }
+            },
+            'Time': {
+                kind: 'linear',
+                base: 's',
+                units: {
+                    s: { label: 'Second (s)', factor: 1, aliases: ['s', 'sec', 'second'] },
+                    ms: { label: 'Millisecond (ms)', factor: 0.001, aliases: ['ms', 'millisecond'] },
+                    min: { label: 'Minute (min)', factor: 60, aliases: ['min', 'minute'] },
+                    h: { label: 'Hour (h)', factor: 3600, aliases: ['h', 'hr', 'hour'] },
+                    day: { label: 'Day', factor: 86400, aliases: ['day', 'd'] },
+                    wk: { label: 'Week', factor: 604800, aliases: ['wk', 'week'] }
+                }
+            },
+            'Data': {
+                kind: 'linear',
+                base: 'B',
+                units: {
+                    b: { label: 'bit (b)', factor: 1 / 8, aliases: ['b', 'bit'] },
+                    B: { label: 'byte (B)', factor: 1, aliases: ['B', 'byte'] },
+                    KB: { label: 'kilobyte (KB)', factor: 1e3, aliases: ['KB', 'kilobyte'] },
+                    MB: { label: 'megabyte (MB)', factor: 1e6, aliases: ['MB', 'megabyte'] },
+                    GB: { label: 'gigabyte (GB)', factor: 1e9, aliases: ['GB', 'gigabyte'] },
+                    TB: { label: 'terabyte (TB)', factor: 1e12, aliases: ['TB', 'terabyte'] },
+                    KiB: { label: 'kibibyte (KiB)', factor: 1024, aliases: ['KiB', 'kibibyte'] },
+                    MiB: { label: 'mebibyte (MiB)', factor: 1024 ** 2, aliases: ['MiB', 'mebibyte'] },
+                    GiB: { label: 'gibibyte (GiB)', factor: 1024 ** 3, aliases: ['GiB', 'gibibyte'] },
+                    TiB: { label: 'tebibyte (TiB)', factor: 1024 ** 4, aliases: ['TiB', 'tebibyte'] }
+                }
+            },
+            'Energy': {
+                kind: 'linear',
+                base: 'J',
+                units: {
+                    J: { label: 'Joule (J)', factor: 1, aliases: ['j', 'joule', 'J'] },
+                    kJ: { label: 'Kilojoule (kJ)', factor: 1000, aliases: ['kj', 'kJ'] },
+                    Wh: { label: 'Watt-hour (Wh)', factor: 3600, aliases: ['wh', 'Wh'] },
+                    kWh: { label: 'Kilowatt-hour (kWh)', factor: 3.6e6, aliases: ['kwh', 'kWh'] },
+                    cal: { label: 'calorie (cal)', factor: 4.184, aliases: ['cal', 'calorie'] },
+                    kcal: { label: 'kilocalorie (kcal)', factor: 4184, aliases: ['kcal'] },
+                    eV: { label: 'electronvolt (eV)', factor: 1.602176634e-19, aliases: ['ev', 'eV'] }
+                }
+            },
+            'Pressure': {
+                kind: 'linear',
+                base: 'Pa',
+                units: {
+                    Pa: { label: 'Pascal (Pa)', factor: 1, aliases: ['pa', 'Pa'] },
+                    kPa: { label: 'Kilopascal (kPa)', factor: 1000, aliases: ['kpa', 'kPa'] },
+                    bar: { label: 'bar', factor: 100000, aliases: ['bar'] },
+                    atm: { label: 'atmosphere (atm)', factor: 101325, aliases: ['atm'] },
+                    psi: { label: 'psi', factor: 6894.757293168, aliases: ['psi'] },
+                    mmHg: { label: 'mmHg', factor: 133.322387415, aliases: ['mmhg', 'mmHg', 'torr'] }
+                }
+            },
+            // Money/Markets is dynamic (fiat + crypto + metals)
+            'Money & Markets': {
+                kind: 'markets',
+                base: 'USD',
+                units: {
+                    // populated at runtime
+                }
+            }
+        };
+
+        // ---------- Market Data ----------
+        const MARKET = {
+            fiat: { base: 'USD', rates: null, fetchedAt: null },
+            cryptoUSD: null,
+            metalsUSD: null,
+            assets: null // {CODE: {code,label,type,priceUSD,source}}
+        };
+
+        const COINGECKO_ASSETS = [
+            { id: 'bitcoin', code: 'BTC', label: 'Bitcoin (BTC)' },
+            { id: 'ethereum', code: 'ETH', label: 'Ethereum (ETH)' },
+            { id: 'solana', code: 'SOL', label: 'Solana (SOL)' },
+            { id: 'binancecoin', code: 'BNB', label: 'BNB (BNB)' },
+            { id: 'ripple', code: 'XRP', label: 'XRP (XRP)' },
+            { id: 'dogecoin', code: 'DOGE', label: 'Dogecoin (DOGE)' },
+            { id: 'cardano', code: 'ADA', label: 'Cardano (ADA)' }
+        ];
+
+        const METALS_MAP = {
+            gold: { code: 'XAU', label: 'Gold (XAU, USD/oz)' },
+            silver: { code: 'XAG', label: 'Silver (XAG, USD/oz)' },
+            platinum: { code: 'XPT', label: 'Platinum (XPT, USD/oz)' },
+            palladium: { code: 'XPD', label: 'Palladium (XPD, USD/oz)' }
+        };
+
+        async function fetchFiatRates() {
+            // Free endpoint (no key) with broad CORS support.
+            const url = 'https://open.er-api.com/v6/latest/USD';
+            const res = await fetch(url, { cache: 'no-store' });
+            if (!res.ok) throw new Error('Fiat FX fetch failed');
+            const data = await res.json();
+            if (data?.result !== 'success' || !data?.rates) throw new Error('Fiat FX malformed');
+            return { rates: data.rates, time: data.time_last_update_utc || data.time_last_update || nowISO() };
+        }
+
+        async function fetchCryptoUSD() {
+            const ids = COINGECKO_ASSETS.map(a => a.id).join(',');
+            const url = `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(ids)}&vs_currencies=usd`;
+            const res = await fetch(url, { cache: 'no-store' });
+            if (!res.ok) throw new Error('Crypto fetch failed');
+            const data = await res.json();
+            return data;
+        }
+
+        async function fetchMetalsUSD() {
+            // metals.live spot endpoint (typically keyless). Returns array like: [["gold", 2040.1], ["silver", 24.1], ...]
+            const url = 'https://api.metals.live/v1/spot';
+            const res = await fetch(url, { cache: 'no-store' });
+            if (!res.ok) throw new Error('Metals fetch failed');
+            const data = await res.json();
+            if (!Array.isArray(data)) throw new Error('Metals malformed');
+            const out = {};
+            for (const item of data) {
+                if (!Array.isArray(item) || item.length < 2) continue;
+                const [name, price] = item;
+                if (typeof name === 'string' && typeof price === 'number') out[name.toLowerCase()] = price;
+            }
+            return out;
+        }
+
+        function buildMarketAssets() {
+            const assets = {};
+
+            // Fiat
+            if (MARKET.fiat.rates) {
+                // We want USD price of 1 unit of currency.
+                for (const [code, usdToCode] of Object.entries(MARKET.fiat.rates)) {
+                    if (!usdToCode || typeof usdToCode !== 'number') continue;
+                    if (code === 'USD') {
+                        assets.USD = { code: 'USD', label: 'US Dollar (USD)', type: 'fiat', priceUSD: 1, source: 'open.er-api' };
+                    } else {
+                        assets[code] = {
+                            code,
+                            label: `${code} (Fiat)`,
+                            type: 'fiat',
+                            priceUSD: 1 / usdToCode,
+                            source: 'open.er-api'
+                        };
+                    }
+                }
+            }
+
+            // Crypto
+            if (MARKET.cryptoUSD) {
+                for (const a of COINGECKO_ASSETS) {
+                    const p = MARKET.cryptoUSD?.[a.id]?.usd;
+                    if (typeof p === 'number' && p > 0) {
+                        assets[a.code] = { code: a.code, label: a.label, type: 'crypto', priceUSD: p, source: 'CoinGecko' };
+                    }
+                }
+            }
+
+            // Metals
+            if (MARKET.metalsUSD) {
+                for (const [name, meta] of Object.entries(METALS_MAP)) {
+                    const p = MARKET.metalsUSD[name];
+                    if (typeof p === 'number' && p > 0) {
+                        assets[meta.code] = { code: meta.code, label: meta.label, type: 'metal', priceUSD: p, source: 'metals.live' };
+                    }
+                }
+            }
+
+            MARKET.assets = assets;
+
+            // Populate Money & Markets units
+            const money = CATALOG['Money & Markets'];
+            money.units = {};
+            for (const a of Object.values(assets)) {
+                money.units[a.code] = {
+                    label: a.label,
+                    priceUSD: a.priceUSD,
+                    type: a.type,
+                    aliases: [a.code.toLowerCase(), a.code]
+                };
+            }
+        }
+
+        function saveMarketCache() {
+            const payload = {
+                ts: Date.now(),
+                fiat: MARKET.fiat,
+                cryptoUSD: MARKET.cryptoUSD,
+                metalsUSD: MARKET.metalsUSD
+            };
+            localStorage.setItem(STORAGE_KEYS.marketCache, JSON.stringify(payload));
+        }
+
+        function loadMarketCache() {
+            const raw = localStorage.getItem(STORAGE_KEYS.marketCache);
+            if (!raw) return false;
+            const cached = safeJsonParse(raw, null);
+            if (!cached) return false;
+            if (cached?.fiat?.rates) {
+                MARKET.fiat = cached.fiat;
+                MARKET.cryptoUSD = cached.cryptoUSD || null;
+                MARKET.metalsUSD = cached.metalsUSD || null;
+                buildMarketAssets();
+                return true;
+            }
+            return false;
+        }
+
+        function updatePriceHistory(assets) {
+            // Keep small rolling history for a few popular tickers, to be used later if needed.
+            const keep = ['EUR', 'GBP', 'BTC', 'ETH', 'XAU', 'XAG', 'USD'];
+            const raw = localStorage.getItem(STORAGE_KEYS.priceHistory);
+            const hist = safeJsonParse(raw, {});
+            const t = Date.now();
+            for (const k of keep) {
+                const a = assets[k];
+                if (!a || !Number.isFinite(a.priceUSD)) continue;
+                hist[k] = Array.isArray(hist[k]) ? hist[k] : [];
+                hist[k].push([t, a.priceUSD]);
+                if (hist[k].length > 120) hist[k].splice(0, hist[k].length - 120);
+            }
+            localStorage.setItem(STORAGE_KEYS.priceHistory, JSON.stringify(hist));
+        }
+
+        function setCardValue(cardId, valueStr) {
+            const card = $(cardId);
+            if (!card) return;
+            // value area is the second child div (after label)
+            const valueEl = card.querySelector('div:nth-child(2)');
+            valueEl.classList.remove('shimmer');
+            valueEl.style.height = '';
+            valueEl.style.borderRadius = '';
+            valueEl.textContent = valueStr;
+        }
+
+        function refreshMarketCards() {
+            if (!MARKET.assets) return;
+            const p = (code) => MARKET.assets?.[code]?.priceUSD;
+            const fmt = (x) => formatNumber(x, { mode: 'normal', precision: 8 });
+
+            // EURUSD: 1 EUR in USD
+            if (p('EUR')) setCardValue('cardEUR', fmt(p('EUR')));
+            if (p('GBP')) setCardValue('cardGBP', fmt(p('GBP')));
+            if (p('BTC')) setCardValue('cardBTC', '$' + formatNumber(p('BTC'), { mode: 'normal', precision: 10 }));
+            if (p('ETH')) setCardValue('cardETH', '$' + formatNumber(p('ETH'), { mode: 'normal', precision: 10 }));
+            if (p('XAU')) setCardValue('cardXAU', '$' + formatNumber(p('XAU'), { mode: 'normal', precision: 8 }));
+            if (p('XAG')) setCardValue('cardXAG', '$' + formatNumber(p('XAG'), { mode: 'normal', precision: 8 }));
+
+            const last = MARKET.fiat?.fetchedAt || MARKET.fiat?.fetchedAt || MARKET.fiat?.time || null;
+            $('lastUpdated').textContent = MARKET.fiat?.fetchedAt
+                ? new Date(MARKET.fiat.fetchedAt).toLocaleString()
+                : (MARKET.fiat?.fetchedAt || '—');
+        }
+
+        async function refreshMarketData({ silent = false } = {}) {
+            $('status').textContent = 'Updating live prices…';
+            const start = Date.now();
+
+            const settled = await Promise.allSettled([
+                fetchFiatRates(),
+                fetchCryptoUSD(),
+                fetchMetalsUSD()
+            ]);
+
+            let okAny = false;
+
+            if (settled[0].status === 'fulfilled') {
+                MARKET.fiat.rates = settled[0].value.rates;
+                MARKET.fiat.fetchedAt = new Date().toISOString();
+                okAny = true;
+            }
+
+            if (settled[1].status === 'fulfilled') {
+                MARKET.cryptoUSD = settled[1].value;
+                okAny = true;
+            }
+
+            if (settled[2].status === 'fulfilled') {
+                MARKET.metalsUSD = settled[2].value;
+                okAny = true;
+            }
+
+            if (!okAny) {
+                $('status').textContent = 'Live prices unavailable (using cached if any).';
+                if (!silent) toast('Could not fetch live prices.');
+                return;
+            }
+
+            buildMarketAssets();
+            saveMarketCache();
+            updatePriceHistory(MARKET.assets);
+            refreshMarketCards();
+
+            // Repopulate markets list if currently selected
+            if ($('selCategory').value === 'Money & Markets') {
+                populateUnitSelects();
+                convertAndRender();
+            }
+
+            $('lastUpdated').textContent = new Date().toLocaleString();
+            $('status').textContent = `Live prices updated in ${(Date.now() - start)} ms.`;
+            if (!silent) toast('Prices updated.');
+
+            checkAlerts();
+            populateAlertAssets();
+        }
+
+        // ---------- Conversion Engine ----------
+        function tempToC(v, unit) {
+            if (unit === 'c') return v;
+            if (unit === 'f') return (v - 32) * (5 / 9);
+            if (unit === 'k') return v - 273.15;
+            if (unit === 'r') return (v - 491.67) * (5 / 9);
+            return NaN;
+        }
+        function cToTemp(c, unit) {
+            if (unit === 'c') return c;
+            if (unit === 'f') return c * (9 / 5) + 32;
+            if (unit === 'k') return c + 273.15;
+            if (unit === 'r') return (c + 273.15) * (9 / 5);
+            return NaN;
+        }
+
+        function convert(value, category, fromKey, toKey) {
+            const cat = CATALOG[category];
+            if (!cat) return { out: NaN, detail: 'Unknown category.' };
+
+            if (cat.kind === 'linear') {
+                const f = cat.units[fromKey]?.factor;
+                const t = cat.units[toKey]?.factor;
+                if (!Number.isFinite(f) || !Number.isFinite(t)) return { out: NaN, detail: 'Unknown unit.' };
+                const base = value * f;
+                const out = base / t;
+                return { out, detail: `${value} ${fromKey} × ${f} → base (${cat.base}); ÷ ${t} → ${toKey}` };
+            }
+
+            if (cat.kind === 'temperature') {
+                const c = tempToC(value, fromKey);
+                const out = cToTemp(c, toKey);
+                return { out, detail: `Converted via Celsius (°C) reference.` };
+            }
+
+            if (cat.kind === 'markets') {
+                const from = cat.units[fromKey];
+                const to = cat.units[toKey];
+                const pf = from?.priceUSD;
+                const pt = to?.priceUSD;
+                if (!Number.isFinite(pf) || !Number.isFinite(pt)) {
+                    return { out: NaN, detail: 'Live prices missing for one or both assets.' };
+                }
+                // value * (USD per from) / (USD per to)
+                const out = value * pf / pt;
+                const sFrom = from?.type || 'asset';
+                const sTo = to?.type || 'asset';
+                return { out, detail: `Via USD reference: ${fromKey}(${sFrom}) @ $${pf.toFixed(6)} / ${toKey}(${sTo}) @ $${pt.toFixed(6)}` };
+            }
+
+            return { out: NaN, detail: 'Unsupported category.' };
+        }
+
+        // ---------- UI State ----------
+        const state = {
+            precision: 6,
+            fmt: 'normal',
+            favorites: [],
+            history: [],
+            alerts: [],
+            theme: 'dark'
+        };
+
+        function loadState() {
+            state.theme = localStorage.getItem(STORAGE_KEYS.theme) || 'dark';
+            state.favorites = safeJsonParse(localStorage.getItem(STORAGE_KEYS.favorites) || '[]', []);
+            state.history = safeJsonParse(localStorage.getItem(STORAGE_KEYS.history) || '[]', []);
+            state.alerts = safeJsonParse(localStorage.getItem(STORAGE_KEYS.alerts) || '[]', []);
+        }
+
+        function saveFavorites() { localStorage.setItem(STORAGE_KEYS.favorites, JSON.stringify(state.favorites)); }
+        function saveHistory() { localStorage.setItem(STORAGE_KEYS.history, JSON.stringify(state.history)); }
+        function saveAlerts() { localStorage.setItem(STORAGE_KEYS.alerts, JSON.stringify(state.alerts)); }
+
+        function applyTheme() {
+            // Tailwind will mostly follow classes; we simply toggle color-scheme and some base classes.
+            const dark = state.theme === 'dark';
+            document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+            document.body.classList.toggle('text-slate-100', dark);
+            document.body.classList.toggle('text-slate-900', !dark);
+            // For simplicity, we keep the aurora; in "light" mode we brighten via an overlay.
+            document.body.style.filter = dark ? '' : 'brightness(1.15) saturate(1.05)';
+            $('themeLabel').innerHTML = dark
+                ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" class="text-slate-200"><path d="M21 12.6A8.4 8.4 0 1 1 11.4 3a6.8 6.8 0 0 0 9.6 9.6Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Dark`
+                : `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" class="text-slate-200"><path d="M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z" stroke="currentColor" stroke-width="1.8"/><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5 3.6 3.6M20.4 20.4 19 19M19 5l1.4-1.4M3.6 20.4 5 19" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Light`;
+        }
+
+        // ---------- DOM Population ----------
+        function populateCategories() {
+            const sel = $('selCategory');
+            sel.innerHTML = '';
+            const keys = Object.keys(CATALOG);
+            for (const k of keys) {
+                const opt = document.createElement('option');
+                opt.value = k;
+                opt.textContent = k;
+                sel.appendChild(opt);
+            }
+        }
+
+        function unitOptionsHTML(categoryKey) {
+            const cat = CATALOG[categoryKey];
+            if (!cat) return '';
+
+            if (cat.kind === 'markets') {
+                // Group by type.
+                const groups = { fiat: [], crypto: [], metal: [], other: [] };
+                for (const [k, u] of Object.entries(cat.units)) {
+                    (groups[u.type] || groups.other).push([k, u]);
+                }
+                const order = ['fiat', 'crypto', 'metal', 'other'];
+                const labelMap = { fiat: 'Fiat', crypto: 'Crypto', metal: 'Metals', other: 'Other' };
+                let html = '';
+                for (const type of order) {
+                    const arr = groups[type];
+                    if (!arr || arr.length === 0) continue;
+                    arr.sort((a, b) => a[0].localeCompare(b[0]));
+                    html += `<optgroup label="${labelMap[type]}">`;
+                    for (const [key, u] of arr) {
+                        html += `<option value="${key}">${u.label}</option>`;
+                    }
+                    html += `</optgroup>`;
+                }
+                return html;
+            }
+
+            // Normal unit list
+            const entries = Object.entries(cat.units);
+            return entries.map(([k, u]) => `<option value="${k}">${u.label}</option>`).join('');
+        }
+
+        function populateUnitSelects() {
+            const category = $('selCategory').value;
+            const cat = CATALOG[category];
+            $('selFrom').innerHTML = unitOptionsHTML(category);
+            $('selTo').innerHTML = unitOptionsHTML(category);
+
+            // Set smart defaults
+            const defaults = {
+                'Length': ['km', 'mi'],
+                'Mass': ['kg', 'lb'],
+                'Temperature': ['c', 'f'],
+                'Area': ['m2', 'ft2'],
+                'Volume': ['l', 'gal'],
+                'Speed': ['kph', 'mph'],
+                'Time': ['h', 'min'],
+                'Data': ['GB', 'MB'],
+                'Energy': ['kWh', 'J'],
+                'Pressure': ['bar', 'psi'],
+                'Money & Markets': ['USD', 'EUR']
+            };
+
+            const [df, dt] = defaults[category] || [Object.keys(cat.units)[0], Object.keys(cat.units)[1] || Object.keys(cat.units)[0]];
+            if (df && cat.units[df]) $('selFrom').value = df;
+            if (dt && cat.units[dt]) $('selTo').value = dt;
+
+            updateUnitMeta();
+        }
+
+        function updateUnitMeta() {
+            const catKey = $('selCategory').value;
+            const cat = CATALOG[catKey];
+            const fromKey = $('selFrom').value;
+            const toKey = $('selTo').value;
+
+            const from = cat?.units?.[fromKey];
+            const to = cat?.units?.[toKey];
+
+            if (cat?.kind === 'markets') {
+                const mk = (u) => u ? `${u.type} • $${formatNumber(u.priceUSD, { mode: 'normal', precision: 10 })}` : '';
+                $('fromMeta').textContent = mk(from);
+                $('toMeta').textContent = mk(to);
+            } else if (cat?.kind === 'linear') {
+                const mk = (u) => u ? `Factor → ${cat.base}: ${u.factor}` : '';
+                $('fromMeta').textContent = mk(from);
+                $('toMeta').textContent = mk(to);
+            } else {
+                $('fromMeta').textContent = '';
+                $('toMeta').textContent = '';
+            }
+        }
+
+        function renderFavorites() {
+            const wrap = $('favList');
+            wrap.innerHTML = '';
+            if (!state.favorites.length) {
+                wrap.innerHTML = `<div class="text-xs text-slate-400">No favorites yet.</div>`;
+                return;
+            }
+
+            for (const fav of state.favorites) {
+                const btn = document.createElement('button');
+                btn.className = 'text-left px-3 py-2 rounded-xl bg-slate-950/30 border border-white/10 hover:bg-white/10 transition';
+                btn.innerHTML = `<div class="text-sm font-medium">${fav.category}</div>
+                         <div class="text-xs text-slate-400 mono">${fav.from} → ${fav.to}</div>`;
+                btn.addEventListener('click', () => {
+                    $('selCategory').value = fav.category;
+                    populateUnitSelects();
+                    $('selFrom').value = fav.from;
+                    $('selTo').value = fav.to;
+                    updateUnitMeta();
+                    convertAndRender();
+                    toast('Loaded favorite.');
+                    syncURL();
+                });
+                wrap.appendChild(btn);
+            }
+        }
+
+        function renderHistory() {
+            const wrap = $('histList');
+            wrap.innerHTML = '';
+            if (!state.history.length) {
+                wrap.innerHTML = `<div class="text-xs text-slate-400">No history yet.</div>`;
+                return;
+            }
+
+            for (const h of state.history.slice(0, 10)) {
+                const row = document.createElement('button');
+                row.className = 'text-left px-3 py-2 rounded-xl bg-slate-950/30 border border-white/10 hover:bg-white/10 transition';
+                row.innerHTML = `<div class="text-sm font-medium mono">${h.input} ${h.from} → ${h.output} ${h.to}</div>
+                         <div class="text-xs text-slate-500">${h.category} • ${new Date(h.ts).toLocaleString()}</div>`;
+                row.addEventListener('click', () => {
+                    $('selCategory').value = h.category;
+                    populateUnitSelects();
+                    $('selFrom').value = h.from;
+                    $('selTo').value = h.to;
+                    $('inpValue').value = h.inputRaw;
+                    updateUnitMeta();
+                    convertAndRender();
+                    toast('Loaded history item.');
+                    syncURL();
+                });
+                wrap.appendChild(row);
+            }
+        }
+
+        function populateAlertAssets() {
+            const sel = $('selAlertAsset');
+            const current = sel.value;
+            const important = ['USD', 'EUR', 'GBP', 'JPY', 'BTC', 'ETH', 'XAU', 'XAG', 'SOL', 'BNB'];
+            const assets = MARKET.assets || {};
+            const keys = Object.keys(assets);
+            sel.innerHTML = '';
+
+            const addOpt = (code, label) => {
+                const o = document.createElement('option');
+                o.value = code;
+                o.textContent = label;
+                sel.appendChild(o);
+            };
+
+            for (const code of important) {
+                if (assets[code]) addOpt(code, assets[code].label);
+            }
+            if (keys.length) {
+                const other = keys.filter(k => !important.includes(k)).sort();
+                if (other.length) {
+                    const sep = document.createElement('option');
+                    sep.disabled = true;
+                    sep.textContent = '────────';
+                    sel.appendChild(sep);
+                    for (const code of other.slice(0, 80)) addOpt(code, assets[code].label);
+                }
+            }
+            if (current && Array.from(sel.options).some(o => o.value === current)) sel.value = current;
+        }
+
+        function renderAlerts() {
+            const wrap = $('alertsList');
+            wrap.innerHTML = '';
+            if (!state.alerts.length) {
+                wrap.innerHTML = `<div class="text-xs text-slate-400">No alerts set.</div>`;
+                return;
+            }
+
+            for (const a of state.alerts) {
+                const asset = MARKET.assets?.[a.code];
+                const current = asset?.priceUSD;
+                const curStr = Number.isFinite(current) ? ('$' + formatNumber(current, { mode: 'normal', precision: 8 })) : '—';
+
+                const el = document.createElement('div');
+                el.className = 'flex items-center justify-between gap-3 px-3 py-2 rounded-xl bg-slate-950/30 border border-white/10';
+                el.innerHTML = `
+          <div>
+            <div class="text-sm font-medium mono">${a.code} ${a.dir} $${a.price}</div>
+            <div class="text-xs text-slate-500">Current: <span class="mono">${curStr}</span></div>
+          </div>
+          <button class="text-xs px-2 py-1 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10">Remove</button>
+        `;
+                el.querySelector('button').addEventListener('click', () => {
+                    state.alerts = state.alerts.filter(x => x.id !== a.id);
+                    saveAlerts();
+                    renderAlerts();
+                });
+                wrap.appendChild(el);
+            }
+        }
+
+        // ---------- URL Sync (shareable state) ----------
+        function syncURL() {
+            const params = new URLSearchParams();
+            params.set('cat', $('selCategory').value);
+            params.set('from', $('selFrom').value);
+            params.set('to', $('selTo').value);
+            const v = $('inpValue').value.trim();
+            if (v) params.set('v', v);
+            params.set('p', String(state.precision));
+            params.set('fmt', state.fmt);
+            const url = location.pathname + '?' + params.toString() + location.hash;
+            history.replaceState(null, '', url);
+        }
+
+        function applyURLState() {
+            const params = new URLSearchParams(location.search);
+            const cat = params.get('cat');
+            const from = params.get('from');
+            const to = params.get('to');
+            const v = params.get('v');
+            const p = params.get('p');
+            const fmt = params.get('fmt');
+
+            if (cat && CATALOG[cat]) $('selCategory').value = cat;
+            populateUnitSelects();
+
+            if (from && $('selFrom').querySelector(`option[value="${CSS.escape(from)}"]`)) $('selFrom').value = from;
+            if (to && $('selTo').querySelector(`option[value="${CSS.escape(to)}"]`)) $('selTo').value = to;
+            if (v != null) $('inpValue').value = v;
+            if (p != null && !Number.isNaN(+p)) {
+                state.precision = clamp(+p, 0, 12);
+                $('rngPrecision').value = String(state.precision);
+                $('precisionLabel').textContent = String(state.precision);
+            }
+            if (fmt && ['normal', 'scientific', 'engineering'].includes(fmt)) state.fmt = fmt;
+            updateFmtButtons();
+            updateUnitMeta();
+            convertAndRender();
+        }
+
+        // ---------- Converter Rendering ----------
+        function updateFmtButtons() {
+            const map = {
+                normal: $('btnFmtNormal'),
+                scientific: $('btnFmtSci'),
+                engineering: $('btnFmtEng')
+            };
+            for (const [k, btn] of Object.entries(map)) {
+                btn.classList.toggle('bg-white/5', state.fmt === k);
+                btn.classList.toggle('bg-transparent', state.fmt !== k);
+            }
+        }
+
+        function normalizeInputNumber(str) {
+            if (!str) return NaN;
+            const s = str.replace(/,/g, '').trim();
+            if (!s) return NaN;
+            const v = Number(s);
+            return Number.isFinite(v) ? v : NaN;
+        }
+
+        function convertAndRender() {
+            const category = $('selCategory').value;
+            const fromKey = $('selFrom').value;
+            const toKey = $('selTo').value;
+            updateUnitMeta();
+
+            const raw = $('inpValue').value;
+            const v = normalizeInputNumber(raw);
+            if (!Number.isFinite(v)) {
+                $('outValue').textContent = '—';
+                $('formula').textContent = raw.trim() ? 'Invalid number.' : 'Ready.';
+                $('status').textContent = '';
+                syncURL();
+                return;
+            }
+
+            const res = convert(v, category, fromKey, toKey);
+            const outStr = formatNumber(res.out, { mode: state.fmt, precision: state.precision });
+            $('outValue').textContent = outStr;
+            $('formula').textContent = res.detail;
+
+            // Status / warnings
+            if (category === 'Money & Markets') {
+                const hasPrices = !!(MARKET.assets && Object.keys(MARKET.assets).length);
+                $('status').textContent = hasPrices
+                    ? `Prices: ${Object.values(MARKET.assets).filter(a => a.type === 'fiat').length} fiat, ${Object.values(MARKET.assets).filter(a => a.type === 'crypto').length} crypto, ${Object.values(MARKET.assets).filter(a => a.type === 'metal').length} metals.`
+                    : 'No live prices yet. Refresh or check connection.';
+            } else {
+                $('status').textContent = '';
+            }
+
+            // Add to history (debounced, only when meaningful)
+            pushHistoryDebounced({
+                category,
+                from: fromKey,
+                to: toKey,
+                input: formatNumber(v, { mode: 'normal', precision: Math.max(6, state.precision) }),
+                inputRaw: raw,
+                output: outStr,
+                ts: Date.now()
+            });
+
+            syncURL();
+        }
+
+        const pushHistoryDebounced = debounce((item) => {
+            // avoid duplicates
+            const last = state.history[0];
+            if (last && last.category === item.category && last.from === item.from && last.to === item.to && last.inputRaw === item.inputRaw) return;
+            state.history.unshift(item);
+            if (state.history.length > 40) state.history.length = 40;
+            saveHistory();
+            renderHistory();
+        }, 350);
+
+        // ---------- Favorites ----------
+        function addFavorite() {
+            const fav = {
+                category: $('selCategory').value,
+                from: $('selFrom').value,
+                to: $('selTo').value
+            };
+            if (state.favorites.some(x => x.category === fav.category && x.from === fav.from && x.to === fav.to)) {
+                toast('Already in favorites.');
+                return;
+            }
+            state.favorites.unshift(fav);
+            if (state.favorites.length > 18) state.favorites.length = 18;
+            saveFavorites();
+            renderFavorites();
+            toast('Saved to favorites.');
+        }
+
+        // ---------- Command Parsing ----------
+        function buildAliasIndex() {
+            // Map alias -> {category, unitKey}
+            const index = new Map();
+            for (const [catKey, cat] of Object.entries(CATALOG)) {
+                for (const [unitKey, u] of Object.entries(cat.units)) {
+                    const aliases = u.aliases || [unitKey];
+                    for (const a of aliases) {
+                        index.set(String(a).toLowerCase(), { category: catKey, unitKey });
+                    }
+                    // Extra: allow stripping symbols
+                    index.set(String(unitKey).toLowerCase(), { category: catKey, unitKey });
+                }
+            }
+            return index;
+        }
+
+        function parseCommand(cmd) {
+            // Accept: "10 km to mi", "0.5 btc to eur", "25c to f", "100 f in k"
+            const s = cmd.trim().toLowerCase();
+            if (!s) return { ok: false, msg: 'Type something.' };
+
+            // Insert spaces between number and letters (e.g., 25c)
+            const spaced = s.replace(/([0-9])([a-z°])/g, '$1 $2').replace(/([a-z°])([0-9])/g, '$1 $2');
+            const parts = spaced.split(/\s+/).filter(Boolean);
+            // Find separator token
+            const sepIdx = parts.findIndex(p => p === 'to' || p === 'in' || p === '->');
+            if (sepIdx === -1 || sepIdx < 2 || sepIdx === parts.length - 1) {
+                return { ok: false, msg: 'Use: <value> <from> to <to>' };
+            }
+            const valueStr = parts.slice(0, sepIdx - 1).join('');
+            const fromToken = parts[sepIdx - 1];
+            const toToken = parts[sepIdx + 1];
+
+            const v = normalizeInputNumber(valueStr);
+            if (!Number.isFinite(v)) return { ok: false, msg: 'Invalid number.' };
+
+            const index = buildAliasIndex();
+            const from = index.get(fromToken);
+            const to = index.get(toToken);
+            if (!from || !to) return { ok: false, msg: 'Unknown unit/asset code.' };
+
+            // Prefer same category, unless markets involved.
+            let category = null;
+            if (from.category === to.category) category = from.category;
+            else {
+                // If either is Money & Markets, use it.
+                if (from.category === 'Money & Markets') category = from.category;
+                else if (to.category === 'Money & Markets') category = to.category;
+            }
+            if (!category) return { ok: false, msg: 'Units are from different categories.' };
+
+            return { ok: true, category, from: from.unitKey, to: to.unitKey, value: String(v) };
+        }
+
+        function openCmd() {
+            $('cmdOverlay').classList.remove('hidden');
+            $('cmdOverlay').classList.add('flex');
+            $('inpCmd').value = '';
+            $('inpCmd').focus();
+            $('cmdHint').textContent = 'Press Enter to apply.';
+        }
+
+        function closeCmd() {
+            $('cmdOverlay').classList.add('hidden');
+            $('cmdOverlay').classList.remove('flex');
+        }
+
+        // ---------- Alerts ----------
+        function addAlert() {
+            const code = $('selAlertAsset').value;
+            const dir = $('selAlertDir').value;
+            const price = normalizeInputNumber($('inpAlertPrice').value);
+            if (!code || !['above', 'below'].includes(dir) || !Number.isFinite(price) || price <= 0) {
+                toast('Alert: choose asset + direction + valid price.');
+                return;
+            }
+            const id = Math.random().toString(16).slice(2) + Date.now().toString(16);
+            state.alerts.unshift({ id, code, dir, price, armed: true, createdAt: Date.now() });
+            if (state.alerts.length > 20) state.alerts.length = 20;
+            saveAlerts();
+            renderAlerts();
+            toast('Alert added.');
+            $('inpAlertPrice').value = '';
+        }
+
+        async function maybeRequestNotifications() {
+            if (!('Notification' in window)) return;
+            if (Notification.permission === 'granted') return;
+            if (Notification.permission === 'denied') return;
+            try { await Notification.requestPermission(); } catch { }
+        }
+
+        function fireAlert(alert, current) {
+            const msg = `${alert.code} is ${alert.dir} $${alert.price} (now ${formatNumber(current, { mode: 'normal', precision: 10 })}).`;
+            toast(msg, 3800);
+            if ('Notification' in window && Notification.permission === 'granted') {
+                try { new Notification('OmniConvert Alert', { body: msg }); } catch { }
+            }
+        }
+
+        function checkAlerts() {
+            if (!state.alerts.length) return;
+            const assets = MARKET.assets || {};
+
+            let changed = false;
+            for (const a of state.alerts) {
+                if (!a.armed) continue;
+                const cur = assets?.[a.code]?.priceUSD;
+                if (!Number.isFinite(cur)) continue;
+                if (a.dir === 'above' && cur >= a.price) {
+                    a.armed = false;
+                    changed = true;
+                    fireAlert(a, cur);
+                }
+                if (a.dir === 'below' && cur <= a.price) {
+                    a.armed = false;
+                    changed = true;
+                    fireAlert(a, cur);
+                }
+            }
+            if (changed) {
+                saveAlerts();
+                renderAlerts();
+            }
+        }
+
+        // ---------- Actions ----------
+        function swapUnits() {
+            const a = $('selFrom').value;
+            $('selFrom').value = $('selTo').value;
+            $('selTo').value = a;
+            updateUnitMeta();
+            convertAndRender();
+            toast('Swapped.');
+        }
+
+        function reverseConversion() {
+            const out = $('outValue').textContent;
+            const numeric = normalizeInputNumber(out.replace(/\$/g, ''));
+            if (!Number.isFinite(numeric)) { toast('No result to reverse.'); return; }
+            $('inpValue').value = String(numeric);
+            swapUnits();
+            convertAndRender();
+        }
+
+        function clearAll() {
+            $('inpValue').value = '';
+            $('outValue').textContent = '—';
+            $('formula').textContent = 'Ready.';
+            $('status').textContent = '';
+            syncURL();
+        }
+
+        async function copyResult() {
+            const text = $('outValue').textContent;
+            if (!text || text === '—') { toast('Nothing to copy.'); return; }
+            const cat = $('selCategory').value;
+            const from = $('selFrom').value;
+            const to = $('selTo').value;
+            const v = $('inpValue').value.trim();
+            const payload = `${v} ${from} = ${text} ${to} (${cat})`;
+            try {
+                await navigator.clipboard.writeText(payload);
+                toast('Copied result.');
+            } catch {
+                toast('Clipboard blocked by browser.');
+            }
+        }
+
+        async function copyShareLink() {
+            syncURL();
+            const url = location.href;
+            try {
+                await navigator.clipboard.writeText(url);
+                toast('Share link copied.');
+            } catch {
+                toast('Could not copy link.');
+            }
+        }
+
+        // ---------- Init ----------
+        function wireEvents() {
+            $('selCategory').addEventListener('change', () => {
+                populateUnitSelects();
+                convertAndRender();
+                syncURL();
+            });
+            $('selFrom').addEventListener('change', () => { updateUnitMeta(); convertAndRender(); });
+            $('selTo').addEventListener('change', () => { updateUnitMeta(); convertAndRender(); });
+            $('inpValue').addEventListener('input', debounce(convertAndRender, 60));
+
+            $('btnSwap').addEventListener('click', swapUnits);
+            $('btnReverse').addEventListener('click', reverseConversion);
+            $('btnClear').addEventListener('click', clearAll);
+            $('btnCopy').addEventListener('click', copyResult);
+            $('btnShare').addEventListener('click', copyShareLink);
+
+            $('btnFavorite').addEventListener('click', addFavorite);
+            $('btnClearFav').addEventListener('click', () => {
+                state.favorites = [];
+                saveFavorites();
+                renderFavorites();
+                toast('Favorites cleared.');
+            });
+            $('btnClearHistory').addEventListener('click', () => {
+                state.history = [];
+                saveHistory();
+                renderHistory();
+                toast('History cleared.');
+            });
+
+            $('rngPrecision').addEventListener('input', () => {
+                state.precision = +$('rngPrecision').value;
+                $('precisionLabel').textContent = String(state.precision);
+                convertAndRender();
+            });
+
+            $('btnFmtNormal').addEventListener('click', () => { state.fmt = 'normal'; updateFmtButtons(); convertAndRender(); syncURL(); });
+            $('btnFmtSci').addEventListener('click', () => { state.fmt = 'scientific'; updateFmtButtons(); convertAndRender(); syncURL(); });
+            $('btnFmtEng').addEventListener('click', () => { state.fmt = 'engineering'; updateFmtButtons(); convertAndRender(); syncURL(); });
+
+            $('btnRefresh').addEventListener('click', () => refreshMarketData());
+
+            $('btnTheme').addEventListener('click', () => {
+                state.theme = (state.theme === 'dark') ? 'light' : 'dark';
+                localStorage.setItem(STORAGE_KEYS.theme, state.theme);
+                applyTheme();
+            });
+
+            $('btnCmd').addEventListener('click', openCmd);
+            $('btnCmdClose').addEventListener('click', closeCmd);
+            $('cmdOverlay').addEventListener('click', (e) => {
+                if (e.target === $('cmdOverlay')) closeCmd();
+            });
+
+            $('inpCmd').addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') closeCmd();
+                if (e.key === 'Enter') {
+                    const parsed = parseCommand($('inpCmd').value);
+                    if (!parsed.ok) {
+                        $('cmdHint').textContent = parsed.msg;
+                        return;
+                    }
+                    $('selCategory').value = parsed.category;
+                    populateUnitSelects();
+                    $('selFrom').value = parsed.from;
+                    $('selTo').value = parsed.to;
+                    $('inpValue').value = parsed.value;
+                    updateUnitMeta();
+                    convertAndRender();
+                    closeCmd();
+                    toast('Command applied.');
+                }
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                    const tag = document.activeElement?.tagName?.toLowerCase();
+                    if (tag !== 'input' && tag !== 'textarea' && tag !== 'select') {
+                        e.preventDefault();
+                        openCmd();
+                    }
+                }
+                if (e.key === 'Escape') {
+                    if (!$('cmdOverlay').classList.contains('hidden')) closeCmd();
+                }
+            });
+
+            window.addEventListener('online', () => { setOnlineStatus(); toast('Back online.'); });
+            window.addEventListener('offline', () => { setOnlineStatus(); toast('Offline mode. Using cached prices.'); });
+
+            $('btnAddAlert').addEventListener('click', async () => {
+                await maybeRequestNotifications();
+                addAlert();
+            });
+            $('btnClearAlerts').addEventListener('click', () => {
+                state.alerts = [];
+                saveAlerts();
+                renderAlerts();
+                toast('Alerts cleared.');
+            });
+        }
+
+        function initSkeletonCards() {
+            // Already have shimmer blocks; do nothing.
+        }
+
+        function init() {
+            loadState();
+            applyTheme();
+            setOnlineStatus();
+
+            populateCategories();
+
+            // Load cached market data first (for instant UX)
+            const hadCache = loadMarketCache();
+            buildMarketAssets();
+
+            $('selCategory').value = 'Length';
+            populateUnitSelects();
+            $('rngPrecision').value = String(state.precision);
+            $('precisionLabel').textContent = String(state.precision);
+            updateFmtButtons();
+
+            renderFavorites();
+            renderHistory();
+            renderAlerts();
+
+            populateAlertAssets();
+
+            wireEvents();
+            initSkeletonCards();
+
+            // Apply URL state after base init
+            applyURLState();
+
+            // Refresh markets shortly after load
+            if (!hadCache) {
+                refreshMarketData({ silent: true }).catch(() => { });
+            } else {
+                refreshMarketCards();
+                refreshMarketData({ silent: true }).catch(() => { });
+            }
+
+            // Auto refresh
+            const AUTO_MS = 5 * 60 * 1000;
+            $('autoRefreshLabel').textContent = '5 min';
+            setInterval(() => refreshMarketData({ silent: true }).catch(() => { }), AUTO_MS);
+        }
+
+        init();
+    </script>
+</body>
+
+</html>
