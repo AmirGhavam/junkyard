@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Converter Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .gradient-bg {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .category-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 10px 40px rgba(102, 126, 234, 0.4);
+        }
+
+        .glow-input:focus {
+            box-shadow: 0 0 30px rgba(102, 126, 234, 0.3);
+        }
+
+        .price-card {
+            transition: all 0.3s ease;
+        }
+
+        .price-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .pulse-dot {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .swap-btn:hover {
+            transform: rotate(180deg);
+        }
+
+        .swap-btn {
+            transition: transform 0.5s ease;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 4px;
+        }
+
+        select option {
+            background: #1a1a2e;
+            color: white;
+        }
+    </style>
+</head>
+
+<body class="gradient-bg min-h-screen text-white">
+    <!-- Header -->
+    <header class="py-6 px-4">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div
+                    class="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                    <i class="fas fa-exchange-alt text-xl"></i>
+                </div>
+                <div>
+                    <h1
+                        class="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+                        Universal Converter</h1>
+                    <p class="text-xs text-gray-400">All-in-one conversion tool</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 text-sm">
+                <span class="pulse-dot w-2 h-2 bg-green-400 rounded-full"></span>
+                <span class="text-gray-400">Live Prices</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Live Prices Ticker -->
+    <div class="glass-card mx-4 md:mx-auto max-w-7xl rounded-2xl p-4 mb-8 overflow-hidden">
+        <div class="flex gap-6 overflow-x-auto pb-2" id="priceTicker">
+            <div class="flex items-center gap-2 text-gray-400">
+                <i class="fas fa-spinner fa-spin"></i>
+                <span>Loading live prices...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category Tabs -->
+    <div class="max-w-7xl mx-auto px-4 mb-8">
+        <div class="flex flex-wrap gap-3 justify-center" id="categoryTabs">
+            <button onclick="setCategory('length')"
+                class="category-btn active px-5 py-3 rounded-xl font-medium transition-all duration-300 flex items-center gap-2"
+                data-category="length">
+                <i class="fas fa-ruler"></i> Length
+            </button>
+            <button onclick="setCategory('weight')"
+                class="category-btn px-5 py-3 rounded-xl font-medium transition-all duration-300 flex items-center gap-2 bg-white/5 hover:bg-white/10"
+                data-category="weight">
+                <i class="fas fa-weight-hanging"></i> Weight
+            </button>
+            <button onclick="setCategory('temperature')"
+                class="category-btn px-5 py-3 rounded-xl font-medium transition-all duration-300 flex items-center gap-2 bg-white/5 hover:bg-white/10"
+                data-category="temperature">
+                <i class="fas fa-thermometer-half"></i> Temperature
+            </button>
+            <button onclick="setCategory('volume')"
+                class="category-btn px-5 py-3 rounded-xl font-medium transition-all duration-300 flex items-center gap-2 bg-white/5 hover:bg-white/10"
+                data-category="volume">
+                <i class="fas fa-flask"></i> Volume
+            </button>
+            <button onclick="setCategory('area')"
+                class="category-btn px-5 py-3 rounded-xl font-medium transition-all duration-300 flex items-center gap-2 bg-white/5 hover:bg-white/10"
+                data-category="area">
+                <i class="fas fa-vector-square"></i> Area
+            </button>
+            <button onclick="setCategory('speed')"
+                class="category-btn px-5 py-3 rounded-xl font-medium transition-all duration-300 flex items-center gap-2 bg-white/5 hover:bg-white/10"
+                data-category="speed">
+                <i class="fas fa-tachometer-alt"></i> Speed
+            </button>
+            <button onclick="setCategory('time')"
+                class="category-btn px-5 py-3 rounded-xl font-medium transition-all duration-300 flex items-center gap-2 bg-white/5 hover:bg-white/10"
+                data-category="time">
+                <i class="fas fa-clock"></i> Time
+            </button>
+            <button onclick="setCategory('data')"
+                class="category-btn px-5 py-3 rounded-xl font-medium transition-all duration-300 flex items-center gap-2 bg-white/5 hover:bg-white/10"
+                data-category="data">
+                <i class="fas fa-database"></i> Data
+            </button>
+            <button onclick="setCategory('currency')"
+                class="category-btn px-5 py-3 rounded-xl font-medium transition-all duration-300 flex items-center gap-2 bg-white/5 hover:bg-white/10"
+                data-category="currency">
+                <i class="fas fa-dollar-sign"></i> Currency
+            </button>
+            <button onclick="setCategory('crypto')"
+                class="category-btn px-5 py-3 rounded-xl font-medium transition-all duration-300 flex items-center gap-2 bg-white/5 hover:bg-white/10"
+                data-category="crypto">
+                <i class="fab fa-bitcoin"></i> Crypto
+            </button>
+            <button onclick="setCategory('metals')"
+                class="category-btn px-5 py-3 rounded-xl font-medium transition-all duration-300 flex items-center gap-2 bg-white/5 hover:bg-white/10"
+                data-category="metals">
+                <i class="fas fa-gem"></i> Metals
+            </button>
+            <button onclick="setCategory('energy')"
+                class="category-btn px-5 py-3 rounded-xl font-medium transition-all duration-300 flex items-center gap-2 bg-white/5 hover:bg-white/10"
+                data-category="energy">
+                <i class="fas fa-bolt"></i> Energy
+            </button>
+            <button onclick="setCategory('pressure')"
+                class="category-btn px-5 py-3 rounded-xl font-medium transition-all duration-300 flex items-center gap-2 bg-white/5 hover:bg-white/10"
+                data-category="pressure">
+                <i class="fas fa-compress-arrows-alt"></i> Pressure
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Converter -->
+    <div class="max-w-3xl mx-auto px-4 mb-12">
+        <div class="glass-card rounded-3xl p-8 fade-in" id="converterCard">
+            <div class="text-center mb-8">
+                <h2 class="text-2xl font-bold" id="converterTitle">Length Converter</h2>
+                <p class="text-gray-400 mt-1" id="converterSubtitle">Convert between different length units</p>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-6 items-center">
+                <!-- From -->
+                <div class="space-y-3">
+                    <label class="text-sm text-gray-400 font-medium">From</label>
+                    <input type="number" id="fromValue" placeholder="Enter value"
+                        class="glow-input w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-2xl font-semibold focus:outline-none focus:border-purple-500 transition-all"
+                        oninput="convert()">
+                    <select id="fromUnit" onchange="convert()"
+                        class="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-3 focus:outline-none focus:border-purple-500 cursor-pointer">
+                    </select>
+                </div>
+
+                <!-- Swap Button -->
+                <div class="hidden md:flex justify-center items-center order-none md:order-none absolute left-1/2 -translate-x-1/2"
+                    style="position: relative; left: auto; transform: none;">
+                    <button onclick="swapUnits()"
+                        class="swap-btn w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center hover:shadow-lg hover:shadow-purple-500/30">
+                        <i class="fas fa-exchange-alt text-xl"></i>
+                    </button>
+                </div>
+
+                <!-- To -->
+                <div class="space-y-3">
+                    <label class="text-sm text-gray-400 font-medium">To</label>
+                    <input type="text" id="toValue" readonly
+                        class="w-full bg-purple-500/10 border border-purple-500/30 rounded-xl px-5 py-4 text-2xl font-semibold text-purple-300">
+                    <select id="toUnit" onchange="convert()"
+                        class="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-3 focus:outline-none focus:border-purple-500 cursor-pointer">
+                    </select>
+                </div>
+            </div>
+
+            <!-- Mobile Swap -->
+            <div class="flex md:hidden justify-center my-4">
+                <button onclick="swapUnits()"
+                    class="swap-btn w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                    <i class="fas fa-exchange-alt rotate-90"></i>
+                </button>
+            </div>
+
+            <!-- Conversion Formula -->
+            <div class="mt-8 p-4 bg-white/5 rounded-xl text-center">
+                <p class="text-sm text-gray-400" id="formula">Enter a value to see the conversion</p>
+            </div>
+
+            <!-- Quick Conversions -->
+            <div class="mt-6">
+                <h4 class="text-sm text-gray-400 mb-3">Quick Conversions</h4>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="quickConversions"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Prices Section -->
+    <div class="max-w-7xl mx-auto px-4 mb-12">
+        <h3 class="text-xl font-bold mb-6 flex items-center gap-2">
+            <i class="fas fa-chart-line text-purple-400"></i> Live Market Prices
+        </h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4" id="livePrices">
+            <!-- Prices will be loaded here -->
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="py-8 text-center text-gray-500 text-sm">
+        <p>© 2024 Universal Converter Pro. All prices are for informational purposes only.</p>
+        <p class="mt-2">Last updated: <span id="lastUpdate">--</span></p>
+    </footer>
+
+    <script>
+        // Unit definitions
+        const units = {
+            length: {
+                title: "Length Converter",
+                subtitle: "Convert between different length units",
+                units: {
+                    'm': { name: 'Meters', factor: 1 },
+                    'km': { name: 'Kilometers', factor: 1000 },
+                    'cm': { name: 'Centimeters', factor: 0.01 },
+                    'mm': { name: 'Millimeters', factor: 0.001 },
+                    'mi': { name: 'Miles', factor: 1609.344 },
+                    'yd': { name: 'Yards', factor: 0.9144 },
+                    'ft': { name: 'Feet', factor: 0.3048 },
+                    'in': { name: 'Inches', factor: 0.0254 },
+                    'nm': { name: 'Nautical Miles', factor: 1852 },
+                    'μm': { name: 'Micrometers', factor: 0.000001 }
+                }
+            },
+            weight: {
+                title: "Weight Converter",
+                subtitle: "Convert between different weight/mass units",
+                units: {
+                    'kg': { name: 'Kilograms', factor: 1 },
+                    'g': { name: 'Grams', factor: 0.001 },
+                    'mg': { name: 'Milligrams', factor: 0.000001 },
+                    'lb': { name: 'Pounds', factor: 0.453592 },
+                    'oz': { name: 'Ounces', factor: 0.0283495 },
+                    't': { name: 'Metric Tons', factor: 1000 },
+                    'st': { name: 'Stones', factor: 6.35029 },
+                    'ct': { name: 'Carats', factor: 0.0002 },
+                    'troy_oz': { name: 'Troy Ounces', factor: 0.0311035 }
+                }
+            },
+            temperature: {
+                title: "Temperature Converter",
+                subtitle: "Convert between Celsius, Fahrenheit, and Kelvin",
+                units: {
+                    'C': { name: 'Celsius' },
+                    'F': { name: 'Fahrenheit' },
+                    'K': { name: 'Kelvin' }
+                },
+                special: true
+            },
+            volume: {
+                title: "Volume Converter",
+                subtitle: "Convert between different volume units",
+                units: {
+                    'L': { name: 'Liters', factor: 1 },
+                    'mL': { name: 'Milliliters', factor: 0.001 },
+                    'm3': { name: 'Cubic Meters', factor: 1000 },
+                    'gal': { name: 'US Gallons', factor: 3.78541 },
+                    'qt': { name: 'US Quarts', factor: 0.946353 },
+                    'pt': { name: 'US Pints', factor: 0.473176 },
+                    'cup': { name: 'US Cups', factor: 0.236588 },
+                    'fl_oz': { name: 'US Fluid Ounces', factor: 0.0295735 },
+                    'tbsp': { name: 'Tablespoons', factor: 0.0147868 },
+                    'tsp': { name: 'Teaspoons', factor: 0.00492892 },
+                    'imp_gal': { name: 'Imperial Gallons', factor: 4.54609 }
+                }
+            },
+            area: {
+                title: "Area Converter",
+                subtitle: "Convert between different area units",
+                units: {
+                    'm2': { name: 'Square Meters', factor: 1 },
+                    'km2': { name: 'Square Kilometers', factor: 1000000 },
+                    'cm2': { name: 'Square Centimeters', factor: 0.0001 },
+                    'ha': { name: 'Hectares', factor: 10000 },
+                    'ac': { name: 'Acres', factor: 4046.86 },
+                    'mi2': { name: 'Square Miles', factor: 2590000 },
+                    'yd2': { name: 'Square Yards', factor: 0.836127 },
+                    'ft2': { name: 'Square Feet', factor: 0.092903 },
+                    'in2': { name: 'Square Inches', factor: 0.00064516 }
+                }
+            },
+            speed: {
+                title: "Speed Converter",
+                subtitle: "Convert between different speed units",
+                units: {
+                    'mps': { name: 'Meters/Second', factor: 1 },
+                    'kph': { name: 'Kilometers/Hour', factor: 0.277778 },
+                    'mph': { name: 'Miles/Hour', factor: 0.44704 },
+                    'fps': { name: 'Feet/Second', factor: 0.3048 },
+                    'knot': { name: 'Knots', factor: 0.514444 },
+                    'mach': { name: 'Mach', factor: 343 },
+                    'c': { name: 'Speed of Light', factor: 299792458 }
+                }
+            },
+            time: {
+                title: "Time Converter",
+                subtitle: "Convert between different time units",
+                units: {
+                    's': { name: 'Seconds', factor: 1 },
+                    'ms': { name: 'Milliseconds', factor: 0.001 },
+                    'min': { name: 'Minutes', factor: 60 },
+                    'h': { name: 'Hours', factor: 3600 },
+                    'd': { name: 'Days', factor: 86400 },
+                    'wk': { name: 'Weeks', factor: 604800 },
+                    'mo': { name: 'Months (30 days)', factor: 2592000 },
+                    'yr': { name: 'Years', factor: 31536000 }
+                }
+            },
+            data: {
+                title: "Data Storage Converter",
+                subtitle: "Convert between different data units",
+                units: {
+                    'B': { name: 'Bytes', factor: 1 },
+                    'KB': { name: 'Kilobytes', factor: 1024 },
+                    'MB': { name: 'Megabytes', factor: 1048576 },
+                    'GB': { name: 'Gigabytes', factor: 1073741824 },
+                    'TB': { name: 'Terabytes', factor: 1099511627776 },
+                    'PB': { name: 'Petabytes', factor: 1125899906842624 },
+                    'bit': { name: 'Bits', factor: 0.125 },
+                    'Kbit': { name: 'Kilobits', factor: 128 },
+                    'Mbit': { name: 'Megabits', factor: 131072 }
+                }
+            },
+            energy: {
+                title: "Energy Converter",
+                subtitle: "Convert between different energy units",
+                units: {
+                    'J': { name: 'Joules', factor: 1 },
+                    'kJ': { name: 'Kilojoules', factor: 1000 },
+                    'cal': { name: 'Calories', factor: 4.184 },
+                    'kcal': { name: 'Kilocalories', factor: 4184 },
+                    'Wh': { name: 'Watt Hours', factor: 3600 },
+                    'kWh': { name: 'Kilowatt Hours', factor: 3600000 },
+                    'eV': { name: 'Electron Volts', factor: 1.602e-19 },
+                    'BTU': { name: 'BTU', factor: 1055.06 },
+                    'ft_lb': { name: 'Foot-Pounds', factor: 1.35582 }
+                }
+            },
+            pressure: {
+                title: "Pressure Converter",
+                subtitle: "Convert between different pressure units",
+                units: {
+                    'Pa': { name: 'Pascals', factor: 1 },
+                    'kPa': { name: 'Kilopascals', factor: 1000 },
+                    'bar': { name: 'Bar', factor: 100000 },
+                    'psi': { name: 'PSI', factor: 6894.76 },
+                    'atm': { name: 'Atmospheres', factor: 101325 },
+                    'mmHg': { name: 'mmHg', factor: 133.322 },
+                    'inHg': { name: 'Inches of Mercury', factor: 3386.39 }
+                }
+            },
+            currency: {
+                title: "Currency Converter",
+                subtitle: "Live exchange rates updated regularly",
+                units: {},
+                live: true
+            },
+            crypto: {
+                title: "Cryptocurrency Converter",
+                subtitle: "Live crypto prices from CoinGecko",
+                units: {},
+                live: true
+            },
+            metals: {
+                title: "Precious Metals Converter",
+                subtitle: "Gold, Silver, Platinum & Palladium prices",
+                units: {},
+                live: true
+            }
+        };
+
+        // Live price data storage
+        let currencyRates = {};
+        let cryptoPrices = {};
+        let metalPrices = {};
+        let currentCategory = 'length';
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            setCategory('length');
+            fetchAllPrices();
+            setInterval(fetchAllPrices, 60000); // Update every minute
+        });
+
+        // Fetch all live prices
+        async function fetchAllPrices() {
+            await Promise.all([
+                fetchCurrencyRates(),
+                fetchCryptoPrices(),
+                fetchMetalPrices()
+            ]);
+            updatePriceTicker();
+            updateLivePricesGrid();
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+        }
+
+        // Fetch currency rates
+        async function fetchCurrencyRates() {
+            try {
+                const response = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+                const data = await response.json();
+                currencyRates = data.rates;
+
+                units.currency.units = {};
+                const currencies = {
+                    'USD': '🇺🇸 US Dollar', 'EUR': '🇪🇺 Euro', 'GBP': '🇬🇧 British Pound',
+                    'JPY': '🇯🇵 Japanese Yen', 'AUD': '🇦🇺 Australian Dollar', 'CAD': '🇨🇦 Canadian Dollar',
+                    'CHF': '🇨🇭 Swiss Franc', 'CNY': '🇨🇳 Chinese Yuan', 'INR': '🇮🇳 Indian Rupee',
+                    'MXN': '🇲🇽 Mexican Peso', 'BRL': '🇧🇷 Brazilian Real', 'KRW': '🇰🇷 South Korean Won',
+                    'SGD': '🇸🇬 Singapore Dollar', 'HKD': '🇭🇰 Hong Kong Dollar', 'NOK': '🇳🇴 Norwegian Krone',
+                    'SEK': '🇸🇪 Swedish Krona', 'DKK': '🇩🇰 Danish Krone', 'NZD': '🇳🇿 New Zealand Dollar',
+                    'ZAR': '🇿🇦 South African Rand', 'RUB': '🇷🇺 Russian Ruble', 'TRY': '🇹🇷 Turkish Lira',
+                    'AED': '🇦🇪 UAE Dirham', 'SAR': '🇸🇦 Saudi Riyal', 'THB': '🇹🇭 Thai Baht',
+                    'PLN': '🇵🇱 Polish Zloty', 'PHP': '🇵🇭 Philippine Peso', 'IDR': '🇮🇩 Indonesian Rupiah',
+                    'MYR': '🇲🇾 Malaysian Ringgit', 'CZK': '🇨🇿 Czech Koruna', 'ILS': '🇮🇱 Israeli Shekel'
+                };
+
+                for (const [code, name] of Object.entries(currencies)) {
+                    if (currencyRates[code]) {
+                        units.currency.units[code] = { name, factor: 1 / currencyRates[code] };
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching currency rates:', error);
+            }
+        }
+
+        // Fetch crypto prices
+        async function fetchCryptoPrices() {
+            try {
+                const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,binancecoin,ripple,cardano,solana,polkadot,dogecoin,litecoin,chainlink,avalanche-2,matic-network,stellar,monero,tron&vs_currencies=usd&include_24hr_change=true');
+                const data = await response.json();
+                cryptoPrices = data;
+
+                units.crypto.units = {
+                    'USD': { name: '💵 US Dollar', factor: 1 },
+                    'BTC': { name: '₿ Bitcoin', factor: data.bitcoin?.usd || 60000 },
+                    'ETH': { name: 'Ξ Ethereum', factor: data.ethereum?.usd || 3000 },
+                    'BNB': { name: '◈ Binance Coin', factor: data.binancecoin?.usd || 400 },
+                    'XRP': { name: '✕ Ripple', factor: data.ripple?.usd || 0.5 },
+                    'ADA': { name: '₳ Cardano', factor: data.cardano?.usd || 0.4 },
+                    'SOL': { name: '◎ Solana', factor: data.solana?.usd || 100 },
+                    'DOT': { name: '● Polkadot', factor: data.polkadot?.usd || 7 },
+                    'DOGE': { name: 'Ð Dogecoin', factor: data.dogecoin?.usd || 0.08 },
+                    'LTC': { name: 'Ł Litecoin', factor: data.litecoin?.usd || 70 },
+                    'LINK': { name: '⬡ Chainlink', factor: data.chainlink?.usd || 15 },
+                    'AVAX': { name: '🔺 Avalanche', factor: data['avalanche-2']?.usd || 35 },
+                    'MATIC': { name: '⬡ Polygon', factor: data['matic-network']?.usd || 0.7 },
+                    'XLM': { name: '✦ Stellar', factor: data.stellar?.usd || 0.1 },
+                    'XMR': { name: 'ɱ Monero', factor: data.monero?.usd || 150 },
+                    'TRX': { name: '⟁ Tron', factor: data.tron?.usd || 0.1 }
+                };
+            } catch (error) {
+                console.error('Error fetching crypto prices:', error);
+                // Use fallback prices
+                units.crypto.units = {
+                    'USD': { name: '💵 US Dollar', factor: 1 },
+                    'BTC': { name: '₿ Bitcoin', factor: 67000 },
+                    'ETH': { name: 'Ξ Ethereum', factor: 3500 },
+                    'BNB': { name: '◈ Binance Coin', factor: 580 },
+                    'XRP': { name: '✕ Ripple', factor: 0.52 },
+                    'ADA': { name: '₳ Cardano', factor: 0.45 },
+                    'SOL': { name: '◎ Solana', factor: 145 },
+                    'DOGE': { name: 'Ð Dogecoin', factor: 0.12 }
+                };
+            }
+        }
+
+        // Fetch metal prices
+        async function fetchMetalPrices() {
+            try {
+                // Using a free metals API approximation
+                const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=pax-gold,tether-gold&vs_currencies=usd');
+                const data = await response.json();
+
+                // Approximate metal prices (per troy oz)
+                const goldPrice = data['pax-gold']?.usd || 2350;
+                const silverPrice = goldPrice / 80; // Approximate gold/silver ratio
+
+                metalPrices = {
+                    gold: goldPrice,
+                    silver: silverPrice,
+                    platinum: 950,
+                    palladium: 1000
+                };
+
+                units.metals.units = {
+                    'USD': { name: '💵 US Dollar', factor: 1 },
+                    'XAU': { name: '🥇 Gold (Troy Oz)', factor: metalPrices.gold },
+                    'XAU_g': { name: '🥇 Gold (Gram)', factor: metalPrices.gold / 31.1035 },
+                    'XAU_kg': { name: '🥇 Gold (Kilogram)', factor: (metalPrices.gold / 31.1035) * 1000 },
+                    'XAG': { name: '🥈 Silver (Troy Oz)', factor: metalPrices.silver },
+                    'XAG_g': { name: '🥈 Silver (Gram)', factor: metalPrices.silver / 31.1035 },
+                    'XAG_kg': { name: '🥈 Silver (Kilogram)', factor: (metalPrices.silver / 31.1035) * 1000 },
+                    'XPT': { name: '⚪ Platinum (Troy Oz)', factor: metalPrices.platinum },
+                    'XPD': { name: '⚪ Palladium (Troy Oz)', factor: metalPrices.palladium }
+                };
+            } catch (error) {
+                console.error('Error fetching metal prices:', error);
+                // Use fallback prices
+                metalPrices = { gold: 2350, silver: 29, platinum: 950, palladium: 1000 };
+                units.metals.units = {
+                    'USD': { name: '💵 US Dollar', factor: 1 },
+                    'XAU': { name: '🥇 Gold (Troy Oz)', factor: 2350 },
+                    'XAG': { name: '🥈 Silver (Troy Oz)', factor: 29 },
+                    'XPT': { name: '⚪ Platinum (Troy Oz)', factor: 950 },
+                    'XPD': { name: '⚪ Palladium (Troy Oz)', factor: 1000 }
+                };
+            }
+        }
+
+        // Update price ticker
+        function updatePriceTicker() {
+            const ticker = document.getElementById('priceTicker');
+            let html = '';
+
+            // Bitcoin
+            if (cryptoPrices.bitcoin) {
+                const change = cryptoPrices.bitcoin.usd_24h_change || 0;
+                const changeClass = change >= 0 ? 'text-green-400' : 'text-red-400';
+                const arrow = change >= 0 ? '↑' : '↓';
+                html += `<div class="flex items-center gap-2 shrink-0">
+                    <span class="text-yellow-500">₿</span>
+                    <span class="font-semibold">BTC</span>
+                    <span>$${cryptoPrices.bitcoin.usd.toLocaleString()}</span>
+                    <span class="${changeClass}">${arrow}${Math.abs(change).toFixed(2)}%</span>
+                </div>`;
+            }
+
+            // Ethereum
+            if (cryptoPrices.ethereum) {
+                const change = cryptoPrices.ethereum.usd_24h_change || 0;
+                const changeClass = change >= 0 ? 'text-green-400' : 'text-red-400';
+                const arrow = change >= 0 ? '↑' : '↓';
+                html += `<div class="flex items-center gap-2 shrink-0">
+                    <span class="text-purple-400">Ξ</span>
+                    <span class="font-semibold">ETH</span>
+                    <span>$${cryptoPrices.ethereum.usd.toLocaleString()}</span>
+                    <span class="${changeClass}">${arrow}${Math.abs(change).toFixed(2)}%</span>
+                </div>`;
+            }
+
+            // Solana
+            if (cryptoPrices.solana) {
+                const change = cryptoPrices.solana.usd_24h_change || 0;
+                const changeClass = change >= 0 ? 'text-green-400' : 'text-red-400';
+                const arrow = change >= 0 ? '↑' : '↓';
+                html += `<div class="flex items-center gap-2 shrink-0">
+                    <span class="text-teal-400">◎</span>
+                    <span class="font-semibold">SOL</span>
+                    <span>$${cryptoPrices.solana.usd.toLocaleString()}</span>
+                    <span class="${changeClass}">${arrow}${Math.abs(change).toFixed(2)}%</span>
+                </div>`;
+            }
+
+            // Gold
+            html += `<div class="flex items-center gap-2 shrink-0">
+                <span class="text-yellow-400">🥇</span>
+                <span class="font-semibold">GOLD</span>
+                <span>$${metalPrices.gold?.toLocaleString() || '--'}/oz</span>
+            </div>`;
+
+            // Silver
+            html += `<div class="flex items-center gap-2 shrink-0">
+                <span class="text-gray-300">🥈</span>
+                <span class="font-semibold">SILVER</span>
+                <span>$${metalPrices.silver?.toFixed(2) || '--'}/oz</span>
+            </div>`;
+
+            // EUR/USD
+            if (currencyRates.EUR) {
+                html += `<div class="flex items-center gap-2 shrink-0">
+                    <span>🇪🇺</span>
+                    <span class="font-semibold">EUR/USD</span>
+                    <span>${(1 / currencyRates.EUR).toFixed(4)}</span>
+                </div>`;
+            }
+
+            // GBP/USD
+            if (currencyRates.GBP) {
+                html += `<div class="flex items-center gap-2 shrink-0">
+                    <span>🇬🇧</span>
+                    <span class="font-semibold">GBP/USD</span>
+                    <span>${(1 / currencyRates.GBP).toFixed(4)}</span>
+                </div>`;
+            }
+
+            ticker.innerHTML = html;
+        }
+
+        // Update live prices grid
+        function updateLivePricesGrid() {
+            const grid = document.getElementById('livePrices');
+            let html = '';
+
+            const priceItems = [
+                { name: 'Bitcoin', symbol: 'BTC', price: cryptoPrices.bitcoin?.usd, change: cryptoPrices.bitcoin?.usd_24h_change, icon: '₿', color: 'yellow' },
+                { name: 'Ethereum', symbol: 'ETH', price: cryptoPrices.ethereum?.usd, change: cryptoPrices.ethereum?.usd_24h_change, icon: 'Ξ', color: 'purple' },
+                { name: 'Solana', symbol: 'SOL', price: cryptoPrices.solana?.usd, change: cryptoPrices.solana?.usd_24h_change, icon: '◎', color: 'teal' },
+                { name: 'BNB', symbol: 'BNB', price: cryptoPrices.binancecoin?.usd, change: cryptoPrices.binancecoin?.usd_24h_change, icon: '◈', color: 'yellow' },
+                { name: 'Cardano', symbol: 'ADA', price: cryptoPrices.cardano?.usd, change: cryptoPrices.cardano?.usd_24h_change, icon: '₳', color: 'blue' },
+                { name: 'Dogecoin', symbol: 'DOGE', price: cryptoPrices.dogecoin?.usd, change: cryptoPrices.dogecoin?.usd_24h_change, icon: 'Ð', color: 'amber' },
+                { name: 'Gold', symbol: 'XAU', price: metalPrices.gold, icon: '🥇', color: 'yellow', isFixed: true },
+                { name: 'Silver', symbol: 'XAG', price: metalPrices.silver, icon: '🥈', color: 'gray', isFixed: true },
+                { name: 'Platinum', symbol: 'XPT', price: metalPrices.platinum, icon: '⚪', color: 'slate', isFixed: true },
+                { name: 'Palladium', symbol: 'XPD', price: metalPrices.palladium, icon: '⚪', color: 'zinc', isFixed: true },
+                { name: 'EUR/USD', symbol: 'EUR', price: currencyRates.EUR ? (1 / currencyRates.EUR) : null, icon: '🇪🇺', color: 'blue', isRate: true },
+                { name: 'GBP/USD', symbol: 'GBP', price: currencyRates.GBP ? (1 / currencyRates.GBP) : null, icon: '🇬🇧', color: 'red', isRate: true }
+            ];
+
+            priceItems.forEach(item => {
+                if (!item.price) return;
+
+                const changeClass = item.change >= 0 ? 'text-green-400' : 'text-red-400';
+                const changeArrow = item.change >= 0 ? '↑' : '↓';
+                const priceFormatted = item.isRate ? item.price.toFixed(4) : (item.price >= 1 ? item.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : item.price.toFixed(6));
+
+                html += `
+                <div class="price-card glass-card rounded-xl p-4">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-2xl">${item.icon}</span>
+                        <span class="font-semibold text-sm">${item.symbol}</span>
+                    </div>
+                    <div class="text-lg font-bold">${item.isRate ? '' : '$'}${priceFormatted}</div>
+                    ${item.change !== undefined ? `<div class="${changeClass} text-xs">${changeArrow} ${Math.abs(item.change).toFixed(2)}%</div>` : '<div class="text-gray-500 text-xs">Per Troy Oz</div>'}
+                </div>`;
+            });
+
+            grid.innerHTML = html;
+        }
+
+        // Set category
+        function setCategory(category) {
+            currentCategory = category;
+            const categoryData = units[category];
+
+            // Update tabs
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.classList.remove('active');
+                btn.classList.add('bg-white/5', 'hover:bg-white/10');
+            });
+            const activeBtn = document.querySelector(`[data-category="${category}"]`);
+            if (activeBtn) {
+                activeBtn.classList.add('active');
+                activeBtn.classList.remove('bg-white/5', 'hover:bg-white/10');
+            }
+
+            // Update title
+            document.getElementById('converterTitle').textContent = categoryData.title;
+            document.getElementById('converterSubtitle').textContent = categoryData.subtitle;
+
+            // Populate dropdowns
+            const fromSelect = document.getElementById('fromUnit');
+            const toSelect = document.getElementById('toUnit');
+
+            fromSelect.innerHTML = '';
+            toSelect.innerHTML = '';
+
+            const unitKeys = Object.keys(categoryData.units);
+            unitKeys.forEach((key, index) => {
+                const unit = categoryData.units[key];
+                fromSelect.innerHTML += `<option value="${key}">${unit.name} (${key})</option>`;
+                toSelect.innerHTML += `<option value="${key}" ${index === 1 ? 'selected' : ''}>${unit.name} (${key})</option>`;
+            });
+
+            // Update quick conversions
+            updateQuickConversions();
+
+            // Clear and convert
+            document.getElementById('fromValue').value = '';
+            document.getElementById('toValue').value = '';
+            document.getElementById('formula').textContent = 'Enter a value to see the conversion';
+        }
+
+        // Convert
+        function convert() {
+            const fromValue = parseFloat(document.getElementById('fromValue').value);
+            const fromUnit = document.getElementById('fromUnit').value;
+            const toUnit = document.getElementById('toUnit').value;
+
+            if (isNaN(fromValue)) {
+                document.getElementById('toValue').value = '';
+                document.getElementById('formula').textContent = 'Enter a value to see the conversion';
+                return;
+            }
+
+            let result;
+            const categoryData = units[currentCategory];
+
+            if (currentCategory === 'temperature') {
+                result = convertTemperature(fromValue, fromUnit, toUnit);
+            } else {
+                const fromFactor = categoryData.units[fromUnit]?.factor || 1;
+                const toFactor = categoryData.units[toUnit]?.factor || 1;
+                result = fromValue * fromFactor / toFactor;
+            }
+
+            // Format result
+            let formattedResult;
+            if (Math.abs(result) >= 1000000 || (Math.abs(result) < 0.0001 && result !== 0)) {
+                formattedResult = result.toExponential(6);
+            } else if (result % 1 !== 0) {
+                formattedResult = result.toFixed(8).replace(/\.?0+$/, '');
+            } else {
+                formattedResult = result.toLocaleString();
+            }
+
+            document.getElementById('toValue').value = formattedResult;
+
+            // Update formula
+            const fromName = categoryData.units[fromUnit]?.name || fromUnit;
+            const toName = categoryData.units[toUnit]?.name || toUnit;
+            document.getElementById('formula').innerHTML = `<span class="text-purple-400">${fromValue} ${fromName}</span> = <span class="text-pink-400">${formattedResult} ${toName}</span>`;
+        }
+
+        // Temperature conversion
+        function convertTemperature(value, from, to) {
+            // Convert to Celsius first
+            let celsius;
+            switch (from) {
+                case 'C': celsius = value; break;
+                case 'F': celsius = (value - 32) * 5 / 9; break;
+                case 'K': celsius = value - 273.15; break;
+            }
+
+            // Convert from Celsius to target
+            switch (to) {
+                case 'C': return celsius;
+                case 'F': return celsius * 9 / 5 + 32;
+                case 'K': return celsius + 273.15;
+            }
+        }
+
+        // Swap units
+        function swapUnits() {
+            const fromSelect = document.getElementById('fromUnit');
+            const toSelect = document.getElementById('toUnit');
+            const fromValue = document.getElementById('fromValue');
+            const toValue = document.getElementById('toValue');
+
+            const tempUnit = fromSelect.value;
+            fromSelect.value = toSelect.value;
+            toSelect.value = tempUnit;
+
+            // Also swap values
+            fromValue.value = toValue.value;
+            convert();
+        }
+
+        // Update quick conversions
+        function updateQuickConversions() {
+            const quickDiv = document.getElementById('quickConversions');
+            const categoryData = units[currentCategory];
+            const unitKeys = Object.keys(categoryData.units);
+
+            if (unitKeys.length < 2) {
+                quickDiv.innerHTML = '<p class="text-gray-500 col-span-full text-sm">Loading conversions...</p>';
+                return;
+            }
+
+            const quickValues = [1, 10, 100, 1000];
+            const fromUnit = unitKeys[0];
+            const toUnit = unitKeys[1];
+
+            let html = '';
+            quickValues.forEach(val => {
+                let result;
+                if (currentCategory === 'temperature') {
+                    result = convertTemperature(val, fromUnit, toUnit);
+                } else {
+                    const fromFactor = categoryData.units[fromUnit]?.factor || 1;
+                    const toFactor = categoryData.units[toUnit]?.factor || 1;
+                    result = val * fromFactor / toFactor;
+                }
+
+                const formatted = result >= 1000000 ? result.toExponential(2) :
+                    result % 1 !== 0 ? result.toFixed(4).replace(/\.?0+$/, '') :
+                        result.toLocaleString();
+
+                html += `<div class="bg-white/5 rounded-lg p-3 text-center hover:bg-white/10 transition-colors cursor-pointer" onclick="setQuickValue(${val})">
+                    <div class="text-sm text-gray-400">${val} ${fromUnit}</div>
+                    <div class="font-semibold text-purple-300">${formatted} ${toUnit}</div>
+                </div>`;
+            });
+
+            quickDiv.innerHTML = html;
+        }
+
+        // Set quick value
+        function setQuickValue(val) {
+            document.getElementById('fromValue').value = val;
+            convert();
+        }
+    </script>
+</body>
+
+</html>
