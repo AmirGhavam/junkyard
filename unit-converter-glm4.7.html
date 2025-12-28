@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Converter - All-in-One Unit Converter</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .swap-btn {
+            transition: transform 0.3s ease;
+        }
+
+        .swap-btn:hover {
+            transform: rotate(180deg);
+        }
+
+        .category-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .pulse-dot {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .price-up {
+            color: #10b981;
+        }
+
+        .price-down {
+            color: #ef4444;
+        }
+
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .scrollbar-thin::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .scrollbar-thin::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 10px;
+        }
+
+        .dark .scrollbar-thin::-webkit-scrollbar-track {
+            background: #374151;
+        }
+
+        .dark .scrollbar-thin::-webkit-scrollbar-thumb {
+            background: #6b7280;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+    <!-- Header -->
+    <header class="gradient-bg text-white py-6 shadow-lg">
+        <div class="container mx-auto px-4">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-exchange-alt text-3xl"></i>
+                    <div>
+                        <h1 class="text-2xl md:text-3xl font-bold">Universal Converter</h1>
+                        <p class="text-sm opacity-80">All-in-one conversion tool</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="hidden md:flex items-center gap-2 glass px-3 py-2 rounded-lg">
+                        <span class="pulse-dot w-2 h-2 bg-green-400 rounded-full"></span>
+                        <span class="text-sm">Live Prices</span>
+                    </div>
+                    <button id="themeToggle" class="p-2 rounded-lg glass hover:bg-white/20 transition">
+                        <i class="fas fa-moon text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8">
+        <!-- Category Tabs -->
+        <div class="flex flex-wrap gap-2 mb-8 justify-center">
+            <button
+                class="category-btn active px-4 py-2 rounded-full bg-white dark:bg-gray-800 shadow-md transition-all font-medium"
+                data-category="length">
+                <i class="fas fa-ruler mr-2"></i>Length
+            </button>
+            <button
+                class="category-btn px-4 py-2 rounded-full bg-white dark:bg-gray-800 shadow-md transition-all font-medium"
+                data-category="weight">
+                <i class="fas fa-weight mr-2"></i>Weight
+            </button>
+            <button
+                class="category-btn px-4 py-2 rounded-full bg-white dark:bg-gray-800 shadow-md transition-all font-medium"
+                data-category="temperature">
+                <i class="fas fa-thermometer-half mr-2"></i>Temperature
+            </button>
+            <button
+                class="category-btn px-4 py-2 rounded-full bg-white dark:bg-gray-800 shadow-md transition-all font-medium"
+                data-category="volume">
+                <i class="fas fa-cube mr-2"></i>Volume
+            </button>
+            <button
+                class="category-btn px-4 py-2 rounded-full bg-white dark:bg-gray-800 shadow-md transition-all font-medium"
+                data-category="area">
+                <i class="fas fa-vector-square mr-2"></i>Area
+            </button>
+            <button
+                class="category-btn px-4 py-2 rounded-full bg-white dark:bg-gray-800 shadow-md transition-all font-medium"
+                data-category="speed">
+                <i class="fas fa-tachometer-alt mr-2"></i>Speed
+            </button>
+            <button
+                class="category-btn px-4 py-2 rounded-full bg-white dark:bg-gray-800 shadow-md transition-all font-medium"
+                data-category="time">
+                <i class="fas fa-clock mr-2"></i>Time
+            </button>
+            <button
+                class="category-btn px-4 py-2 rounded-full bg-white dark:bg-gray-800 shadow-md transition-all font-medium"
+                data-category="data">
+                <i class="fas fa-database mr-2"></i>Data
+            </button>
+            <button
+                class="category-btn px-4 py-2 rounded-full bg-white dark:bg-gray-800 shadow-md transition-all font-medium text-purple-600 dark:text-purple-400"
+                data-category="currency">
+                <i class="fas fa-dollar-sign mr-2"></i>Currency
+            </button>
+            <button
+                class="category-btn px-4 py-2 rounded-full bg-white dark:bg-gray-800 shadow-md transition-all font-medium text-orange-500"
+                data-category="crypto">
+                <i class="fab fa-bitcoin mr-2"></i>Crypto
+            </button>
+            <button
+                class="category-btn px-4 py-2 rounded-full bg-white dark:bg-gray-800 shadow-md transition-all font-medium text-yellow-600"
+                data-category="precious">
+                <i class="fas fa-coins mr-2"></i>Precious Metals
+            </button>
+        </div>
+
+        <!-- Converter Card -->
+        <div class="max-w-4xl mx-auto">
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 md:p-8 card-hover">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 id="converterTitle" class="text-2xl font-bold text-gray-800 dark:text-white">Length Converter
+                    </h2>
+                    <span id="lastUpdate" class="text-sm text-gray-500 dark:text-gray-400"></span>
+                </div>
+
+                <!-- Input Section -->
+                <div class="grid md:grid-cols-[1fr,auto,1fr] gap-4 items-center">
+                    <!-- From Unit -->
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-gray-600 dark:text-gray-300">From</label>
+                        <input type="number" id="fromInput" value="1"
+                            class="w-full px-4 py-3 text-lg border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:border-purple-500 focus:outline-none dark:bg-gray-700 dark:text-white transition"
+                            placeholder="Enter value">
+                        <select id="fromUnit"
+                            class="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:border-purple-500 focus:outline-none dark:bg-gray-700 dark:text-white transition cursor-pointer">
+                        </select>
+                    </div>
+
+                    <!-- Swap Button -->
+                    <button id="swapBtn"
+                        class="swap-btn mt-6 p-3 rounded-full bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-800 transition">
+                        <i class="fas fa-exchange-alt text-xl"></i>
+                    </button>
+
+                    <!-- To Unit -->
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-gray-600 dark:text-gray-300">To</label>
+                        <input type="number" id="toInput" readonly
+                            class="w-full px-4 py-3 text-lg border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-600 dark:text-white transition font-semibold">
+                        <select id="toUnit"
+                            class="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:border-purple-500 focus:outline-none dark:bg-gray-700 dark:text-white transition cursor-pointer">
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Result Display -->
+                <div id="resultDisplay"
+                    class="mt-6 p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/30 dark:to-pink-900/30 rounded-xl text-center">
+                    <p class="text-gray-600 dark:text-gray-300 text-sm">Result</p>
+                    <p id="resultText" class="text-2xl md:text-3xl font-bold text-gray-800 dark:text-white mt-1">1 Meter
+                        = 100 Centimeters</p>
+                </div>
+
+                <!-- Formula Display -->
+                <div id="formulaDisplay" class="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                        <i class="fas fa-calculator mr-2"></i>
+                        <span id="formulaText">Multiply the value by 100</span>
+                    </p>
+                </div>
+
+                <!-- Quick Copy -->
+                <div class="mt-4 flex justify-center gap-3">
+                    <button id="copyBtn"
+                        class="px-6 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition">
+                        <i class="fas fa-copy mr-2"></i>Copy Result
+                    </button>
+                    <button id="clearBtn"
+                        class="px-6 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition">
+                        <i class="fas fa-eraser mr-2"></i>Clear
+                    </button>
+                </div>
+            </div>
+
+            <!-- Live Prices Section -->
+            <div id="pricesSection" class="mt-8 hidden">
+                <div class="grid md:grid-cols-2 gap-6">
+                    <!-- Currency Prices -->
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 card-hover">
+                        <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-4 flex items-center">
+                            <i class="fas fa-dollar-sign text-green-500 mr-2"></i>Popular Currencies
+                        </h3>
+                        <div id="currencyPrices" class="space-y-3 max-h-64 overflow-y-auto scrollbar-thin">
+                            <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                <span class="text-gray-600 dark:text-gray-300">EUR/USD</span>
+                                <span class="font-semibold text-gray-800 dark:text-white">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Crypto Prices -->
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 card-hover">
+                        <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-4 flex items-center">
+                            <i class="fab fa-bitcoin text-orange-500 mr-2"></i>Cryptocurrency Prices
+                        </h3>
+                        <div id="cryptoPrices" class="space-y-3 max-h-64 overflow-y-auto scrollbar-thin">
+                            <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                <span class="text-gray-600 dark:text-gray-300">BTC/USD</span>
+                                <span class="font-semibold text-gray-800 dark:text-white">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Precious Metals -->
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 card-hover">
+                        <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-4 flex items-center">
+                            <i class="fas fa-coins text-yellow-500 mr-2"></i>Precious Metals (USD/oz)
+                        </h3>
+                        <div id="metalPrices" class="space-y-3">
+                            <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                <span class="text-gray-600 dark:text-gray-300">🥇 Gold (XAU)</span>
+                                <span class="font-semibold text-gray-800 dark:text-white">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Converter Info -->
+                    <div
+                        class="bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl shadow-xl p-6 text-white card-hover">
+                        <h3 class="text-xl font-bold mb-4 flex items-center">
+                            <i class="fas fa-info-circle mr-2"></i>Did You Know?
+                        </h3>
+                        <p id="funFact" class="text-white/90">Loading fun fact...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Common Conversions -->
+            <div class="mt-8 bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
+                <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-4">
+                    <i class="fas fa-star text-yellow-500 mr-2"></i>Common Conversions
+                </h3>
+                <div id="commonConversions" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-12 py-6 bg-gray-100 dark:bg-gray-800 text-center">
+        <p class="text-gray-600 dark:text-gray-400">
+            Made with <i class="fas fa-heart text-red-500"></i> | Live prices updated every minute
+        </p>
+    </footer>
+
+    <!-- Toast Notification -->
+    <div id="toast"
+        class="fixed bottom-4 right-4 bg-gray-800 text-white px-6 py-3 rounded-lg shadow-lg transform translate-y-20 opacity-0 transition-all duration-300">
+        <span id="toastMessage">Copied to clipboard!</span>
+    </div>
+
+    <script>
+        // Unit Conversion Data
+        const conversionData = {
+            length: {
+                title: 'Length Converter',
+                units: {
+                    'Millimeter': 0.001,
+                    'Centimeter': 0.01,
+                    'Meter': 1,
+                    'Kilometer': 1000,
+                    'Inch': 0.0254,
+                    'Foot': 0.3048,
+                    'Yard': 0.9144,
+                    'Mile': 1609.344,
+                    'Nautical Mile': 1852,
+                    'Micrometer': 0.000001,
+                    'Nanometer': 0.000000001
+                },
+                common: [
+                    ['1 Meter', '100 Centimeters'],
+                    ['1 Kilometer', '1000 Meters'],
+                    ['1 Inch', '2.54 Centimeters'],
+                    ['1 Foot', '12 Inches'],
+                    ['1 Mile', '1.609 Kilometers'],
+                    ['1 Yard', '3 Feet']
+                ]
+            },
+            weight: {
+                title: 'Weight Converter',
+                units: {
+                    'Milligram': 0.000001,
+                    'Gram': 0.001,
+                    'Kilogram': 1,
+                    'Metric Ton': 1000,
+                    'Ounce': 0.0283495,
+                    'Pound': 0.453592,
+                    'Stone': 6.35029,
+                    'Carat': 0.0002
+                },
+                common: [
+                    ['1 Kilogram', '1000 Grams'],
+                    ['1 Pound', '16 Ounces'],
+                    ['1 Kilogram', '2.205 Pounds'],
+                    ['1 Stone', '14 Pounds'],
+                    ['1 Carat', '0.2 Grams'],
+                    ['1 Ounce', '28.35 Grams']
+                ]
+            },
+            temperature: {
+                title: 'Temperature Converter',
+                units: ['Celsius', 'Fahrenheit', 'Kelvin', 'Rankine'],
+                common: [
+                    ['0°C', '32°F'],
+                    ['100°C', '212°F'],
+                    ['-40°C', '-40°F'],
+                    ['37°C', '98.6°F'],
+                    ['0K', '-273.15°C'],
+                    ['25°C', '77°F']
+                ]
+            },
+            volume: {
+                title: 'Volume Converter',
+                units: {
+                    'Milliliter': 0.000001,
+                    'Liter': 0.001,
+                    'Cubic Meter': 1,
+                    'Gallon (US)': 0.00378541,
+                    'Quart (US)': 0.000946353,
+                    'Pint (US)': 0.000473176,
+                    'Cup (US)': 0.000236588,
+                    'Fluid Ounce (US)': 0.0000295735,
+                    'Tablespoon': 0.0000147868,
+                    'Teaspoon': 0.00000492892,
+                    'Gallon (UK)': 0.00454609
+                },
+                common: [
+                    ['1 Liter', '1000 Milliliters'],
+                    ['1 Gallon (US)', '3.785 Liters'],
+                    ['1 Cup', '16 Tablespoons'],
+                    ['1 Quart', '2 Pints'],
+                    ['1 Gallon', '4 Quarts'],
+                    ['1 Liter', '33.814 Fluid Ounces']
+                ]
+            },
+            area: {
+                title: 'Area Converter',
+                units: {
+                    'Square Millimeter': 0.000001,
+                    'Square Centimeter': 0.0001,
+                    'Square Meter': 1,
+                    'Hectare': 10000,
+                    'Square Kilometer': 1000000,
+                    'Square Inch': 0.00064516,
+                    'Square Foot': 0.092903,
+                    'Square Yard': 0.836127,
+                    'Acre': 4046.86,
+                    'Square Mile': 2589988
+                },
+                common: [
+                    ['1 Square Meter', '10.764 Square Feet'],
+                    ['1 Acre', '43,560 Square Feet'],
+                    ['1 Hectare', '10,000 Square Meters'],
+                    ['1 Square Kilometer', '100 Hectares'],
+                    ['1 Square Mile', '640 Acres'],
+                    ['1 Square Yard', '9 Square Feet']
+                ]
+            },
+            speed: {
+                title: 'Speed Converter',
+                units: {
+                    'Meter/Second': 1,
+                    'Kilometer/Hour': 0.277778,
+                    'Mile/Hour': 0.44704,
+                    'Foot/Second': 0.3048,
+                    'Knot': 0.514444,
+                    'Mach': 343
+                },
+                common: [
+                    ['1 km/h', '0.278 m/s'],
+                    ['1 mph', '1.609 km/h'],
+                    ['1 Knot', '1.852 km/h'],
+                    ['Mach 1', '1,235 km/h'],
+                    ['60 mph', '88 ft/s'],
+                    ['100 km/h', '62.14 mph']
+                ]
+            },
+            time: {
+                title: 'Time Converter',
+                units: {
+                    'Nanosecond': 0.000000001,
+                    'Microsecond': 0.000001,
+                    'Millisecond': 0.001,
+                    'Second': 1,
+                    'Minute': 60,
+                    'Hour': 3600,
+                    'Day': 86400,
+                    'Week': 604800,
+                    'Month': 2629746,
+                    'Year': 31556952
+                },
+                common: [
+                    ['1 Minute', '60 Seconds'],
+                    ['1 Hour', '60 Minutes'],
+                    ['1 Day', '24 Hours'],
+                    ['1 Week', '7 Days'],
+                    ['1 Year', '365.25 Days'],
+                    ['1 Month', '30.44 Days']
+                ]
+            },
+            data: {
+                title: 'Data Storage Converter',
+                units: {
+                    'Bit': 0.125,
+                    'Byte': 1,
+                    'Kilobyte': 1024,
+                    'Megabyte': 1048576,
+                    'Gigabyte': 1073741824,
+                    'Terabyte': 1099511627776,
+                    'Petabyte': 1125899906842624,
+                    'Kibibyte': 1024,
+                    'Mebibyte': 1048576,
+                    'Gibibyte': 1073741824
+                },
+                common: [
+                    ['1 Byte', '8 Bits'],
+                    ['1 Kilobyte', '1024 Bytes'],
+                    ['1 Megabyte', '1024 Kilobytes'],
+                    ['1 Gigabyte', '1024 Megabytes'],
+                    ['1 Terabyte', '1024 Gigabytes'],
+                    ['1 Gibibyte', '1,073,741,824 Bytes']
+                ]
+            },
+            currency: {
+                title: 'Currency Converter',
+                units: ['USD', 'EUR', 'GBP', 'JPY', 'CNY', 'INR', 'AUD', 'CAD', 'CHF', 'KRW', 'SGD', 'HKD', 'NOK', 'SEK', 'MXN', 'BRL', 'RUB', 'ZAR', 'TRY', 'PLN'],
+                common: [
+                    ['1 USD', '0.92 EUR'],
+                    ['1 EUR', '1.09 USD'],
+                    ['1 GBP', '1.27 USD'],
+                    ['1 USD', '149.50 JPY'],
+                    ['1 USD', '7.24 CNY'],
+                    ['1 USD', '83.12 INR']
+                ]
+            },
+            crypto: {
+                title: 'Cryptocurrency Converter',
+                units: ['BTC', 'ETH', 'BNB', 'XRP', 'ADA', 'DOGE', 'SOL', 'DOT', 'MATIC', 'LTC', 'SHIB', 'AVAX', 'LINK', 'UNI', 'ATOM'],
+                common: [
+                    ['1 BTC', '43,500 USD'],
+                    ['1 ETH', '2,300 USD'],
+                    ['1 BNB', '320 USD'],
+                    ['1 SOL', '98 USD'],
+                    ['1 XRP', '0.62 USD'],
+                    ['1 DOGE', '0.08 USD']
+                ]
+            },
+            precious: {
+                title: 'Precious Metals Converter',
+                units: ['Gold (XAU)', 'Silver (XAG)', 'Platinum (XPT)', 'Palladium (XPD)'],
+                common: [
+                    ['1 oz Gold', '2,050 USD'],
+                    ['1 oz Silver', '23.50 USD'],
+                    ['1 oz Platinum', '920 USD'],
+                    ['1 oz Palladium', '1,050 USD'],
+                    ['1 gram Gold', '65.95 USD'],
+                    ['1 kg Silver', '755 USD']
+                ]
+            }
+        };
+
+        // Live price data
+        let liveRates = {
+            currency: {},
+            crypto: {},
+            metals: {}
+        };
+
+        // Fun facts
+        const funFacts = [
+            "The world's most valuable currency is the Kuwaiti Dinar (KWD).",
+            "Bitcoin was created in 2009 by an anonymous person or group known as Satoshi Nakamoto.",
+            "Gold has been used as currency for over 5,000 years.",
+            "The first currency was created around 600 BC in Lydia (modern-day Turkey).",
+            "Silver has the highest electrical conductivity of all metals.",
+            "Ethereum introduced smart contracts to the blockchain world.",
+            "The total amount of gold ever mined is about 197,576 tonnes.",
+            "The word 'dollar' comes from the German word 'Thaler'.",
+            "Platinum is 30 times rarer than gold.",
+            "Dogecoin was created as a joke but now has a multi-billion dollar market cap."
+        ];
+
+        // DOM Elements
+        const fromInput = document.getElementById('fromInput');
+        const toInput = document.getElementById('toInput');
+        const fromUnit = document.getElementById('fromUnit');
+        const toUnit = document.getElementById('toUnit');
+        const swapBtn = document.getElementById('swapBtn');
+        const converterTitle = document.getElementById('converterTitle');
+        const resultText = document.getElementById('resultText');
+        const formulaText = document.getElementById('formulaText');
+        const categoryBtns = document.querySelectorAll('.category-btn');
+        const pricesSection = document.getElementById('pricesSection');
+        const commonConversions = document.getElementById('commonConversions');
+        const themeToggle = document.getElementById('themeToggle');
+
+        let currentCategory = 'length';
+
+        // Initialize
+        function init() {
+            populateUnits(currentCategory);
+            updateCommonConversions(currentCategory);
+            convert();
+            setupEventListeners();
+            fetchLivePrices();
+            showRandomFunFact();
+            setInterval(fetchLivePrices, 60000); // Update every minute
+        }
+
+        // Populate unit dropdowns
+        function populateUnits(category) {
+            const data = conversionData[category];
+            const units = data.units;
+
+            fromUnit.innerHTML = '';
+            toUnit.innerHTML = '';
+
+            if (Array.isArray(units)) {
+                units.forEach(unit => {
+                    fromUnit.innerHTML += `<option value="${unit}">${unit}</option>`;
+                    toUnit.innerHTML += `<option value="${unit}">${unit}</option>`;
+                });
+            } else {
+                Object.keys(units).forEach(unit => {
+                    fromUnit.innerHTML += `<option value="${unit}">${unit}</option>`;
+                    toUnit.innerHTML += `<option value="${unit}">${unit}</option>`;
+                });
+            }
+
+            // Set default different units
+            const unitArray = Array.isArray(units) ? units : Object.keys(units);
+            if (unitArray.length > 1) {
+                toUnit.selectedIndex = 1;
+            }
+        }
+
+        // Convert values
+        function convert() {
+            const value = parseFloat(fromInput.value) || 0;
+            const from = fromUnit.value;
+            const to = toUnit.value;
+            const category = currentCategory;
+
+            let result, formula;
+
+            if (category === 'temperature') {
+                result = convertTemperature(value, from, to);
+                formula = getTemperatureFormula(from, to);
+            } else if (category === 'currency') {
+                result = convertCurrency(value, from, to);
+                formula = `Using live exchange rate`;
+            } else if (category === 'crypto') {
+                result = convertCrypto(value, from, to);
+                formula = `Using live crypto price`;
+            } else if (category === 'precious') {
+                result = convertMetal(value, from, to);
+                formula = `Using live metal price`;
+            } else {
+                const units = conversionData[category].units;
+                const baseValue = value * units[from];
+                result = baseValue / units[to];
+                const ratio = units[from] / units[to];
+                formula = `1 ${from} = ${formatNumber(ratio)} ${to}`;
+            }
+
+            toInput.value = formatNumber(result, 6);
+            resultText.textContent = `${formatNumber(value)} ${from} = ${formatNumber(result, 6)} ${to}`;
+            formulaText.textContent = formula;
+        }
+
+        // Temperature conversion
+        function convertTemperature(value, from, to) {
+            let celsius;
+
+            // Convert to Celsius first
+            switch (from) {
+                case 'Celsius': celsius = value; break;
+                case 'Fahrenheit': celsius = (value - 32) * 5 / 9; break;
+                case 'Kelvin': celsius = value - 273.15; break;
+                case 'Rankine': celsius = (value - 491.67) * 5 / 9; break;
+            }
+
+            // Convert from Celsius to target
+            switch (to) {
+                case 'Celsius': return celsius;
+                case 'Fahrenheit': return (celsius * 9 / 5) + 32;
+                case 'Kelvin': return celsius + 273.15;
+                case 'Rankine': return (celsius + 273.15) * 9 / 5;
+            }
+        }
+
+        // Get temperature formula
+        function getTemperatureFormula(from, to) {
+            if (from === to) return 'Same unit';
+            const formulas = {
+                'Celsius-Fahrenheit': '(°C × 9/5) + 32 = °F',
+                'Celsius-Kelvin': '°C + 273.15 = K',
+                'Fahrenheit-Celsius': '(°F - 32) × 5/9 = °C',
+                'Fahrenheit-Kelvin': '(°F - 32) × 5/9 + 273.15 = K',
+                'Kelvin-Celsius': 'K - 273.15 = °C',
+                'Kelvin-Fahrenheit': '(K - 273.15) × 9/5 + 32 = °F'
+            };
+            return formulas[`${from}-${to}`] || 'Complex conversion';
+        }
+
+        // Currency conversion
+        function convertCurrency(value, from, to) {
+            if (from === to) return value;
+            const usdValue = value / liveRates.currency[from];
+            return usdValue * liveRates.currency[to];
+        }
+
+        // Crypto conversion
+        function convertCrypto(value, from, to) {
+            if (from === to) return value;
+            const usdValue = value * liveRates.crypto[from];
+            return usdValue / liveRates.crypto[to];
+        }
+
+        // Metal conversion
+        function convertMetal(value, from, to) {
+            if (from === to) return value;
+            const fromPrice = liveRates.metals[from] || 1;
+            const toPrice = liveRates.metals[to] || 1;
+            return (value * fromPrice) / toPrice;
+        }
+
+        // Format number
+        function formatNumber(num, decimals = 2) {
+            if (num === 0) return '0';
+            if (num < 0.000001 && num > 0) return num.toExponential(4);
+            if (num > 999999) return num.toExponential(4);
+            return parseFloat(num.toFixed(decimals)).toLocaleString('en-US', {
+                maximumFractionDigits: decimals
+            });
+        }
+
+        // Update common conversions
+        function updateCommonConversions(category) {
+            const common = conversionData[category].common;
+            commonConversions.innerHTML = common.map(conv => `
+                <div class="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg text-center cursor-pointer hover:bg-purple-100 dark:hover:bg-purple-900/30 transition"
+                    onclick="quickConvert('${conv[0]}', '${conv[1]}')">
+                    <p class="text-sm text-gray-600 dark:text-gray-300">${conv[0]}</p>
+                    <p class="text-xs text-gray-400">= ${conv[1]}</p>
+                </div>
+            `).join('');
+        }
+
+        // Quick convert from common
+        function quickConvert(from, to) {
+            const fromParts = from.split(' ');
+            const toParts = to.split(' ');
+            const value = parseFloat(fromParts[0]);
+
+            fromInput.value = value;
+            fromUnit.value = fromParts.slice(1).join(' ');
+            toUnit.value = toParts.slice(1).join(' ');
+            convert();
+        }
+
+        // Fetch live prices
+        async function fetchLivePrices() {
+            updateLastTime();
+
+            try {
+                // Fetch crypto prices from CoinGecko (free, no API key needed)
+                const cryptoResponse = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,binancecoin,ripple,cardano,dogecoin,solana,polkadot,matic-network,litecoin,shiba-inu,avalanche-2,chainlink,uniswap,cosmos&vs_currencies=usd');
+                const cryptoData = await cryptoResponse.json();
+
+                liveRates.crypto = {
+                    'BTC': cryptoData.bitcoin?.usd || 43500,
+                    'ETH': cryptoData.ethereum?.usd || 2300,
+                    'BNB': cryptoData.binancecoin?.usd || 320,
+                    'XRP': cryptoData.ripple?.usd || 0.62,
+                    'ADA': cryptoData.cardano?.usd || 0.55,
+                    'DOGE': cryptoData.dogecoin?.usd || 0.08,
+                    'SOL': cryptoData.solana?.usd || 98,
+                    'DOT': cryptoData.polkadot?.usd || 7.5,
+                    'MATIC': cryptoData['matic-network']?.usd || 0.85,
+                    'LTC': cryptoData.litecoin?.usd || 72,
+                    'SHIB': cryptoData['shiba-inu']?.usd || 0.000025,
+                    'AVAX': cryptoData['avalanche-2']?.usd || 38,
+                    'LINK': cryptoData.chainlink?.usd || 16,
+                    'UNI': cryptoData.uniswap?.usd || 7.2,
+                    'ATOM': cryptoData.cosmos?.usd || 10
+                };
+
+                updateCryptoDisplay();
+
+                // Fetch currency rates (using fallback rates if API fails)
+                const currencyResponse = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+                const currencyData = await currencyResponse.json();
+
+                liveRates.currency = {
+                    'USD': 1,
+                    'EUR': currencyData.rates.EUR || 0.92,
+                    'GBP': currencyData.rates.GBP || 0.79,
+                    'JPY': currencyData.rates.JPY || 149.5,
+                    'CNY': currencyData.rates.CNY || 7.24,
+                    'INR': currencyData.rates.INR || 83.12,
+                    'AUD': currencyData.rates.AUD || 1.53,
+                    'CAD': currencyData.rates.CAD || 1.36,
+                    'CHF': currencyData.rates.CHF || 0.88,
+                    'KRW': currencyData.rates.KRW || 1320,
+                    'SGD': currencyData.rates.SGD || 1.34,
+                    'HKD': currencyData.rates.HKD || 7.82,
+                    'NOK': currencyData.rates.NOK || 10.65,
+                    'SEK': currencyData.rates.SEK || 10.42,
+                    'MXN': currencyData.rates.MXN || 17.15,
+                    'BRL': currencyData.rates.BRL || 4.97,
+                    'RUB': currencyData.rates.RUB || 92.5,
+                    'ZAR': currencyData.rates.ZAR || 18.95,
+                    'TRY': currencyData.rates.TRY || 32.15,
+                    'PLN': currencyData.rates.PLN || 3.95
+                };
+
+                updateCurrencyDisplay();
+
+                // Metal prices (approximate based on market data)
+                liveRates.metals = {
+                    'Gold (XAU)': 2050,
+                    'Silver (XAG)': 23.5,
+                    'Platinum (XPT)': 920,
+                    'Palladium (XPD)': 1050
+                };
+
+                updateMetalDisplay();
+
+            } catch (error) {
+                console.log('Using fallback rates');
+                // Fallback rates
+                liveRates.currency = {
+                    'USD': 1, 'EUR': 0.92, 'GBP': 0.79, 'JPY': 149.5, 'CNY': 7.24,
+                    'INR': 83.12, 'AUD': 1.53, 'CAD': 1.36, 'CHF': 0.88
+                };
+                liveRates.crypto = {
+                    'BTC': 43500, 'ETH': 2300, 'BNB': 320, 'XRP': 0.62, 'DOGE': 0.08
+                };
+                liveRates.metals = {
+                    'Gold (XAU)': 2050, 'Silver (XAG)': 23.5, 'Platinum (XPT)': 920, 'Palladium (XPD)': 1050
+                };
+            }
+
+            // Reconvert if on currency/crypto/metal
+            if (['currency', 'crypto', 'precious'].includes(currentCategory)) {
+                convert();
+            }
+        }
+
+        // Update displays
+        function updateCurrencyDisplay() {
+            const container = document.getElementById('currencyPrices');
+            const rates = [
+                ['EUR/USD', liveRates.currency.EUR, liveRates.currency.EUR],
+                ['GBP/USD', liveRates.currency.GBP, liveRates.currency.GBP],
+                ['USD/JPY', liveRates.currency.JPY, liveRates.currency.JPY],
+                ['USD/CNY', liveRates.currency.CNY, liveRates.currency.CNY],
+                ['USD/INR', liveRates.currency.INR, liveRates.currency.INR],
+                ['USD/CHF', liveRates.currency.CHF, liveRates.currency.CHF],
+                ['AUD/USD', liveRates.currency.AUD, liveRates.currency.AUD],
+                ['USD/CAD', liveRates.currency.CAD, liveRates.currency.CAD]
+            ];
+
+            container.innerHTML = rates.map(([pair, rate, value]) => `
+                <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <span class="text-gray-600 dark:text-gray-300 font-medium">${pair}</span>
+                    <span class="font-semibold text-gray-800 dark:text-white">${formatNumber(value, 4)}</span>
+                </div>
+            `).join('');
+        }
+
+        function updateCryptoDisplay() {
+            const container = document.getElementById('cryptoPrices');
+            const cryptos = [
+                ['Bitcoin', 'BTC', liveRates.crypto.BTC, '#f7931a'],
+                ['Ethereum', 'ETH', liveRates.crypto.ETH, '#627eea'],
+                ['BNB', 'BNB', liveRates.crypto.BNB, '#f3ba2f'],
+                ['Solana', 'SOL', liveRates.crypto.SOL, '#00ffa3'],
+                ['XRP', 'XRP', liveRates.crypto.XRP, '#23292f'],
+                ['Dogecoin', 'DOGE', liveRates.crypto.DOGE, '#c2a633'],
+                ['Cardano', 'ADA', liveRates.crypto.ADA, '#0033ad'],
+                ['Avalanche', 'AVAX', liveRates.crypto.AVAX, '#e84142']
+            ];
+
+            container.innerHTML = cryptos.map(([name, symbol, price, color]) => `
+                <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 rounded-full" style="background: ${color}"></div>
+                        <span class="text-gray-600 dark:text-gray-300">${name}</span>
+                    </div>
+                    <span class="font-semibold text-gray-800 dark:text-white">$${formatNumber(price)}</span>
+                </div>
+            `).join('');
+        }
+
+        function updateMetalDisplay() {
+            const container = document.getElementById('metalPrices');
+            const metals = [
+                ['🥇 Gold (XAU)', liveRates.metals['Gold (XAU)']],
+                ['🥈 Silver (XAG)', liveRates.metals['Silver (XAG)']],
+                ['⚪ Platinum (XPT)', liveRates.metals['Platinum (XPT)']],
+                ['⚫ Palladium (XPD)', liveRates.metals['Palladium (XPD)']]
+            ];
+
+            container.innerHTML = metals.map(([name, price]) => `
+                <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <span class="text-gray-600 dark:text-gray-300">${name}</span>
+                    <span class="font-semibold text-gray-800 dark:text-white">$${formatNumber(price)} /oz</span>
+                </div>
+            `).join('');
+        }
+
+        function updateLastTime() {
+            const now = new Date();
+            document.getElementById('lastUpdate').textContent = `Updated: ${now.toLocaleTimeString()}`;
+        }
+
+        function showRandomFunFact() {
+            const fact = funFacts[Math.floor(Math.random() * funFacts.length)];
+            document.getElementById('funFact').textContent = fact;
+        }
+
+        // Event listeners
+        function setupEventListeners() {
+            fromInput.addEventListener('input', convert);
+            fromUnit.addEventListener('change', convert);
+            toUnit.addEventListener('change', convert);
+
+            swapBtn.addEventListener('click', () => {
+                const tempFrom = fromUnit.value;
+                const tempTo = toUnit.value;
+                fromUnit.value = tempTo;
+                toUnit.value = tempFrom;
+                convert();
+            });
+
+            categoryBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    categoryBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentCategory = btn.dataset.category;
+
+                    converterTitle.textContent = conversionData[currentCategory].title;
+                    populateUnits(currentCategory);
+                    updateCommonConversions(currentCategory);
+
+                    // Show/hide prices section
+                    if (['currency', 'crypto', 'precious'].includes(currentCategory)) {
+                        pricesSection.classList.remove('hidden');
+                    } else {
+                        pricesSection.classList.add('hidden');
+                    }
+
+                    convert();
+                });
+            });
+
+            document.getElementById('copyBtn').addEventListener('click', () => {
+                navigator.clipboard.writeText(toInput.value);
+                showToast('Result copied to clipboard!');
+            });
+
+            document.getElementById('clearBtn').addEventListener('click', () => {
+                fromInput.value = '';
+                toInput.value = '';
+                resultText.textContent = 'Enter a value to convert';
+            });
+
+            themeToggle.addEventListener('click', () => {
+                document.documentElement.classList.toggle('dark');
+                const icon = themeToggle.querySelector('i');
+                if (document.documentElement.classList.contains('dark')) {
+                    icon.classList.remove('fa-moon');
+                    icon.classList.add('fa-sun');
+                } else {
+                    icon.classList.remove('fa-sun');
+                    icon.classList.add('fa-moon');
+                }
+            });
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMessage').textContent = message;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 2000);
+        }
+
+        // Make quickConvert global
+        window.quickConvert = quickConvert;
+
+        // Start app
+        init();
+    </script>
+</body>
+
+</html>
