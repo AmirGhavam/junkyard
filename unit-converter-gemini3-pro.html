@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OmniConvert | Modern Unit & Market Converter</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js for small sparklines -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            background-image:
+                radial-gradient(at 0% 0%, hsla(253, 16%, 7%, 1) 0, transparent 50%),
+                radial-gradient(at 50% 0%, hsla(225, 39%, 30%, 1) 0, transparent 50%),
+                radial-gradient(at 100% 0%, hsla(339, 49%, 30%, 1) 0, transparent 50%);
+            background-attachment: fixed;
+            min-height: 100vh;
+        }
+
+        /* Glassmorphism utility */
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Hide number input spinners */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .category-btn.active {
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 15px rgba(124, 58, 237, 0.4);
+        }
+
+        .animate-float {
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-10px);
+            }
+
+            100% {
+                transform: translateY(0px);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+
+<body class="overflow-x-hidden selection:bg-purple-500 selection:text-white">
+
+    <!-- Navbar -->
+    <nav class="glass sticky top-0 z-50 px-6 py-4 flex justify-between items-center mb-8">
+        <div class="flex items-center gap-3">
+            <div
+                class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                O</div>
+            <span
+                class="text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">OmniConvert</span>
+        </div>
+        <div class="flex items-center gap-4">
+            <button id="refresh-rates"
+                class="text-sm text-slate-400 hover:text-white transition-colors flex items-center gap-2 group">
+                <i class="fas fa-sync-alt group-hover:spin"></i> <span class="hidden sm:inline">Refresh Rates</span>
+            </button>
+            <div class="h-8 w-[1px] bg-slate-700 mx-1"></div>
+            <a href="#" class="text-slate-400 hover:text-white transition-colors"><i
+                    class="fab fa-github text-xl"></i></a>
+        </div>
+    </nav>
+
+    <main class="container mx-auto px-4 pb-20 max-w-6xl">
+
+        <!-- Hero Section -->
+        <div class="text-center mb-12 animate-float">
+            <h1 class="text-4xl md:text-5xl font-bold mb-4">Convert <span
+                    class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400">Anything</span>
+                Instantly</h1>
+            <p class="text-slate-400 text-lg max-w-2xl mx-auto">Real-time exchange rates, crypto prices, precious
+                metals, and over 100+ measurement units.</p>
+        </div>
+
+        <!-- Main Interface Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+            <!-- Sidebar / Category Selector -->
+            <div class="lg:col-span-3">
+                <div class="glass-panel rounded-2xl p-4 sticky top-24">
+                    <h3 class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-4 px-2">Categories</h3>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-2" id="category-list">
+                        <!-- Categories injected by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Converter Area -->
+            <div class="lg:col-span-9 space-y-8">
+
+                <!-- Main Converter Card -->
+                <div class="glass-panel rounded-3xl p-6 md:p-10 relative overflow-hidden">
+                    <!-- Background Glow -->
+                    <div
+                        class="absolute -top-20 -right-20 w-64 h-64 bg-purple-600/20 rounded-full blur-3xl pointer-events-none">
+                    </div>
+
+                    <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+                        <h2 id="current-category-title" class="text-2xl font-semibold flex items-center gap-3">
+                            <i class="fas fa-ruler-combined text-purple-400"></i> Length
+                        </h2>
+
+                        <!-- Last Updated for Live Data -->
+                        <div id="live-indicator"
+                            class="hidden px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Live Data
+                        </div>
+                    </div>
+
+                    <!-- Input Area -->
+                    <div class="grid grid-cols-1 md:grid-cols-7 gap-4 items-center mb-8">
+
+                        <!-- From -->
+                        <div class="md:col-span-3 space-y-2">
+                            <label class="text-slate-400 text-sm ml-1">From</label>
+                            <div class="relative group">
+                                <input type="number" id="input-value" value="1"
+                                    class="w-full bg-slate-800/50 border border-slate-700 rounded-xl py-4 pl-4 pr-32 text-2xl font-light focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all text-white placeholder-slate-600">
+                                <select id="from-unit"
+                                    class="absolute right-2 top-2 bottom-2 bg-slate-700/50 hover:bg-slate-700 border-none rounded-lg text-sm px-3 text-slate-200 cursor-pointer focus:ring-0 outline-none w-28 text-right appearance-none">
+                                    <!-- Options injected -->
+                                </select>
+                                <i
+                                    class="fas fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                            </div>
+                        </div>
+
+                        <!-- Swap Button -->
+                        <div class="md:col-span-1 flex justify-center pt-6">
+                            <button id="swap-btn"
+                                class="w-12 h-12 rounded-full bg-slate-700/50 hover:bg-purple-600 hover:text-white transition-all flex items-center justify-center text-slate-400 border border-slate-600 hover:border-purple-500 hover:shadow-lg hover:shadow-purple-500/30">
+                                <i class="fas fa-exchange-alt"></i>
+                            </button>
+                        </div>
+
+                        <!-- To -->
+                        <div class="md:col-span-3 space-y-2">
+                            <div class="flex justify-between">
+                                <label class="text-slate-400 text-sm ml-1">To</label>
+                                <button id="copy-btn"
+                                    class="text-xs text-slate-500 hover:text-purple-400 transition-colors mr-1">
+                                    <i class="far fa-copy"></i> Copy
+                                </button>
+                            </div>
+                            <div class="relative">
+                                <input type="text" id="output-value" readonly
+                                    class="w-full bg-slate-900/50 border border-slate-800 rounded-xl py-4 pl-4 pr-32 text-2xl font-light text-purple-300 focus:outline-none cursor-default">
+                                <select id="to-unit"
+                                    class="absolute right-2 top-2 bottom-2 bg-slate-700/50 hover:bg-slate-700 border-none rounded-lg text-sm px-3 text-slate-200 cursor-pointer focus:ring-0 outline-none w-28 text-right appearance-none">
+                                    <!-- Options injected -->
+                                </select>
+                                <i
+                                    class="fas fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Formula / Info -->
+                    <div id="info-panel" class="bg-slate-800/30 rounded-xl p-4 border border-slate-700/50">
+                        <p class="text-sm text-slate-400 font-mono" id="conversion-formula">1 Meter = 3.28084 Feet</p>
+                    </div>
+                </div>
+
+                <!-- Live Market Dashboard (Only visible for financial categories) -->
+                <div id="market-dashboard" class="hidden grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 fade-in">
+
+                    <!-- Crypto Card -->
+                    <div class="glass-panel rounded-2xl p-5">
+                        <div class="flex justify-between items-center mb-4">
+                            <h4 class="font-semibold flex items-center gap-2"><i
+                                    class="fab fa-bitcoin text-orange-500"></i> Crypto</h4>
+                            <span class="text-xs text-slate-500">Live</span>
+                        </div>
+                        <div class="space-y-3" id="crypto-ticker">
+                            <!-- Items injected -->
+                            <div class="animate-pulse flex space-x-4">
+                                <div class="flex-1 space-y-2 py-1">
+                                    <div class="h-2 bg-slate-700 rounded"></div>
+                                    <div class="h-2 bg-slate-700 rounded w-5/6"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Commodities Card -->
+                    <div class="glass-panel rounded-2xl p-5">
+                        <div class="flex justify-between items-center mb-4">
+                            <h4 class="font-semibold flex items-center gap-2"><i class="fas fa-gem text-blue-400"></i>
+                                Commodities</h4>
+                            <span class="text-xs text-slate-500">Est. Spot</span>
+                        </div>
+                        <div class="space-y-4" id="commodities-ticker">
+                            <!-- Items injected -->
+                            <div class="animate-pulse flex space-x-4">
+                                <div class="flex-1 space-y-2 py-1">
+                                    <div class="h-2 bg-slate-700 rounded"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="text-[10px] text-slate-500 mt-4 leading-tight">*Prices based on asset-backed tokens
+                            (PAXG, etc) as real-time proxies.</p>
+                    </div>
+
+                    <!-- Popular Currencies -->
+                    <div class="glass-panel rounded-2xl p-5">
+                        <div class="flex justify-between items-center mb-4">
+                            <h4 class="font-semibold flex items-center gap-2"><i
+                                    class="fas fa-money-bill-wave text-green-400"></i> Top Fiat</h4>
+                            <span class="text-xs text-slate-500">vs USD</span>
+                        </div>
+                        <div class="space-y-3" id="fiat-ticker">
+                            <div class="animate-pulse flex space-x-4">
+                                <div class="flex-1 space-y-2 py-1">
+                                    <div class="h-2 bg-slate-700 rounded"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center py-8 text-slate-600 text-sm border-t border-slate-800 mt-10">
+        <p>&copy; 2023 OmniConvert. Market data provided by public APIs.</p>
+    </footer>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // --- Data & Configuration ---
+
+        const categories = [
+            { id: 'length', name: 'Length', icon: 'fa-ruler-combined' },
+            { id: 'weight', name: 'Weight & Mass', icon: 'fa-weight-hanging' },
+            { id: 'temperature', name: 'Temperature', icon: 'fa-thermometer-half' },
+            { id: 'currency', name: 'Currency', icon: 'fa-coins', type: 'financial' },
+            { id: 'crypto', name: 'Crypto & Assets', icon: 'fa-bitcoin', type: 'financial' },
+            { id: 'area', name: 'Area', icon: 'fa-chart-area' },
+            { id: 'volume', name: 'Volume', icon: 'fa-cube' },
+            { id: 'speed', name: 'Speed', icon: 'fa-tachometer-alt' },
+            { id: 'time', name: 'Time', icon: 'fa-clock' },
+            { id: 'digital', name: 'Digital Storage', icon: 'fa-hdd' },
+        ];
+
+        // Standard Unit Definitions (Factors relative to base unit)
+        const unitDefinitions = {
+            length: {
+                base: 'meter',
+                units: {
+                    meter: { name: 'Meter', factor: 1 },
+                    kilometer: { name: 'Kilometer', factor: 1000 },
+                    centimeter: { name: 'Centimeter', factor: 0.01 },
+                    millimeter: { name: 'Millimeter', factor: 0.001 },
+                    mile: { name: 'Mile', factor: 1609.34 },
+                    yard: { name: 'Yard', factor: 0.9144 },
+                    foot: { name: 'Foot', factor: 0.3048 },
+                    inch: { name: 'Inch', factor: 0.0254 },
+                    nautical_mile: { name: 'Nautical Mile', factor: 1852 }
+                }
+            },
+            weight: {
+                base: 'gram',
+                units: {
+                    gram: { name: 'Gram', factor: 1 },
+                    kilogram: { name: 'Kilogram', factor: 1000 },
+                    milligram: { name: 'Milligram', factor: 0.001 },
+                    metric_ton: { name: 'Metric Ton', factor: 1000000 },
+                    pound: { name: 'Pound', factor: 453.592 },
+                    ounce: { name: 'Ounce', factor: 28.3495 },
+                    stone: { name: 'Stone', factor: 6350.29 },
+                    carat: { name: 'Carat', factor: 0.2 }
+                }
+            },
+            volume: {
+                base: 'liter',
+                units: {
+                    liter: { name: 'Liter', factor: 1 },
+                    milliliter: { name: 'Milliliter', factor: 0.001 },
+                    cubic_meter: { name: 'Cubic Meter', factor: 1000 },
+                    gallon_us: { name: 'Gallon (US)', factor: 3.78541 },
+                    quart_us: { name: 'Quart (US)', factor: 0.946353 },
+                    pint_us: { name: 'Pint (US)', factor: 0.473176 },
+                    cup_us: { name: 'Cup (US)', factor: 0.236588 },
+                    fluid_ounce_us: { name: 'Fluid Ounce (US)', factor: 0.0295735 },
+                    tablespoon_us: { name: 'Tablespoon (US)', factor: 0.0147868 },
+                    teaspoon_us: { name: 'Teaspoon (US)', factor: 0.00492892 }
+                }
+            },
+            area: {
+                base: 'square_meter',
+                units: {
+                    square_meter: { name: 'Square Meter', factor: 1 },
+                    square_kilometer: { name: 'Square Kilometer', factor: 1000000 },
+                    hectare: { name: 'Hectare', factor: 10000 },
+                    acre: { name: 'Acre', factor: 4046.86 },
+                    square_mile: { name: 'Square Mile', factor: 2589988.11 },
+                    square_yard: { name: 'Square Yard', factor: 0.836127 },
+                    square_foot: { name: 'Square Foot', factor: 0.092903 },
+                    square_inch: { name: 'Square Inch', factor: 0.00064516 }
+                }
+            },
+            speed: {
+                base: 'meters_per_second',
+                units: {
+                    meters_per_second: { name: 'Meters/Second', factor: 1 },
+                    kilometers_per_hour: { name: 'Kilometers/Hour', factor: 0.277778 },
+                    miles_per_hour: { name: 'Miles/Hour', factor: 0.44704 },
+                    knot: { name: 'Knot', factor: 0.514444 },
+                    mach: { name: 'Mach (Std. Atm.)', factor: 343 }
+                }
+            },
+            time: {
+                base: 'second',
+                units: {
+                    second: { name: 'Second', factor: 1 },
+                    minute: { name: 'Minute', factor: 60 },
+                    hour: { name: 'Hour', factor: 3600 },
+                    day: { name: 'Day', factor: 86400 },
+                    week: { name: 'Week', factor: 604800 },
+                    month: { name: 'Month (Avg)', factor: 2628000 },
+                    year: { name: 'Year (Common)', factor: 31536000 }
+                }
+            },
+            digital: {
+                base: 'byte',
+                units: {
+                    bit: { name: 'Bit', factor: 0.125 },
+                    byte: { name: 'Byte', factor: 1 },
+                    kilobyte: { name: 'Kilobyte (KB)', factor: 1000 },
+                    megabyte: { name: 'Megabyte (MB)', factor: 1000000 },
+                    gigabyte: { name: 'Gigabyte (GB)', factor: 1000000000 },
+                    terabyte: { name: 'Terabyte (TB)', factor: 1000000000000 },
+                    kibibyte: { name: 'Kibibyte (KiB)', factor: 1024 },
+                    mebibyte: { name: 'Mebibyte (MiB)', factor: 1048576 },
+                    gibibyte: { name: 'Gibibyte (GiB)', factor: 1073741824 }
+                }
+            },
+            // Temperature is special handled
+            temperature: {
+                units: {
+                    celsius: { name: 'Celsius' },
+                    fahrenheit: { name: 'Fahrenheit' },
+                    kelvin: { name: 'Kelvin' }
+                }
+            }
+        };
+
+        // Live Data Stores
+        let exchangeRates = { USD: 1, EUR: 0.92, GBP: 0.79, JPY: 150, CAD: 1.35, AUD: 1.52, INR: 83, CNY: 7.2 }; // Fallback
+        let cryptoPrices = { bitcoin: 65000, ethereum: 3500, 'pax-gold': 2300, 'kinesis-silver': 28 }; // Fallback
+
+        // --- App Logic ---
+
+        let currentCategory = 'length';
+
+        // DOM Elements
+        const categoryListEl = document.getElementById('category-list');
+        const fromUnitSelect = document.getElementById('from-unit');
+        const toUnitSelect = document.getElementById('to-unit');
+        const inputVal = document.getElementById('input-value');
+        const outputVal = document.getElementById('output-value');
+        const categoryTitle = document.getElementById('current-category-title');
+        const formulaEl = document.getElementById('conversion-formula');
+        const liveIndicator = document.getElementById('live-indicator');
+        const marketDashboard = document.getElementById('market-dashboard');
+        const swapBtn = document.getElementById('swap-btn');
+
+        // Initialization
+        async function init() {
+            renderCategories();
+            setupEventListeners();
+            await fetchFinancialData(); // Try to get live data
+            loadCategory(currentCategory);
+        }
+
+        function renderCategories() {
+            categoryListEl.innerHTML = categories.map(cat => `
+                <button 
+                    onclick="loadCategory('${cat.id}')"
+                    class="category-btn w-full text-left px-4 py-3 rounded-xl transition-all duration-200 flex items-center gap-3 text-slate-300 hover:bg-slate-800 ${cat.id === currentCategory ? 'active' : ''}"
+                    data-id="${cat.id}"
+                >
+                    <div class="w-8 h-8 rounded-lg bg-slate-700/50 flex items-center justify-center text-sm">
+                        <i class="fas ${cat.icon}"></i>
+                    </div>
+                    <span class="font-medium">${cat.name}</span>
+                </button>
+            `).join('');
+        }
+
+        function loadCategory(id) {
+            currentCategory = id;
+            const catData = categories.find(c => c.id === id);
+
+            // Update UI Sidebar
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                if (btn.dataset.id === id) btn.classList.add('active');
+                else btn.classList.remove('active');
+            });
+
+            // Update Header
+            categoryTitle.innerHTML = `<i class="fas ${catData.icon} text-purple-400"></i> ${catData.name}`;
+
+            // Populate Selects
+            populateUnits(id);
+
+            // Handle Financial UI vs Standard UI
+            if (catData.type === 'financial') {
+                liveIndicator.classList.remove('hidden');
+                marketDashboard.classList.remove('hidden');
+                marketDashboard.classList.add('grid');
+            } else {
+                liveIndicator.classList.add('hidden');
+                marketDashboard.classList.add('hidden');
+                marketDashboard.classList.remove('grid');
+            }
+
+            calculateResult();
+        }
+
+        function populateUnits(categoryId) {
+            fromUnitSelect.innerHTML = '';
+            toUnitSelect.innerHTML = '';
+            let units = {};
+
+            if (categoryId === 'currency') {
+                // Populate currency keys from exchangeRates
+                const keys = Object.keys(exchangeRates).sort();
+                keys.forEach(k => {
+                    const option1 = new Option(k, k);
+                    const option2 = new Option(k, k);
+                    fromUnitSelect.add(option1);
+                    toUnitSelect.add(option2);
+                });
+                fromUnitSelect.value = 'USD';
+                toUnitSelect.value = 'EUR';
+
+            } else if (categoryId === 'crypto') {
+                // Mix of Crypto and Fiat
+                const cryptos = [
+                    { id: 'bitcoin', name: 'Bitcoin (BTC)' },
+                    { id: 'ethereum', name: 'Ethereum (ETH)' },
+                    { id: 'pax-gold', name: 'Gold (PAXG/oz)' },
+                    { id: 'kinesis-silver', name: 'Silver (KAG/oz)' }
+                ];
+
+                // Add Cryptos first
+                cryptos.forEach(c => fromUnitSelect.add(new Option(c.name, c.id)));
+                // Add Fiat to "To" mostly
+                Object.keys(exchangeRates).sort().forEach(k => {
+                    toUnitSelect.add(new Option(k, k)); // Allow conversion to Fiat
+                    fromUnitSelect.add(new Option(k, k)); // Allow Fiat to Crypto
+                });
+
+                fromUnitSelect.value = 'bitcoin';
+                toUnitSelect.value = 'USD';
+
+            } else {
+                // Standard Units
+                units = unitDefinitions[categoryId].units;
+                Object.entries(units).forEach(([key, val]) => {
+                    fromUnitSelect.add(new Option(val.name, key));
+                    toUnitSelect.add(new Option(val.name, key));
+                });
+                // Set default selections (first and second usually)
+                const keys = Object.keys(units);
+                if (keys.length > 1) {
+                    fromUnitSelect.value = keys[0];
+                    toUnitSelect.value = keys[1];
+                }
+            }
+        }
+
+        function calculateResult() {
+            const val = parseFloat(inputVal.value);
+            if (isNaN(val)) {
+                outputVal.value = '';
+                return;
+            }
+
+            const from = fromUnitSelect.value;
+            const to = toUnitSelect.value;
+            let result = 0;
+            let formulaText = '';
+
+            if (currentCategory === 'temperature') {
+                result = convertTemperature(val, from, to);
+                formulaText = getTempFormula(val, from, to);
+            } else if (currentCategory === 'currency') {
+                // Base is USD in our data usually
+                const fromRate = exchangeRates[from] || 1;
+                const toRate = exchangeRates[to] || 1;
+                // Convert to USD then to Target
+                // If base is USD: USD -> Target = val * toRate
+                // If From is EUR (0.9): EUR -> USD = val / 0.9. Then USD -> GBP (0.8) = (val/0.9)*0.8
+                result = (val / fromRate) * toRate;
+                formulaText = `1 ${from} = ${(1 / fromRate * toRate).toFixed(4)} ${to}`;
+            } else if (currentCategory === 'crypto') {
+                // Handle Crypto Pricing
+                // Crypto prices are in USD
+                let fromPriceInUSD = 1;
+                let toPriceInUSD = 1;
+
+                // Check if from is crypto
+                if (cryptoPrices[from]) fromPriceInUSD = cryptoPrices[from];
+                else if (exchangeRates[from]) fromPriceInUSD = 1 / exchangeRates[from]; // Convert fiat to USD value
+
+                // Check if to is crypto
+                if (cryptoPrices[to]) toPriceInUSD = cryptoPrices[to];
+                else if (exchangeRates[to]) toPriceInUSD = 1 / exchangeRates[to];
+
+                result = val * (fromPriceInUSD / toPriceInUSD);
+                formulaText = `1 ${from} ≈ ${(fromPriceInUSD / toPriceInUSD).toLocaleString()} ${to}`;
+
+            } else {
+                // Standard Factor Conversion
+                const units = unitDefinitions[currentCategory].units;
+                const fromFactor = units[from].factor;
+                const toFactor = units[to].factor;
+
+                // Convert to Base then to Target
+                const inBase = val * fromFactor;
+                result = inBase / toFactor;
+
+                formulaText = `1 ${units[from].name} = ${(fromFactor / toFactor).toPrecision(6)} ${units[to].name}`;
+            }
+
+            // Formatting
+            if (Math.abs(result) < 0.000001 && result !== 0) {
+                outputVal.value = result.toExponential(4);
+            } else {
+                // Smart rounding
+                outputVal.value = parseFloat(result.toPrecision(7)).toString(); // Removes trailing zeros
+            }
+            formulaEl.innerText = formulaText;
+        }
+
+        function convertTemperature(val, from, to) {
+            if (from === to) return val;
+            let celsius;
+
+            // To Celsius
+            if (from === 'celsius') celsius = val;
+            else if (from === 'fahrenheit') celsius = (val - 32) * 5 / 9;
+            else if (from === 'kelvin') celsius = val - 273.15;
+
+            // From Celsius
+            if (to === 'celsius') return celsius;
+            if (to === 'fahrenheit') return (celsius * 9 / 5) + 32;
+            if (to === 'kelvin') return celsius + 273.15;
+        }
+
+        function getTempFormula(val, from, to) {
+            return `${val}° ${from.charAt(0).toUpperCase() + from.slice(1)} → ${to.charAt(0).toUpperCase() + to.slice(1)}`;
+        }
+
+        // --- Live Data Fetching ---
+
+        async function fetchFinancialData() {
+            try {
+                // 1. Fetch Fiat (Base USD)
+                const fiatRes = await fetch('https://open.er-api.com/v6/latest/USD');
+                const fiatData = await fiatRes.json();
+                if (fiatData.result === 'success') {
+                    exchangeRates = fiatData.rates;
+                    updateFiatTicker();
+                }
+
+                // 2. Fetch Crypto & Commodities (Gold/Silver via proxy tokens)
+                // ids: bitcoin, ethereum, pax-gold (Gold), kinesis-silver (Silver)
+                const cryptoRes = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,pax-gold,kinesis-silver,solana,cardano&vs_currencies=usd');
+                const cData = await cryptoRes.json();
+
+                if (cData) {
+                    cryptoPrices = {
+                        bitcoin: cData.bitcoin.usd,
+                        ethereum: cData.ethereum.usd,
+                        'pax-gold': cData['pax-gold'].usd,
+                        'kinesis-silver': cData['kinesis-silver'].usd,
+                        solana: cData.solana.usd,
+                        cardano: cData.cardano.usd
+                    };
+                    updateCryptoUI();
+                }
+
+                // Refresh conversions if on financial tab
+                if (currentCategory === 'currency' || currentCategory === 'crypto') {
+                    calculateResult();
+                }
+
+                const btn = document.getElementById('refresh-rates');
+                btn.innerHTML = `<i class="fas fa-check text-green-400"></i> Updated`;
+                setTimeout(() => btn.innerHTML = `<i class="fas fa-sync-alt"></i> <span class="hidden sm:inline">Refresh Rates</span>`, 2000);
+
+            } catch (error) {
+                console.error("Failed to fetch live data", error);
+                document.getElementById('refresh-rates').innerHTML = `<i class="fas fa-exclamation-triangle text-red-400"></i> Failed`;
+            }
+        }
+
+        function updateCryptoUI() {
+            const ticker = document.getElementById('crypto-ticker');
+            ticker.innerHTML = '';
+
+            const coins = [
+                { id: 'bitcoin', name: 'BTC', icon: 'fa-bitcoin text-orange-500' },
+                { id: 'ethereum', name: 'ETH', icon: 'fa-brands fa-ethereum text-indigo-400' },
+                { id: 'solana', name: 'SOL', icon: 'fa-bolt text-teal-400' }
+            ];
+
+            coins.forEach(c => {
+                const price = cryptoPrices[c.id];
+                if (price) {
+                    ticker.innerHTML += `
+                        <div class="flex justify-between items-center py-2 border-b border-slate-700/50 last:border-0">
+                            <div class="flex items-center gap-2">
+                                <i class="fab ${c.icon} w-5 text-center"></i>
+                                <span class="text-sm font-medium text-slate-300">${c.name}</span>
+                            </div>
+                            <span class="font-mono text-white">$${price.toLocaleString()}</span>
+                        </div>
+                    `;
+                }
+            });
+
+            // Update Commodities Section
+            const commTicker = document.getElementById('commodities-ticker');
+            commTicker.innerHTML = `
+                <div class="flex justify-between items-center p-3 rounded-xl bg-gradient-to-r from-yellow-900/20 to-amber-900/10 border border-yellow-700/30">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-full bg-yellow-500/20 flex items-center justify-center text-yellow-400"><i class="fas fa-coins"></i></div>
+                        <div>
+                            <div class="text-xs text-yellow-500 font-bold uppercase">Gold</div>
+                            <div class="text-[10px] text-slate-500">PAXG / oz</div>
+                        </div>
+                    </div>
+                    <span class="font-mono text-xl text-yellow-100">$${cryptoPrices['pax-gold']?.toLocaleString() || '---'}</span>
+                </div>
+
+                <div class="flex justify-between items-center p-3 rounded-xl bg-gradient-to-r from-slate-700/30 to-slate-600/10 border border-slate-500/30">
+                    <div class="flex items-center gap-2">
+                         <div class="w-8 h-8 rounded-full bg-slate-400/20 flex items-center justify-center text-slate-300"><i class="fas fa-ring"></i></div>
+                        <div>
+                            <div class="text-xs text-slate-300 font-bold uppercase">Silver</div>
+                            <div class="text-[10px] text-slate-500">KAG / oz</div>
+                        </div>
+                    </div>
+                    <span class="font-mono text-xl text-slate-200">$${cryptoPrices['kinesis-silver']?.toLocaleString() || '---'}</span>
+                </div>
+            `;
+        }
+
+        function updateFiatTicker() {
+            const ticker = document.getElementById('fiat-ticker');
+            ticker.innerHTML = '';
+            const topFiats = ['EUR', 'GBP', 'JPY', 'CAD', 'AUD'];
+
+            topFiats.forEach(f => {
+                const rate = exchangeRates[f];
+                if (rate) {
+                    // Show Inverse (1 Unit = X USD) for better readability sometimes, 
+                    // but here we have standard rates relative to USD (1 USD = X Unit).
+                    // Let's show 1 USD = ...
+                    ticker.innerHTML += `
+                        <div class="flex justify-between items-center py-2 border-b border-slate-700/50 last:border-0">
+                            <span class="text-sm font-medium text-slate-300 flex items-center gap-2">
+                                <span class="text-xs bg-slate-700 px-1 rounded text-slate-400">USD</span>
+                                <i class="fas fa-arrow-right text-[10px] text-slate-500"></i> 
+                                ${f}
+                            </span>
+                            <span class="font-mono text-emerald-400">${rate.toFixed(3)}</span>
+                        </div>
+                    `;
+                }
+            });
+        }
+
+        // Listeners
+        function setupEventListeners() {
+            inputVal.addEventListener('input', calculateResult);
+            fromUnitSelect.addEventListener('change', calculateResult);
+            toUnitSelect.addEventListener('change', calculateResult);
+
+            swapBtn.addEventListener('click', () => {
+                const temp = fromUnitSelect.value;
+                fromUnitSelect.value = toUnitSelect.value;
+                toUnitSelect.value = temp;
+                calculateResult();
+                // Add spin animation class temporarily
+                swapBtn.querySelector('i').classList.add('rotate-180');
+                setTimeout(() => swapBtn.querySelector('i').classList.remove('rotate-180'), 300);
+            });
+
+            document.getElementById('refresh-rates').addEventListener('click', () => {
+                document.getElementById('refresh-rates').querySelector('i').classList.add('fa-spin');
+                fetchFinancialData().then(() => {
+                    document.getElementById('refresh-rates').querySelector('i').classList.remove('fa-spin');
+                });
+            });
+
+            const copyBtn = document.getElementById('copy-btn');
+            copyBtn.addEventListener('click', () => {
+                const output = document.getElementById('output-value');
+                if (output.value) {
+                    navigator.clipboard.writeText(output.value);
+                    const originalHtml = copyBtn.innerHTML;
+                    copyBtn.innerHTML = `<i class="fas fa-check"></i> Copied`;
+                    copyBtn.classList.add('text-green-400');
+                    setTimeout(() => {
+                        copyBtn.innerHTML = originalHtml;
+                        copyBtn.classList.remove('text-green-400');
+                    }, 1500);
+                }
+            });
+        }
+
+        // Start
+        init();
+
+    </script>
+</body>
+
+</html>
