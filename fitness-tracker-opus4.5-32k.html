@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FitPulse - Fitness Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .gradient-bg {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        }
+
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.7;
+            }
+        }
+
+        .progress-ring {
+            transform: rotate(-90deg);
+        }
+    </style>
+</head>
+
+<body class="gradient-bg min-h-screen text-white">
+    <div class="container mx-auto px-4 py-8 max-w-7xl">
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row justify-between items-center mb-8">
+            <div class="flex items-center gap-3 mb-4 md:mb-0">
+                <div
+                    class="w-12 h-12 bg-gradient-to-r from-pink-500 to-purple-600 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-heartbeat text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold">FitPulse</h1>
+                    <p class="text-gray-400 text-sm">Welcome back, Alex!</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <span class="text-gray-300" id="currentDate"></span>
+                <div
+                    class="w-10 h-10 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full flex items-center justify-center">
+                    <span class="font-semibold">A</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <!-- Steps Card -->
+            <div class="glass rounded-2xl p-5 card-hover border border-white/10">
+                <div class="flex justify-between items-start mb-3">
+                    <div
+                        class="w-12 h-12 bg-gradient-to-r from-green-400 to-emerald-500 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-shoe-prints text-xl"></i>
+                    </div>
+                    <span class="text-green-400 text-sm font-medium">+12%</span>
+                </div>
+                <h3 class="text-gray-400 text-sm mb-1">Today's Steps</h3>
+                <p class="text-3xl font-bold">8,432</p>
+                <div class="mt-3 bg-gray-700/50 rounded-full h-2">
+                    <div class="bg-gradient-to-r from-green-400 to-emerald-500 h-2 rounded-full" style="width: 84%">
+                    </div>
+                </div>
+                <p class="text-gray-400 text-xs mt-1">84% of 10,000 goal</p>
+            </div>
+
+            <!-- Calories Card -->
+            <div class="glass rounded-2xl p-5 card-hover border border-white/10">
+                <div class="flex justify-between items-start mb-3">
+                    <div
+                        class="w-12 h-12 bg-gradient-to-r from-orange-400 to-red-500 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-fire-flame-curved text-xl"></i>
+                    </div>
+                    <span class="text-orange-400 text-sm font-medium">+8%</span>
+                </div>
+                <h3 class="text-gray-400 text-sm mb-1">Calories Burned</h3>
+                <p class="text-3xl font-bold">1,847</p>
+                <div class="mt-3 bg-gray-700/50 rounded-full h-2">
+                    <div class="bg-gradient-to-r from-orange-400 to-red-500 h-2 rounded-full" style="width: 74%"></div>
+                </div>
+                <p class="text-gray-400 text-xs mt-1">74% of 2,500 goal</p>
+            </div>
+
+            <!-- Active Minutes Card -->
+            <div class="glass rounded-2xl p-5 card-hover border border-white/10">
+                <div class="flex justify-between items-start mb-3">
+                    <div
+                        class="w-12 h-12 bg-gradient-to-r from-blue-400 to-cyan-500 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-clock text-xl"></i>
+                    </div>
+                    <span class="text-blue-400 text-sm font-medium">+23%</span>
+                </div>
+                <h3 class="text-gray-400 text-sm mb-1">Active Minutes</h3>
+                <p class="text-3xl font-bold">67</p>
+                <div class="mt-3 bg-gray-700/50 rounded-full h-2">
+                    <div class="bg-gradient-to-r from-blue-400 to-cyan-500 h-2 rounded-full" style="width: 89%"></div>
+                </div>
+                <p class="text-gray-400 text-xs mt-1">89% of 75 min goal</p>
+            </div>
+
+            <!-- Heart Rate Card -->
+            <div class="glass rounded-2xl p-5 card-hover border border-white/10">
+                <div class="flex justify-between items-start mb-3">
+                    <div
+                        class="w-12 h-12 bg-gradient-to-r from-pink-400 to-rose-500 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-heart pulse text-xl"></i>
+                    </div>
+                    <span class="text-pink-400 text-sm font-medium">Normal</span>
+                </div>
+                <h3 class="text-gray-400 text-sm mb-1">Heart Rate</h3>
+                <p class="text-3xl font-bold">72 <span class="text-lg font-normal">bpm</span></p>
+                <div class="flex items-center gap-2 mt-3">
+                    <span class="text-gray-400 text-xs">Resting: 58</span>
+                    <span class="text-gray-600">•</span>
+                    <span class="text-gray-400 text-xs">Max: 168</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="grid lg:grid-cols-3 gap-6 mb-8">
+            <!-- Steps Chart -->
+            <div class="lg:col-span-2 glass rounded-2xl p-6 border border-white/10">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-semibold">Weekly Steps</h2>
+                    <div class="flex gap-2">
+                        <button
+                            class="px-3 py-1 text-sm bg-white/10 rounded-lg hover:bg-white/20 transition">Week</button>
+                        <button
+                            class="px-3 py-1 text-sm rounded-lg hover:bg-white/20 transition text-gray-400">Month</button>
+                    </div>
+                </div>
+                <canvas id="stepsChart" height="200"></canvas>
+            </div>
+
+            <!-- Heart Rate Zones -->
+            <div class="glass rounded-2xl p-6 border border-white/10">
+                <h2 class="text-xl font-semibold mb-6">Heart Rate Zones</h2>
+                <div class="space-y-4">
+                    <div class="zone-item">
+                        <div class="flex justify-between items-center mb-2">
+                            <div class="flex items-center gap-2">
+                                <div class="w-3 h-3 rounded-full bg-gray-400"></div>
+                                <span class="text-sm">Rest (50-60%)</span>
+                            </div>
+                            <span class="text-sm font-medium">4h 32m</span>
+                        </div>
+                        <div class="bg-gray-700/50 rounded-full h-2">
+                            <div class="bg-gray-400 h-2 rounded-full" style="width: 45%"></div>
+                        </div>
+                    </div>
+                    <div class="zone-item">
+                        <div class="flex justify-between items-center mb-2">
+                            <div class="flex items-center gap-2">
+                                <div class="w-3 h-3 rounded-full bg-blue-400"></div>
+                                <span class="text-sm">Fat Burn (60-70%)</span>
+                            </div>
+                            <span class="text-sm font-medium">2h 15m</span>
+                        </div>
+                        <div class="bg-gray-700/50 rounded-full h-2">
+                            <div class="bg-blue-400 h-2 rounded-full" style="width: 30%"></div>
+                        </div>
+                    </div>
+                    <div class="zone-item">
+                        <div class="flex justify-between items-center mb-2">
+                            <div class="flex items-center gap-2">
+                                <div class="w-3 h-3 rounded-full bg-green-400"></div>
+                                <span class="text-sm">Cardio (70-80%)</span>
+                            </div>
+                            <span class="text-sm font-medium">45m</span>
+                        </div>
+                        <div class="bg-gray-700/50 rounded-full h-2">
+                            <div class="bg-green-400 h-2 rounded-full" style="width: 18%"></div>
+                        </div>
+                    </div>
+                    <div class="zone-item">
+                        <div class="flex justify-between items-center mb-2">
+                            <div class="flex items-center gap-2">
+                                <div class="w-3 h-3 rounded-full bg-orange-400"></div>
+                                <span class="text-sm">Peak (80-90%)</span>
+                            </div>
+                            <span class="text-sm font-medium">18m</span>
+                        </div>
+                        <div class="bg-gray-700/50 rounded-full h-2">
+                            <div class="bg-orange-400 h-2 rounded-full" style="width: 8%"></div>
+                        </div>
+                    </div>
+                    <div class="zone-item">
+                        <div class="flex justify-between items-center mb-2">
+                            <div class="flex items-center gap-2">
+                                <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                                <span class="text-sm">Max (90-100%)</span>
+                            </div>
+                            <span class="text-sm font-medium">5m</span>
+                        </div>
+                        <div class="bg-gray-700/50 rounded-full h-2">
+                            <div class="bg-red-500 h-2 rounded-full" style="width: 3%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Workout History & Weekly Progress -->
+        <div class="grid lg:grid-cols-2 gap-6">
+            <!-- Workout History -->
+            <div class="glass rounded-2xl p-6 border border-white/10">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-semibold">Workout History</h2>
+                    <button class="text-cyan-400 text-sm hover:text-cyan-300 transition">View All</button>
+                </div>
+                <div class="space-y-4" id="workoutHistory">
+                    <!-- Workout items will be inserted here -->
+                </div>
+            </div>
+
+            <!-- Weekly Progress -->
+            <div class="glass rounded-2xl p-6 border border-white/10">
+                <h2 class="text-xl font-semibold mb-6">Weekly Progress</h2>
+                <div class="grid grid-cols-3 gap-4 mb-6">
+                    <!-- Steps Progress Ring -->
+                    <div class="flex flex-col items-center">
+                        <svg class="w-20 h-20" viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="40" fill="none" stroke="#374151" stroke-width="8" />
+                            <circle cx="50" cy="50" r="40" fill="none" stroke="url(#greenGradient)" stroke-width="8"
+                                stroke-dasharray="251.2" stroke-dashoffset="50.24" class="progress-ring"
+                                stroke-linecap="round" />
+                            <defs>
+                                <linearGradient id="greenGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" style="stop-color:#4ade80" />
+                                    <stop offset="100%" style="stop-color:#22c55e" />
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                        <span class="text-2xl font-bold mt-2">80%</span>
+                        <span class="text-gray-400 text-sm">Steps</span>
+                    </div>
+                    <!-- Calories Progress Ring -->
+                    <div class="flex flex-col items-center">
+                        <svg class="w-20 h-20" viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="40" fill="none" stroke="#374151" stroke-width="8" />
+                            <circle cx="50" cy="50" r="40" fill="none" stroke="url(#orangeGradient)" stroke-width="8"
+                                stroke-dasharray="251.2" stroke-dashoffset="75.36" class="progress-ring"
+                                stroke-linecap="round" />
+                            <defs>
+                                <linearGradient id="orangeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" style="stop-color:#fb923c" />
+                                    <stop offset="100%" style="stop-color:#ef4444" />
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                        <span class="text-2xl font-bold mt-2">70%</span>
+                        <span class="text-gray-400 text-sm">Calories</span>
+                    </div>
+                    <!-- Workouts Progress Ring -->
+                    <div class="flex flex-col items-center">
+                        <svg class="w-20 h-20" viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="40" fill="none" stroke="#374151" stroke-width="8" />
+                            <circle cx="50" cy="50" r="40" fill="none" stroke="url(#blueGradient)" stroke-width="8"
+                                stroke-dasharray="251.2" stroke-dashoffset="37.68" class="progress-ring"
+                                stroke-linecap="round" />
+                            <defs>
+                                <linearGradient id="blueGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" style="stop-color:#38bdf8" />
+                                    <stop offset="100%" style="stop-color:#3b82f6" />
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                        <span class="text-2xl font-bold mt-2">85%</span>
+                        <span class="text-gray-400 text-sm">Workouts</span>
+                    </div>
+                </div>
+
+                <!-- Calories Chart -->
+                <div class="mt-4">
+                    <h3 class="text-sm text-gray-400 mb-4">Calories Burned This Week</h3>
+                    <canvas id="caloriesChart" height="120"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="mt-8 text-center text-gray-500 text-sm">
+            <p>FitPulse © 2024 - Your Personal Fitness Companion</p>
+        </footer>
+    </div>
+
+    <script>
+        // Set current date
+        document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+
+        // Sample workout data
+        const workouts = [
+            { type: 'Running', icon: 'fa-person-running', duration: '45 min', calories: 420, date: 'Today, 7:30 AM', color: 'from-green-400 to-emerald-500' },
+            { type: 'Weight Training', icon: 'fa-dumbbell', duration: '60 min', calories: 380, date: 'Yesterday, 6:00 PM', color: 'from-purple-400 to-violet-500' },
+            { type: 'Cycling', icon: 'fa-bicycle', duration: '30 min', calories: 290, date: 'Mon, 8:00 AM', color: 'from-blue-400 to-cyan-500' },
+            { type: 'Swimming', icon: 'fa-person-swimming', duration: '40 min', calories: 350, date: 'Sun, 10:00 AM', color: 'from-cyan-400 to-teal-500' },
+            { type: 'Yoga', icon: 'fa-spa', duration: '50 min', calories: 180, date: 'Sat, 7:00 AM', color: 'from-pink-400 to-rose-500' }
+        ];
+
+        // Render workout history
+        const workoutContainer = document.getElementById('workoutHistory');
+        workouts.forEach(workout => {
+            workoutContainer.innerHTML += `
+                <div class="flex items-center gap-4 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition cursor-pointer">
+                    <div class="w-12 h-12 bg-gradient-to-r ${workout.color} rounded-xl flex items-center justify-center flex-shrink-0">
+                        <i class="fas ${workout.icon} text-lg"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h3 class="font-medium truncate">${workout.type}</h3>
+                        <p class="text-gray-400 text-sm">${workout.date}</p>
+                    </div>
+                    <div class="text-right flex-shrink-0">
+                        <p class="font-medium">${workout.calories} kcal</p>
+                        <p class="text-gray-400 text-sm">${workout.duration}</p>
+                    </div>
+                </div>
+            `;
+        });
+
+        // Steps Chart
+        const stepsCtx = document.getElementById('stepsChart').getContext('2d');
+        const stepsGradient = stepsCtx.createLinearGradient(0, 0, 0, 200);
+        stepsGradient.addColorStop(0, 'rgba(34, 197, 94, 0.5)');
+        stepsGradient.addColorStop(1, 'rgba(34, 197, 94, 0)');
+
+        new Chart(stepsCtx, {
+            type: 'line',
+            data: {
+                labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                datasets: [{
+                    label: 'Steps',
+                    data: [7234, 8921, 6543, 9876, 10234, 8432, 8432],
+                    borderColor: '#22c55e',
+                    backgroundColor: stepsGradient,
+                    fill: true,
+                    tension: 0.4,
+                    borderWidth: 3,
+                    pointBackgroundColor: '#22c55e',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 5,
+                    pointHoverRadius: 7
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(0,0,0,0.8)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        padding: 12,
+                        displayColors: false,
+                        callbacks: {
+                            label: (context) => `${context.parsed.y.toLocaleString()} steps`
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: { color: '#9ca3af' }
+                    },
+                    y: {
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: {
+                            color: '#9ca3af',
+                            callback: (value) => value >= 1000 ? (value / 1000) + 'k' : value
+                        },
+                        min: 0,
+                        max: 12000
+                    }
+                }
+            }
+        });
+
+        // Calories Chart
+        const caloriesCtx = document.getElementById('caloriesChart').getContext('2d');
+        new Chart(caloriesCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                datasets: [{
+                    label: 'Calories',
+                    data: [1920, 2340, 1780, 2450, 2180, 1650, 1847],
+                    backgroundColor: (context) => {
+                        const gradient = context.chart.ctx.createLinearGradient(0, 0, 0, 100);
+                        gradient.addColorStop(0, '#fb923c');
+                        gradient.addColorStop(1, '#ef4444');
+                        return gradient;
+                    },
+                    borderRadius: 6,
+                    borderSkipped: false,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(0,0,0,0.8)',
+                        padding: 10,
+                        displayColors: false,
+                        callbacks: {
+                            label: (context) => `${context.parsed.y.toLocaleString()} kcal`
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#9ca3af', font: { size: 10 } }
+                    },
+                    y: {
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: {
+                            color: '#9ca3af',
+                            font: { size: 10 },
+                            callback: (value) => value >= 1000 ? (value / 1000) + 'k' : value
+                        },
+                        min: 0,
+                        max: 3000
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>
