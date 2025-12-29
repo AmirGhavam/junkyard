@@ -1,0 +1,1509 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fitness Tracker — Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        /* Crisp canvas on high-DPI */
+        canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Subtle scrollbars */
+        .nice-scroll::-webkit-scrollbar {
+            height: 10px;
+            width: 10px;
+        }
+
+        .nice-scroll::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, .45);
+            border-radius: 999px;
+        }
+
+        .nice-scroll::-webkit-scrollbar-track {
+            background: rgba(148, 163, 184, .12);
+            border-radius: 999px;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-950 text-slate-100 selection:bg-sky-400/30 selection:text-slate-50">
+    <div class="min-h-dvh">
+        <!-- Top bar -->
+        <header class="sticky top-0 z-40 border-b border-white/10 bg-slate-950/70 backdrop-blur">
+            <div class="mx-auto max-w-6xl px-4 py-4">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-sky-400 to-violet-500 text-slate-950 shadow-sm">
+                            <span class="font-black">FT</span>
+                        </div>
+                        <div>
+                            <h1 class="text-lg font-semibold leading-tight">Fitness Tracker</h1>
+                            <p class="text-sm text-slate-300" id="subhead">Weekly overview • Sample data</p>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button id="btnReset"
+                            class="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-slate-100 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-sky-400">
+                            Reset sample data
+                        </button>
+                        <button id="btnExport"
+                            class="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-slate-100 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-sky-400">
+                            Export JSON
+                        </button>
+                        <button id="btnTheme"
+                            class="rounded-xl bg-gradient-to-r from-sky-400 to-violet-500 px-3 py-2 text-sm font-semibold text-slate-950 hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                            aria-pressed="false" title="Toggle light/dark">
+                            Toggle theme
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tabs -->
+                <nav class="mt-4">
+                    <div class="inline-flex rounded-2xl border border-white/10 bg-white/5 p-1" role="tablist"
+                        aria-label="Sections">
+                        <button
+                            class="tab-btn rounded-xl px-4 py-2 text-sm font-semibold text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                            data-tab="dashboard" role="tab" aria-selected="true">Dashboard</button>
+                        <button
+                            class="tab-btn rounded-xl px-4 py-2 text-sm font-semibold text-slate-300 hover:text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                            data-tab="workouts" role="tab" aria-selected="false">Workouts</button>
+                    </div>
+                </nav>
+            </div>
+        </header>
+
+        <main class="mx-auto max-w-6xl px-4 py-6">
+            <!-- DASHBOARD -->
+            <section id="tab-dashboard" class="tab-panel">
+                <!-- Metric cards -->
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <p class="text-xs font-semibold uppercase tracking-wider text-slate-300">Steps (7d)</p>
+                                <p class="mt-1 text-2xl font-bold" id="statSteps">—</p>
+                                <p class="mt-1 text-sm text-slate-300" id="statStepsSub">—</p>
+                            </div>
+                            <div class="rounded-xl bg-sky-400/15 p-2 text-sky-300">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <path d="M10 20v-6" />
+                                    <path d="M14 20v-10" />
+                                    <path d="M18 20V4" />
+                                    <path d="M6 20v-4" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <p class="text-xs font-semibold uppercase tracking-wider text-slate-300">Calories burned
+                                    (7d)</p>
+                                <p class="mt-1 text-2xl font-bold" id="statCalories">—</p>
+                                <p class="mt-1 text-sm text-slate-300" id="statCaloriesSub">—</p>
+                            </div>
+                            <div class="rounded-xl bg-violet-400/15 p-2 text-violet-300">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <path
+                                        d="M12 2c.8 3-1 4-1 6 0 1.5 1.2 2.5 2.6 3.1 1.7.7 3.4 1.9 3.4 4.3A5 5 0 0 1 7 16c0-2.2 1.6-3.5 3.2-4.2C11.7 11.2 13 10.4 13 9c0-2-1-2.6-1-7z" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <p class="text-xs font-semibold uppercase tracking-wider text-slate-300">Workout time
+                                    (7d)</p>
+                                <p class="mt-1 text-2xl font-bold" id="statWorkout">—</p>
+                                <p class="mt-1 text-sm text-slate-300" id="statWorkoutSub">—</p>
+                            </div>
+                            <div class="rounded-xl bg-emerald-400/15 p-2 text-emerald-300">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <path d="M4 14h4l2-3 3 6 2-4h4" />
+                                    <path d="M22 12c0 5.5-4.5 10-10 10S2 17.5 2 12 6.5 2 12 2s10 4.5 10 10Z" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <p class="text-xs font-semibold uppercase tracking-wider text-slate-300">Heart rate
+                                    (avg)</p>
+                                <p class="mt-1 text-2xl font-bold" id="statHR">—</p>
+                                <p class="mt-1 text-sm text-slate-300" id="statHRSub">—</p>
+                            </div>
+                            <div class="rounded-xl bg-rose-400/15 p-2 text-rose-300">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <path
+                                        d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.4 0-2.7.5-3.7 1.4L12 5.1l-.8-.7A5.8 5.8 0 0 0 7.5 3 5.5 5.5 0 0 0 2 8.5C2 10.8 3.5 12.5 5 14l7 7Z" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts row -->
+                <div class="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+                    <!-- Steps chart -->
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4 lg:col-span-2">
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <h2 class="text-base font-semibold">Steps (last 7 days)</h2>
+                                <p class="text-sm text-slate-300">Goal line + trend</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs text-slate-300">Goal:</span>
+                                <input id="stepGoal" type="number" min="1000" step="500"
+                                    class="w-24 rounded-xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-400" />
+                                <button id="btnApplyGoal"
+                                    class="rounded-xl bg-white/10 px-3 py-2 text-sm font-semibold hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-sky-400">Apply</button>
+                            </div>
+                        </div>
+                        <div class="mt-3 h-64">
+                            <canvas id="stepsCanvas"></canvas>
+                        </div>
+                        <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                            <div class="rounded-xl border border-white/10 bg-slate-950/30 p-3">
+                                <p class="text-xs font-semibold uppercase tracking-wider text-slate-300">Today</p>
+                                <div class="mt-1 flex items-end justify-between gap-2">
+                                    <p class="text-lg font-bold" id="todaySteps">—</p>
+                                    <p class="text-xs text-slate-300" id="todayStepsPct">—</p>
+                                </div>
+                                <div class="mt-2 flex gap-2">
+                                    <input id="todayStepsInput" type="number" min="0" step="100"
+                                        class="w-full rounded-xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                                        placeholder="Log steps" />
+                                    <button id="btnLogSteps"
+                                        class="shrink-0 rounded-xl bg-sky-400 px-3 py-2 text-sm font-semibold text-slate-950 hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-sky-400">Save</button>
+                                </div>
+                            </div>
+
+                            <div class="rounded-xl border border-white/10 bg-slate-950/30 p-3">
+                                <p class="text-xs font-semibold uppercase tracking-wider text-slate-300">Calories
+                                    (today)</p>
+                                <p class="mt-1 text-lg font-bold" id="todayCalories">—</p>
+                                <p class="mt-1 text-xs text-slate-300" id="todayCaloriesSub">Steps + workouts</p>
+                                <div class="mt-2 h-9">
+                                    <canvas id="calCanvas"></canvas>
+                                </div>
+                            </div>
+
+                            <div class="rounded-xl border border-white/10 bg-slate-950/30 p-3">
+                                <p class="text-xs font-semibold uppercase tracking-wider text-slate-300">Quick HR log
+                                </p>
+                                <div class="mt-1 flex items-end justify-between gap-2">
+                                    <p class="text-lg font-bold" id="todayHR">—</p>
+                                    <p class="text-xs text-slate-300" id="todayHRNote">avg bpm</p>
+                                </div>
+                                <div class="mt-2 flex gap-2">
+                                    <input id="todayHRInput" type="number" min="40" max="220" step="1"
+                                        class="w-full rounded-xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                                        placeholder="e.g. 72" />
+                                    <button id="btnLogHR"
+                                        class="shrink-0 rounded-xl bg-rose-400 px-3 py-2 text-sm font-semibold text-slate-950 hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-rose-300">Save</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- HR zones -->
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <div class="flex items-center justify-between gap-3">
+                            <div>
+                                <h2 class="text-base font-semibold">Heart rate zones</h2>
+                                <p class="text-sm text-slate-300">Minutes this week</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-xs text-slate-300">Total</p>
+                                <p class="text-sm font-semibold" id="zonesTotal">—</p>
+                            </div>
+                        </div>
+                        <div class="mt-3 grid grid-cols-1 gap-3">
+                            <div class="h-52 rounded-xl border border-white/10 bg-slate-950/30 p-3">
+                                <canvas id="zonesCanvas"></canvas>
+                            </div>
+
+                            <div class="space-y-2" id="zonesLegend"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Weekly progress -->
+                <div class="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4 lg:col-span-2">
+                        <div class="flex items-center justify-between gap-3">
+                            <div>
+                                <h2 class="text-base font-semibold">Weekly progress (last 4 weeks)</h2>
+                                <p class="text-sm text-slate-300">Steps vs goal • consistency</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-xs text-slate-300">Streak</p>
+                                <p class="text-sm font-semibold" id="streak">—</p>
+                            </div>
+                        </div>
+                        <div class="mt-3 h-56">
+                            <canvas id="weeklyCanvas"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <h2 class="text-base font-semibold">Highlights</h2>
+                        <p class="text-sm text-slate-300">Automated insights from your week</p>
+                        <div class="mt-3 space-y-3" id="insights"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- WORKOUTS -->
+            <section id="tab-workouts" class="tab-panel hidden">
+                <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4 lg:col-span-2">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <h2 class="text-base font-semibold">Workout history</h2>
+                                <p class="text-sm text-slate-300">Filter, scan, and add new workouts</p>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <input id="searchWorkouts" type="search" placeholder="Search (e.g. run, yoga, notes)"
+                                    class="w-72 max-w-full rounded-xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-400" />
+                                <select id="filterType"
+                                    class="rounded-xl border border-white/10 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-400">
+                                    <option value="all">All types</option>
+                                </select>
+                                <button id="btnAddWorkout"
+                                    class="rounded-xl bg-emerald-400 px-3 py-2 text-sm font-semibold text-slate-950 hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-emerald-300">
+                                    Add workout
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mt-3 overflow-hidden rounded-2xl border border-white/10">
+                            <div class="nice-scroll max-h-[520px] overflow-auto">
+                                <table class="min-w-full divide-y divide-white/10">
+                                    <thead class="bg-white/5">
+                                        <tr
+                                            class="text-left text-xs font-semibold uppercase tracking-wider text-slate-300">
+                                            <th class="px-4 py-3">Date</th>
+                                            <th class="px-4 py-3">Type</th>
+                                            <th class="px-4 py-3">Duration</th>
+                                            <th class="px-4 py-3">Calories</th>
+                                            <th class="px-4 py-3">Avg HR</th>
+                                            <th class="px-4 py-3">Notes</th>
+                                            <th class="px-4 py-3"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="workoutRows" class="divide-y divide-white/10 bg-slate-950/10"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <h2 class="text-base font-semibold">This week summary</h2>
+                        <p class="text-sm text-slate-300">Workouts + training load</p>
+
+                        <div class="mt-3 grid grid-cols-2 gap-3">
+                            <div class="rounded-xl border border-white/10 bg-slate-950/30 p-3">
+                                <p class="text-xs font-semibold uppercase tracking-wider text-slate-300">Workouts</p>
+                                <p class="mt-1 text-lg font-bold" id="wkWorkouts">—</p>
+                            </div>
+                            <div class="rounded-xl border border-white/10 bg-slate-950/30 p-3">
+                                <p class="text-xs font-semibold uppercase tracking-wider text-slate-300">Calories</p>
+                                <p class="mt-1 text-lg font-bold" id="wkWorkoutCals">—</p>
+                            </div>
+                            <div class="rounded-xl border border-white/10 bg-slate-950/30 p-3">
+                                <p class="text-xs font-semibold uppercase tracking-wider text-slate-300">Minutes</p>
+                                <p class="mt-1 text-lg font-bold" id="wkWorkoutMins">—</p>
+                            </div>
+                            <div class="rounded-xl border border-white/10 bg-slate-950/30 p-3">
+                                <p class="text-xs font-semibold uppercase tracking-wider text-slate-300">Avg HR</p>
+                                <p class="mt-1 text-lg font-bold" id="wkWorkoutHR">—</p>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 rounded-2xl border border-white/10 bg-slate-950/30 p-4">
+                            <div class="flex items-center justify-between">
+                                <p class="text-sm font-semibold">Intensity split</p>
+                                <p class="text-xs text-slate-300">(based on workout avg HR)</p>
+                            </div>
+                            <div class="mt-3 space-y-2" id="intensitySplit"></div>
+                        </div>
+
+                        <div class="mt-4 rounded-2xl border border-white/10 bg-slate-950/30 p-4">
+                            <div class="flex items-center justify-between">
+                                <p class="text-sm font-semibold">Top workout</p>
+                                <p class="text-xs text-slate-300">by calories</p>
+                            </div>
+                            <div class="mt-3" id="topWorkout"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Add workout modal -->
+    <div id="modal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-black/70"></div>
+        <div class="absolute inset-0 grid place-items-center p-4">
+            <div class="w-full max-w-lg rounded-2xl border border-white/10 bg-slate-950 p-5 shadow-2xl">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h3 class="text-lg font-semibold">Add workout</h3>
+                        <p class="text-sm text-slate-300">Saved locally in your browser</p>
+                    </div>
+                    <button id="btnCloseModal"
+                        class="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-sky-400">Close</button>
+                </div>
+
+                <form id="workoutForm" class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <label class="block">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-300">Date</span>
+                        <input name="date" type="date" required
+                            class="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-400" />
+                    </label>
+                    <label class="block">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-300">Type</span>
+                        <select name="type" required
+                            class="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-400">
+                            <option>Run</option>
+                            <option>Walk</option>
+                            <option>Strength</option>
+                            <option>Cycling</option>
+                            <option>Yoga</option>
+                            <option>HIIT</option>
+                            <option>Swim</option>
+                            <option>Other</option>
+                        </select>
+                    </label>
+                    <label class="block">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-300">Duration
+                            (min)</span>
+                        <input name="minutes" type="number" min="1" step="1" required
+                            class="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                            placeholder="45" />
+                    </label>
+                    <label class="block">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-300">Calories</span>
+                        <input name="calories" type="number" min="0" step="1" required
+                            class="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                            placeholder="350" />
+                    </label>
+                    <label class="block">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-300">Avg HR (bpm)</span>
+                        <input name="avgHr" type="number" min="40" max="220" step="1"
+                            class="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                            placeholder="145" />
+                    </label>
+                    <label class="block sm:col-span-2">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-300">Notes</span>
+                        <input name="notes" type="text"
+                            class="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                            placeholder="Intervals felt strong" />
+                    </label>
+                    <div class="sm:col-span-2 flex items-center justify-end gap-2 pt-1">
+                        <button type="button" id="btnPrefill"
+                            class="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-sky-400">Prefill
+                            example</button>
+                        <button type="submit"
+                            class="rounded-xl bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-emerald-300">Save
+                            workout</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="pointer-events-none fixed bottom-4 left-1/2 z-50 hidden -translate-x-1/2">
+        <div
+            class="rounded-2xl border border-white/10 bg-slate-950/90 px-4 py-3 text-sm text-slate-100 shadow-xl backdrop-blur">
+            <span id="toastMsg">Saved</span>
+        </div>
+    </div>
+
+    <script>
+        // ---------------------------
+        // Data model + storage
+        // ---------------------------
+        const STORAGE_KEY = 'fitness_tracker_v1';
+
+        function isoDate(d) {
+            const pad = (n) => String(n).padStart(2, '0');
+            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        }
+
+        function startOfDay(d) {
+            const x = new Date(d);
+            x.setHours(0, 0, 0, 0);
+            return x;
+        }
+
+        function addDays(d, n) {
+            const x = new Date(d);
+            x.setDate(x.getDate() + n);
+            return x;
+        }
+
+        function fmtNum(n) {
+            return new Intl.NumberFormat(undefined).format(Math.round(n));
+        }
+
+        function fmtMinutes(mins) {
+            const h = Math.floor(mins / 60);
+            const m = Math.round(mins % 60);
+            if (h <= 0) return `${m}m`;
+            return `${h}h ${m}m`;
+        }
+
+        function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+        function deepCopy(x) { return JSON.parse(JSON.stringify(x)); }
+
+        function makeSampleData() {
+            // Anchor sample dates to the current week for a "fresh" feel
+            const today = startOfDay(new Date());
+            const dow = (today.getDay() + 6) % 7; // Mon=0
+            const monday = addDays(today, -dow);
+
+            const days = Array.from({ length: 7 }, (_, i) => {
+                const date = addDays(monday, i);
+                const steps = [8450, 10220, 11980, 7600, 13440, 15890, 9800][i];
+                const avgHr = [71, 74, 76, 70, 79, 82, 75][i];
+                return {
+                    date: isoDate(date),
+                    steps,
+                    avgHr,
+                    // calories from steps ~0.04 kcal per step, mildly varied
+                    calSteps: Math.round(steps * (0.038 + (i % 3) * 0.002)),
+                };
+            });
+
+            // Sample workouts across the last 14 days
+            const workouts = [
+                { id: crypto.randomUUID(), date: isoDate(addDays(today, -1)), type: 'Strength', minutes: 50, calories: 320, avgHr: 132, notes: 'Upper body + core' },
+                { id: crypto.randomUUID(), date: isoDate(addDays(today, -2)), type: 'Run', minutes: 38, calories: 410, avgHr: 156, notes: 'Tempo: 3×8 min' },
+                { id: crypto.randomUUID(), date: isoDate(addDays(today, -4)), type: 'Yoga', minutes: 35, calories: 120, avgHr: 98, notes: 'Mobility + breathwork' },
+                { id: crypto.randomUUID(), date: isoDate(addDays(today, -6)), type: 'Cycling', minutes: 55, calories: 520, avgHr: 148, notes: 'Rolling hills' },
+                { id: crypto.randomUUID(), date: isoDate(addDays(today, -8)), type: 'Walk', minutes: 45, calories: 180, avgHr: 112, notes: 'Easy recovery walk' },
+                { id: crypto.randomUUID(), date: isoDate(addDays(today, -10)), type: 'HIIT', minutes: 22, calories: 260, avgHr: 168, notes: 'EMOM + sprints' },
+                { id: crypto.randomUUID(), date: isoDate(addDays(today, -12)), type: 'Swim', minutes: 30, calories: 240, avgHr: 140, notes: 'Technique + steady' },
+            ];
+
+            // Weekly totals for last 4 weeks (ending with current week)
+            const stepGoal = 10000;
+            const weekGoal = stepGoal * 7;
+            const currentWeekSteps = days.reduce((s, d) => s + d.steps, 0);
+            const weeks = [
+                { label: 'W-3', steps: Math.round(weekGoal * 0.86) },
+                { label: 'W-2', steps: Math.round(weekGoal * 0.93) },
+                { label: 'W-1', steps: Math.round(weekGoal * 1.05) },
+                { label: 'This', steps: currentWeekSteps },
+            ];
+
+            // Heart rate zones (minutes) for the current week
+            const zones = [
+                { key: 'recovery', name: 'Recovery', bpm: '≤ 120', minutes: 105, color: '#22c55e' },
+                { key: 'fatburn', name: 'Fat burn', bpm: '121–140', minutes: 145, color: '#06b6d4' },
+                { key: 'cardio', name: 'Cardio', bpm: '141–160', minutes: 95, color: '#a78bfa' },
+                { key: 'peak', name: 'Peak', bpm: '≥ 161', minutes: 28, color: '#fb7185' },
+            ];
+
+            return {
+                meta: { version: 1, createdAt: new Date().toISOString() },
+                profile: { name: 'Alex', stepGoal },
+                days,
+                weeks,
+                zones,
+                workouts,
+            };
+        }
+
+        function loadState() {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (!raw) return makeSampleData();
+            try {
+                const parsed = JSON.parse(raw);
+                // very light schema guard
+                if (!parsed || !parsed.profile || !Array.isArray(parsed.days) || !Array.isArray(parsed.workouts)) {
+                    return makeSampleData();
+                }
+                return parsed;
+            } catch {
+                return makeSampleData();
+            }
+        }
+
+        function saveState() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        }
+
+        let state = loadState();
+
+        // ---------------------------
+        // UI helpers
+        // ---------------------------
+        function $(sel) { return document.querySelector(sel); }
+        function $all(sel) { return Array.from(document.querySelectorAll(sel)); }
+
+        function showToast(msg) {
+            const el = $('#toast');
+            $('#toastMsg').textContent = msg;
+            el.classList.remove('hidden');
+            clearTimeout(showToast._t);
+            showToast._t = setTimeout(() => el.classList.add('hidden'), 2200);
+        }
+
+        function setTheme(mode) {
+            // mode: 'dark' | 'light'
+            const isLight = mode === 'light';
+            document.body.classList.toggle('bg-slate-950', !isLight);
+            document.body.classList.toggle('text-slate-100', !isLight);
+            document.body.classList.toggle('bg-slate-50', isLight);
+            document.body.classList.toggle('text-slate-900', isLight);
+
+            // Light theme tweaks via CSS variables-ish class toggles
+            document.documentElement.dataset.theme = mode;
+            $('#btnTheme').setAttribute('aria-pressed', String(isLight));
+            $('#btnTheme').textContent = isLight ? 'Toggle dark' : 'Toggle light';
+
+            // Apply subtle background classes to key containers
+            // (Using inline style changes would be too brittle; keep simple.)
+            const lightCards = isLight ? 'bg-white' : 'bg-white/5';
+            // We keep existing classes; instead, adjust overall background with extra utility using style.
+            document.body.style.background = isLight ? '#f8fafc' : '';
+        }
+
+        // Remember theme
+        const themeKey = 'fitness_tracker_theme';
+        setTheme(localStorage.getItem(themeKey) || 'dark');
+
+        // ---------------------------
+        // Derived metrics
+        // ---------------------------
+        function getTodayIso() {
+            return isoDate(startOfDay(new Date()));
+        }
+
+        function getWeekRange(days) {
+            const first = days[0]?.date;
+            const last = days[days.length - 1]?.date;
+            return { first, last };
+        }
+
+        function weekTotals() {
+            const totalSteps = state.days.reduce((s, d) => s + (d.steps || 0), 0);
+            const totalCalSteps = state.days.reduce((s, d) => s + (d.calSteps || 0), 0);
+            const avgHr = Math.round(state.days.reduce((s, d) => s + (d.avgHr || 0), 0) / Math.max(1, state.days.length));
+            const totalGoal = state.profile.stepGoal * state.days.length;
+            return { totalSteps, totalCalSteps, avgHr, totalGoal };
+        }
+
+        function workoutsInLast7Days() {
+            const { first, last } = getWeekRange(state.days);
+            return state.workouts.filter(w => w.date >= first && w.date <= last);
+        }
+
+        function workoutTotals7d() {
+            const ws = workoutsInLast7Days();
+            const count = ws.length;
+            const minutes = ws.reduce((s, w) => s + (Number(w.minutes) || 0), 0);
+            const calories = ws.reduce((s, w) => s + (Number(w.calories) || 0), 0);
+            const hrValues = ws.map(w => Number(w.avgHr)).filter(Boolean);
+            const avgHr = hrValues.length ? Math.round(hrValues.reduce((a, b) => a + b, 0) / hrValues.length) : null;
+            return { count, minutes, calories, avgHr };
+        }
+
+        function totalCalories7d() {
+            const stepsCals = weekTotals().totalCalSteps;
+            const workoutCals = workoutTotals7d().calories;
+            return { stepsCals, workoutCals, total: stepsCals + workoutCals };
+        }
+
+        function getTodayEntry() {
+            const t = getTodayIso();
+            let entry = state.days.find(d => d.date === t);
+            if (!entry) {
+                // If the saved sample is out of week, patch: set last entry to today.
+                entry = state.days[state.days.length - 1];
+            }
+            return entry;
+        }
+
+        // ---------------------------
+        // Canvas utilities
+        // ---------------------------
+        function setupCanvas(canvas) {
+            const rect = canvas.getBoundingClientRect();
+            const dpr = Math.max(1, Math.min(2.5, window.devicePixelRatio || 1));
+            const w = Math.max(1, Math.floor(rect.width * dpr));
+            const h = Math.max(1, Math.floor(rect.height * dpr));
+            if (canvas.width !== w || canvas.height !== h) {
+                canvas.width = w;
+                canvas.height = h;
+            }
+            const ctx = canvas.getContext('2d');
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            return { ctx, w: rect.width, h: rect.height, dpr };
+        }
+
+        function clear(ctx, w, h) {
+            ctx.clearRect(0, 0, w, h);
+        }
+
+        function getThemeColors() {
+            const isLight = document.documentElement.dataset.theme === 'light';
+            return {
+                isLight,
+                bg: isLight ? '#ffffff' : 'rgba(2,6,23,0.0)',
+                grid: isLight ? 'rgba(15,23,42,0.12)' : 'rgba(148,163,184,0.18)',
+                text: isLight ? 'rgba(15,23,42,0.72)' : 'rgba(226,232,240,0.75)',
+                textStrong: isLight ? 'rgba(15,23,42,0.9)' : 'rgba(241,245,249,0.92)',
+            };
+        }
+
+        // ---------------------------
+        // Charts
+        // ---------------------------
+        function drawStepsChart() {
+            const canvas = $('#stepsCanvas');
+            const { ctx, w, h } = setupCanvas(canvas);
+            const { grid, text, textStrong, isLight } = getThemeColors();
+            clear(ctx, w, h);
+
+            const pad = { l: 44, r: 18, t: 14, b: 30 };
+            const iw = w - pad.l - pad.r;
+            const ih = h - pad.t - pad.b;
+
+            const data = state.days;
+            const maxSteps = Math.max(state.profile.stepGoal, ...data.map(d => d.steps)) * 1.15;
+            const minSteps = 0;
+
+            // gridlines
+            ctx.strokeStyle = grid;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            const lines = 4;
+            for (let i = 0; i <= lines; i++) {
+                const y = pad.t + (ih * i) / lines;
+                ctx.moveTo(pad.l, y);
+                ctx.lineTo(pad.l + iw, y);
+            }
+            ctx.stroke();
+
+            // y-axis labels
+            ctx.fillStyle = text;
+            ctx.font = '12px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            for (let i = 0; i <= lines; i++) {
+                const v = maxSteps - ((maxSteps - minSteps) * i) / lines;
+                const y = pad.t + (ih * i) / lines;
+                ctx.fillText(fmtNum(v), pad.l - 8, y);
+            }
+
+            // X labels
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            const x = (i) => pad.l + (iw * i) / (data.length - 1);
+            const y = (steps) => pad.t + ih - ((steps - minSteps) / (maxSteps - minSteps)) * ih;
+
+            const weekday = (iso) => {
+                const d = new Date(iso + 'T00:00:00');
+                return d.toLocaleDateString(undefined, { weekday: 'short' });
+            };
+
+            for (let i = 0; i < data.length; i++) {
+                ctx.fillStyle = text;
+                ctx.fillText(weekday(data[i].date), x(i), pad.t + ih + 8);
+            }
+
+            // Goal line
+            const gy = y(state.profile.stepGoal);
+            ctx.strokeStyle = isLight ? 'rgba(14,165,233,0.45)' : 'rgba(56,189,248,0.35)';
+            ctx.setLineDash([6, 6]);
+            ctx.beginPath();
+            ctx.moveTo(pad.l, gy);
+            ctx.lineTo(pad.l + iw, gy);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = isLight ? 'rgba(14,165,233,0.85)' : 'rgba(125,211,252,0.9)';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(`Goal ${fmtNum(state.profile.stepGoal)}`, pad.l + 6, gy - 4);
+
+            // Line + area
+            const grad = ctx.createLinearGradient(0, pad.t, 0, pad.t + ih);
+            grad.addColorStop(0, isLight ? 'rgba(14,165,233,0.35)' : 'rgba(56,189,248,0.22)');
+            grad.addColorStop(1, isLight ? 'rgba(14,165,233,0.04)' : 'rgba(56,189,248,0.02)');
+
+            ctx.beginPath();
+            for (let i = 0; i < data.length; i++) {
+                const px = x(i);
+                const py = y(data[i].steps);
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            // fill area
+            ctx.lineTo(x(data.length - 1), pad.t + ih);
+            ctx.lineTo(x(0), pad.t + ih);
+            ctx.closePath();
+            ctx.fillStyle = grad;
+            ctx.fill();
+
+            // stroke line
+            ctx.beginPath();
+            for (let i = 0; i < data.length; i++) {
+                const px = x(i);
+                const py = y(data[i].steps);
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.strokeStyle = isLight ? 'rgba(14,165,233,0.95)' : 'rgba(56,189,248,0.95)';
+            ctx.lineWidth = 2.25;
+            ctx.stroke();
+
+            // points
+            for (let i = 0; i < data.length; i++) {
+                const px = x(i);
+                const py = y(data[i].steps);
+                ctx.fillStyle = isLight ? '#0ea5e9' : '#38bdf8';
+                ctx.beginPath();
+                ctx.arc(px, py, 3.6, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = isLight ? 'rgba(255,255,255,0.9)' : 'rgba(2,6,23,0.75)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+
+            // title overlay (optional)
+            const last = data[data.length - 1];
+            ctx.fillStyle = textStrong;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.font = '600 13px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto';
+            ctx.fillText(`Today: ${fmtNum(last.steps)} steps`, pad.l, pad.t);
+        }
+
+        function drawWeeklyProgress() {
+            const canvas = $('#weeklyCanvas');
+            const { ctx, w, h } = setupCanvas(canvas);
+            const { grid, text, textStrong, isLight } = getThemeColors();
+            clear(ctx, w, h);
+
+            const pad = { l: 38, r: 18, t: 14, b: 30 };
+            const iw = w - pad.l - pad.r;
+            const ih = h - pad.t - pad.b;
+
+            const weeks = state.weeks;
+            const weekGoal = state.profile.stepGoal * 7;
+            const maxVal = Math.max(weekGoal, ...weeks.map(w => w.steps)) * 1.15;
+
+            // grid
+            ctx.strokeStyle = grid;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            const lines = 4;
+            for (let i = 0; i <= lines; i++) {
+                const y = pad.t + (ih * i) / lines;
+                ctx.moveTo(pad.l, y);
+                ctx.lineTo(pad.l + iw, y);
+            }
+            ctx.stroke();
+
+            const y = (v) => pad.t + ih - (v / maxVal) * ih;
+
+            // goal line
+            ctx.strokeStyle = isLight ? 'rgba(167,139,250,0.45)' : 'rgba(167,139,250,0.35)';
+            ctx.setLineDash([6, 6]);
+            ctx.beginPath();
+            ctx.moveTo(pad.l, y(weekGoal));
+            ctx.lineTo(pad.l + iw, y(weekGoal));
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.fillStyle = isLight ? 'rgba(109,40,217,0.85)' : 'rgba(216,180,254,0.9)';
+            ctx.font = '12px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(`Weekly goal ${fmtNum(weekGoal)}`, pad.l + 6, y(weekGoal) - 4);
+
+            const barGap = 16;
+            const barW = (iw - barGap * (weeks.length - 1)) / weeks.length;
+            const x0 = pad.l;
+
+            // bars
+            for (let i = 0; i < weeks.length; i++) {
+                const wk = weeks[i];
+                const bx = x0 + i * (barW + barGap);
+                const by = y(wk.steps);
+                const bh = pad.t + ih - by;
+                const pct = wk.steps / weekGoal;
+
+                const base = isLight ? 'rgba(2,6,23,0.12)' : 'rgba(255,255,255,0.08)';
+                ctx.fillStyle = base;
+                roundRect(ctx, bx, pad.t, barW, ih, 12);
+                ctx.fill();
+
+                const color = pct >= 1
+                    ? (isLight ? 'rgba(34,197,94,0.95)' : 'rgba(34,197,94,0.85)')
+                    : (isLight ? 'rgba(56,189,248,0.95)' : 'rgba(56,189,248,0.8)');
+                const g = ctx.createLinearGradient(0, by, 0, pad.t + ih);
+                g.addColorStop(0, color);
+                g.addColorStop(1, isLight ? 'rgba(56,189,248,0.12)' : 'rgba(56,189,248,0.10)');
+
+                ctx.fillStyle = g;
+                roundRect(ctx, bx, by, barW, bh, 12);
+                ctx.fill();
+
+                // labels
+                ctx.fillStyle = textStrong;
+                ctx.font = '600 12px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'top';
+                ctx.fillText(wk.label, bx + barW / 2, pad.t + ih + 8);
+
+                ctx.fillStyle = text;
+                ctx.textBaseline = 'bottom';
+                ctx.fillText(`${Math.round(pct * 100)}%`, bx + barW / 2, by - 6);
+            }
+        }
+
+        function roundRect(ctx, x, y, w, h, r) {
+            const rr = Math.min(r, w / 2, h / 2);
+            ctx.beginPath();
+            ctx.moveTo(x + rr, y);
+            ctx.arcTo(x + w, y, x + w, y + h, rr);
+            ctx.arcTo(x + w, y + h, x, y + h, rr);
+            ctx.arcTo(x, y + h, x, y, rr);
+            ctx.arcTo(x, y, x + w, y, rr);
+            ctx.closePath();
+        }
+
+        function drawZonesDonut() {
+            const canvas = $('#zonesCanvas');
+            const { ctx, w, h } = setupCanvas(canvas);
+            const { text, textStrong, isLight } = getThemeColors();
+            clear(ctx, w, h);
+
+            const zones = state.zones;
+            const total = zones.reduce((s, z) => s + z.minutes, 0) || 1;
+            const cx = w / 2;
+            const cy = h / 2;
+            const r = Math.min(w, h) * 0.36;
+            const thickness = Math.max(14, r * 0.32);
+
+            // track
+            ctx.beginPath();
+            ctx.strokeStyle = isLight ? 'rgba(2,6,23,0.08)' : 'rgba(255,255,255,0.08)';
+            ctx.lineWidth = thickness;
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.stroke();
+
+            let a = -Math.PI / 2;
+            for (const z of zones) {
+                const frac = z.minutes / total;
+                const da = frac * Math.PI * 2;
+                ctx.beginPath();
+                ctx.strokeStyle = z.color;
+                ctx.lineWidth = thickness;
+                ctx.lineCap = 'round';
+                ctx.arc(cx, cy, r, a, a + da);
+                ctx.stroke();
+                a += da;
+            }
+
+            // center label
+            ctx.fillStyle = textStrong;
+            ctx.font = '700 18px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(fmtMinutes(total), cx, cy - 6);
+
+            ctx.fillStyle = text;
+            ctx.font = '12px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto';
+            ctx.fillText('in zones', cx, cy + 14);
+
+            $('#zonesTotal').textContent = fmtMinutes(total);
+
+            // legend
+            const legend = $('#zonesLegend');
+            legend.innerHTML = '';
+            for (const z of zones) {
+                const pct = Math.round((z.minutes / total) * 100);
+                const row = document.createElement('div');
+                row.className = 'rounded-xl border border-white/10 bg-slate-950/30 p-3';
+                row.innerHTML = `
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+              <span class="inline-block h-2.5 w-2.5 rounded-full" style="background:${z.color}"></span>
+              <div>
+                <p class="text-sm font-semibold">${z.name} <span class="text-xs font-medium text-slate-300">(${z.bpm})</span></p>
+                <p class="text-xs text-slate-300">${fmtMinutes(z.minutes)} • ${pct}%</p>
+              </div>
+            </div>
+            <div class="w-28">
+              <div class="h-2 w-full rounded-full bg-white/10">
+                <div class="h-2 rounded-full" style="width:${pct}%; background:${z.color}"></div>
+              </div>
+            </div>
+          </div>
+        `;
+                legend.appendChild(row);
+            }
+        }
+
+        function drawCaloriesMini() {
+            const canvas = $('#calCanvas');
+            const { ctx, w, h } = setupCanvas(canvas);
+            const { isLight } = getThemeColors();
+            clear(ctx, w, h);
+
+            const today = getTodayEntry();
+            const todayIso = getTodayIso();
+
+            const wkWorkouts = workoutsInLast7Days();
+            const workoutToday = wkWorkouts.filter(w => w.date === todayIso);
+            const calWorkoutToday = workoutToday.reduce((s, w) => s + (Number(w.calories) || 0), 0);
+
+            const calStepsToday = today.calSteps || 0;
+            const total = calStepsToday + calWorkoutToday;
+
+            const max = Math.max(400, total * 1.2);
+            const stepsW = (calStepsToday / max) * w;
+            const workoutW = (calWorkoutToday / max) * w;
+
+            // Track
+            roundRect(ctx, 0, 0, w, h, 10);
+            ctx.fillStyle = isLight ? 'rgba(2,6,23,0.08)' : 'rgba(255,255,255,0.08)';
+            ctx.fill();
+
+            // Steps
+            if (stepsW > 0) {
+                roundRect(ctx, 0, 0, stepsW, h, 10);
+                ctx.fillStyle = isLight ? 'rgba(56,189,248,0.95)' : 'rgba(56,189,248,0.85)';
+                ctx.fill();
+            }
+
+            // Workout overlay
+            if (workoutW > 0) {
+                roundRect(ctx, 0, 0, clamp(stepsW + workoutW, 0, w), h, 10);
+                const g = ctx.createLinearGradient(0, 0, w, 0);
+                g.addColorStop(0, isLight ? 'rgba(167,139,250,0.0)' : 'rgba(167,139,250,0.0)');
+                g.addColorStop(1, isLight ? 'rgba(167,139,250,0.95)' : 'rgba(167,139,250,0.85)');
+                ctx.fillStyle = g;
+                ctx.fill();
+            }
+        }
+
+        // ---------------------------
+        // Rendering
+        // ---------------------------
+        function renderHeader() {
+            const { first, last } = getWeekRange(state.days);
+            const d1 = new Date(first + 'T00:00:00');
+            const d2 = new Date(last + 'T00:00:00');
+            const range = `${d1.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}–${d2.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
+            $('#subhead').textContent = `${state.profile.name} • Week ${range} • Sample data`;
+        }
+
+        function renderStats() {
+            const wt = weekTotals();
+            const cals = totalCalories7d();
+            const wkt = workoutTotals7d();
+
+            $('#statSteps').textContent = fmtNum(wt.totalSteps);
+            $('#statStepsSub').textContent = `${fmtNum(Math.round(wt.totalSteps / 7))} avg/day • ${Math.round((wt.totalSteps / wt.totalGoal) * 100)}% of goal`;
+
+            $('#statCalories').textContent = fmtNum(cals.total);
+            $('#statCaloriesSub').textContent = `${fmtNum(cals.stepsCals)} steps + ${fmtNum(cals.workoutCals)} workouts`;
+
+            $('#statWorkout').textContent = fmtMinutes(wkt.minutes);
+            $('#statWorkoutSub').textContent = `${wkt.count} sessions • ${fmtNum(wkt.calories)} kcal`;
+
+            $('#statHR').textContent = `${wt.avgHr} bpm`;
+            $('#statHRSub').textContent = `Daily avg across the week`;
+
+            // Today
+            const today = getTodayEntry();
+            $('#todaySteps').textContent = fmtNum(today.steps);
+            const pct = Math.round((today.steps / state.profile.stepGoal) * 100);
+            $('#todayStepsPct').textContent = `${pct}% of goal`;
+
+            const todayIso = getTodayIso();
+            const ws = workoutsInLast7Days().filter(w => w.date === todayIso);
+            const calWorkoutToday = ws.reduce((s, w) => s + (Number(w.calories) || 0), 0);
+            const totalToday = (today.calSteps || 0) + calWorkoutToday;
+            $('#todayCalories').textContent = `${fmtNum(totalToday)} kcal`;
+            $('#todayCaloriesSub').textContent = `${fmtNum(today.calSteps || 0)} steps + ${fmtNum(calWorkoutToday)} workouts`;
+
+            $('#todayHR').textContent = `${today.avgHr || '—'} bpm`;
+
+            // Goal input
+            $('#stepGoal').value = state.profile.stepGoal;
+        }
+
+        function renderInsights() {
+            const wrap = $('#insights');
+            wrap.innerHTML = '';
+
+            const wt = weekTotals();
+            const wkt = workoutTotals7d();
+            const cals = totalCalories7d();
+            const bestDay = state.days.reduce((best, d) => (d.steps > (best?.steps ?? -1) ? d : best), null);
+            const worstDay = state.days.reduce((worst, d) => (d.steps < (worst?.steps ?? 1e18) ? d : worst), null);
+
+            const goalHitDays = state.days.filter(d => d.steps >= state.profile.stepGoal).length;
+            const consistency = Math.round((goalHitDays / state.days.length) * 100);
+
+            const items = [
+                {
+                    title: 'Best day',
+                    desc: `${new Date(bestDay.date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long' })} • ${fmtNum(bestDay.steps)} steps`,
+                    tone: 'sky'
+                },
+                {
+                    title: 'Consistency',
+                    desc: `${goalHitDays}/7 days hit your step goal • ${consistency}%`,
+                    tone: 'emerald'
+                },
+                {
+                    title: 'Training load',
+                    desc: `${wkt.count} workouts • ${fmtMinutes(wkt.minutes)} • ${fmtNum(wkt.calories)} kcal`,
+                    tone: 'violet'
+                },
+                {
+                    title: 'Lowest day',
+                    desc: `${new Date(worstDay.date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long' })} • ${fmtNum(worstDay.steps)} steps`,
+                    tone: 'rose'
+                },
+                {
+                    title: 'Calories burned',
+                    desc: `${fmtNum(cals.total)} total • ${Math.round((cals.workoutCals / Math.max(1, cals.total)) * 100)}% from workouts`,
+                    tone: 'amber'
+                },
+            ];
+
+            const toneMap = {
+                sky: 'border-sky-400/30 bg-sky-400/10 text-sky-200',
+                emerald: 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200',
+                violet: 'border-violet-400/30 bg-violet-400/10 text-violet-200',
+                rose: 'border-rose-400/30 bg-rose-400/10 text-rose-200',
+                amber: 'border-amber-400/30 bg-amber-400/10 text-amber-200',
+            };
+
+            for (const it of items) {
+                const card = document.createElement('div');
+                card.className = `rounded-2xl border p-3 ${toneMap[it.tone]}`;
+                card.innerHTML = `
+          <p class="text-sm font-semibold">${it.title}</p>
+          <p class="mt-1 text-sm text-slate-100/90">${it.desc}</p>
+        `;
+                wrap.appendChild(card);
+            }
+        }
+
+        function computeStreak() {
+            // streak of weeks (from end) meeting goal
+            const weekGoal = state.profile.stepGoal * 7;
+            let s = 0;
+            for (let i = state.weeks.length - 1; i >= 0; i--) {
+                if (state.weeks[i].steps >= weekGoal) s++;
+                else break;
+            }
+            return s;
+        }
+
+        function renderStreak() {
+            const s = computeStreak();
+            $('#streak').textContent = s ? `${s} week${s === 1 ? '' : 's'}` : '—';
+        }
+
+        function renderWorkouts() {
+            // Filter and list
+            const q = ($('#searchWorkouts').value || '').trim().toLowerCase();
+            const type = $('#filterType').value;
+
+            const sorted = [...state.workouts].sort((a, b) => (b.date + b.id).localeCompare(a.date + a.id));
+
+            const filtered = sorted.filter(w => {
+                const hay = `${w.date} ${w.type} ${w.notes || ''}`.toLowerCase();
+                const okQ = !q || hay.includes(q);
+                const okT = type === 'all' || (w.type || '').toLowerCase() === type;
+                return okQ && okT;
+            });
+
+            const tbody = $('#workoutRows');
+            tbody.innerHTML = '';
+
+            if (!filtered.length) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+          <td class="px-4 py-4 text-sm text-slate-300" colspan="7">No workouts match your filter.</td>
+        `;
+                tbody.appendChild(tr);
+            } else {
+                for (const w of filtered) {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-white/5';
+                    const d = new Date(w.date + 'T00:00:00');
+                    tr.innerHTML = `
+            <td class="px-4 py-3 text-sm font-medium">${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</td>
+            <td class="px-4 py-3 text-sm">${escapeHtml(w.type)}</td>
+            <td class="px-4 py-3 text-sm">${fmtMinutes(Number(w.minutes) || 0)}</td>
+            <td class="px-4 py-3 text-sm">${fmtNum(Number(w.calories) || 0)}</td>
+            <td class="px-4 py-3 text-sm">${w.avgHr ? `${fmtNum(Number(w.avgHr))} bpm` : '<span class="text-slate-400">—</span>'}</td>
+            <td class="px-4 py-3 text-sm text-slate-300">${w.notes ? escapeHtml(w.notes) : '<span class="text-slate-400">—</span>'}</td>
+            <td class="px-4 py-3 text-right">
+              <button class="btnDel rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-rose-300" data-id="${w.id}">Delete</button>
+            </td>
+          `;
+                    tbody.appendChild(tr);
+                }
+            }
+
+            // Week summary cards
+            const wkt = workoutTotals7d();
+            $('#wkWorkouts').textContent = fmtNum(wkt.count);
+            $('#wkWorkoutCals').textContent = `${fmtNum(wkt.calories)} kcal`;
+            $('#wkWorkoutMins').textContent = fmtMinutes(wkt.minutes);
+            $('#wkWorkoutHR').textContent = wkt.avgHr ? `${wkt.avgHr} bpm` : '—';
+
+            // Intensity split (by avg HR)
+            // Simple zones: <120 easy, 120-139 moderate, 140-159 hard, >=160 peak
+            const ws = workoutsInLast7Days();
+            const buckets = [
+                { name: 'Easy', range: '< 120', color: '#22c55e', count: 0 },
+                { name: 'Moderate', range: '120–139', color: '#06b6d4', count: 0 },
+                { name: 'Hard', range: '140–159', color: '#a78bfa', count: 0 },
+                { name: 'Peak', range: '≥ 160', color: '#fb7185', count: 0 },
+            ];
+            for (const w of ws) {
+                const hr = Number(w.avgHr);
+                if (!hr) continue;
+                if (hr < 120) buckets[0].count++;
+                else if (hr < 140) buckets[1].count++;
+                else if (hr < 160) buckets[2].count++;
+                else buckets[3].count++;
+            }
+            const total = Math.max(1, buckets.reduce((s, b) => s + b.count, 0));
+            const split = $('#intensitySplit');
+            split.innerHTML = '';
+            for (const b of buckets) {
+                const pct = Math.round((b.count / total) * 100);
+                const row = document.createElement('div');
+                row.innerHTML = `
+          <div class="flex items-center justify-between">
+            <p class="text-sm font-semibold">${b.name} <span class="text-xs text-slate-300">(${b.range})</span></p>
+            <p class="text-xs text-slate-300">${b.count} • ${pct}%</p>
+          </div>
+          <div class="mt-1 h-2 w-full rounded-full bg-white/10">
+            <div class="h-2 rounded-full" style="width:${pct}%; background:${b.color}"></div>
+          </div>
+        `;
+                split.appendChild(row);
+            }
+
+            // Top workout
+            const top = ws.slice().sort((a, b) => (Number(b.calories) || 0) - (Number(a.calories) || 0))[0];
+            const topWrap = $('#topWorkout');
+            if (!top) {
+                topWrap.innerHTML = `<p class="text-sm text-slate-300">No workouts logged this week.</p>`;
+            } else {
+                const d = new Date(top.date + 'T00:00:00');
+                topWrap.innerHTML = `
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-3">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <p class="text-sm font-semibold">${escapeHtml(top.type)} <span class="text-xs text-slate-300">• ${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span></p>
+                <p class="mt-1 text-sm text-slate-300">${fmtMinutes(Number(top.minutes) || 0)} • ${fmtNum(Number(top.calories) || 0)} kcal • ${top.avgHr ? `${fmtNum(Number(top.avgHr))} bpm` : 'HR —'}</p>
+              </div>
+              <div class="rounded-xl bg-emerald-400/15 p-2 text-emerald-300">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h4l2-3 3 6 2-4h4"/><path d="M22 12c0 5.5-4.5 10-10 10S2 17.5 2 12 6.5 2 12 2s10 4.5 10 10Z"/></svg>
+              </div>
+            </div>
+            ${top.notes ? `<p class="mt-2 text-sm text-slate-300">“${escapeHtml(top.notes)}”</p>` : ''}
+          </div>
+        `;
+            }
+
+            // Wire delete buttons
+            $all('.btnDel').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.dataset.id;
+                    state.workouts = state.workouts.filter(w => w.id !== id);
+                    saveState();
+                    rerenderAll();
+                    showToast('Workout deleted');
+                });
+            });
+        }
+
+        function escapeHtml(s) {
+            return String(s)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+        }
+
+        function refreshFilterOptions() {
+            const sel = $('#filterType');
+            const current = sel.value || 'all';
+            const types = Array.from(new Set(state.workouts.map(w => (w.type || '').trim()).filter(Boolean))).sort();
+            sel.innerHTML = `<option value="all">All types</option>` + types.map(t => {
+                const v = t.toLowerCase();
+                return `<option value="${escapeHtml(v)}">${escapeHtml(t)}</option>`;
+            }).join('');
+            sel.value = current;
+            if (![...sel.options].some(o => o.value === current)) sel.value = 'all';
+        }
+
+        function updateWeekSeriesFromDays() {
+            // Keep the "This" week steps aligned to the current days array
+            const currentWeekSteps = state.days.reduce((s, d) => s + (d.steps || 0), 0);
+            const last = state.weeks[state.weeks.length - 1];
+            if (last) last.steps = currentWeekSteps;
+        }
+
+        function rerenderAll() {
+            updateWeekSeriesFromDays();
+            renderHeader();
+            renderStats();
+            renderInsights();
+            renderStreak();
+            refreshFilterOptions();
+            renderWorkouts();
+            drawStepsChart();
+            drawWeeklyProgress();
+            drawZonesDonut();
+            drawCaloriesMini();
+        }
+
+        // ---------------------------
+        // Interactions
+        // ---------------------------
+        // Tabs
+        $all('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tab = btn.dataset.tab;
+                $all('.tab-btn').forEach(b => {
+                    const active = b.dataset.tab === tab;
+                    b.setAttribute('aria-selected', String(active));
+                    b.classList.toggle('text-slate-300', !active);
+                    b.classList.toggle('text-slate-100', active);
+                    b.classList.toggle('bg-white/10', active);
+                });
+                $('#tab-dashboard').classList.toggle('hidden', tab !== 'dashboard');
+                $('#tab-workouts').classList.toggle('hidden', tab !== 'workouts');
+
+                // Avoid blurry charts if they became visible
+                requestAnimationFrame(() => {
+                    drawStepsChart();
+                    drawWeeklyProgress();
+                    drawZonesDonut();
+                    drawCaloriesMini();
+                });
+            });
+        });
+
+        // Theme toggle
+        $('#btnTheme').addEventListener('click', () => {
+            const next = (document.documentElement.dataset.theme === 'light') ? 'dark' : 'light';
+            setTheme(next);
+            localStorage.setItem(themeKey, next);
+            // Rerender charts with updated colors
+            requestAnimationFrame(() => {
+                drawStepsChart();
+                drawWeeklyProgress();
+                drawZonesDonut();
+                drawCaloriesMini();
+            });
+        });
+
+        // Apply goal
+        $('#btnApplyGoal').addEventListener('click', () => {
+            const v = Number($('#stepGoal').value);
+            if (!Number.isFinite(v) || v < 1000) {
+                showToast('Enter a valid step goal');
+                return;
+            }
+            state.profile.stepGoal = Math.round(v);
+            saveState();
+            rerenderAll();
+            showToast('Goal updated');
+        });
+
+        // Log steps
+        $('#btnLogSteps').addEventListener('click', () => {
+            const v = Number($('#todayStepsInput').value);
+            if (!Number.isFinite(v) || v < 0) {
+                showToast('Enter a valid step count');
+                return;
+            }
+            const todayIso = getTodayIso();
+            let entry = state.days.find(d => d.date === todayIso);
+            if (!entry) entry = state.days[state.days.length - 1];
+            entry.steps = Math.round(v);
+            const idx = state.days.indexOf(entry);
+            // Update step calories approximation
+            entry.calSteps = Math.round(entry.steps * 0.04);
+
+            // Keep sorted by date if replaced last entry
+            if (idx === state.days.length - 1 && entry.date !== todayIso) {
+                entry.date = todayIso;
+            }
+
+            saveState();
+            $('#todayStepsInput').value = '';
+            rerenderAll();
+            showToast('Steps saved');
+        });
+
+        // Log HR
+        $('#btnLogHR').addEventListener('click', () => {
+            const v = Number($('#todayHRInput').value);
+            if (!Number.isFinite(v) || v < 40 || v > 220) {
+                showToast('Enter a valid HR (40–220)');
+                return;
+            }
+            const todayIso = getTodayIso();
+            let entry = state.days.find(d => d.date === todayIso);
+            if (!entry) entry = state.days[state.days.length - 1];
+            entry.avgHr = Math.round(v);
+            if (entry.date !== todayIso) entry.date = todayIso;
+            saveState();
+            $('#todayHRInput').value = '';
+            rerenderAll();
+            showToast('HR saved');
+        });
+
+        // Workouts filters
+        $('#searchWorkouts').addEventListener('input', () => renderWorkouts());
+        $('#filterType').addEventListener('change', () => renderWorkouts());
+
+        // Modal
+        function openModal() {
+            $('#modal').classList.remove('hidden');
+            // default date to today
+            const dateInput = $('#workoutForm [name="date"]');
+            if (!dateInput.value) dateInput.value = getTodayIso();
+            setTimeout(() => dateInput.focus(), 0);
+        }
+        function closeModal() {
+            $('#modal').classList.add('hidden');
+        }
+
+        $('#btnAddWorkout').addEventListener('click', openModal);
+        $('#btnCloseModal').addEventListener('click', closeModal);
+        $('#modal').addEventListener('click', (e) => {
+            if (e.target === $('#modal').children[0]) closeModal();
+        });
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !$('#modal').classList.contains('hidden')) closeModal();
+        });
+
+        $('#btnPrefill').addEventListener('click', () => {
+            const f = $('#workoutForm');
+            f.type.value = 'Run';
+            f.minutes.value = 42;
+            f.calories.value = 460;
+            f.avgHr.value = 154;
+            f.notes.value = 'Steady run with pickups';
+            if (!f.date.value) f.date.value = getTodayIso();
+        });
+
+        $('#workoutForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const f = e.currentTarget;
+            const workout = {
+                id: crypto.randomUUID(),
+                date: f.date.value,
+                type: f.type.value,
+                minutes: Number(f.minutes.value),
+                calories: Number(f.calories.value),
+                avgHr: f.avgHr.value ? Number(f.avgHr.value) : null,
+                notes: (f.notes.value || '').trim(),
+            };
+            if (!workout.date) return;
+            if (!workout.type) return;
+            if (!Number.isFinite(workout.minutes) || workout.minutes <= 0) return;
+            if (!Number.isFinite(workout.calories) || workout.calories < 0) return;
+
+            state.workouts.unshift(workout);
+            saveState();
+            closeModal();
+            f.reset();
+            rerenderAll();
+            showToast('Workout saved');
+        });
+
+        // Export
+        $('#btnExport').addEventListener('click', async () => {
+            const payload = JSON.stringify(state, null, 2);
+            try {
+                await navigator.clipboard.writeText(payload);
+                showToast('JSON copied to clipboard');
+            } catch {
+                // fallback: download
+                const blob = new Blob([payload], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'fitness-tracker-export.json';
+                a.click();
+                URL.revokeObjectURL(url);
+                showToast('Downloaded JSON');
+            }
+        });
+
+        // Reset
+        $('#btnReset').addEventListener('click', () => {
+            state = makeSampleData();
+            saveState();
+            rerenderAll();
+            showToast('Reset to sample data');
+        });
+
+        // Resize rerender (debounced)
+        let resizeT;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeT);
+            resizeT = setTimeout(() => {
+                drawStepsChart();
+                drawWeeklyProgress();
+                drawZonesDonut();
+                drawCaloriesMini();
+            }, 120);
+        });
+
+        // ---------------------------
+        // Initial render
+        // ---------------------------
+        rerenderAll();
+    </script>
+</body>
+
+</html>
