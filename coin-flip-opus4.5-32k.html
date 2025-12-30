@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Epic Coin Flip</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+
+        body {
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .coin-container {
+            perspective: 1000px;
+        }
+
+        .coin {
+            width: 180px;
+            height: 180px;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.1s;
+        }
+
+        .coin.flipping {
+            animation: coinFlip 2s ease-out forwards;
+        }
+
+        .coin.flipping.result-tails {
+            animation: coinFlipTails 2s ease-out forwards;
+        }
+
+        @keyframes coinFlip {
+            0% {
+                transform: rotateY(0) rotateX(0) translateY(0);
+            }
+
+            15% {
+                transform: rotateY(540deg) rotateX(20deg) translateY(-200px);
+            }
+
+            30% {
+                transform: rotateY(1080deg) rotateX(-10deg) translateY(-280px);
+            }
+
+            50% {
+                transform: rotateY(1620deg) rotateX(15deg) translateY(-200px);
+            }
+
+            70% {
+                transform: rotateY(2160deg) rotateX(-5deg) translateY(-50px);
+            }
+
+            85% {
+                transform: rotateY(2520deg) rotateX(0) translateY(20px);
+            }
+
+            100% {
+                transform: rotateY(2880deg) rotateX(0) translateY(0);
+            }
+        }
+
+        @keyframes coinFlipTails {
+            0% {
+                transform: rotateY(0) rotateX(0) translateY(0);
+            }
+
+            15% {
+                transform: rotateY(540deg) rotateX(20deg) translateY(-200px);
+            }
+
+            30% {
+                transform: rotateY(1080deg) rotateX(-10deg) translateY(-280px);
+            }
+
+            50% {
+                transform: rotateY(1620deg) rotateX(15deg) translateY(-200px);
+            }
+
+            70% {
+                transform: rotateY(2160deg) rotateX(-5deg) translateY(-50px);
+            }
+
+            85% {
+                transform: rotateY(2520deg) rotateX(0) translateY(20px);
+            }
+
+            100% {
+                transform: rotateY(3060deg) rotateX(0) translateY(0);
+            }
+        }
+
+        .coin-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            font-weight: bold;
+            box-shadow:
+                inset 0 0 30px rgba(0, 0, 0, 0.3),
+                0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .coin-face::before {
+            content: '';
+            position: absolute;
+            width: 90%;
+            height: 90%;
+            border-radius: 50%;
+            border: 4px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .heads {
+            background: linear-gradient(145deg, #ffd700, #ffb800, #ffd700, #ffec80);
+            color: #8B6914;
+            text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5);
+        }
+
+        .tails {
+            background: linear-gradient(145deg, #ffd700, #ffb800, #ffd700, #ffec80);
+            color: #8B6914;
+            text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.5);
+            transform: rotateY(180deg);
+        }
+
+        .coin-edge {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: linear-gradient(90deg, #d4a500, #b8960a);
+            transform: translateZ(-4px);
+        }
+
+        .flip-btn {
+            background: linear-gradient(145deg, #6366f1, #4f46e5);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+        }
+
+        .flip-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.6);
+        }
+
+        .flip-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .flip-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .result-flash {
+            animation: flashIn 0.5s ease-out;
+        }
+
+        @keyframes flashIn {
+            0% {
+                opacity: 0;
+                transform: scale(0.5);
+            }
+
+            50% {
+                transform: scale(1.2);
+            }
+
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .streak-fire {
+            animation: firePulse 0.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes firePulse {
+            from {
+                transform: scale(1);
+                filter: brightness(1);
+            }
+
+            to {
+                transform: scale(1.1);
+                filter: brightness(1.2);
+            }
+        }
+
+        .confetti {
+            position: fixed;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .particle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+            animation: fall 3s ease-out forwards;
+        }
+
+        @keyframes fall {
+            0% {
+                opacity: 1;
+                transform: translateY(0) rotate(0deg);
+            }
+
+            100% {
+                opacity: 0;
+                transform: translateY(100vh) rotate(720deg);
+            }
+        }
+    </style>
+</head>
+
+<body class="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white overflow-hidden">
+    <div class="min-h-screen flex flex-col items-center justify-center p-4">
+        <!-- Header -->
+        <h1
+            class="text-4xl md:text-5xl font-bold mb-2 bg-gradient-to-r from-yellow-400 via-amber-300 to-yellow-400 bg-clip-text text-transparent">
+            🪙 Coin Flip
+        </h1>
+        <p class="text-gray-400 mb-8">Click to flip and test your luck!</p>
+
+        <!-- Stats Row -->
+        <div class="flex flex-wrap justify-center gap-4 mb-8">
+            <div class="stat-card rounded-xl px-6 py-4 text-center min-w-[120px]">
+                <div class="text-3xl font-bold text-yellow-400" id="heads-count">0</div>
+                <div class="text-sm text-gray-400">Heads</div>
+            </div>
+            <div class="stat-card rounded-xl px-6 py-4 text-center min-w-[120px]">
+                <div class="text-3xl font-bold text-blue-400" id="tails-count">0</div>
+                <div class="text-sm text-gray-400">Tails</div>
+            </div>
+            <div class="stat-card rounded-xl px-6 py-4 text-center min-w-[120px]">
+                <div class="text-3xl font-bold text-green-400" id="total-flips">0</div>
+                <div class="text-sm text-gray-400">Total</div>
+            </div>
+        </div>
+
+        <!-- Streak Display -->
+        <div class="flex gap-6 mb-8">
+            <div class="text-center">
+                <div class="text-lg font-semibold text-orange-400">
+                    <span id="current-streak">0</span>
+                    <span id="streak-icon" class="ml-1 hidden">🔥</span>
+                </div>
+                <div class="text-xs text-gray-500">Current Streak</div>
+                <div class="text-xs text-gray-600" id="streak-type">-</div>
+            </div>
+            <div class="text-center">
+                <div class="text-lg font-semibold text-purple-400">
+                    <span id="best-streak">0</span> 🏆
+                </div>
+                <div class="text-xs text-gray-500">Best Streak</div>
+                <div class="text-xs text-gray-600" id="best-streak-type">-</div>
+            </div>
+        </div>
+
+        <!-- Coin -->
+        <div class="coin-container mb-8">
+            <div class="coin" id="coin">
+                <div class="coin-edge"></div>
+                <div class="coin-face heads">👑</div>
+                <div class="coin-face tails">🦅</div>
+            </div>
+        </div>
+
+        <!-- Result Display -->
+        <div class="h-16 mb-6 flex items-center justify-center">
+            <div id="result" class="text-4xl font-bold hidden"></div>
+        </div>
+
+        <!-- Flip Button -->
+        <button id="flip-btn" class="flip-btn text-white font-bold py-4 px-12 rounded-full text-xl">
+            Flip Coin!
+        </button>
+
+        <!-- Reset Button -->
+        <button id="reset-btn" class="mt-4 text-gray-500 hover:text-gray-300 transition-colors text-sm underline">
+            Reset Stats
+        </button>
+
+        <!-- Percentage Bar -->
+        <div class="w-full max-w-md mt-8">
+            <div class="flex justify-between text-sm mb-2">
+                <span class="text-yellow-400">Heads: <span id="heads-percent">0</span>%</span>
+                <span class="text-blue-400">Tails: <span id="tails-percent">0</span>%</span>
+            </div>
+            <div class="h-3 bg-gray-700 rounded-full overflow-hidden flex">
+                <div id="heads-bar" class="bg-gradient-to-r from-yellow-500 to-amber-400 transition-all duration-500"
+                    style="width: 50%"></div>
+                <div id="tails-bar" class="bg-gradient-to-r from-blue-500 to-cyan-400 transition-all duration-500"
+                    style="width: 50%"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="confetti-container" class="confetti"></div>
+
+    <script>
+        // State
+        let stats = {
+            heads: 0,
+            tails: 0,
+            currentStreak: 0,
+            currentStreakType: null,
+            bestStreak: 0,
+            bestStreakType: null
+        };
+
+        // Load from localStorage
+        const saved = localStorage.getItem('coinFlipStats');
+        if (saved) {
+            stats = JSON.parse(saved);
+            updateDisplay();
+        }
+
+        // Elements
+        const coin = document.getElementById('coin');
+        const flipBtn = document.getElementById('flip-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const resultEl = document.getElementById('result');
+
+        // Flip function
+        function flipCoin() {
+            // Disable button during flip
+            flipBtn.disabled = true;
+            resultEl.classList.add('hidden');
+
+            // Determine result
+            const isHeads = Math.random() < 0.5;
+            const result = isHeads ? 'heads' : 'tails';
+
+            // Reset and add animation class
+            coin.classList.remove('flipping', 'result-tails');
+            void coin.offsetWidth; // Trigger reflow
+
+            if (!isHeads) {
+                coin.classList.add('result-tails');
+            }
+            coin.classList.add('flipping');
+
+            // Play sound effect simulation with visual feedback
+            document.body.style.transform = 'scale(0.99)';
+            setTimeout(() => {
+                document.body.style.transform = 'scale(1)';
+            }, 100);
+
+            // After animation completes
+            setTimeout(() => {
+                // Update stats
+                if (isHeads) {
+                    stats.heads++;
+                } else {
+                    stats.tails++;
+                }
+
+                // Update streak
+                if (stats.currentStreakType === result) {
+                    stats.currentStreak++;
+                } else {
+                    stats.currentStreak = 1;
+                    stats.currentStreakType = result;
+                }
+
+                // Check best streak
+                if (stats.currentStreak > stats.bestStreak) {
+                    stats.bestStreak = stats.currentStreak;
+                    stats.bestStreakType = result;
+                }
+
+                // Save to localStorage
+                localStorage.setItem('coinFlipStats', JSON.stringify(stats));
+
+                // Show result
+                showResult(result);
+                updateDisplay();
+
+                // Confetti for streaks of 3+
+                if (stats.currentStreak >= 3) {
+                    createConfetti();
+                }
+
+                // Re-enable button
+                flipBtn.disabled = false;
+            }, 2000);
+        }
+
+        function showResult(result) {
+            resultEl.textContent = result === 'heads' ? '👑 HEADS!' : '🦅 TAILS!';
+            resultEl.className = `text-4xl font-bold result-flash ${result === 'heads' ? 'text-yellow-400' : 'text-blue-400'}`;
+            resultEl.classList.remove('hidden');
+        }
+
+        function updateDisplay() {
+            document.getElementById('heads-count').textContent = stats.heads;
+            document.getElementById('tails-count').textContent = stats.tails;
+            document.getElementById('total-flips').textContent = stats.heads + stats.tails;
+
+            const total = stats.heads + stats.tails;
+            const headsPercent = total > 0 ? Math.round((stats.heads / total) * 100) : 50;
+            const tailsPercent = total > 0 ? 100 - headsPercent : 50;
+
+            document.getElementById('heads-percent').textContent = headsPercent;
+            document.getElementById('tails-percent').textContent = tailsPercent;
+            document.getElementById('heads-bar').style.width = `${headsPercent}%`;
+            document.getElementById('tails-bar').style.width = `${tailsPercent}%`;
+
+            document.getElementById('current-streak').textContent = stats.currentStreak;
+            document.getElementById('streak-type').textContent = stats.currentStreakType
+                ? (stats.currentStreakType === 'heads' ? '👑 Heads' : '🦅 Tails')
+                : '-';
+
+            const streakIcon = document.getElementById('streak-icon');
+            if (stats.currentStreak >= 3) {
+                streakIcon.classList.remove('hidden');
+                streakIcon.classList.add('streak-fire');
+            } else {
+                streakIcon.classList.add('hidden');
+                streakIcon.classList.remove('streak-fire');
+            }
+
+            document.getElementById('best-streak').textContent = stats.bestStreak;
+            document.getElementById('best-streak-type').textContent = stats.bestStreakType
+                ? (stats.bestStreakType === 'heads' ? '👑 Heads' : '🦅 Tails')
+                : '-';
+        }
+
+        function createConfetti() {
+            const container = document.getElementById('confetti-container');
+            const colors = ['#ffd700', '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ff9ff3', '#54a0ff'];
+
+            for (let i = 0; i < 50; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + 'vw';
+                particle.style.top = '-20px';
+                particle.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                particle.style.animationDuration = (2 + Math.random() * 2) + 's';
+                particle.style.animationDelay = Math.random() * 0.5 + 's';
+                container.appendChild(particle);
+
+                setTimeout(() => particle.remove(), 4000);
+            }
+        }
+
+        function resetStats() {
+            if (confirm('Reset all stats?')) {
+                stats = {
+                    heads: 0,
+                    tails: 0,
+                    currentStreak: 0,
+                    currentStreakType: null,
+                    bestStreak: 0,
+                    bestStreakType: null
+                };
+                localStorage.removeItem('coinFlipStats');
+                resultEl.classList.add('hidden');
+                updateDisplay();
+            }
+        }
+
+        // Event listeners
+        flipBtn.addEventListener('click', flipCoin);
+        resetBtn.addEventListener('click', resetStats);
+
+        // Keyboard support
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && !flipBtn.disabled) {
+                e.preventDefault();
+                flipCoin();
+            }
+        });
+    </script>
+</body>
+
+</html>
