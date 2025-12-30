@@ -1,0 +1,872 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>3D Coin Flip</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        :root {
+            --coinSize: 240px;
+            --thickness: 14px;
+            --flipDur: 1400ms;
+        }
+
+        /* Smooth, but respect reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            :root {
+                --flipDur: 1ms;
+            }
+        }
+
+        .scene {
+            perspective: 1100px;
+            perspective-origin: 50% 35%;
+        }
+
+        .coinWrap {
+            position: relative;
+            width: var(--coinSize);
+            height: var(--coinSize);
+        }
+
+        .coin {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transform-style: preserve-3d;
+            border-radius: 9999px;
+            transform: rotateX(var(--rot, 0deg));
+            will-change: transform;
+            filter: drop-shadow(0 20px 28px rgba(0, 0, 0, .35));
+        }
+
+        .coin::before {
+            /* edge / rim */
+            content: "";
+            position: absolute;
+            inset: -8px;
+            border-radius: 9999px;
+            background:
+                conic-gradient(from 190deg,
+                    #d39a2a,
+                    #f7e7a2,
+                    #b77b1c,
+                    #ffe8a6,
+                    #c98f22,
+                    #f7e7a2,
+                    #b77b1c,
+                    #d39a2a);
+            transform: translateZ(calc(var(--thickness) / -2));
+            opacity: .95;
+            filter: saturate(1.1) contrast(1.05);
+        }
+
+        .coin::after {
+            /* specular shine overlay */
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: 9999px;
+            background:
+                radial-gradient(120px 90px at 30% 25%, rgba(255, 255, 255, .65), rgba(255, 255, 255, 0) 60%),
+                radial-gradient(160px 140px at 65% 70%, rgba(255, 255, 255, .18), rgba(255, 255, 255, 0) 65%),
+                linear-gradient(115deg, rgba(255, 255, 255, .0), rgba(255, 255, 255, .08) 40%, rgba(255, 255, 255, 0) 60%);
+            transform: translateZ(18px);
+            mix-blend-mode: screen;
+            pointer-events: none;
+            opacity: .9;
+        }
+
+        .face {
+            position: absolute;
+            inset: 0;
+            border-radius: 9999px;
+            backface-visibility: hidden;
+            display: grid;
+            place-items: center;
+            transform-style: preserve-3d;
+            border: 1px solid rgba(255, 255, 255, .25);
+            box-shadow:
+                inset 0 2px 0 rgba(255, 255, 255, .35),
+                inset 0 -10px 20px rgba(0, 0, 0, .25);
+            overflow: hidden;
+        }
+
+        .face .innerRing {
+            position: absolute;
+            inset: 14px;
+            border-radius: 9999px;
+            border: 2px solid rgba(255, 255, 255, .25);
+            box-shadow:
+                inset 0 2px 0 rgba(255, 255, 255, .25),
+                inset 0 -14px 18px rgba(0, 0, 0, .22);
+            transform: translateZ(10px);
+        }
+
+        .face .microText {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            transform: translateZ(12px);
+            opacity: .22;
+            letter-spacing: .35em;
+            font-weight: 700;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+
+        .heads {
+            transform: rotateX(0deg) translateZ(calc(var(--thickness) / 2));
+            background:
+                radial-gradient(180px 160px at 30% 25%, #fff3bf, rgba(255, 243, 191, 0) 55%),
+                radial-gradient(220px 190px at 60% 75%, rgba(255, 255, 255, .18), rgba(255, 255, 255, 0) 70%),
+                radial-gradient(circle at 40% 30%, #f6d36a, #c78a1a 60%, #b37a14 100%);
+        }
+
+        .tails {
+            transform: rotateX(180deg) translateZ(calc(var(--thickness) / 2));
+            background:
+                radial-gradient(180px 160px at 30% 25%, #f7f7f7, rgba(255, 255, 255, 0) 60%),
+                radial-gradient(240px 210px at 60% 75%, rgba(255, 255, 255, .22), rgba(255, 255, 255, 0) 70%),
+                radial-gradient(circle at 40% 30%, #cfd7e6, #7786a3 65%, #5d6b86 100%);
+        }
+
+        .stamp {
+            position: relative;
+            transform: translateZ(16px);
+            text-align: center;
+            user-select: none;
+        }
+
+        .stamp .big {
+            font-size: 58px;
+            font-weight: 900;
+            letter-spacing: .08em;
+            text-shadow:
+                0 1px 0 rgba(255, 255, 255, .35),
+                0 10px 25px rgba(0, 0, 0, .25);
+        }
+
+        .stamp .small {
+            margin-top: 6px;
+            font-size: 12px;
+            letter-spacing: .25em;
+            text-transform: uppercase;
+            opacity: .9;
+        }
+
+        .coinShadow {
+            position: absolute;
+            left: 50%;
+            top: calc(100% + 18px);
+            width: calc(var(--coinSize) * .72);
+            height: 28px;
+            transform: translateX(-50%);
+            background: radial-gradient(closest-side, rgba(0, 0, 0, .45), rgba(0, 0, 0, 0));
+            filter: blur(2px);
+            opacity: .65;
+        }
+
+        .coin.flipping {
+            animation: coinFlip var(--flipDur) cubic-bezier(.15, .9, .2, 1);
+        }
+
+        .coinWrap.flipping .coinShadow {
+            animation: shadowPulse var(--flipDur) cubic-bezier(.15, .9, .2, 1);
+        }
+
+        .coinWrap.flipping .coin::after {
+            animation: shineSweep var(--flipDur) cubic-bezier(.2, .9, .2, 1);
+        }
+
+        @keyframes coinFlip {
+            0% {
+                transform: rotateX(var(--start)) rotateZ(0deg);
+            }
+
+            15% {
+                transform: rotateX(calc(var(--start) + 180deg)) rotateZ(2deg);
+            }
+
+            55% {
+                transform: rotateX(calc(var(--start) + 900deg)) rotateZ(-2deg);
+            }
+
+            100% {
+                transform: rotateX(var(--end)) rotateZ(0deg);
+            }
+        }
+
+        @keyframes shadowPulse {
+            0% {
+                transform: translateX(-50%) scale(1);
+                opacity: .55;
+            }
+
+            30% {
+                transform: translateX(-50%) scale(.62);
+                opacity: .35;
+            }
+
+            70% {
+                transform: translateX(-50%) scale(.78);
+                opacity: .42;
+            }
+
+            100% {
+                transform: translateX(-50%) scale(1);
+                opacity: .58;
+            }
+        }
+
+        @keyframes shineSweep {
+            0% {
+                opacity: .72;
+                filter: blur(0px);
+            }
+
+            25% {
+                opacity: .35;
+                filter: blur(1px);
+            }
+
+            60% {
+                opacity: .8;
+                filter: blur(0px);
+            }
+
+            100% {
+                opacity: .72;
+                filter: blur(0px);
+            }
+        }
+
+        .resultPill {
+            transition: transform 220ms ease, opacity 220ms ease;
+        }
+
+        .resultPill.pop {
+            transform: translateY(-2px) scale(1.04);
+        }
+
+        /* Burst particles */
+        .burst {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            overflow: visible;
+        }
+
+        .particle {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 8px;
+            height: 8px;
+            border-radius: 2px;
+            transform: translate(-50%, -50%);
+            opacity: 0;
+            background: hsl(var(--h) 90% 60%);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, .25);
+            animation: pop 520ms ease-out forwards;
+        }
+
+        @keyframes pop {
+            0% {
+                transform: translate(-50%, -50%) rotate(0deg) scale(.8);
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 1;
+            }
+
+            100% {
+                transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) rotate(200deg) scale(.9);
+                opacity: 0;
+            }
+        }
+
+        /* Responsive sizing */
+        @media (max-width: 480px) {
+            :root {
+                --coinSize: 200px;
+            }
+        }
+    </style>
+</head>
+
+<body class="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-slate-100">
+    <main class="max-w-5xl mx-auto px-4 py-10">
+        <header class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div>
+                <h1 class="text-3xl md:text-4xl font-black tracking-tight">3D Coin Flip</h1>
+                <p class="text-slate-300 mt-1">Realistic flip, streaks, counters, and a satisfying result.</p>
+            </div>
+            <div class="flex gap-2 flex-wrap items-center">
+                <button id="flipBtn"
+                    class="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 active:bg-white/20 border border-white/10 backdrop-blur font-semibold">
+                    Flip <span class="text-slate-300 font-medium">(Space)</span>
+                </button>
+                <button id="resetBtn"
+                    class="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200">
+                    Reset
+                </button>
+                <label
+                    class="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 flex items-center gap-2 cursor-pointer select-none">
+                    <input id="soundToggle" type="checkbox" class="accent-emerald-400" checked />
+                    <span>Sound</span>
+                </label>
+            </div>
+        </header>
+
+        <section class="mt-8 grid grid-cols-1 lg:grid-cols-[1.2fr_.8fr] gap-6">
+            <div class="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-6">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <div class="text-sm text-slate-300">Result</div>
+                        <div id="resultPill"
+                            class="resultPill mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-black/20">
+                            <span id="resultDot" class="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
+                            <span id="resultText" class="font-semibold tracking-wide">—</span>
+                            <span id="resultMeta" class="text-slate-300 text-sm"></span>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm text-slate-300">Current streak</div>
+                        <div id="streakText" class="mt-2 text-xl font-bold">—</div>
+                        <div id="longestText" class="text-sm text-slate-300">Longest: —</div>
+                    </div>
+                </div>
+
+                <div class="mt-7 grid place-items-center">
+                    <div class="scene">
+                        <div id="coinWrap" class="coinWrap">
+                            <div id="burst" class="burst" aria-hidden="true"></div>
+                            <div id="coin" class="coin" role="img" aria-label="A coin with heads and tails.">
+                                <div class="face heads">
+                                    <div class="innerRing"></div>
+                                    <div class="microText">IN FLIP WE TRUST</div>
+                                    <div class="stamp">
+                                        <div class="big">H</div>
+                                        <div class="small">Heads</div>
+                                    </div>
+                                </div>
+                                <div class="face tails">
+                                    <div class="innerRing"></div>
+                                    <div class="microText">LUCK • CHANCE • RANDOM</div>
+                                    <div class="stamp">
+                                        <div class="big">T</div>
+                                        <div class="small">Tails</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="coinShadow" aria-hidden="true"></div>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                        <button id="flipBtn2"
+                            class="px-5 py-3 rounded-xl bg-emerald-400/15 hover:bg-emerald-400/20 border border-emerald-300/20 font-semibold">
+                            Flip the coin
+                        </button>
+                        <button id="bestOfBtn"
+                            class="px-5 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200">
+                            Best of 5
+                        </button>
+                    </div>
+
+                    <p class="mt-3 text-sm text-slate-400">Tip: press <span
+                            class="font-semibold text-slate-300">Space</span> to flip. The coin preserves its
+                        orientation between flips.</p>
+                </div>
+            </div>
+
+            <aside class="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-6">
+                <h2 class="text-xl font-bold">Stats</h2>
+
+                <div class="mt-4 grid grid-cols-2 gap-3">
+                    <div class="rounded-xl border border-white/10 bg-black/20 p-4">
+                        <div class="text-sm text-slate-300">Heads</div>
+                        <div class="mt-1 text-3xl font-black" id="headsCount">0</div>
+                        <div class="mt-2 text-xs text-slate-400" id="headsPct">0%</div>
+                    </div>
+                    <div class="rounded-xl border border-white/10 bg-black/20 p-4">
+                        <div class="text-sm text-slate-300">Tails</div>
+                        <div class="mt-1 text-3xl font-black" id="tailsCount">0</div>
+                        <div class="mt-2 text-xs text-slate-400" id="tailsPct">0%</div>
+                    </div>
+                    <div class="rounded-xl border border-white/10 bg-black/20 p-4">
+                        <div class="text-sm text-slate-300">Total flips</div>
+                        <div class="mt-1 text-3xl font-black" id="totalCount">0</div>
+                        <div class="mt-2 text-xs text-slate-400" id="fairness">—</div>
+                    </div>
+                    <div class="rounded-xl border border-white/10 bg-black/20 p-4">
+                        <div class="text-sm text-slate-300">Longest streak</div>
+                        <div class="mt-1 text-3xl font-black" id="longestCount">0</div>
+                        <div class="mt-2 text-xs text-slate-400" id="longestLabel">—</div>
+                    </div>
+                </div>
+
+                <div class="mt-6">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-semibold">Recent flips</h3>
+                        <button id="clearHistoryBtn"
+                            class="text-sm text-slate-300 hover:text-slate-100 underline underline-offset-4">Clear</button>
+                    </div>
+                    <div id="history" class="mt-3 flex flex-wrap gap-2"></div>
+                </div>
+
+                <div class="mt-7 rounded-xl border border-white/10 bg-black/20 p-4">
+                    <div class="text-sm text-slate-300">Keyboard</div>
+                    <ul class="mt-2 text-sm text-slate-200 space-y-1">
+                        <li><span class="font-semibold">Space</span>: flip</li>
+                        <li><span class="font-semibold">R</span>: reset</li>
+                    </ul>
+                </div>
+
+                <div class="mt-6 text-xs text-slate-400">
+                    Note: this is a visual simulation with randomness via <code
+                        class="text-slate-300">Math.random()</code>.
+                </div>
+            </aside>
+        </section>
+
+        <div class="sr-only" aria-live="polite" id="ariaLive"></div>
+    </main>
+
+    <script>
+        const coin = document.getElementById('coin');
+        const coinWrap = document.getElementById('coinWrap');
+
+        const flipBtn = document.getElementById('flipBtn');
+        const flipBtn2 = document.getElementById('flipBtn2');
+        const resetBtn = document.getElementById('resetBtn');
+        const bestOfBtn = document.getElementById('bestOfBtn');
+        const soundToggle = document.getElementById('soundToggle');
+
+        const headsCountEl = document.getElementById('headsCount');
+        const tailsCountEl = document.getElementById('tailsCount');
+        const totalCountEl = document.getElementById('totalCount');
+        const headsPctEl = document.getElementById('headsPct');
+        const tailsPctEl = document.getElementById('tailsPct');
+        const fairnessEl = document.getElementById('fairness');
+
+        const resultPill = document.getElementById('resultPill');
+        const resultText = document.getElementById('resultText');
+        const resultDot = document.getElementById('resultDot');
+        const resultMeta = document.getElementById('resultMeta');
+
+        const streakTextEl = document.getElementById('streakText');
+        const longestTextEl = document.getElementById('longestText');
+        const longestCountEl = document.getElementById('longestCount');
+        const longestLabelEl = document.getElementById('longestLabel');
+
+        const historyEl = document.getElementById('history');
+        const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+        const ariaLive = document.getElementById('ariaLive');
+
+        const burstEl = document.getElementById('burst');
+
+        const state = {
+            heads: 0,
+            tails: 0,
+            total: 0,
+            last: null, // 'H' or 'T'
+            streak: 0,
+            streakSide: null,
+            longest: 0,
+            longestSide: null,
+            history: [],
+            rot: 0, // degrees
+            flipping: false,
+            bestOfRunning: false,
+            bestOfTarget: 5,
+            bestOfWins: { H: 0, T: 0 }
+        };
+
+        function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+
+        function pct(part, total) {
+            if (!total) return 0;
+            return Math.round((part / total) * 100);
+        }
+
+        function updateUI() {
+            headsCountEl.textContent = state.heads;
+            tailsCountEl.textContent = state.tails;
+            totalCountEl.textContent = state.total;
+
+            const hp = pct(state.heads, state.total);
+            const tp = pct(state.tails, state.total);
+            headsPctEl.textContent = `${hp}%`;
+            tailsPctEl.textContent = `${tp}%`;
+
+            // quick fairness indicator: absolute deviation from 50%.
+            if (state.total < 5) {
+                fairnessEl.textContent = 'More flips improves signal.';
+            } else {
+                const dev = Math.abs(hp - 50);
+                fairnessEl.textContent = `Heads bias (vs 50%): ${hp - 50}% • deviation ${dev}%`;
+            }
+
+            if (state.streakSide) {
+                const sideWord = state.streakSide === 'H' ? 'Heads' : 'Tails';
+                streakTextEl.textContent = `${sideWord} ×${state.streak}`;
+            } else {
+                streakTextEl.textContent = '—';
+            }
+
+            longestCountEl.textContent = state.longest;
+            if (state.longestSide) {
+                const sideWord = state.longestSide === 'H' ? 'Heads' : 'Tails';
+                longestLabelEl.textContent = `${sideWord} streak`;
+                longestTextEl.textContent = `Longest: ${sideWord} ×${state.longest}`;
+            } else {
+                longestLabelEl.textContent = '—';
+                longestTextEl.textContent = 'Longest: —';
+            }
+
+            historyEl.innerHTML = '';
+            for (const h of state.history) {
+                const chip = document.createElement('span');
+                chip.className = `px-2 py-1 rounded-lg border text-xs font-semibold tracking-wide ${h === 'H'
+                    ? 'bg-amber-400/15 border-amber-300/25 text-amber-100'
+                    : 'bg-sky-400/15 border-sky-300/25 text-sky-100'
+                    }`;
+                chip.textContent = h === 'H' ? 'HEADS' : 'TAILS';
+                historyEl.appendChild(chip);
+            }
+
+            const canFlip = !state.flipping;
+            flipBtn.disabled = !canFlip;
+            flipBtn2.disabled = !canFlip;
+            bestOfBtn.disabled = state.flipping;
+            flipBtn.classList.toggle('opacity-50', !canFlip);
+            flipBtn2.classList.toggle('opacity-50', !canFlip);
+            bestOfBtn.classList.toggle('opacity-50', state.flipping);
+        }
+
+        function setResultPill(side, meta = '') {
+            if (!side) {
+                resultText.textContent = '—';
+                resultDot.className = 'w-2.5 h-2.5 rounded-full bg-slate-400';
+                resultMeta.textContent = '';
+                return;
+            }
+            const isH = side === 'H';
+            resultText.textContent = isH ? 'HEADS' : 'TAILS';
+            resultMeta.textContent = meta ? `• ${meta}` : '';
+            resultDot.className = `w-2.5 h-2.5 rounded-full ${isH ? 'bg-amber-300' : 'bg-sky-300'}`;
+
+            resultPill.classList.remove('pop');
+            // force reflow
+            void resultPill.offsetWidth;
+            resultPill.classList.add('pop');
+            setTimeout(() => resultPill.classList.remove('pop'), 260);
+        }
+
+        function burst() {
+            // small particle burst from the coin center.
+            burstEl.innerHTML = '';
+            const count = 18;
+            for (let i = 0; i < count; i++) {
+                const p = document.createElement('span');
+                p.className = 'particle';
+                const a = (Math.PI * 2) * (i / count) + (Math.random() * 0.35);
+                const dist = 70 + Math.random() * 45;
+                const dx = Math.cos(a) * dist;
+                const dy = Math.sin(a) * dist;
+                p.style.setProperty('--dx', `${dx.toFixed(1)}px`);
+                p.style.setProperty('--dy', `${dy.toFixed(1)}px`);
+                p.style.setProperty('--h', `${Math.floor(40 + Math.random() * 220)}`);
+                p.style.animationDelay = `${Math.random() * 40}ms`;
+                burstEl.appendChild(p);
+            }
+        }
+
+        // WebAudio: tiny “thunk + chime”
+        let audioCtx = null;
+        function ensureAudio() {
+            if (audioCtx) return audioCtx;
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            return audioCtx;
+        }
+
+        function playFlipSound() {
+            if (!soundToggle.checked) return;
+            const ctx = ensureAudio();
+            const now = ctx.currentTime;
+
+            // Thunk
+            const n = ctx.createBufferSource();
+            const buffer = ctx.createBuffer(1, ctx.sampleRate * 0.05, ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < data.length; i++) {
+                data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+            }
+            n.buffer = buffer;
+            const nFilter = ctx.createBiquadFilter();
+            nFilter.type = 'lowpass';
+            nFilter.frequency.setValueAtTime(180, now);
+            const nGain = ctx.createGain();
+            nGain.gain.setValueAtTime(0.25, now);
+            nGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
+            n.connect(nFilter).connect(nGain).connect(ctx.destination);
+            n.start(now);
+            n.stop(now + 0.055);
+
+            // Soft whoosh
+            const osc = ctx.createOscillator();
+            osc.type = 'triangle';
+            const g = ctx.createGain();
+            g.gain.setValueAtTime(0.0001, now);
+            g.gain.exponentialRampToValueAtTime(0.08, now + 0.08);
+            g.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
+            osc.frequency.setValueAtTime(220, now);
+            osc.frequency.exponentialRampToValueAtTime(880, now + 0.22);
+            osc.connect(g).connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.45);
+        }
+
+        function playResultSound(side) {
+            if (!soundToggle.checked) return;
+            const ctx = ensureAudio();
+            const now = ctx.currentTime;
+
+            // Two-note pluck, different for heads vs tails
+            const notes = side === 'H' ? [784, 988] : [659, 523];
+
+            for (let i = 0; i < notes.length; i++) {
+                const t0 = now + i * 0.06;
+                const osc = ctx.createOscillator();
+                const g = ctx.createGain();
+                const f = ctx.createBiquadFilter();
+                f.type = 'lowpass';
+                f.frequency.setValueAtTime(3500, t0);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(notes[i], t0);
+                g.gain.setValueAtTime(0.0001, t0);
+                g.gain.exponentialRampToValueAtTime(0.12, t0 + 0.01);
+                g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.22);
+                osc.connect(f).connect(g).connect(ctx.destination);
+                osc.start(t0);
+                osc.stop(t0 + 0.25);
+            }
+        }
+
+        function computeNextRotation(resultSide) {
+            // Heads shows at rotateX 0deg, tails at 180deg.
+            const desiredFaceRot = (resultSide === 'H') ? 0 : 180;
+
+            // Add multiple spins for realism.
+            // Ensure we change by at least ~3 full rotations.
+            const fullSpins = 4 + Math.floor(Math.random() * 3); // 4–6
+
+            // Keep direction somewhat varied.
+            const direction = Math.random() < 0.5 ? 1 : -1;
+
+            // Target: current rot + direction * (fullSpins*360 + deltaToDesiredFace)
+            // We want final mod 360 to equal desiredFaceRot.
+            const current = state.rot;
+            const currentMod = ((current % 360) + 360) % 360;
+            let delta = desiredFaceRot - currentMod;
+            // Normalize to [-180, 180)
+            delta = ((delta + 540) % 360) - 180;
+
+            // We intentionally overshoot with full spins.
+            const spin = direction * (fullSpins * 360);
+            return current + spin + delta;
+        }
+
+        function randomSide() {
+            return Math.random() < 0.5 ? 'H' : 'T';
+        }
+
+        function applyOutcome(side) {
+            state.total++;
+            if (side === 'H') state.heads++; else state.tails++;
+
+            // streaks
+            if (state.last === side) {
+                state.streak += 1;
+            } else {
+                state.streak = 1;
+                state.streakSide = side;
+            }
+            state.last = side;
+
+            if (state.streak > state.longest) {
+                state.longest = state.streak;
+                state.longestSide = side;
+            }
+
+            state.history.unshift(side);
+            state.history = state.history.slice(0, 14);
+
+            // best-of
+            if (state.bestOfRunning) {
+                state.bestOfWins[side]++;
+                const needed = Math.ceil(state.bestOfTarget / 2);
+                const winsH = state.bestOfWins.H;
+                const winsT = state.bestOfWins.T;
+                if (winsH >= needed || winsT >= needed) {
+                    state.bestOfRunning = false;
+                    const winner = winsH > winsT ? 'H' : 'T';
+                    setResultPill(side, `Best of ${state.bestOfTarget} winner: ${winner === 'H' ? 'Heads' : 'Tails'}`);
+                } else {
+                    setResultPill(side, `Best of ${state.bestOfTarget}: H ${winsH}–${winsT} T`);
+                }
+            } else {
+                setResultPill(side, `Flip #${state.total}`);
+            }
+
+            ariaLive.textContent = `Result: ${side === 'H' ? 'Heads' : 'Tails'}.`;
+            updateUI();
+        }
+
+        function startFlip({ forcedSide = null } = {}) {
+            if (state.flipping) return;
+            state.flipping = true;
+            updateUI();
+
+            // Resume audio on first interaction
+            try { ensureAudio().resume?.(); } catch { }
+
+            const side = forcedSide || randomSide();
+            const targetRot = computeNextRotation(side);
+
+            const startRot = state.rot;
+            coin.style.setProperty('--start', `${startRot}deg`);
+            coin.style.setProperty('--end', `${targetRot}deg`);
+
+            coinWrap.classList.add('flipping');
+            coin.classList.add('flipping');
+
+            playFlipSound();
+
+            const duration = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--flipDur'));
+            const durMs = Number.isFinite(duration) ? duration : 1400;
+
+            // Add a tiny mid-air time feel (and keep result reveal at the end)
+            const endHandler = () => {
+                coin.removeEventListener('animationend', endHandler);
+
+                // Persist final orientation
+                state.rot = targetRot;
+                coin.style.setProperty('--rot', `${state.rot}deg`);
+
+                coin.classList.remove('flipping');
+                coinWrap.classList.remove('flipping');
+
+                // Satisfying moment
+                burst();
+                playResultSound(side);
+
+                applyOutcome(side);
+
+                state.flipping = false;
+                updateUI();
+            };
+
+            coin.addEventListener('animationend', endHandler);
+
+            // Safety timeout in case animationend doesn't fire
+            window.setTimeout(() => {
+                if (state.flipping) {
+                    try { endHandler(); } catch { }
+                }
+            }, clamp(durMs, 0, 5000) + 60);
+        }
+
+        function resetAll() {
+            state.heads = 0;
+            state.tails = 0;
+            state.total = 0;
+            state.last = null;
+            state.streak = 0;
+            state.streakSide = null;
+            state.longest = 0;
+            state.longestSide = null;
+            state.history = [];
+            state.bestOfRunning = false;
+            state.bestOfWins = { H: 0, T: 0 };
+
+            setResultPill(null);
+            resultMeta.textContent = '';
+            burstEl.innerHTML = '';
+
+            // Keep orientation, but stop any in-flight animations
+            state.flipping = false;
+            coin.classList.remove('flipping');
+            coinWrap.classList.remove('flipping');
+            coin.style.setProperty('--rot', `${state.rot}deg`);
+
+            updateUI();
+            ariaLive.textContent = 'Reset stats.';
+        }
+
+        function startBestOf5() {
+            if (state.flipping) return;
+            state.bestOfRunning = true;
+            state.bestOfTarget = 5;
+            state.bestOfWins = { H: 0, T: 0 };
+            setResultPill(null);
+            resultText.textContent = 'BEST OF 5';
+            resultDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-300';
+            resultMeta.textContent = '• First to 3 wins';
+            updateUI();
+            ariaLive.textContent = 'Best of 5 started.';
+        }
+
+        flipBtn.addEventListener('click', () => startFlip());
+        flipBtn2.addEventListener('click', () => startFlip());
+        resetBtn.addEventListener('click', resetAll);
+        bestOfBtn.addEventListener('click', startBestOf5);
+        clearHistoryBtn.addEventListener('click', () => { state.history = []; updateUI(); });
+
+        window.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+            if (key === ' ') {
+                e.preventDefault();
+                startFlip();
+            }
+            if (key === 'r') {
+                resetAll();
+            }
+        });
+
+        // Initial
+        coin.style.setProperty('--rot', `${state.rot}deg`);
+        setResultPill(null);
+        updateUI();
+
+        // Optional: subtle idle tilt on desktop
+        let lastMove = 0;
+        window.addEventListener('pointermove', (e) => {
+            if (state.flipping) return;
+            const now = performance.now();
+            if (now - lastMove < 18) return;
+            lastMove = now;
+            const rect = coinWrap.getBoundingClientRect();
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top + rect.height / 2;
+            const dx = (e.clientX - cx) / rect.width;
+            const dy = (e.clientY - cy) / rect.height;
+            const max = 7;
+            const tiltX = clamp(-dy * max, -max, max);
+            const tiltY = clamp(dx * max, -max, max);
+            coinWrap.style.transform = `rotateX(${tiltX}deg) rotateY(${tiltY}deg)`;
+            coinWrap.style.transition = 'transform 120ms ease';
+        });
+        window.addEventListener('pointerleave', () => {
+            coinWrap.style.transform = '';
+        });
+    </script>
+</body>
+
+</html>
