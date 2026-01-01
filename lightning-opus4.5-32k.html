@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lightning Generator</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            background: #0a0a1a;
+        }
+
+        #sky {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(180deg,
+                    #0a0a1a 0%,
+                    #1a1a3a 30%,
+                    #2a2a4a 60%,
+                    #3a3a5a 100%);
+            transition: background 0.05s ease;
+        }
+
+        #sky.flash {
+            background: linear-gradient(180deg,
+                    #4a4a7a 0%,
+                    #6a6a9a 30%,
+                    #8a8aba 60%,
+                    #aaaacc 100%);
+        }
+
+        #sky.flash-intense {
+            background: linear-gradient(180deg,
+                    #9090c0 0%,
+                    #b0b0e0 30%,
+                    #d0d0ff 60%,
+                    #ffffff 100%);
+        }
+
+        .cloud {
+            position: absolute;
+            background: radial-gradient(ellipse at center,
+                    rgba(40, 40, 60, 0.9) 0%,
+                    rgba(30, 30, 50, 0.7) 40%,
+                    transparent 70%);
+            border-radius: 50%;
+            filter: blur(20px);
+            transition: filter 0.1s, background 0.1s;
+        }
+
+        .cloud.lit {
+            background: radial-gradient(ellipse at center,
+                    rgba(150, 140, 180, 0.95) 0%,
+                    rgba(100, 90, 130, 0.8) 40%,
+                    transparent 70%);
+            filter: blur(15px);
+        }
+
+        .cloud.lit-intense {
+            background: radial-gradient(ellipse at center,
+                    rgba(220, 210, 255, 0.98) 0%,
+                    rgba(180, 170, 220, 0.9) 40%,
+                    transparent 70%);
+            filter: blur(10px);
+        }
+
+        #lightning-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        #flash-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: white;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 5;
+            transition: opacity 0.05s ease;
+        }
+
+        #controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .control-group label {
+            color: #aaa;
+            font-size: 12px;
+            font-family: system-ui, sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        input[type="range"] {
+            width: 100px;
+            accent-color: #6366f1;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            font-family: system-ui, sans-serif;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.5);
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        #title {
+            position: fixed;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            font-family: system-ui, sans-serif;
+            font-size: 2rem;
+            font-weight: bold;
+            color: white;
+            text-shadow: 0 0 30px rgba(99, 102, 241, 0.8), 0 0 60px rgba(139, 92, 246, 0.5);
+            letter-spacing: 3px;
+        }
+
+        .rain {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .raindrop {
+            position: absolute;
+            width: 2px;
+            height: 20px;
+            background: linear-gradient(transparent, rgba(150, 150, 200, 0.4));
+            animation: fall linear infinite;
+        }
+
+        @keyframes fall {
+            to {
+                transform: translateY(100vh);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="sky"></div>
+    <div id="flash-overlay"></div>
+    <canvas id="lightning-canvas"></canvas>
+    <div class="rain" id="rain"></div>
+
+    <h1 id="title">⚡ Lightning Generator</h1>
+
+    <div id="controls">
+        <div class="control-group">
+            <label>Frequency</label>
+            <input type="range" id="frequency" min="500" max="5000" value="2000">
+        </div>
+        <div class="control-group">
+            <label>Branches</label>
+            <input type="range" id="branches" min="1" max="8" value="4">
+        </div>
+        <div class="control-group">
+            <label>Intensity</label>
+            <input type="range" id="intensity" min="1" max="10" value="5">
+        </div>
+        <button id="strike-btn">⚡ Strike Now!</button>
+        <button id="auto-btn">Auto: ON</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('lightning-canvas');
+        const ctx = canvas.getContext('2d');
+        const sky = document.getElementById('sky');
+        const flashOverlay = document.getElementById('flash-overlay');
+        const rain = document.getElementById('rain');
+
+        let autoMode = true;
+        let nextStrikeTimeout;
+
+        // Resize canvas
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Create clouds
+        function createClouds() {
+            const cloudContainer = document.createElement('div');
+            cloudContainer.id = 'clouds';
+            cloudContainer.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:60%;z-index:1;';
+
+            for (let i = 0; i < 15; i++) {
+                const cloud = document.createElement('div');
+                cloud.className = 'cloud';
+                const width = 200 + Math.random() * 400;
+                const height = 100 + Math.random() * 150;
+                cloud.style.width = width + 'px';
+                cloud.style.height = height + 'px';
+                cloud.style.left = (Math.random() * 120 - 10) + '%';
+                cloud.style.top = (Math.random() * 40) + '%';
+                cloud.style.animationDelay = Math.random() * 10 + 's';
+                cloudContainer.appendChild(cloud);
+            }
+
+            document.body.insertBefore(cloudContainer, canvas);
+        }
+        createClouds();
+
+        // Create rain
+        function createRain() {
+            for (let i = 0; i < 100; i++) {
+                const drop = document.createElement('div');
+                drop.className = 'raindrop';
+                drop.style.left = Math.random() * 100 + '%';
+                drop.style.animationDuration = (0.5 + Math.random() * 0.5) + 's';
+                drop.style.animationDelay = Math.random() * 2 + 's';
+                drop.style.opacity = 0.3 + Math.random() * 0.4;
+                rain.appendChild(drop);
+            }
+        }
+        createRain();
+
+        // Lightning bolt class
+        class LightningBolt {
+            constructor(startX, startY, endX, endY, generations = 4) {
+                this.startX = startX;
+                this.startY = startY;
+                this.endX = endX;
+                this.endY = endY;
+                this.generations = generations;
+                this.segments = [];
+                this.branches = [];
+                this.alpha = 1;
+                this.generate();
+            }
+
+            generate() {
+                this.segments = this.createBolt(this.startX, this.startY, this.endX, this.endY, this.generations);
+
+                // Create branches
+                const branchCount = parseInt(document.getElementById('branches').value);
+                const branchPoints = this.segments.filter(() => Math.random() < 0.15).slice(0, branchCount);
+
+                branchPoints.forEach(point => {
+                    const angle = (Math.random() - 0.5) * Math.PI * 0.8;
+                    const length = 50 + Math.random() * 150;
+                    const endX = point.x + Math.cos(angle + Math.PI / 2) * length;
+                    const endY = point.y + Math.sin(angle + Math.PI / 2) * length * 0.5 + length;
+                    this.branches.push({
+                        segments: this.createBolt(point.x, point.y, endX, endY, this.generations - 1),
+                        alpha: 0.7
+                    });
+                });
+            }
+
+            createBolt(x1, y1, x2, y2, generations) {
+                const segments = [{ x: x1, y: y1 }];
+                this.subdivide(segments, x1, y1, x2, y2, generations);
+                segments.push({ x: x2, y: y2 });
+                return segments;
+            }
+
+            subdivide(segments, x1, y1, x2, y2, generations) {
+                if (generations <= 0) return;
+
+                const midX = (x1 + x2) / 2;
+                const midY = (y1 + y2) / 2;
+
+                const distance = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+                const displacement = (Math.random() - 0.5) * distance * 0.4;
+
+                const perpX = -(y2 - y1) / distance;
+                const perpY = (x2 - x1) / distance;
+
+                const newX = midX + perpX * displacement;
+                const newY = midY + perpY * displacement;
+
+                this.subdivide(segments, x1, y1, newX, newY, generations - 1);
+                segments.push({ x: newX, y: newY });
+                this.subdivide(segments, newX, newY, x2, y2, generations - 1);
+            }
+
+            draw(ctx) {
+                const intensity = parseInt(document.getElementById('intensity').value);
+
+                // Draw glow layers
+                for (let i = 3; i >= 0; i--) {
+                    ctx.beginPath();
+                    ctx.strokeStyle = `rgba(180, 180, 255, ${this.alpha * 0.1 * (4 - i)})`;
+                    ctx.lineWidth = (i + 1) * 8 * (intensity / 5);
+                    ctx.lineCap = 'round';
+                    ctx.lineJoin = 'round';
+
+                    this.drawPath(ctx, this.segments);
+                    ctx.stroke();
+                }
+
+                // Draw main bolt
+                ctx.beginPath();
+                ctx.strokeStyle = `rgba(255, 255, 255, ${this.alpha})`;
+                ctx.lineWidth = 2 + intensity * 0.5;
+                ctx.shadowColor = 'rgba(100, 150, 255, 1)';
+                ctx.shadowBlur = 20;
+                this.drawPath(ctx, this.segments);
+                ctx.stroke();
+
+                // Draw core
+                ctx.beginPath();
+                ctx.strokeStyle = `rgba(255, 255, 255, ${this.alpha})`;
+                ctx.lineWidth = 1;
+                ctx.shadowBlur = 0;
+                this.drawPath(ctx, this.segments);
+                ctx.stroke();
+
+                // Draw branches
+                this.branches.forEach(branch => {
+                    for (let i = 2; i >= 0; i--) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = `rgba(180, 180, 255, ${this.alpha * branch.alpha * 0.15 * (3 - i)})`;
+                        ctx.lineWidth = (i + 1) * 4;
+                        this.drawPath(ctx, branch.segments);
+                        ctx.stroke();
+                    }
+
+                    ctx.beginPath();
+                    ctx.strokeStyle = `rgba(255, 255, 255, ${this.alpha * branch.alpha})`;
+                    ctx.lineWidth = 1.5;
+                    this.drawPath(ctx, branch.segments);
+                    ctx.stroke();
+                });
+
+                ctx.shadowBlur = 0;
+            }
+
+            drawPath(ctx, segments) {
+                if (segments.length < 2) return;
+                ctx.moveTo(segments[0].x, segments[0].y);
+                for (let i = 1; i < segments.length; i++) {
+                    ctx.lineTo(segments[i].x, segments[i].y);
+                }
+            }
+        }
+
+        let bolts = [];
+
+        function triggerFlash(intense = false) {
+            const intensity = parseInt(document.getElementById('intensity').value);
+            const flashIntensity = intensity / 10;
+
+            // Sky flash
+            sky.classList.add(intense ? 'flash-intense' : 'flash');
+
+            // Overlay flash
+            flashOverlay.style.opacity = intense ? 0.4 * flashIntensity : 0.2 * flashIntensity;
+
+            // Cloud illumination
+            document.querySelectorAll('.cloud').forEach(cloud => {
+                cloud.classList.add(intense ? 'lit-intense' : 'lit');
+            });
+
+            setTimeout(() => {
+                sky.classList.remove('flash', 'flash-intense');
+                flashOverlay.style.opacity = 0;
+                document.querySelectorAll('.cloud').forEach(cloud => {
+                    cloud.classList.remove('lit', 'lit-intense');
+                });
+            }, intense ? 150 : 80);
+
+            // Secondary flash
+            if (intense) {
+                setTimeout(() => {
+                    sky.classList.add('flash');
+                    flashOverlay.style.opacity = 0.15;
+                    document.querySelectorAll('.cloud').forEach(cloud => {
+                        cloud.classList.add('lit');
+                    });
+
+                    setTimeout(() => {
+                        sky.classList.remove('flash');
+                        flashOverlay.style.opacity = 0;
+                        document.querySelectorAll('.cloud').forEach(cloud => {
+                            cloud.classList.remove('lit');
+                        });
+                    }, 60);
+                }, 100);
+            }
+        }
+
+        function createLightning() {
+            const startX = Math.random() * canvas.width;
+            const startY = Math.random() * canvas.height * 0.2;
+            const endX = startX + (Math.random() - 0.5) * 300;
+            const endY = canvas.height * (0.6 + Math.random() * 0.4);
+
+            const bolt = new LightningBolt(startX, startY, endX, endY, 5);
+            bolts.push(bolt);
+
+            // Multiple flashes
+            const isIntense = Math.random() > 0.6;
+            triggerFlash(isIntense);
+
+            // Thunder sound simulation via screen shake
+            if (isIntense) {
+                document.body.style.transform = 'translateX(2px)';
+                setTimeout(() => document.body.style.transform = 'translateX(-2px)', 50);
+                setTimeout(() => document.body.style.transform = 'translateX(1px)', 100);
+                setTimeout(() => document.body.style.transform = '', 150);
+            }
+
+            // Fade out bolt
+            let fadeInterval = setInterval(() => {
+                bolt.alpha -= 0.08;
+                if (bolt.alpha <= 0) {
+                    clearInterval(fadeInterval);
+                    bolts = bolts.filter(b => b !== bolt);
+                }
+            }, 30);
+
+            scheduleNextStrike();
+        }
+
+        function scheduleNextStrike() {
+            if (!autoMode) return;
+
+            const frequency = parseInt(document.getElementById('frequency').value);
+            const variation = frequency * 0.5;
+            const delay = frequency + (Math.random() - 0.5) * variation;
+
+            clearTimeout(nextStrikeTimeout);
+            nextStrikeTimeout = setTimeout(createLightning, delay);
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            bolts.forEach(bolt => bolt.draw(ctx));
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+        // Controls
+        document.getElementById('strike-btn').addEventListener('click', createLightning);
+
+        document.getElementById('auto-btn').addEventListener('click', function () {
+            autoMode = !autoMode;
+            this.textContent = `Auto: ${autoMode ? 'ON' : 'OFF'}`;
+            if (autoMode) {
+                scheduleNextStrike();
+            } else {
+                clearTimeout(nextStrikeTimeout);
+            }
+        });
+
+        // Click to strike
+        canvas.style.pointerEvents = 'auto';
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            const startX = x + (Math.random() - 0.5) * 100;
+            const startY = Math.random() * canvas.height * 0.15;
+
+            const bolt = new LightningBolt(startX, startY, x, y, 5);
+            bolts.push(bolt);
+            triggerFlash(true);
+
+            let fadeInterval = setInterval(() => {
+                bolt.alpha -= 0.08;
+                if (bolt.alpha <= 0) {
+                    clearInterval(fadeInterval);
+                    bolts = bolts.filter(b => b !== bolt);
+                }
+            }, 30);
+        });
+
+        // Start auto strikes
+        scheduleNextStrike();
+
+        // Ambient cloud movement
+        function animateClouds() {
+            const clouds = document.querySelectorAll('.cloud');
+            clouds.forEach((cloud, i) => {
+                const currentLeft = parseFloat(cloud.style.left);
+                cloud.style.left = (currentLeft + 0.01 * (i % 2 === 0 ? 1 : -1)) + '%';
+                if (currentLeft > 110) cloud.style.left = '-20%';
+                if (currentLeft < -20) cloud.style.left = '110%';
+            });
+            requestAnimationFrame(animateClouds);
+        }
+        animateClouds();
+    </script>
+</body>
+
+</html>
