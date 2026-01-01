@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lightning Generator</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            background: #0a0a0f;
+        }
+
+        #sky-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(180deg,
+                    #0a0a15 0%,
+                    #151525 30%,
+                    #1a1a2e 60%,
+                    #252540 100%);
+            transition: background 0.1s ease;
+        }
+
+        #sky-container.flash {
+            background: linear-gradient(180deg,
+                    #2a2a4a 0%,
+                    #4a4a6a 30%,
+                    #5a5a7a 60%,
+                    #6a6a8a 100%);
+        }
+
+        #sky-container.intense-flash {
+            background: linear-gradient(180deg,
+                    #5a5a7a 0%,
+                    #8a8aaa 30%,
+                    #9a9aba 60%,
+                    #aaaaca 100%);
+        }
+
+        .cloud {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(30px);
+            opacity: 0.6;
+            animation: cloudDrift 60s infinite linear;
+        }
+
+        @keyframes cloudDrift {
+            0% {
+                transform: translateX(-100px);
+            }
+
+            100% {
+                transform: translateX(calc(100vw + 100px));
+            }
+        }
+
+        #lightning-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        #rain-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .control-panel {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(10, 10, 20, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(100, 100, 150, 0.3);
+            border-radius: 16px;
+            padding: 20px;
+            z-index: 100;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 90%;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .control-group label {
+            color: #8888aa;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 120px;
+            height: 6px;
+            background: rgba(100, 100, 150, 0.2);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+        }
+
+        button {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(99, 102, 241, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .stats {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(10, 10, 20, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(100, 100, 150, 0.2);
+            border-radius: 12px;
+            padding: 15px 20px;
+            color: #aaaacc;
+            font-size: 13px;
+            z-index: 100;
+        }
+
+        .stats div {
+            margin: 4px 0;
+        }
+
+        .stats span {
+            color: #818cf8;
+            font-weight: 600;
+        }
+
+        .title {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+        }
+
+        .title h1 {
+            color: #c7d2fe;
+            font-size: 28px;
+            font-weight: 700;
+            text-shadow: 0 0 30px rgba(99, 102, 241, 0.5);
+            letter-spacing: 2px;
+        }
+
+        .title p {
+            color: #6b7280;
+            font-size: 12px;
+            margin-top: 5px;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="sky-container">
+        <div class="cloud" style="width: 400px; height: 150px; top: 5%; left: -100px; background: #1a1a2e;"></div>
+        <div class="cloud"
+            style="width: 500px; height: 180px; top: 15%; left: -150px; background: #151525; animation-delay: -20s;">
+        </div>
+        <div class="cloud"
+            style="width: 350px; height: 120px; top: 25%; left: -80px; background: #1e1e35; animation-delay: -40s;">
+        </div>
+        <div class="cloud"
+            style="width: 450px; height: 160px; top: 10%; left: -120px; background: #1a1a2e; animation-delay: -30s; animation-duration: 80s;">
+        </div>
+        <div class="cloud"
+            style="width: 300px; height: 100px; top: 35%; left: -60px; background: #151525; animation-delay: -50s; animation-duration: 70s;">
+        </div>
+        <div class="cloud"
+            style="width: 550px; height: 200px; top: 20%; left: -200px; background: #1e1e35; animation-delay: -10s; animation-duration: 90s;">
+        </div>
+    </div>
+
+    <canvas id="lightning-canvas"></canvas>
+    <canvas id="rain-canvas"></canvas>
+
+    <div class="title">
+        <h1>⚡ STORM</h1>
+        <p>Lightning Generator</p>
+    </div>
+
+    <div class="stats">
+        <div>Strikes: <span id="strike-count">0</span></div>
+        <div>Next Strike: <span id="next-strike">--</span>s</div>
+        <div>Bolt Type: <span id="bolt-type">--</span></div>
+    </div>
+
+    <div class="control-panel">
+        <div class="control-group">
+            <label>Strike Frequency</label>
+            <input type="range" id="frequency" min="1" max="10" value="5">
+        </div>
+        <div class="control-group">
+            <label>Branch Density</label>
+            <input type="range" id="branches" min="1" max="8" value="4">
+        </div>
+        <div class="control-group">
+            <label>Bolt Intensity</label>
+            <input type="range" id="intensity" min="1" max="10" value="7">
+        </div>
+        <div class="control-group">
+            <label>Rain Intensity</label>
+            <input type="range" id="rain" min="0" max="10" value="3">
+        </div>
+        <button id="strike-btn">⚡ Strike Now</button>
+        <button id="auto-btn">⏸ Pause</button>
+    </div>
+
+    <script>
+        // Canvas setup
+        const lightningCanvas = document.getElementById('lightning-canvas');
+        const rainCanvas = document.getElementById('rain-canvas');
+        const skyContainer = document.getElementById('sky-container');
+        const lCtx = lightningCanvas.getContext('2d');
+        const rCtx = rainCanvas.getContext('2d');
+
+        function resizeCanvas() {
+            lightningCanvas.width = window.innerWidth;
+            lightningCanvas.height = window.innerHeight;
+            rainCanvas.width = window.innerWidth;
+            rainCanvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // State
+        let strikeCount = 0;
+        let autoMode = true;
+        let nextStrikeTime = 0;
+        let activeBolts = [];
+        let raindrops = [];
+
+        // Settings
+        const settings = {
+            frequency: 5,
+            branches: 4,
+            intensity: 7,
+            rain: 3
+        };
+
+        // Lightning bolt class with branching algorithm
+        class LightningBolt {
+            constructor(x, y, endY, options = {}) {
+                this.startX = x;
+                this.startY = y;
+                this.endY = endY;
+                this.segments = [];
+                this.branches = [];
+                this.alpha = 1;
+                this.life = 1;
+                this.decay = options.decay || 0.02;
+                this.width = options.width || (2 + settings.intensity * 0.5);
+                this.color = options.color || `rgba(200, 220, 255, ${options.alpha || 1})`;
+                this.glowColor = options.glowColor || `rgba(150, 180, 255, ${(options.alpha || 1) * 0.5})`;
+                this.generateBolt();
+            }
+
+            generateBolt() {
+                let currentX = this.startX;
+                let currentY = this.startY;
+                const segments = [];
+                const jitter = 30 + settings.intensity * 5;
+                const segmentLength = 15 + Math.random() * 15;
+
+                while (currentY < this.endY) {
+                    const nextY = Math.min(currentY + segmentLength + Math.random() * 10, this.endY);
+                    const offsetX = (Math.random() - 0.5) * jitter * (1 - currentY / this.endY * 0.5);
+                    const nextX = currentX + offsetX;
+
+                    segments.push({
+                        x1: currentX,
+                        y1: currentY,
+                        x2: nextX,
+                        y2: nextY
+                    });
+
+                    // Create branches
+                    if (Math.random() < settings.branches * 0.1 && currentY < this.endY * 0.7) {
+                        this.createBranch(nextX, nextY, this.endY);
+                    }
+
+                    currentX = nextX;
+                    currentY = nextY;
+                }
+
+                this.segments = segments;
+            }
+
+            createBranch(x, y, endY) {
+                const branchLength = (endY - y) * (0.3 + Math.random() * 0.4);
+                const branchEndY = y + branchLength;
+                const angle = (Math.random() - 0.5) * Math.PI * 0.8;
+                const segments = [];
+
+                let currentX = x;
+                let currentY = y;
+                const jitter = 20 + settings.intensity * 3;
+                const segmentLength = 10 + Math.random() * 10;
+
+                while (currentY < branchEndY) {
+                    const nextY = Math.min(currentY + segmentLength, branchEndY);
+                    const offsetX = Math.sin(angle) * (nextY - currentY) + (Math.random() - 0.5) * jitter;
+                    const nextX = currentX + offsetX;
+
+                    segments.push({
+                        x1: currentX,
+                        y1: currentY,
+                        x2: nextX,
+                        y2: nextY
+                    });
+
+                    // Sub-branches
+                    if (Math.random() < settings.branches * 0.05) {
+                        this.createSubBranch(nextX, nextY, branchEndY);
+                    }
+
+                    currentX = nextX;
+                    currentY = nextY;
+                }
+
+                this.branches.push({
+                    segments,
+                    width: this.width * 0.5
+                });
+            }
+
+            createSubBranch(x, y, endY) {
+                const subLength = (endY - y) * (0.2 + Math.random() * 0.3);
+                const subEndY = y + subLength;
+                const angle = (Math.random() - 0.5) * Math.PI * 0.6;
+                const segments = [];
+
+                let currentX = x;
+                let currentY = y;
+                const jitter = 10;
+                const segmentLength = 8;
+
+                while (currentY < subEndY && segments.length < 8) {
+                    const nextY = Math.min(currentY + segmentLength, subEndY);
+                    const offsetX = Math.sin(angle) * (nextY - currentY) + (Math.random() - 0.5) * jitter;
+                    const nextX = currentX + offsetX;
+
+                    segments.push({
+                        x1: currentX,
+                        y1: currentY,
+                        x2: nextX,
+                        y2: nextY
+                    });
+
+                    currentX = nextX;
+                    currentY = nextY;
+                }
+
+                this.branches.push({
+                    segments,
+                    width: this.width * 0.25
+                });
+            }
+
+            draw(ctx) {
+                if (this.alpha <= 0) return;
+
+                // Draw glow
+                ctx.strokeStyle = this.glowColor.replace(/[\d.]+\)$/, `${this.alpha * 0.5})`);
+                ctx.lineWidth = this.width * 4;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                this.drawPath(ctx);
+
+                // Draw main bolt
+                ctx.strokeStyle = this.color.replace(/[\d.]+\)$/, `${this.alpha})`);
+                ctx.lineWidth = this.width;
+                this.drawPath(ctx);
+
+                // Draw bright core
+                ctx.strokeStyle = `rgba(255, 255, 255, ${this.alpha * 0.8})`;
+                ctx.lineWidth = this.width * 0.3;
+                this.drawPath(ctx);
+
+                // Draw branches
+                this.branches.forEach(branch => {
+                    ctx.strokeStyle = this.glowColor.replace(/[\d.]+\)$/, `${this.alpha * 0.3})`);
+                    ctx.lineWidth = branch.width * 3;
+                    this.drawBranchPath(ctx, branch.segments);
+
+                    ctx.strokeStyle = this.color.replace(/[\d.]+\)$/, `${this.alpha * 0.7})`);
+                    ctx.lineWidth = branch.width;
+                    this.drawBranchPath(ctx, branch.segments);
+
+                    ctx.strokeStyle = `rgba(255, 255, 255, ${this.alpha * 0.5})`;
+                    ctx.lineWidth = branch.width * 0.3;
+                    this.drawBranchPath(ctx, branch.segments);
+                });
+            }
+
+            drawPath(ctx) {
+                ctx.beginPath();
+                this.segments.forEach((seg, i) => {
+                    if (i === 0) ctx.moveTo(seg.x1, seg.y1);
+                    ctx.lineTo(seg.x2, seg.y2);
+                });
+                ctx.stroke();
+            }
+
+            drawBranchPath(ctx, segments) {
+                ctx.beginPath();
+                segments.forEach((seg, i) => {
+                    if (i === 0) ctx.moveTo(seg.x1, seg.y1);
+                    ctx.lineTo(seg.x2, seg.y2);
+                });
+                ctx.stroke();
+            }
+
+            update() {
+                this.life -= this.decay;
+                this.alpha = Math.max(0, this.life);
+                return this.alpha > 0;
+            }
+        }
+
+        // Create lightning strike
+        function createStrike(intensityMod = 1) {
+            const x = Math.random() * lightningCanvas.width;
+            const types = ['Single', 'Double', 'Sheet', 'Chain'];
+            const type = types[Math.floor(Math.random() * types.length)];
+
+            document.getElementById('bolt-type').textContent = type;
+            strikeCount++;
+            document.getElementById('strike-count').textContent = strikeCount;
+
+            // Flash effect
+            const flashIntensity = settings.intensity * intensityMod;
+            if (flashIntensity > 5) {
+                skyContainer.classList.add('intense-flash');
+                setTimeout(() => skyContainer.classList.remove('intense-flash'), 100);
+            } else {
+                skyContainer.classList.add('flash');
+                setTimeout(() => skyContainer.classList.remove('flash'), 80);
+            }
+
+            // Create main bolt
+            const bolt = new LightningBolt(x, 0, lightningCanvas.height * (0.7 + Math.random() * 0.3), {
+                decay: 0.015 + Math.random() * 0.01,
+                width: (2 + flashIntensity * 0.4) * intensityMod
+            });
+            activeBolts.push(bolt);
+
+            // Secondary bolts based on type
+            if (type === 'Double') {
+                setTimeout(() => {
+                    const bolt2 = new LightningBolt(x + (Math.random() - 0.5) * 200, 0, lightningCanvas.height * 0.8, {
+                        decay: 0.02,
+                        width: bolt.width * 0.7
+                    });
+                    activeBolts.push(bolt2);
+                }, 50);
+            }
+
+            if (type === 'Chain') {
+                for (let i = 1; i <= 2; i++) {
+                    setTimeout(() => {
+                        const boltX = x + (Math.random() - 0.5) * 300;
+                        const chainBolt = new LightningBolt(boltX, 0, lightningCanvas.height * (0.6 + Math.random() * 0.3), {
+                            decay: 0.025,
+                            width: bolt.width * 0.5
+                        });
+                        activeBolts.push(chainBolt);
+                    }, i * 100);
+                }
+            }
+
+            // Sheet lightning (multiple faint bolts)
+            if (type === 'Sheet') {
+                for (let i = 0; i < 5; i++) {
+                    setTimeout(() => {
+                        const sheetBolt = new LightningBolt(
+                            Math.random() * lightningCanvas.width,
+                            0,
+                            lightningCanvas.height * (0.5 + Math.random() * 0.4),
+                            {
+                                decay: 0.04,
+                                width: bolt.width * 0.3,
+                                color: `rgba(180, 200, 230, 0.5)`,
+                                glowColor: `rgba(130, 150, 200, 0.3)`
+                            }
+                        );
+                        activeBolts.push(sheetBolt);
+                    }, i * 30);
+                }
+            }
+
+            // Schedule next strike
+            scheduleNextStrike();
+        }
+
+        function scheduleNextStrike() {
+            const baseDelay = 11000 - settings.frequency * 1000;
+            const variance = baseDelay * 0.5;
+            nextStrikeTime = Date.now() + baseDelay + (Math.random() - 0.5) * variance;
+            updateNextStrikeDisplay();
+        }
+
+        function updateNextStrikeDisplay() {
+            const remaining = Math.max(0, (nextStrikeTime - Date.now()) / 1000);
+            document.getElementById('next-strike').textContent = remaining.toFixed(1);
+        }
+
+        // Rain system
+        class Raindrop {
+            constructor() {
+                this.reset();
+            }
+
+            reset() {
+                this.x = Math.random() * rainCanvas.width;
+                this.y = -10 - Math.random() * 50;
+                this.speed = 10 + Math.random() * 10;
+                this.length = 10 + Math.random() * 20;
+                this.alpha = 0.2 + Math.random() * 0.3;
+            }
+
+            update() {
+                this.y += this.speed;
+                this.x += 1; // Wind
+                if (this.y > rainCanvas.height) {
+                    this.reset();
+                }
+            }
+
+            draw(ctx) {
+                ctx.strokeStyle = `rgba(174, 194, 224, ${this.alpha})`;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                ctx.lineTo(this.x + 2, this.y + this.length);
+                ctx.stroke();
+            }
+        }
+
+        function initRain() {
+            raindrops = [];
+            const count = settings.rain * 100;
+            for (let i = 0; i < count; i++) {
+                const drop = new Raindrop();
+                drop.y = Math.random() * rainCanvas.height;
+                raindrops.push(drop);
+            }
+        }
+
+        // Animation loop
+        function animate() {
+            // Clear canvases
+            lCtx.clearRect(0, 0, lightningCanvas.width, lightningCanvas.height);
+            rCtx.clearRect(0, 0, rainCanvas.width, rainCanvas.height);
+
+            // Update and draw rain
+            if (settings.rain > 0) {
+                raindrops.forEach(drop => {
+                    drop.update();
+                    drop.draw(rCtx);
+                });
+            }
+
+            // Update and draw lightning
+            activeBolts = activeBolts.filter(bolt => {
+                bolt.draw(lCtx);
+                return bolt.update();
+            });
+
+            // Auto strike
+            if (autoMode && Date.now() >= nextStrikeTime) {
+                createStrike();
+            }
+
+            updateNextStrikeDisplay();
+            requestAnimationFrame(animate);
+        }
+
+        // Event listeners
+        document.getElementById('frequency').addEventListener('input', (e) => {
+            settings.frequency = parseInt(e.target.value);
+        });
+
+        document.getElementById('branches').addEventListener('input', (e) => {
+            settings.branches = parseInt(e.target.value);
+        });
+
+        document.getElementById('intensity').addEventListener('input', (e) => {
+            settings.intensity = parseInt(e.target.value);
+        });
+
+        document.getElementById('rain').addEventListener('input', (e) => {
+            settings.rain = parseInt(e.target.value);
+            initRain();
+        });
+
+        document.getElementById('strike-btn').addEventListener('click', () => {
+            createStrike(1.2);
+        });
+
+        document.getElementById('auto-btn').addEventListener('click', (e) => {
+            autoMode = !autoMode;
+            e.target.textContent = autoMode ? '⏸ Pause' : '▶ Play';
+            if (autoMode) {
+                scheduleNextStrike();
+            }
+        });
+
+        // Click to strike
+        lightningCanvas.addEventListener('click', (e) => {
+            const x = e.clientX;
+            const bolt = new LightningBolt(x, 0, lightningCanvas.height * (0.7 + Math.random() * 0.3), {
+                decay: 0.015,
+                width: 2 + settings.intensity * 0.5
+            });
+            activeBolts.push(bolt);
+
+            if (settings.intensity > 5) {
+                skyContainer.classList.add('intense-flash');
+                setTimeout(() => skyContainer.classList.remove('intense-flash'), 100);
+            } else {
+                skyContainer.classList.add('flash');
+                setTimeout(() => skyContainer.classList.remove('flash'), 80);
+            }
+        });
+
+        // Initialize
+        initRain();
+        scheduleNextStrike();
+        animate();
+
+        // Initial demo strike
+        setTimeout(() => createStrike(1.5), 500);
+    </script>
+</body>
+
+</html>
