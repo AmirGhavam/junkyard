@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Storm Forge - Lightning Generator</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0f172a;
+            /* Slate 900 */
+        }
+
+        #sky-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to bottom, #020617, #1e1b4b, #312e81);
+            z-index: 0;
+        }
+
+        #sheet-lightning {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 50% 30%, rgba(200, 210, 255, 0.4), transparent 70%);
+            opacity: 0;
+            z-index: 1;
+            transition: opacity 0.1s;
+        }
+
+        /* Dramatic Cloud Layers */
+        .cloud {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(30, 41, 59, 0.6);
+            filter: blur(40px);
+            z-index: 2;
+            opacity: 0.8;
+            animation: drift 60s infinite linear alternate;
+        }
+
+        .cloud.dark {
+            background: rgba(2, 6, 23, 0.85);
+        }
+
+        .cloud.small {
+            width: 20vw;
+            height: 15vh;
+            filter: blur(30px);
+            opacity: 0.6;
+        }
+
+        .cloud:nth-child(1) {
+            top: -10%;
+            left: 10%;
+            width: 40vw;
+            height: 30vh;
+            animation-duration: 80s;
+        }
+
+        .cloud:nth-child(2) {
+            top: -5%;
+            right: 10%;
+            width: 50vw;
+            height: 35vh;
+            animation-duration: 90s;
+            animation-delay: -10s;
+        }
+
+        .cloud:nth-child(3) {
+            top: 10%;
+            left: 40%;
+            width: 40vw;
+            height: 25vh;
+            animation-duration: 70s;
+            animation-delay: -20s;
+        }
+
+        .cloud:nth-child(4) {
+            top: -15%;
+            left: 60%;
+            width: 30vw;
+            height: 40vh;
+            background: rgba(15, 23, 42, 0.9);
+        }
+
+        .cloud:nth-child(5) {
+            top: 20%;
+            left: 20%;
+            animation-duration: 100s;
+            animation-delay: -5s;
+        }
+
+        .cloud:nth-child(6) {
+            top: 15%;
+            right: 30%;
+            animation-duration: 110s;
+            animation-delay: -30s;
+        }
+
+        @keyframes drift {
+            from {
+                transform: translateX(-20px);
+            }
+
+            to {
+                transform: translateX(20px);
+            }
+        }
+
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 3;
+        }
+
+        #flash-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: white;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 4;
+            transition: opacity 0.1s ease-out;
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            display: flex;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px 20px;
+            border-radius: 9999px;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        input[type=range] {
+            accent-color: #a5b4fc;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="sky-container">
+        <div class="cloud"></div>
+        <div class="cloud dark"></div>
+        <div class="cloud"></div>
+        <div class="cloud dark"></div>
+        <div class="cloud small"></div>
+        <div class="cloud small dark"></div>
+    </div>
+
+    <canvas id="canvas"></canvas>
+    <div id="flash-overlay"></div>
+
+    <div class="controls text-white font-mono text-sm">
+        <div class="flex flex-col items-center">
+            <label for="intensity">Intensity</label>
+            <input type="range" id="intensity" min="1" max="10" value="5">
+        </div>
+        <div class="flex flex-col items-center ml-4">
+            <label for="frequency">Frequency</label>
+            <input type="range" id="frequency" min="1" max="100" value="30">
+        </div>
+        <button id="strike-btn"
+            class="ml-6 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 active:scale-95 rounded-full font-bold shadow transition cursor-pointer">
+            STRIKE
+        </button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const flashOverlay = document.getElementById('flash-overlay');
+        const sheetLightning = document.getElementById('sheet-lightning');
+        const strikeBtn = document.getElementById('strike-btn');
+        const intensityInput = document.getElementById('intensity');
+        const frequencyInput = document.getElementById('frequency');
+
+        let width, height;
+        let lightningBolts = [];
+        let lastStrikeTime = 0;
+        let nextStrikeDelay = 1000;
+
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        class Bolt {
+            constructor(x, y, thickness, color) {
+                this.segments = [];
+                this.x = x;
+                this.y = y;
+                this.thickness = thickness;
+                this.alpha = 1;
+                this.dead = false;
+                this.color = color || { r: 230, g: 240, b: 255 };
+
+                // Generate the fractal structure immediately
+                this.generateSegments(x, y, thickness, 0); // 0 is direction (downish)
+            }
+
+            generateSegments(startX, startY, thickness, angleOffset) {
+                let currentX = startX;
+                let currentY = startY;
+                let currentThickness = thickness;
+
+                // Max length proportional to screen height
+                let maxLength = height * 1.2;
+                let lengthTraveled = 0;
+
+                while (currentY < height + 100 && lengthTraveled < maxLength && currentThickness > 0.3) {
+                    // Determine segment length and angle
+                    const segmentLen = Math.random() * 20 + 10; // 10 to 30px
+
+                    // Main direction is down (PI/2), but with random jitter
+                    // angleOffset allows guiding the bolt generally
+                    const angleJitter = (Math.random() - 0.5) * 1.5; // -0.75 to 0.75 radians
+                    const angle = (Math.PI / 2) + angleJitter + angleOffset;
+
+                    const nextX = currentX + Math.cos(angle) * segmentLen;
+                    const nextY = currentY + Math.sin(angle) * segmentLen;
+
+                    this.segments.push({
+                        x1: currentX,
+                        y1: currentY,
+                        x2: nextX,
+                        y2: nextY,
+                        thickness: currentThickness
+                    });
+
+                    // Branching logic
+                    if (Math.random() < 0.05 * (intensityInput.value / 2)) { // Chance to branch
+                        // Recursive branch
+                        const branchAngleOffset = (Math.random() - 0.5); // Diverge slightly
+                        this.generateSegments(nextX, nextY, currentThickness * 0.6, branchAngleOffset);
+                    }
+
+                    currentX = nextX;
+                    currentY = nextY;
+                    lengthTraveled += segmentLen;
+
+                    // Thin out
+                    currentThickness *= 0.96;
+                }
+            }
+
+            draw() {
+                if (this.dead) return;
+
+                ctx.save();
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = `rgba(${this.color.r}, ${this.color.g}, ${this.color.b}, 0.8)`;
+
+                // Draw all segments
+                // To make it flicker, we can slightly randomize opacity per frame or just fade out
+                ctx.strokeStyle = `rgba(${this.color.r}, ${this.color.g}, ${this.color.b}, ${this.alpha})`;
+
+                for (let seg of this.segments) {
+                    ctx.beginPath();
+                    ctx.moveTo(seg.x1, seg.y1);
+                    ctx.lineTo(seg.x2, seg.y2);
+                    ctx.lineWidth = seg.thickness;
+                    ctx.stroke();
+                }
+
+                ctx.restore();
+
+                // Fade out logic
+                this.alpha -= 0.05 + (Math.random() * 0.05);
+                if (this.alpha <= 0) {
+                    this.dead = true;
+                }
+            }
+        }
+
+        function triggerSheetLightning() {
+            // Randomize position of the sheet flash
+            const x = Math.random() * 100;
+            const y = Math.random() * 60; // Mostly upper sky
+            sheetLightning.style.background = `radial-gradient(circle at ${x}% ${y}%, rgba(200, 210, 255, 0.6), transparent 60%)`;
+
+            sheetLightning.style.opacity = Math.random() * 0.5 + 0.2;
+            sheetLightning.style.transition = 'opacity 0.1s ease-in';
+
+            setTimeout(() => {
+                sheetLightning.style.opacity = 0;
+                sheetLightning.style.transition = `opacity ${Math.random() * 0.8 + 0.3}s ease-out`;
+            }, 100);
+        }
+
+        function triggerLightning(x, y) {
+            const startX = x !== undefined ? x : Math.random() * width;
+            const startY = y !== undefined ? y : Math.random() * (height * 0.2) - 50; // Start near top
+
+            // Main bolt scaled by intensity
+            const intensityMult = (parseInt(intensityInput.value) / 5);
+            const thickness = (Math.random() * 3 + 2) * intensityMult;
+            lightningBolts.push(new Bolt(startX, startY, thickness));
+
+            // Sometimes add a secondary nearby bolt for "multi-strike" effect
+            if (Math.random() > 0.5) {
+                setTimeout(() => {
+                    lightningBolts.push(new Bolt(startX + (Math.random() - 0.5) * 50, startY, thickness * 0.7));
+                }, 50 + Math.random() * 100);
+            }
+
+            // Flash effect
+            const flashIntensity = Math.random() * 0.6 + 0.2;
+            flashOverlay.style.opacity = flashIntensity;
+            flashOverlay.style.transition = 'opacity 0.05s ease-out';
+
+            // Trigger sheet lightning behind clouds too
+            if (Math.random() > 0.3) {
+                triggerSheetLightning();
+            }
+
+            setTimeout(() => {
+                flashOverlay.style.opacity = 0;
+                flashOverlay.style.transition = `opacity ${Math.random() * 0.5 + 0.2}s ease-out`;
+            }, 50);
+        }
+
+        // Animation Loop
+        function loop(timestamp) {
+            ctx.clearRect(0, 0, width, height);
+
+            // Draw Bolts
+            for (let i = lightningBolts.length - 1; i >= 0; i--) {
+                const bolt = lightningBolts[i];
+                bolt.draw();
+                if (bolt.dead) {
+                    lightningBolts.splice(i, 1);
+                }
+            }
+
+            // Auto Strike Logic
+            const freqVal = parseInt(frequencyInput.value);
+            // Invert scale: 1 (rare) to 100 (frequent)
+            // Range logic: wait time between 200ms and 5000ms
+            const maxDelay = 5000;
+            const minDelay = 200;
+
+            // If slider is 100, delay is small. If 1, delay is big.
+            // Linear interpolation is okay but let's make it feel natural
+
+            // Occasional sheet lightning without bolts (distant storm)
+            if (Math.random() < 0.005 * (freqVal / 50)) {
+                triggerSheetLightning();
+            }
+
+            if (timestamp - lastStrikeTime > nextStrikeDelay) {
+                if (Math.random() < (freqVal / 100)) {
+                    triggerLightning();
+                    lastStrikeTime = timestamp;
+
+                    // Calculate next delay based on frequency slider
+                    // Low frequency (slider=1) -> large delay
+                    // High frequency (slider=100) -> small delay
+                    const factor = 1 - (freqVal / 100); // 0 to 0.99
+                    nextStrikeDelay = minDelay + (factor * maxDelay) + (Math.random() * 1000);
+                }
+            }
+
+            requestAnimationFrame(loop);
+        }
+
+        // Interaction
+        strikeBtn.addEventListener('click', () => {
+            triggerLightning();
+            // Reset timer so we don't double strike instantly if auto is pending
+            lastStrikeTime = performance.now();
+        });
+
+        // Click anywhere to strike
+        window.addEventListener('mousedown', (e) => {
+            if (e.target.closest('.controls')) return; // Don't strike if clicking controls
+            triggerLightning(e.clientX, -50);
+        });
+
+        requestAnimationFrame(loop);
+
+    </script>
+</body>
+
+</html>
