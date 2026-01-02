@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sorting Algorithm Visualizer</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        .bar {
+            transition: height 0.1s ease, background-color 0.1s ease;
+        }
+
+        .comparing {
+            background: linear-gradient(to top, #f59e0b, #fbbf24) !important;
+        }
+
+        .swapping {
+            background: linear-gradient(to top, #ef4444, #f87171) !important;
+        }
+
+        .sorted {
+            background: linear-gradient(to top, #10b981, #34d399) !important;
+        }
+
+        .pivot {
+            background: linear-gradient(to top, #8b5cf6, #a78bfa) !important;
+        }
+
+        .merging {
+            background: linear-gradient(to top, #3b82f6, #60a5fa) !important;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-900 min-h-screen text-white">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1
+                class="text-4xl font-bold bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+                Sorting Algorithm Visualizer
+            </h1>
+            <p class="text-gray-400 mt-2">Watch sorting algorithms in action, step by step</p>
+        </div>
+
+        <!-- Controls Panel -->
+        <div class="bg-gray-800 rounded-2xl p-6 mb-6 shadow-xl">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <!-- Algorithm Selection -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Algorithm</label>
+                    <select id="algorithm"
+                        class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer">
+                        <option value="bubble">Bubble Sort</option>
+                        <option value="quick">Quick Sort</option>
+                        <option value="merge">Merge Sort</option>
+                    </select>
+                </div>
+
+                <!-- Array Size -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Array Size: <span
+                            id="sizeValue">30</span></label>
+                    <input type="range" id="arraySize" min="5" max="100" value="30"
+                        class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500">
+                </div>
+
+                <!-- Speed Control -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Speed: <span
+                            id="speedValue">50</span>ms</label>
+                    <input type="range" id="speed" min="1" max="500" value="50"
+                        class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-500">
+                </div>
+
+                <!-- Generate New Array -->
+                <div class="flex items-end">
+                    <button id="generateBtn"
+                        class="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold py-2.5 px-4 rounded-lg transition-all duration-200 shadow-lg hover:shadow-blue-500/25">
+                        Generate New Array
+                    </button>
+                </div>
+            </div>
+
+            <!-- Playback Controls -->
+            <div class="flex flex-wrap items-center justify-center gap-3">
+                <button id="stepBackBtn"
+                    class="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.333 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z">
+                        </path>
+                    </svg>
+                    Step Back
+                </button>
+
+                <button id="playPauseBtn"
+                    class="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold py-2 px-6 rounded-lg transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-green-500/25">
+                    <svg id="playIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z">
+                        </path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <svg id="pauseIcon" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <span id="playPauseText">Play</span>
+                </button>
+
+                <button id="stepForwardBtn"
+                    class="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 flex items-center gap-2">
+                    Step Forward
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M11.933 12.8a1 1 0 000-1.6L6.6 7.2A1 1 0 005 8v8a1 1 0 001.6.8l5.333-4zM19.933 12.8a1 1 0 000-1.6l-5.333-4A1 1 0 0013 8v8a1 1 0 001.6.8l5.333-4z">
+                        </path>
+                    </svg>
+                </button>
+
+                <button id="resetBtn"
+                    class="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-red-500/25">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                        </path>
+                    </svg>
+                    Reset
+                </button>
+            </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="bg-gray-800 rounded-xl p-4 mb-6">
+            <div class="flex justify-between text-sm text-gray-400 mb-2">
+                <span>Step: <span id="currentStep" class="text-white font-semibold">0</span> / <span id="totalSteps"
+                        class="text-white">0</span></span>
+                <span>Comparisons: <span id="comparisons" class="text-yellow-400 font-semibold">0</span> | Swaps: <span
+                        id="swaps" class="text-red-400 font-semibold">0</span></span>
+            </div>
+            <div class="w-full bg-gray-700 rounded-full h-2">
+                <div id="progressBar"
+                    class="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-200"
+                    style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Visualization Area -->
+        <div class="bg-gray-800 rounded-2xl p-6 shadow-xl mb-6">
+            <div id="arrayContainer" class="flex items-end justify-center gap-1 h-80">
+                <!-- Bars will be generated here -->
+            </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="bg-gray-800 rounded-xl p-4 flex flex-wrap justify-center gap-6">
+            <div class="flex items-center gap-2">
+                <div class="w-4 h-4 rounded bg-gradient-to-t from-blue-600 to-blue-400"></div>
+                <span class="text-sm text-gray-300">Unsorted</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="w-4 h-4 rounded bg-gradient-to-t from-yellow-500 to-yellow-300"></div>
+                <span class="text-sm text-gray-300">Comparing</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="w-4 h-4 rounded bg-gradient-to-t from-red-500 to-red-300"></div>
+                <span class="text-sm text-gray-300">Swapping</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="w-4 h-4 rounded bg-gradient-to-t from-purple-500 to-purple-300"></div>
+                <span class="text-sm text-gray-300">Pivot</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="w-4 h-4 rounded bg-gradient-to-t from-blue-500 to-blue-300"></div>
+                <span class="text-sm text-gray-300">Merging</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="w-4 h-4 rounded bg-gradient-to-t from-green-500 to-green-300"></div>
+                <span class="text-sm text-gray-300">Sorted</span>
+            </div>
+        </div>
+
+        <!-- Algorithm Info -->
+        <div id="algoInfo" class="bg-gray-800 rounded-xl p-6 mt-6">
+            <h3 class="text-xl font-bold text-blue-400 mb-2">Bubble Sort</h3>
+            <p class="text-gray-300 mb-3">Bubble Sort repeatedly steps through the list, compares adjacent elements and
+                swaps them if they are in the wrong order.</p>
+            <div class="grid grid-cols-3 gap-4 text-center">
+                <div class="bg-gray-700 rounded-lg p-3">
+                    <div class="text-sm text-gray-400">Time Complexity</div>
+                    <div class="text-lg font-mono text-yellow-400">O(n²)</div>
+                </div>
+                <div class="bg-gray-700 rounded-lg p-3">
+                    <div class="text-sm text-gray-400">Space Complexity</div>
+                    <div class="text-lg font-mono text-green-400">O(1)</div>
+                </div>
+                <div class="bg-gray-700 rounded-lg p-3">
+                    <div class="text-sm text-gray-400">Stability</div>
+                    <div class="text-lg font-mono text-blue-400">Stable</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let array = [];
+        let originalArray = [];
+        let steps = [];
+        let currentStepIndex = -1;
+        let isPlaying = false;
+        let playInterval = null;
+        let speed = 50;
+        let comparisons = 0;
+        let swaps = 0;
+
+        // DOM Elements
+        const arrayContainer = document.getElementById('arrayContainer');
+        const algorithmSelect = document.getElementById('algorithm');
+        const arraySizeInput = document.getElementById('arraySize');
+        const speedInput = document.getElementById('speed');
+        const generateBtn = document.getElementById('generateBtn');
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const stepForwardBtn = document.getElementById('stepForwardBtn');
+        const stepBackBtn = document.getElementById('stepBackBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const playIcon = document.getElementById('playIcon');
+        const pauseIcon = document.getElementById('pauseIcon');
+        const playPauseText = document.getElementById('playPauseText');
+        const progressBar = document.getElementById('progressBar');
+        const currentStepEl = document.getElementById('currentStep');
+        const totalStepsEl = document.getElementById('totalSteps');
+        const comparisonsEl = document.getElementById('comparisons');
+        const swapsEl = document.getElementById('swaps');
+        const sizeValueEl = document.getElementById('sizeValue');
+        const speedValueEl = document.getElementById('speedValue');
+        const algoInfo = document.getElementById('algoInfo');
+
+        // Algorithm Info
+        const algorithmInfo = {
+            bubble: {
+                name: 'Bubble Sort',
+                description: 'Bubble Sort repeatedly steps through the list, compares adjacent elements and swaps them if they are in the wrong order.',
+                time: 'O(n²)',
+                space: 'O(1)',
+                stability: 'Stable'
+            },
+            quick: {
+                name: 'Quick Sort',
+                description: 'Quick Sort picks a pivot element and partitions the array around it, placing smaller elements before and larger elements after the pivot.',
+                time: 'O(n log n)',
+                space: 'O(log n)',
+                stability: 'Unstable'
+            },
+            merge: {
+                name: 'Merge Sort',
+                description: 'Merge Sort divides the array into halves, recursively sorts them, and then merges the sorted halves back together.',
+                time: 'O(n log n)',
+                space: 'O(n)',
+                stability: 'Stable'
+            }
+        };
+
+        // Generate random array
+        function generateArray(size) {
+            const arr = [];
+            for (let i = 0; i < size; i++) {
+                arr.push(Math.floor(Math.random() * 280) + 20);
+            }
+            return arr;
+        }
+
+        // Render array as bars
+        function renderArray(arr, highlights = {}) {
+            arrayContainer.innerHTML = '';
+            const barWidth = Math.max(2, Math.min(30, (arrayContainer.clientWidth - arr.length * 2) / arr.length));
+
+            arr.forEach((value, index) => {
+                const bar = document.createElement('div');
+                bar.className = 'bar rounded-t';
+                bar.style.height = `${value}px`;
+                bar.style.width = `${barWidth}px`;
+                bar.style.background = 'linear-gradient(to top, #3b82f6, #60a5fa)';
+
+                if (highlights.comparing && highlights.comparing.includes(index)) {
+                    bar.classList.add('comparing');
+                }
+                if (highlights.swapping && highlights.swapping.includes(index)) {
+                    bar.classList.add('swapping');
+                }
+                if (highlights.sorted && highlights.sorted.includes(index)) {
+                    bar.classList.add('sorted');
+                }
+                if (highlights.pivot === index) {
+                    bar.classList.add('pivot');
+                }
+                if (highlights.merging && highlights.merging.includes(index)) {
+                    bar.classList.add('merging');
+                }
+
+                arrayContainer.appendChild(bar);
+            });
+        }
+
+        // Bubble Sort
+        function bubbleSort(arr) {
+            const steps = [];
+            const n = arr.length;
+            const sorted = [];
+            let compCount = 0;
+            let swapCount = 0;
+
+            for (let i = 0; i < n - 1; i++) {
+                for (let j = 0; j < n - i - 1; j++) {
+                    compCount++;
+                    steps.push({
+                        array: [...arr],
+                        highlights: { comparing: [j, j + 1], sorted: [...sorted] },
+                        comparisons: compCount,
+                        swaps: swapCount,
+                        message: `Comparing ${arr[j]} and ${arr[j + 1]}`
+                    });
+
+                    if (arr[j] > arr[j + 1]) {
+                        [arr[j], arr[j + 1]] = [arr[j + 1], arr[j]];
+                        swapCount++;
+                        steps.push({
+                            array: [...arr],
+                            highlights: { swapping: [j, j + 1], sorted: [...sorted] },
+                            comparisons: compCount,
+                            swaps: swapCount,
+                            message: `Swapping ${arr[j + 1]} and ${arr[j]}`
+                        });
+                    }
+                }
+                sorted.unshift(n - i - 1);
+            }
+            sorted.unshift(0);
+
+            steps.push({
+                array: [...arr],
+                highlights: { sorted: Array.from({ length: n }, (_, i) => i) },
+                comparisons: compCount,
+                swaps: swapCount,
+                message: 'Sorting complete!'
+            });
+
+            return steps;
+        }
+
+        // Quick Sort
+        function quickSort(arr) {
+            const steps = [];
+            let compCount = 0;
+            let swapCount = 0;
+            const sorted = new Set();
+
+            function partition(low, high) {
+                const pivot = arr[high];
+                steps.push({
+                    array: [...arr],
+                    highlights: { pivot: high, sorted: [...sorted] },
+                    comparisons: compCount,
+                    swaps: swapCount,
+                    message: `Pivot selected: ${pivot}`
+                });
+
+                let i = low - 1;
+
+                for (let j = low; j < high; j++) {
+                    compCount++;
+                    steps.push({
+                        array: [...arr],
+                        highlights: { comparing: [j], pivot: high, sorted: [...sorted] },
+                        comparisons: compCount,
+                        swaps: swapCount,
+                        message: `Comparing ${arr[j]} with pivot ${pivot}`
+                    });
+
+                    if (arr[j] < pivot) {
+                        i++;
+                        if (i !== j) {
+                            [arr[i], arr[j]] = [arr[j], arr[i]];
+                            swapCount++;
+                            steps.push({
+                                array: [...arr],
+                                highlights: { swapping: [i, j], pivot: high, sorted: [...sorted] },
+                                comparisons: compCount,
+                                swaps: swapCount,
+                                message: `Swapping ${arr[j]} and ${arr[i]}`
+                            });
+                        }
+                    }
+                }
+
+                if (i + 1 !== high) {
+                    [arr[i + 1], arr[high]] = [arr[high], arr[i + 1]];
+                    swapCount++;
+                    steps.push({
+                        array: [...arr],
+                        highlights: { swapping: [i + 1, high], sorted: [...sorted] },
+                        comparisons: compCount,
+                        swaps: swapCount,
+                        message: `Placing pivot in correct position`
+                    });
+                }
+
+                sorted.add(i + 1);
+                return i + 1;
+            }
+
+            function sort(low, high) {
+                if (low < high) {
+                    const pi = partition(low, high);
+                    sort(low, pi - 1);
+                    sort(pi + 1, high);
+                } else if (low === high) {
+                    sorted.add(low);
+                }
+            }
+
+            sort(0, arr.length - 1);
+
+            steps.push({
+                array: [...arr],
+                highlights: { sorted: Array.from({ length: arr.length }, (_, i) => i) },
+                comparisons: compCount,
+                swaps: swapCount,
+                message: 'Sorting complete!'
+            });
+
+            return steps;
+        }
+
+        // Merge Sort
+        function mergeSort(arr) {
+            const steps = [];
+            let compCount = 0;
+            let swapCount = 0;
+
+            function merge(left, mid, right) {
+                const leftArr = arr.slice(left, mid + 1);
+                const rightArr = arr.slice(mid + 1, right + 1);
+
+                let i = 0, j = 0, k = left;
+                const mergeIndices = [];
+
+                while (i < leftArr.length && j < rightArr.length) {
+                    compCount++;
+                    steps.push({
+                        array: [...arr],
+                        highlights: { comparing: [left + i, mid + 1 + j], merging: mergeIndices },
+                        comparisons: compCount,
+                        swaps: swapCount,
+                        message: `Comparing ${leftArr[i]} and ${rightArr[j]}`
+                    });
+
+                    if (leftArr[i] <= rightArr[j]) {
+                        arr[k] = leftArr[i];
+                        i++;
+                    } else {
+                        arr[k] = rightArr[j];
+                        j++;
+                    }
+                    mergeIndices.push(k);
+                    swapCount++;
+                    steps.push({
+                        array: [...arr],
+                        highlights: { merging: [...mergeIndices] },
+                        comparisons: compCount,
+                        swaps: swapCount,
+                        message: `Placing ${arr[k]} at position ${k}`
+                    });
+                    k++;
+                }
+
+                while (i < leftArr.length) {
+                    arr[k] = leftArr[i];
+                    mergeIndices.push(k);
+                    steps.push({
+                        array: [...arr],
+                        highlights: { merging: [...mergeIndices] },
+                        comparisons: compCount,
+                        swaps: swapCount,
+                        message: `Placing remaining ${arr[k]} at position ${k}`
+                    });
+                    i++;
+                    k++;
+                }
+
+                while (j < rightArr.length) {
+                    arr[k] = rightArr[j];
+                    mergeIndices.push(k);
+                    steps.push({
+                        array: [...arr],
+                        highlights: { merging: [...mergeIndices] },
+                        comparisons: compCount,
+                        swaps: swapCount,
+                        message: `Placing remaining ${arr[k]} at position ${k}`
+                    });
+                    j++;
+                    k++;
+                }
+            }
+
+            function sort(left, right) {
+                if (left < right) {
+                    const mid = Math.floor((left + right) / 2);
+                    sort(left, mid);
+                    sort(mid + 1, right);
+                    merge(left, mid, right);
+                }
+            }
+
+            sort(0, arr.length - 1);
+
+            steps.push({
+                array: [...arr],
+                highlights: { sorted: Array.from({ length: arr.length }, (_, i) => i) },
+                comparisons: compCount,
+                swaps: swapCount,
+                message: 'Sorting complete!'
+            });
+
+            return steps;
+        }
+
+        // Generate steps based on algorithm
+        function generateSteps() {
+            const algorithm = algorithmSelect.value;
+            const arrCopy = [...originalArray];
+
+            switch (algorithm) {
+                case 'bubble':
+                    return bubbleSort(arrCopy);
+                case 'quick':
+                    return quickSort(arrCopy);
+                case 'merge':
+                    return mergeSort(arrCopy);
+                default:
+                    return [];
+            }
+        }
+
+        // Update display
+        function updateDisplay() {
+            if (currentStepIndex >= 0 && currentStepIndex < steps.length) {
+                const step = steps[currentStepIndex];
+                renderArray(step.array, step.highlights);
+                comparisonsEl.textContent = step.comparisons;
+                swapsEl.textContent = step.swaps;
+            } else {
+                renderArray(originalArray);
+                comparisonsEl.textContent = '0';
+                swapsEl.textContent = '0';
+            }
+
+            currentStepEl.textContent = Math.max(0, currentStepIndex + 1);
+            totalStepsEl.textContent = steps.length;
+
+            const progress = steps.length > 0 ? ((currentStepIndex + 1) / steps.length) * 100 : 0;
+            progressBar.style.width = `${Math.max(0, progress)}%`;
+        }
+
+        // Play/Pause
+        function togglePlayPause() {
+            if (isPlaying) {
+                pause();
+            } else {
+                play();
+            }
+        }
+
+        function play() {
+            if (currentStepIndex >= steps.length - 1) {
+                currentStepIndex = -1;
+            }
+
+            isPlaying = true;
+            playIcon.classList.add('hidden');
+            pauseIcon.classList.remove('hidden');
+            playPauseText.textContent = 'Pause';
+
+            playInterval = setInterval(() => {
+                if (currentStepIndex < steps.length - 1) {
+                    currentStepIndex++;
+                    updateDisplay();
+                } else {
+                    pause();
+                }
+            }, speed);
+        }
+
+        function pause() {
+            isPlaying = false;
+            playIcon.classList.remove('hidden');
+            pauseIcon.classList.add('hidden');
+            playPauseText.textContent = 'Play';
+
+            if (playInterval) {
+                clearInterval(playInterval);
+                playInterval = null;
+            }
+        }
+
+        // Step controls
+        function stepForward() {
+            pause();
+            if (currentStepIndex < steps.length - 1) {
+                currentStepIndex++;
+                updateDisplay();
+            }
+        }
+
+        function stepBack() {
+            pause();
+            if (currentStepIndex > 0) {
+                currentStepIndex--;
+                updateDisplay();
+            } else if (currentStepIndex === 0) {
+                currentStepIndex = -1;
+                updateDisplay();
+            }
+        }
+
+        function reset() {
+            pause();
+            currentStepIndex = -1;
+            updateDisplay();
+        }
+
+        // Initialize
+        function initialize() {
+            const size = parseInt(arraySizeInput.value);
+            originalArray = generateArray(size);
+            array = [...originalArray];
+            steps = generateSteps();
+            currentStepIndex = -1;
+            updateDisplay();
+            updateAlgoInfo();
+        }
+
+        function updateAlgoInfo() {
+            const algo = algorithmInfo[algorithmSelect.value];
+            algoInfo.innerHTML = `
+                <h3 class="text-xl font-bold text-blue-400 mb-2">${algo.name}</h3>
+                <p class="text-gray-300 mb-3">${algo.description}</p>
+                <div class="grid grid-cols-3 gap-4 text-center">
+                    <div class="bg-gray-700 rounded-lg p-3">
+                        <div class="text-sm text-gray-400">Time Complexity</div>
+                        <div class="text-lg font-mono text-yellow-400">${algo.time}</div>
+                    </div>
+                    <div class="bg-gray-700 rounded-lg p-3">
+                        <div class="text-sm text-gray-400">Space Complexity</div>
+                        <div class="text-lg font-mono text-green-400">${algo.space}</div>
+                    </div>
+                    <div class="bg-gray-700 rounded-lg p-3">
+                        <div class="text-sm text-gray-400">Stability</div>
+                        <div class="text-lg font-mono text-blue-400">${algo.stability}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Event Listeners
+        generateBtn.addEventListener('click', initialize);
+        playPauseBtn.addEventListener('click', togglePlayPause);
+        stepForwardBtn.addEventListener('click', stepForward);
+        stepBackBtn.addEventListener('click', stepBack);
+        resetBtn.addEventListener('click', reset);
+
+        algorithmSelect.addEventListener('change', () => {
+            pause();
+            steps = generateSteps();
+            currentStepIndex = -1;
+            updateDisplay();
+            updateAlgoInfo();
+        });
+
+        arraySizeInput.addEventListener('input', (e) => {
+            sizeValueEl.textContent = e.target.value;
+        });
+
+        arraySizeInput.addEventListener('change', initialize);
+
+        speedInput.addEventListener('input', (e) => {
+            speed = parseInt(e.target.value);
+            speedValueEl.textContent = speed;
+
+            if (isPlaying) {
+                pause();
+                play();
+            }
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            updateDisplay();
+        });
+
+        // Initialize on load
+        initialize();
+    </script>
+</body>
+
+</html>
