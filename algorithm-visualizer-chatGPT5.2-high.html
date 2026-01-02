@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sorting Algorithm Visualizer</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        :root {
+            color-scheme: dark;
+        }
+
+        .bar {
+            transition: height 140ms linear, background-color 140ms linear, opacity 140ms linear;
+        }
+
+        input[type="range"] {
+            accent-color: #38bdf8;
+        }
+
+        .mono {
+            font-variant-numeric: tabular-nums;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+    <div class="max-w-6xl mx-auto p-5 md:p-8 space-y-5">
+        <header class="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-semibold tracking-tight">Sorting Algorithm Visualizer</h1>
+                <p class="text-slate-300 text-sm mt-1">Bubble, Quick, and Merge sort with step-by-step playback,
+                    scrubbing, and speed control.</p>
+            </div>
+            <div class="text-xs text-slate-400">
+                Tip: Use the timeline to jump to any step. Smaller sizes are best for Bubble Sort.
+            </div>
+        </header>
+
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <!-- Controls -->
+            <aside class="lg:col-span-1 bg-slate-900/40 border border-slate-800 rounded-xl p-4 space-y-4">
+                <div class="space-y-2">
+                    <label class="text-sm text-slate-200">Algorithm</label>
+                    <select id="algoSelect"
+                        class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm outline-none focus:border-sky-400">
+                        <option value="bubble">Bubble Sort</option>
+                        <option value="quick">Quick Sort</option>
+                        <option value="merge">Merge Sort</option>
+                    </select>
+                </div>
+
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label class="text-sm text-slate-200">Array size</label>
+                        <span id="sizeLabel" class="mono text-xs text-slate-300">40</span>
+                    </div>
+                    <input id="sizeSlider" type="range" min="5" max="80" step="1" class="w-full" />
+                    <div class="text-xs text-slate-400">Bubble sort step count grows quickly; try ≤ 55.</div>
+                </div>
+
+                <div class="flex gap-2">
+                    <button id="randomBtn"
+                        class="flex-1 bg-slate-950 hover:bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm">Randomize</button>
+                    <button id="regenBtn"
+                        class="flex-1 bg-sky-500/15 hover:bg-sky-500/20 border border-sky-500/40 rounded-lg px-3 py-2 text-sm">Rebuild
+                        Steps</button>
+                </div>
+
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label class="text-sm text-slate-200">Speed</label>
+                        <span id="speedLabel" class="mono text-xs text-slate-300">20 steps/s</span>
+                    </div>
+                    <input id="speedSlider" type="range" min="1" max="60" value="20" step="1" class="w-full" />
+                </div>
+
+                <div class="space-y-2">
+                    <label class="text-sm text-slate-200">Playback</label>
+                    <div class="grid grid-cols-4 gap-2">
+                        <button id="backBtn"
+                            class="bg-slate-950 hover:bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm"
+                            title="Step back">⟵</button>
+                        <button id="playBtn"
+                            class="col-span-2 bg-emerald-500/15 hover:bg-emerald-500/20 border border-emerald-500/40 rounded-lg px-3 py-2 text-sm">Play</button>
+                        <button id="fwdBtn"
+                            class="bg-slate-950 hover:bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm"
+                            title="Step forward">⟶</button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="resetBtn"
+                            class="bg-slate-950 hover:bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm">Reset</button>
+                        <button id="endBtn"
+                            class="bg-slate-950 hover:bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm">To
+                            End</button>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label class="text-sm text-slate-200">Timeline</label>
+                        <span id="stepLabel" class="mono text-xs text-slate-300">0 / 0</span>
+                    </div>
+                    <input id="scrub" type="range" min="0" max="0" value="0" step="1" class="w-full" />
+                    <div id="stepMsg" class="text-xs text-slate-300 min-h-[1.25rem]"></div>
+                </div>
+
+                <div class="pt-2 border-t border-slate-800 space-y-2">
+                    <div class="text-xs text-slate-400">Legend</div>
+                    <div class="flex flex-wrap gap-2 text-xs">
+                        <span
+                            class="inline-flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-full px-2 py-1"><span
+                                class="w-3 h-3 rounded bg-sky-400 inline-block"></span>Normal</span>
+                        <span
+                            class="inline-flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-full px-2 py-1"><span
+                                class="w-3 h-3 rounded bg-amber-400 inline-block"></span>Compare</span>
+                        <span
+                            class="inline-flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-full px-2 py-1"><span
+                                class="w-3 h-3 rounded bg-red-400 inline-block"></span>Write/Swap</span>
+                        <span
+                            class="inline-flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-full px-2 py-1"><span
+                                class="w-3 h-3 rounded bg-purple-400 inline-block"></span>Pivot</span>
+                        <span
+                            class="inline-flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-full px-2 py-1"><span
+                                class="w-3 h-3 rounded bg-emerald-400 inline-block"></span>Sorted tail (Bubble)</span>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Visualization -->
+            <main class="lg:col-span-2 bg-slate-900/40 border border-slate-800 rounded-xl p-4">
+                <div class="flex items-center justify-between gap-3 mb-3">
+                    <div class="text-sm text-slate-200">Bars</div>
+                    <div id="warning" class="text-xs text-amber-200/90"></div>
+                </div>
+
+                <div id="barWrap"
+                    class="h-[360px] md:h-[420px] bg-slate-950/40 border border-slate-800 rounded-xl p-2 flex items-end gap-[2px] overflow-hidden">
+                </div>
+
+                <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div class="bg-slate-950/50 border border-slate-800 rounded-xl p-3">
+                        <div class="text-xs text-slate-400">Current array snapshot</div>
+                        <pre id="arrayPreview"
+                            class="mono text-xs text-slate-200 mt-1 whitespace-pre-wrap break-words"></pre>
+                    </div>
+                    <div class="bg-slate-950/50 border border-slate-800 rounded-xl p-3">
+                        <div class="text-xs text-slate-400">About the steps</div>
+                        <div class="text-xs text-slate-300 mt-1 leading-relaxed">
+                            Steps are precomputed for deterministic stepping and scrubbing. Use <span
+                                class="text-slate-100">Rebuild Steps</span> after changing algorithm or array.
+                            Speed is measured in <span class="text-slate-100">steps per second</span>.
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </section>
+
+        <footer class="text-xs text-slate-500">
+            Built with Tailwind (CDN) + vanilla JS. All computation runs locally in your browser.
+        </footer>
+    </div>
+
+    <script>
+        // ---------- Utilities ----------
+        const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+        const now = () => performance.now();
+
+        function randInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function makeRandomArray(n) {
+            // Values between 5 and 100 for nice bar scaling.
+            return Array.from({ length: n }, () => randInt(5, 100));
+        }
+
+        function formatArrayPreview(arr, maxLen = 220) {
+            const s = JSON.stringify(arr);
+            if (s.length <= maxLen) return s;
+            return s.slice(0, maxLen) + ' …';
+        }
+
+        // Step shape:
+        // { array: number[], message: string, active?: number[], swap?: number[], write?: number, pivot?: number, range?: [l,r], sortedFrom?: number }
+
+        // ---------- Step Generators ----------
+        function bubbleSteps(input) {
+            const arr = input.slice();
+            const steps = [{ array: arr.slice(), message: 'Start (Bubble Sort)', sortedFrom: arr.length }];
+            let sortedFrom = arr.length;
+
+            for (let i = 0; i < arr.length; i++) {
+                for (let j = 0; j < arr.length - i - 1; j++) {
+                    steps.push({
+                        array: arr.slice(),
+                        active: [j, j + 1],
+                        message: `Compare a[${j}] (${arr[j]}) and a[${j + 1}] (${arr[j + 1]})`,
+                        sortedFrom,
+                    });
+
+                    if (arr[j] > arr[j + 1]) {
+                        [arr[j], arr[j + 1]] = [arr[j + 1], arr[j]];
+                        steps.push({
+                            array: arr.slice(),
+                            swap: [j, j + 1],
+                            message: `Swap indices ${j} and ${j + 1}`,
+                            sortedFrom,
+                        });
+                    }
+                }
+
+                sortedFrom = arr.length - i - 1;
+                steps.push({
+                    array: arr.slice(),
+                    message: `Index ${sortedFrom} is in its final position`,
+                    sortedFrom,
+                });
+            }
+
+            steps.push({ array: arr.slice(), message: 'Done', sortedFrom: 0 });
+            return steps;
+        }
+
+        function quickSteps(input) {
+            const arr = input.slice();
+            const steps = [{ array: arr.slice(), message: 'Start (Quick Sort)' }];
+
+            function qs(lo, hi) {
+                if (lo > hi) return;
+                if (lo === hi) {
+                    steps.push({ array: arr.slice(), range: [lo, hi], message: `Single-element range [${lo}, ${hi}]` });
+                    return;
+                }
+
+                let pivotIndex = hi;
+                const pivot = arr[pivotIndex];
+                steps.push({ array: arr.slice(), pivot: pivotIndex, range: [lo, hi], message: `Choose pivot a[${pivotIndex}] = ${pivot}` });
+
+                let i = lo;
+                for (let j = lo; j < hi; j++) {
+                    steps.push({
+                        array: arr.slice(),
+                        active: [j, pivotIndex],
+                        pivot: pivotIndex,
+                        range: [lo, hi],
+                        message: `Compare a[${j}] (${arr[j]}) with pivot (${pivot})`,
+                    });
+
+                    if (arr[j] < pivot) {
+                        if (i !== j) {
+                            [arr[i], arr[j]] = [arr[j], arr[i]];
+                            steps.push({
+                                array: arr.slice(),
+                                swap: [i, j],
+                                pivot: pivotIndex,
+                                range: [lo, hi],
+                                message: `Swap to move smaller element left (i=${i})`,
+                            });
+                        }
+                        i++;
+                    }
+                }
+
+                if (i !== hi) {
+                    [arr[i], arr[hi]] = [arr[hi], arr[i]];
+                    pivotIndex = i;
+                    steps.push({
+                        array: arr.slice(),
+                        swap: [pivotIndex, hi],
+                        pivot: pivotIndex,
+                        range: [lo, hi],
+                        message: `Place pivot at index ${pivotIndex}`,
+                    });
+                } else {
+                    pivotIndex = hi;
+                    steps.push({ array: arr.slice(), pivot: pivotIndex, range: [lo, hi], message: `Pivot already in place at index ${pivotIndex}` });
+                }
+
+                qs(lo, pivotIndex - 1);
+                qs(pivotIndex + 1, hi);
+            }
+
+            qs(0, arr.length - 1);
+            steps.push({ array: arr.slice(), message: 'Done' });
+            return steps;
+        }
+
+        function mergeSteps(input) {
+            const arr = input.slice();
+            const aux = new Array(arr.length);
+            const steps = [{ array: arr.slice(), message: 'Start (Merge Sort)' }];
+
+            function mergeSort(l, r) {
+                if (l >= r) return;
+                const m = Math.floor((l + r) / 2);
+                mergeSort(l, m);
+                mergeSort(m + 1, r);
+                merge(l, m, r);
+            }
+
+            function merge(l, m, r) {
+                for (let t = l; t <= r; t++) aux[t] = arr[t];
+                steps.push({ array: arr.slice(), range: [l, r], message: `Merge [${l}, ${m}] with [${m + 1}, ${r}]` });
+
+                let i = l;
+                let j = m + 1;
+                for (let k = l; k <= r; k++) {
+                    if (i > m) {
+                        arr[k] = aux[j++];
+                        steps.push({ array: arr.slice(), write: k, range: [l, r], message: `Write from right half → a[${k}]` });
+                    } else if (j > r) {
+                        arr[k] = aux[i++];
+                        steps.push({ array: arr.slice(), write: k, range: [l, r], message: `Write from left half → a[${k}]` });
+                    } else if (aux[i] <= aux[j]) {
+                        const ii = i; const jj = j;
+                        arr[k] = aux[i++];
+                        steps.push({ array: arr.slice(), write: k, active: [ii, jj], range: [l, r], message: `Take left (a[${ii}] ≤ a[${jj}]) → a[${k}]` });
+                    } else {
+                        const ii = i; const jj = j;
+                        arr[k] = aux[j++];
+                        steps.push({ array: arr.slice(), write: k, active: [ii, jj], range: [l, r], message: `Take right (a[${jj}] < a[${ii}]) → a[${k}]` });
+                    }
+                }
+            }
+
+            mergeSort(0, arr.length - 1);
+            steps.push({ array: arr.slice(), message: 'Done' });
+            return steps;
+        }
+
+        function generateSteps(algo, baseArray) {
+            const t0 = now();
+            let steps;
+            if (algo === 'bubble') steps = bubbleSteps(baseArray);
+            else if (algo === 'quick') steps = quickSteps(baseArray);
+            else steps = mergeSteps(baseArray);
+            const t1 = now();
+            return { steps, ms: (t1 - t0) };
+        }
+
+        // ---------- App State ----------
+        const els = {
+            algoSelect: document.getElementById('algoSelect'),
+            sizeSlider: document.getElementById('sizeSlider'),
+            sizeLabel: document.getElementById('sizeLabel'),
+            randomBtn: document.getElementById('randomBtn'),
+            regenBtn: document.getElementById('regenBtn'),
+            speedSlider: document.getElementById('speedSlider'),
+            speedLabel: document.getElementById('speedLabel'),
+            backBtn: document.getElementById('backBtn'),
+            playBtn: document.getElementById('playBtn'),
+            fwdBtn: document.getElementById('fwdBtn'),
+            resetBtn: document.getElementById('resetBtn'),
+            endBtn: document.getElementById('endBtn'),
+            scrub: document.getElementById('scrub'),
+            stepLabel: document.getElementById('stepLabel'),
+            stepMsg: document.getElementById('stepMsg'),
+            barWrap: document.getElementById('barWrap'),
+            arrayPreview: document.getElementById('arrayPreview'),
+            warning: document.getElementById('warning'),
+        };
+
+        let baseArray = [];
+        let steps = [];
+        let stepIndex = 0;
+        let playing = false;
+        let timer = null;
+        let stepsPerSec = Number(els.speedSlider.value);
+        let globalMax = 100;
+
+        function computeGlobalMax(arr) {
+            return Math.max(1, ...arr);
+        }
+
+        function setWarning(text) {
+            els.warning.textContent = text || '';
+        }
+
+        function setPlayState(on) {
+            playing = on;
+            els.playBtn.textContent = playing ? 'Pause' : 'Play';
+            els.playBtn.classList.toggle('bg-emerald-500/15', !playing);
+            els.playBtn.classList.toggle('border-emerald-500/40', !playing);
+            els.playBtn.classList.toggle('bg-amber-500/15', playing);
+            els.playBtn.classList.toggle('border-amber-500/40', playing);
+        }
+
+        function stopTimer() {
+            if (timer) {
+                clearInterval(timer);
+                timer = null;
+            }
+        }
+
+        function restartTimerIfPlaying() {
+            if (!playing) return;
+            stopTimer();
+            const interval = Math.max(10, Math.floor(1000 / stepsPerSec));
+            timer = setInterval(() => {
+                if (stepIndex >= steps.length - 1) {
+                    setPlayState(false);
+                    stopTimer();
+                    return;
+                }
+                goToStep(stepIndex + 1, { fromPlayback: true });
+            }, interval);
+        }
+
+        function rebuildSteps() {
+            stopTimer();
+            setPlayState(false);
+
+            const algo = els.algoSelect.value;
+            globalMax = computeGlobalMax(baseArray);
+
+            setWarning('');
+            const { steps: newSteps, ms } = generateSteps(algo, baseArray);
+
+            steps = newSteps;
+            if (steps.length > 20000) {
+                setWarning(`Warning: ${steps.length.toLocaleString()} steps (may be slow). Reduce size or switch algorithm.`);
+            } else {
+                setWarning(`Built ${steps.length.toLocaleString()} steps in ${ms.toFixed(1)}ms`);
+                setTimeout(() => setWarning(''), 2500);
+            }
+
+            stepIndex = 0;
+            els.scrub.min = 0;
+            els.scrub.max = Math.max(0, steps.length - 1);
+            els.scrub.value = 0;
+
+            render();
+        }
+
+        function goToStep(i, opts = {}) {
+            stepIndex = clamp(i, 0, Math.max(0, steps.length - 1));
+            els.scrub.value = String(stepIndex);
+            render();
+
+            // If user drags/scrubs manually, pause playback.
+            if (!opts.fromPlayback) {
+                stopTimer();
+                setPlayState(false);
+            }
+        }
+
+        function render() {
+            const step = steps[stepIndex] || { array: baseArray.slice(), message: '' };
+            const arr = step.array || [];
+            els.stepLabel.textContent = `${Math.min(stepIndex + 1, steps.length)} / ${steps.length}`;
+            els.stepMsg.textContent = step.message || '';
+            els.arrayPreview.textContent = formatArrayPreview(arr);
+
+            // Render bars
+            const n = arr.length;
+            const activeSet = new Set(step.active || []);
+            const swapSet = new Set(step.swap || []);
+            const pivot = (typeof step.pivot === 'number') ? step.pivot : null;
+            const write = (typeof step.write === 'number') ? step.write : null;
+            const range = step.range || null;
+            const sortedFrom = (typeof step.sortedFrom === 'number') ? step.sortedFrom : null;
+
+            // Build once per render
+            let html = '';
+            for (let idx = 0; idx < n; idx++) {
+                const v = arr[idx];
+                const hPct = (v / globalMax) * 100;
+
+                let baseColor = 'bg-sky-400';
+                let opacity = 1;
+
+                if (range && (idx < range[0] || idx > range[1])) {
+                    baseColor = 'bg-slate-700';
+                    opacity = 0.65;
+                }
+
+                if (sortedFrom !== null && idx >= sortedFrom) {
+                    baseColor = 'bg-emerald-400';
+                    opacity = 1;
+                }
+
+                if (activeSet.has(idx)) baseColor = 'bg-amber-400';
+                if (swapSet.has(idx) || idx === write) baseColor = 'bg-red-400';
+                if (idx === pivot) baseColor = 'bg-purple-400';
+
+                const w = 100 / n;
+                html += `
+          <div class="bar rounded-sm ${baseColor}" style="width:${w}%; height:${hPct}%; opacity:${opacity};" title="idx ${idx}: ${v}"></div>
+        `;
+            }
+
+            els.barWrap.innerHTML = html;
+        }
+
+        // ---------- Wire up UI ----------
+        function setBaseArray(newArr) {
+            baseArray = newArr.slice();
+            globalMax = computeGlobalMax(baseArray);
+            rebuildSteps();
+        }
+
+        els.sizeSlider.addEventListener('input', () => {
+            els.sizeLabel.textContent = String(els.sizeSlider.value);
+        });
+
+        els.sizeSlider.addEventListener('change', () => {
+            const n = Number(els.sizeSlider.value);
+            setBaseArray(makeRandomArray(n));
+        });
+
+        els.randomBtn.addEventListener('click', () => {
+            const n = Number(els.sizeSlider.value);
+            setBaseArray(makeRandomArray(n));
+        });
+
+        els.regenBtn.addEventListener('click', () => rebuildSteps());
+
+        els.algoSelect.addEventListener('change', () => rebuildSteps());
+
+        els.speedSlider.addEventListener('input', () => {
+            stepsPerSec = Number(els.speedSlider.value);
+            els.speedLabel.textContent = `${stepsPerSec} steps/s`;
+            restartTimerIfPlaying();
+        });
+
+        els.playBtn.addEventListener('click', () => {
+            if (playing) {
+                setPlayState(false);
+                stopTimer();
+                return;
+            }
+            if (steps.length <= 1) return;
+            setPlayState(true);
+            restartTimerIfPlaying();
+        });
+
+        els.backBtn.addEventListener('click', () => goToStep(stepIndex - 1));
+        els.fwdBtn.addEventListener('click', () => goToStep(stepIndex + 1));
+        els.resetBtn.addEventListener('click', () => goToStep(0));
+        els.endBtn.addEventListener('click', () => goToStep(steps.length - 1));
+
+        els.scrub.addEventListener('input', () => {
+            goToStep(Number(els.scrub.value));
+        });
+
+        // Keyboard controls
+        window.addEventListener('keydown', (e) => {
+            if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA')) return;
+            if (e.key === ' ') {
+                e.preventDefault();
+                els.playBtn.click();
+            } else if (e.key === 'ArrowLeft') {
+                goToStep(stepIndex - 1);
+            } else if (e.key === 'ArrowRight') {
+                goToStep(stepIndex + 1);
+            } else if (e.key === 'Home') {
+                goToStep(0);
+            } else if (e.key === 'End') {
+                goToStep(steps.length - 1);
+            }
+        });
+
+        // ---------- Init ----------
+        (function init() {
+            els.sizeSlider.value = 40;
+            els.sizeLabel.textContent = '40';
+            stepsPerSec = Number(els.speedSlider.value);
+            els.speedLabel.textContent = `${stepsPerSec} steps/s`;
+
+            setPlayState(false);
+            setBaseArray(makeRandomArray(Number(els.sizeSlider.value)));
+        })();
+    </script>
+</body>
+
+</html>
