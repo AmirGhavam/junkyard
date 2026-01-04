@@ -1,0 +1,1011 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Weather — Sample Forecast</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        :root {
+            --bg1: #0b1220;
+            --bg2: #0b1b2e;
+            --card: rgba(255, 255, 255, .08);
+            --card2: rgba(255, 255, 255, .06);
+            --stroke: rgba(255, 255, 255, .14);
+        }
+
+        /* Animated gradient backdrop */
+        .sky {
+            background: radial-gradient(1000px 600px at 20% 10%, rgba(255, 255, 255, 0.14), transparent 55%),
+                radial-gradient(900px 550px at 80% 20%, rgba(255, 255, 255, 0.10), transparent 55%),
+                linear-gradient(120deg, var(--bg1), var(--bg2));
+            background-size: 140% 140%;
+            animation: skyShift 18s ease-in-out infinite;
+        }
+
+        @keyframes skyShift {
+
+            0%,
+            100% {
+                background-position: 0% 0%;
+            }
+
+            50% {
+                background-position: 100% 100%;
+            }
+        }
+
+        /* Glass cards */
+        .glass {
+            background: var(--card);
+            border: 1px solid var(--stroke);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, .35);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .glassSub {
+            background: var(--card2);
+            border: 1px solid rgba(255, 255, 255, .10);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        /* Subtle noise */
+        .noise:before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency=".8" numOctaves="3" stitchTiles="stitch"/></filter><rect width="180" height="180" filter="url(%23n)" opacity=".16"/></svg>');
+            mix-blend-mode: overlay;
+            opacity: .45;
+        }
+
+        /* Weather icon animations */
+        @keyframes spinSlow {
+            from {
+                transform: rotate(0deg)
+            }
+
+            to {
+                transform: rotate(360deg)
+            }
+        }
+
+        @keyframes drift {
+            0% {
+                transform: translateX(-4px)
+            }
+
+            50% {
+                transform: translateX(5px)
+            }
+
+            100% {
+                transform: translateX(-4px)
+            }
+        }
+
+        @keyframes drop {
+            0% {
+                transform: translateY(-6px);
+                opacity: 0
+            }
+
+            20% {
+                opacity: 1
+            }
+
+            100% {
+                transform: translateY(10px);
+                opacity: 0.1
+            }
+        }
+
+        @keyframes flicker {
+
+            0%,
+            92%,
+            100% {
+                opacity: 0
+            }
+
+            93% {
+                opacity: 1
+            }
+
+            96% {
+                opacity: .1
+            }
+
+            98% {
+                opacity: 1
+            }
+        }
+
+        @keyframes floaty {
+
+            0%,
+            100% {
+                transform: translateY(0)
+            }
+
+            50% {
+                transform: translateY(-3px)
+            }
+        }
+
+        .wx-sun-rays {
+            transform-origin: 50% 50%;
+            animation: spinSlow 10s linear infinite;
+        }
+
+        .wx-cloud {
+            animation: drift 4.8s ease-in-out infinite;
+        }
+
+        .wx-cloud2 {
+            animation: drift 6.8s ease-in-out infinite reverse;
+        }
+
+        .wx-drop {
+            animation: drop 1.2s linear infinite;
+        }
+
+        .wx-drop:nth-child(2) {
+            animation-delay: .2s;
+        }
+
+        .wx-drop:nth-child(3) {
+            animation-delay: .4s;
+        }
+
+        .wx-flake {
+            transform-origin: 50% 50%;
+            animation: spinSlow 3.8s linear infinite, floaty 2.4s ease-in-out infinite;
+        }
+
+        .wx-bolt {
+            animation: flicker 3.2s linear infinite;
+        }
+
+        /* Scrollbar styling */
+        .nice-scroll::-webkit-scrollbar {
+            height: 10px;
+            width: 10px
+        }
+
+        .nice-scroll::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, .18);
+            border-radius: 999px
+        }
+
+        .nice-scroll::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, .06);
+            border-radius: 999px
+        }
+
+        /* Canvas crispness */
+        canvas {
+            image-rendering: crisp-edges;
+        }
+
+        /* Focus */
+        :focus-visible {
+            outline: 2px solid rgba(255, 255, 255, .5);
+            outline-offset: 2px;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen text-white sky noise">
+    <div class="max-w-6xl mx-auto px-4 py-6 md:py-10">
+        <header class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div class="flex items-center justify-between gap-3">
+                <div>
+                    <h1 class="text-2xl md:text-3xl font-semibold tracking-tight">Weather</h1>
+                    <p class="text-white/70 text-sm">Sample data • Current conditions, hourly forecast, and weekly
+                        outlook</p>
+                </div>
+                <button id="helpBtn"
+                    class="md:hidden glassSub px-3 py-2 rounded-xl text-sm text-white/90 hover:bg-white/10">About</button>
+            </div>
+
+            <div class="glass rounded-2xl p-4 md:p-4 flex flex-col md:flex-row gap-3 md:items-center w-full md:w-auto">
+                <div class="flex-1 md:flex-none">
+                    <label class="text-xs text-white/70" for="locationSelect">Location</label>
+                    <select id="locationSelect"
+                        class="mt-1 w-full md:w-56 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm">
+                        <!-- populated by JS -->
+                    </select>
+                </div>
+
+                <div class="flex-1 md:flex-none">
+                    <label class="text-xs text-white/70" for="searchInput">Quick filter (local)</label>
+                    <input id="searchInput" placeholder="Type to filter locations…"
+                        class="mt-1 w-full md:w-56 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm" />
+                </div>
+
+                <div class="flex items-end gap-3">
+                    <div>
+                        <span class="text-xs text-white/70">Units</span>
+                        <div class="mt-1 flex rounded-xl border border-white/10 overflow-hidden">
+                            <button id="unitC" class="px-3 py-2 text-sm bg-white/10">°C</button>
+                            <button id="unitF" class="px-3 py-2 text-sm hover:bg-white/10">°F</button>
+                        </div>
+                    </div>
+                    <button id="refreshBtn"
+                        class="glassSub px-3 py-2 rounded-xl text-sm hover:bg-white/10">Re-render</button>
+                </div>
+            </div>
+        </header>
+
+        <main class="mt-6 md:mt-8 grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+            <!-- Current -->
+            <section class="glass rounded-3xl p-5 md:p-6 lg:col-span-2">
+                <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                    <div class="flex-1">
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h2 id="placeName" class="text-xl md:text-2xl font-semibold tracking-tight">—</h2>
+                                    <span id="placeMeta" class="text-white/70 text-sm">—</span>
+                                </div>
+                                <p id="placeTime" class="text-white/60 text-sm mt-1">—</p>
+                            </div>
+                            <div class="hidden md:flex items-center gap-2">
+                                <span class="text-xs text-white/60">Updated</span>
+                                <span id="updatedAt" class="text-xs text-white/80 font-medium">—</span>
+                            </div>
+                        </div>
+
+                        <div class="mt-5 flex items-center justify-between">
+                            <div>
+                                <div class="flex items-end gap-3">
+                                    <div id="currentTemp"
+                                        class="text-6xl md:text-7xl font-semibold tabular-nums leading-none">—</div>
+                                    <div class="pb-2">
+                                        <div id="currentCond" class="text-lg font-medium">—</div>
+                                        <div id="currentSummary" class="text-white/70 text-sm">—</div>
+                                    </div>
+                                </div>
+                                <div class="mt-4 flex flex-wrap gap-2">
+                                    <span id="feelsLike"
+                                        class="glassSub px-3 py-1.5 rounded-full text-sm text-white/80">Feels like
+                                        —</span>
+                                    <span id="precipNow"
+                                        class="glassSub px-3 py-1.5 rounded-full text-sm text-white/80">Precip —</span>
+                                    <span id="windNow"
+                                        class="glassSub px-3 py-1.5 rounded-full text-sm text-white/80">Wind —</span>
+                                </div>
+                            </div>
+
+                            <div class="w-28 h-28 md:w-32 md:h-32 flex items-center justify-center">
+                                <div id="currentIcon" class="w-full h-full"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Details -->
+                <div class="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div class="glassSub rounded-2xl p-3">
+                        <div class="text-xs text-white/60">Humidity</div>
+                        <div id="humidity" class="mt-1 text-lg font-semibold tabular-nums">—</div>
+                    </div>
+                    <div class="glassSub rounded-2xl p-3">
+                        <div class="text-xs text-white/60">Pressure</div>
+                        <div id="pressure" class="mt-1 text-lg font-semibold tabular-nums">—</div>
+                    </div>
+                    <div class="glassSub rounded-2xl p-3">
+                        <div class="text-xs text-white/60">Visibility</div>
+                        <div id="visibility" class="mt-1 text-lg font-semibold tabular-nums">—</div>
+                    </div>
+                    <div class="glassSub rounded-2xl p-3">
+                        <div class="text-xs text-white/60">UV</div>
+                        <div id="uv" class="mt-1 text-lg font-semibold tabular-nums">—</div>
+                    </div>
+                </div>
+
+                <!-- Hourly -->
+                <div class="mt-6">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-lg font-semibold">Hourly forecast</h3>
+                        <div class="flex items-center gap-2">
+                            <button id="hourlyPrev" class="glassSub px-3 py-2 rounded-xl text-sm hover:bg-white/10"
+                                aria-label="Previous hours">◀</button>
+                            <button id="hourlyNext" class="glassSub px-3 py-2 rounded-xl text-sm hover:bg-white/10"
+                                aria-label="Next hours">▶</button>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 glassSub rounded-2xl p-3">
+                        <canvas id="hourlyChart" height="80" class="w-full"></canvas>
+                    </div>
+
+                    <div id="hourlyStrip" class="mt-3 flex gap-3 overflow-x-auto nice-scroll pb-2"></div>
+                    <p class="mt-2 text-xs text-white/60">Tip: click an hour to preview conditions.</p>
+                </div>
+            </section>
+
+            <!-- Weekly -->
+            <aside class="glass rounded-3xl p-5 md:p-6">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h3 class="text-lg font-semibold">7‑day outlook</h3>
+                        <p id="weeklySummary" class="text-sm text-white/65 mt-1">—</p>
+                    </div>
+                    <button id="aboutBtn"
+                        class="hidden md:inline-flex glassSub px-3 py-2 rounded-xl text-sm hover:bg-white/10">About</button>
+                </div>
+
+                <div id="weeklyList" class="mt-4 flex flex-col gap-2"></div>
+
+                <div class="mt-5 glassSub rounded-2xl p-4">
+                    <div class="text-sm font-semibold">Sun</div>
+                    <div class="mt-2 flex items-center justify-between text-sm text-white/80">
+                        <div>
+                            <div class="text-xs text-white/60">Sunrise</div>
+                            <div id="sunrise" class="mt-1 font-medium tabular-nums">—</div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-white/60">Sunset</div>
+                            <div id="sunset" class="mt-1 font-medium tabular-nums">—</div>
+                        </div>
+                    </div>
+                </div>
+
+                <footer class="mt-5 text-xs text-white/55 leading-relaxed">
+                    <div>Everything on this page is sample data (no network requests).</div>
+                    <div class="mt-1">Animated icons are inline SVG + CSS keyframes.</div>
+                </footer>
+            </aside>
+        </main>
+
+        <!-- About modal -->
+        <div id="modalBackdrop" class="fixed inset-0 hidden items-center justify-center p-4">
+            <div class="absolute inset-0 bg-black/60" data-close="1"></div>
+            <div role="dialog" aria-modal="true" aria-labelledby="modalTitle"
+                class="relative glass rounded-3xl p-5 md:p-6 max-w-lg w-full">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h3 id="modalTitle" class="text-lg font-semibold">About this demo</h3>
+                        <p class="text-sm text-white/70 mt-1">A single‑page weather UI with sample data, hourly chart,
+                            and animated weather icons.</p>
+                    </div>
+                    <button class="glassSub px-3 py-2 rounded-xl text-sm hover:bg-white/10" data-close="1"
+                        aria-label="Close">Close</button>
+                </div>
+                <div class="mt-4 text-sm text-white/80 space-y-2">
+                    <p><span class="text-white/60">Current conditions</span> update instantly when you switch locations
+                        or units.</p>
+                    <p><span class="text-white/60">Hourly strip</span> is scrollable; selecting an hour previews that
+                        hour as the “current” card.</p>
+                    <p><span class="text-white/60">Weekly outlook</span> is a static 7‑day list.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ------------------------------
+        // Sample data (no API calls)
+        // ------------------------------
+        const SAMPLE = {
+            "San Francisco, CA": {
+                tzLabel: "PST",
+                isDay: true,
+                updatedAt: "10:12 AM",
+                current: {
+                    tempC: 18,
+                    feelsC: 17,
+                    condition: "Partly Cloudy",
+                    code: "partly",
+                    summary: "Breezy near the bay; clouds thinning through the afternoon.",
+                    precipChance: 10,
+                    windKph: 22,
+                    humidity: 62,
+                    pressureHpa: 1016,
+                    visibilityKm: 16,
+                    uv: 5,
+                    sunrise: "7:11 AM",
+                    sunset: "5:06 PM"
+                },
+                hourly: makeHourly({ startHour: 9, count: 18, baseC: 17, swing: 4, code: "partly" }),
+                weekly: [
+                    day("Today", "partly", 20, 14, "Cool breeze"),
+                    day("Tue", "sun", 21, 13, "Clear"),
+                    day("Wed", "fog", 19, 13, "Morning fog"),
+                    day("Thu", "rain", 18, 12, "Light showers"),
+                    day("Fri", "partly", 19, 12, "Mixed clouds"),
+                    day("Sat", "sun", 22, 13, "Sunny"),
+                    day("Sun", "partly", 20, 14, "Mild"),
+                ]
+            },
+            "Austin, TX": {
+                tzLabel: "CST",
+                isDay: true,
+                updatedAt: "12:34 PM",
+                current: {
+                    tempC: 28,
+                    feelsC: 31,
+                    condition: "Thunderstorms",
+                    code: "thunder",
+                    summary: "Storm cells developing. Brief heavy rain possible.",
+                    precipChance: 70,
+                    windKph: 18,
+                    humidity: 68,
+                    pressureHpa: 1008,
+                    visibilityKm: 10,
+                    uv: 6,
+                    sunrise: "7:02 AM",
+                    sunset: "5:29 PM"
+                },
+                hourly: makeHourly({ startHour: 11, count: 18, baseC: 27, swing: 3, code: "thunder" }),
+                weekly: [
+                    day("Today", "thunder", 30, 22, "Stormy"),
+                    day("Tue", "rain", 29, 21, "Showers"),
+                    day("Wed", "partly", 28, 20, "Humid"),
+                    day("Thu", "sun", 29, 19, "Clearing"),
+                    day("Fri", "sun", 30, 19, "Warm"),
+                    day("Sat", "partly", 29, 20, "Breezy"),
+                    day("Sun", "rain", 27, 21, "More rain"),
+                ]
+            },
+            "Reykjavík, IS": {
+                tzLabel: "GMT",
+                isDay: false,
+                updatedAt: "8:45 PM",
+                current: {
+                    tempC: -1,
+                    feelsC: -6,
+                    condition: "Snow",
+                    code: "snow",
+                    summary: "Light snow with gusty winds; roads may be slick.",
+                    precipChance: 60,
+                    windKph: 34,
+                    humidity: 78,
+                    pressureHpa: 997,
+                    visibilityKm: 7,
+                    uv: 0,
+                    sunrise: "11:18 AM",
+                    sunset: "3:29 PM"
+                },
+                hourly: makeHourly({ startHour: 18, count: 18, baseC: -2, swing: 2, code: "snow" }),
+                weekly: [
+                    day("Today", "snow", 0, -5, "Snow showers"),
+                    day("Tue", "snow", -1, -6, "Windy"),
+                    day("Wed", "fog", 1, -3, "Low cloud"),
+                    day("Thu", "rain", 2, -1, "Wintry mix"),
+                    day("Fri", "partly", 1, -4, "Clear spells"),
+                    day("Sat", "snow", 0, -5, "Snow"),
+                    day("Sun", "fog", 1, -2, "Hazy"),
+                ]
+            }
+        };
+
+        function day(label, code, highC, lowC, note) {
+            return { label, code, highC, lowC, note };
+        }
+
+        function makeHourly({ startHour, count, baseC, swing, code }) {
+            const out = [];
+            for (let i = 0; i < count; i++) {
+                const h = (startHour + i) % 24;
+                const t = baseC + Math.round(Math.sin((i / (count - 1)) * Math.PI) * swing);
+                const cond = codeLabel(code);
+                const precip = code === 'rain' ? 45 : code === 'thunder' ? 65 : code === 'snow' ? 55 : 10;
+                out.push({ hour24: h, label: hourLabel(h), tempC: t, code, condition: cond, precipChance: precip });
+            }
+            // Make it a bit more varied
+            if (out.length >= 6) {
+                out[2].code = (code === 'thunder' ? 'rain' : code);
+                out[2].condition = codeLabel(out[2].code);
+                out[5].code = (code === 'snow' ? 'fog' : code);
+                out[5].condition = codeLabel(out[5].code);
+            }
+            return out;
+        }
+
+        function codeLabel(code) {
+            return {
+                sun: "Sunny",
+                partly: "Partly Cloudy",
+                cloud: "Cloudy",
+                rain: "Rain",
+                thunder: "Thunderstorms",
+                snow: "Snow",
+                fog: "Fog"
+            }[code] || "Clear";
+        }
+
+        function hourLabel(h24) {
+            const ampm = h24 >= 12 ? 'PM' : 'AM';
+            const h = ((h24 + 11) % 12) + 1;
+            return `${h} ${ampm}`;
+        }
+
+        // ------------------------------
+        // Units
+        // ------------------------------
+        const Units = {
+            mode: 'C',
+            temp: (c) => Units.mode === 'C' ? `${Math.round(c)}°` : `${Math.round(c * 9 / 5 + 32)}°`,
+            speed: (kph) => Units.mode === 'C' ? `${Math.round(kph)} km/h` : `${Math.round(kph / 1.609)} mph`,
+            visibility: (km) => Units.mode === 'C' ? `${km} km` : `${(km / 1.609).toFixed(0)} mi`,
+        };
+
+        // ------------------------------
+        // Icon SVG factory (animated)
+        // ------------------------------
+        function iconSVG(code) {
+            const common = `viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"`;
+            const stroke = `stroke="rgba(255,255,255,0.92)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"`;
+            const soft = `stroke="rgba(255,255,255,0.82)"`;
+
+            if (code === 'sun') {
+                return `
+          <svg ${common}>
+            <g class="wx-sun-rays">
+              <path ${stroke} d="M32 6v6"/>
+              <path ${stroke} d="M32 52v6"/>
+              <path ${stroke} d="M6 32h6"/>
+              <path ${stroke} d="M52 32h6"/>
+              <path ${stroke} d="M13.5 13.5l4.2 4.2"/>
+              <path ${stroke} d="M46.3 46.3l4.2 4.2"/>
+              <path ${stroke} d="M50.5 13.5l-4.2 4.2"/>
+              <path ${stroke} d="M17.7 46.3l-4.2 4.2"/>
+            </g>
+            <circle cx="32" cy="32" r="12" stroke="rgba(255,255,255,0.95)" stroke-width="2.4"/>
+          </svg>
+        `;
+            }
+
+            if (code === 'partly') {
+                return `
+          <svg ${common}>
+            <g class="wx-sun-rays" opacity="0.95">
+              <path ${stroke} d="M24 9v5"/>
+              <path ${stroke} d="M24 34v5"/>
+              <path ${stroke} d="M9 24h5"/>
+              <path ${stroke} d="M34 24h5"/>
+              <path ${stroke} d="M13.2 13.2l3.6 3.6"/>
+              <path ${stroke} d="M34.8 34.8l3.6 3.6"/>
+              <path ${stroke} d="M34.8 13.2l-3.6 3.6"/>
+              <path ${stroke} d="M16.8 31.2l-3.6 3.6"/>
+            </g>
+            <circle cx="24" cy="24" r="8" stroke="rgba(255,255,255,0.95)" stroke-width="2.2"/>
+            <g class="wx-cloud">
+              <path ${stroke} d="M18 44h26a10 10 0 0 0 0-20 14 14 0 0 0-27 5A8 8 0 0 0 18 44z"/>
+            </g>
+          </svg>
+        `;
+            }
+
+            if (code === 'cloud') {
+                return `
+          <svg ${common}>
+            <g class="wx-cloud">
+              <path ${stroke} d="M18 44h30a10 10 0 0 0 0-20 15 15 0 0 0-29 5A8 8 0 0 0 18 44z"/>
+            </g>
+            <g class="wx-cloud2" opacity="0.6">
+              <path ${stroke} d="M14 48h24a8 8 0 0 0 0-16 12 12 0 0 0-23 4A6 6 0 0 0 14 48z"/>
+            </g>
+          </svg>
+        `;
+            }
+
+            if (code === 'rain') {
+                return `
+          <svg ${common}>
+            <g class="wx-cloud">
+              <path ${stroke} d="M18 36h30a10 10 0 0 0 0-20 15 15 0 0 0-29 5A8 8 0 0 0 18 36z"/>
+            </g>
+            <g ${soft} stroke-width="2" stroke-linecap="round">
+              <path class="wx-drop" d="M22 40l-2 6"/>
+              <path class="wx-drop" d="M32 40l-2 6"/>
+              <path class="wx-drop" d="M42 40l-2 6"/>
+            </g>
+          </svg>
+        `;
+            }
+
+            if (code === 'thunder') {
+                return `
+          <svg ${common}>
+            <g class="wx-cloud">
+              <path ${stroke} d="M18 34h30a10 10 0 0 0 0-20 15 15 0 0 0-29 5A8 8 0 0 0 18 34z"/>
+            </g>
+            <g ${soft} stroke-width="2" stroke-linecap="round">
+              <path class="wx-drop" d="M22 38l-2 6"/>
+              <path class="wx-drop" d="M42 38l-2 6"/>
+            </g>
+            <path class="wx-bolt" d="M31 36l-5 10h6l-3 12 10-18h-6l3-4z" fill="rgba(255,255,255,.85)"/>
+          </svg>
+        `;
+            }
+
+            if (code === 'snow') {
+                return `
+          <svg ${common}>
+            <g class="wx-cloud">
+              <path ${stroke} d="M18 34h30a10 10 0 0 0 0-20 15 15 0 0 0-29 5A8 8 0 0 0 18 34z"/>
+            </g>
+            <g stroke="rgba(255,255,255,0.85)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <g class="wx-flake" transform="translate(22 45)">
+                <path d="M0-4V4"/>
+                <path d="M-4 0H4"/>
+                <path d="M-3 -3L3 3"/>
+                <path d="M3 -3L-3 3"/>
+              </g>
+              <g class="wx-flake" style="animation-delay:.4s" transform="translate(34 46)">
+                <path d="M0-4V4"/>
+                <path d="M-4 0H4"/>
+                <path d="M-3 -3L3 3"/>
+                <path d="M3 -3L-3 3"/>
+              </g>
+              <g class="wx-flake" style="animation-delay:.2s" transform="translate(45 44)">
+                <path d="M0-4V4"/>
+                <path d="M-4 0H4"/>
+                <path d="M-3 -3L3 3"/>
+                <path d="M3 -3L-3 3"/>
+              </g>
+            </g>
+          </svg>
+        `;
+            }
+
+            // fog
+            return `
+        <svg ${common}>
+          <g class="wx-cloud" opacity="0.85">
+            <path ${stroke} d="M18 30h30a10 10 0 0 0 0-20 15 15 0 0 0-29 5A8 8 0 0 0 18 30z"/>
+          </g>
+          <g stroke="rgba(255,255,255,0.7)" stroke-width="2" stroke-linecap="round">
+            <path class="wx-cloud2" d="M16 38h32"/>
+            <path class="wx-cloud2" style="animation-delay:.1s" d="M12 44h40"/>
+            <path class="wx-cloud2" style="animation-delay:.2s" d="M16 50h32"/>
+          </g>
+        </svg>
+      `;
+        }
+
+        // ------------------------------
+        // Rendering
+        // ------------------------------
+        const el = (id) => document.getElementById(id);
+
+        const state = {
+            location: Object.keys(SAMPLE)[0],
+            // when an hour is selected, we preview it as the current card
+            previewHourIndex: null,
+            hourlyOffset: 0,
+            hourlyPageSize: 12,
+        };
+
+        function setThemeFrom(code, isDay) {
+            // Slightly different palettes per condition
+            const themes = {
+                sun: isDay ? ['#0b3a6a', '#2c7fd1'] : ['#071024', '#0b1630'],
+                partly: isDay ? ['#0b2441', '#165f82'] : ['#070d1a', '#0b1630'],
+                cloud: isDay ? ['#0b1b2e', '#193047'] : ['#070b14', '#0a1322'],
+                rain: isDay ? ['#071526', '#0b2a45'] : ['#050814', '#091427'],
+                thunder: isDay ? ['#06101f', '#1b2a56'] : ['#040611', '#0b1230'],
+                snow: isDay ? ['#0c1e2f', '#2b5b7a'] : ['#050813', '#0a1530'],
+                fog: isDay ? ['#0b1b2e', '#294257'] : ['#060813', '#0a1324'],
+            };
+            const [a, b] = themes[code] || themes.partly;
+            document.documentElement.style.setProperty('--bg1', a);
+            document.documentElement.style.setProperty('--bg2', b);
+        }
+
+        function render() {
+            const data = SAMPLE[state.location];
+            const base = data.current;
+            const hourly = data.hourly;
+            const weekly = data.weekly;
+
+            // Theme based on current (or preview) code
+            const preview = state.previewHourIndex != null ? hourly[state.previewHourIndex] : null;
+            const themeCode = (preview?.code) || base.code;
+            setThemeFrom(themeCode, data.isDay);
+
+            el('placeName').textContent = state.location;
+            el('placeMeta').textContent = `• ${data.tzLabel} • ${data.isDay ? 'Day' : 'Night'}`;
+            el('placeTime').textContent = `Local time: ${data.updatedAt} (sample)`;
+            el('updatedAt').textContent = data.updatedAt;
+
+            const tempC = preview ? preview.tempC : base.tempC;
+            const cond = preview ? preview.condition : base.condition;
+            const code = preview ? preview.code : base.code;
+            const precipChance = preview ? preview.precipChance : base.precipChance;
+
+            el('currentTemp').textContent = Units.temp(tempC);
+            el('currentCond').textContent = cond;
+            el('currentSummary').textContent = preview ? `Forecast for ${preview.label}.` : base.summary;
+            el('currentIcon').innerHTML = iconSVG(code);
+
+            el('feelsLike').textContent = `Feels like ${Units.temp(preview ? tempC - 1 : base.feelsC)}`;
+            el('precipNow').textContent = `Precip ${precipChance}%`;
+            el('windNow').textContent = `Wind ${Units.speed(base.windKph)}`;
+
+            el('humidity').textContent = `${base.humidity}%`;
+            el('pressure').textContent = `${base.pressureHpa} hPa`;
+            el('visibility').textContent = Units.visibility(base.visibilityKm);
+            el('uv').textContent = `${base.uv}`;
+
+            el('sunrise').textContent = base.sunrise;
+            el('sunset').textContent = base.sunset;
+
+            el('weeklySummary').textContent = summarizeWeek(weekly);
+
+            renderWeekly(weekly);
+            renderHourly(hourly);
+            drawHourlyChart(hourly);
+        }
+
+        function summarizeWeek(weekly) {
+            const highs = weekly.map(d => d.highC);
+            const lows = weekly.map(d => d.lowC);
+            const hi = Math.max(...highs);
+            const lo = Math.min(...lows);
+            const codes = weekly.map(d => d.code);
+            const most = mode(codes);
+            return `High ${Units.temp(hi)} • Low ${Units.temp(lo)} • Mostly ${codeLabel(most).toLowerCase()}`;
+        }
+
+        function mode(arr) {
+            const m = new Map();
+            for (const x of arr) m.set(x, (m.get(x) || 0) + 1);
+            let best = arr[0], bestC = -1;
+            for (const [k, v] of m.entries()) if (v > bestC) { best = k; bestC = v; }
+            return best;
+        }
+
+        function renderWeekly(weekly) {
+            const rows = weekly.map((d, idx) => {
+                const isToday = idx === 0;
+                return `
+          <div class="glassSub rounded-2xl p-3 flex items-center justify-between gap-3">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2">
+                <div class="font-medium">${escapeHtml(d.label)}</div>
+                ${isToday ? `<span class="text-[11px] px-2 py-0.5 rounded-full bg-white/10 border border-white/10 text-white/70">Today</span>` : ''}
+              </div>
+              <div class="text-xs text-white/60 mt-0.5">${escapeHtml(d.note)} • ${escapeHtml(codeLabel(d.code))}</div>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 shrink-0">${iconSVG(d.code)}</div>
+              <div class="text-right tabular-nums">
+                <div class="font-semibold">${Units.temp(d.highC)}</div>
+                <div class="text-xs text-white/60">${Units.temp(d.lowC)}</div>
+              </div>
+            </div>
+          </div>
+        `;
+            }).join('');
+            el('weeklyList').innerHTML = rows;
+        }
+
+        function renderHourly(hourly) {
+            const start = state.hourlyOffset;
+            const end = Math.min(hourly.length, start + state.hourlyPageSize);
+            const slice = hourly.slice(start, end);
+
+            el('hourlyPrev').disabled = start === 0;
+            el('hourlyNext').disabled = end >= hourly.length;
+            el('hourlyPrev').classList.toggle('opacity-40', start === 0);
+            el('hourlyNext').classList.toggle('opacity-40', end >= hourly.length);
+
+            el('hourlyStrip').innerHTML = slice.map((h, i) => {
+                const idx = start + i;
+                const selected = state.previewHourIndex === idx;
+                return `
+          <button data-hour="${idx}" class="text-left shrink-0 w-28 glassSub rounded-2xl p-3 hover:bg-white/10 transition ${selected ? 'ring-2 ring-white/40' : ''}">
+            <div class="flex items-center justify-between">
+              <div class="text-sm font-medium">${escapeHtml(h.label)}</div>
+              <div class="w-8 h-8">${iconSVG(h.code)}</div>
+            </div>
+            <div class="mt-2 text-2xl font-semibold tabular-nums leading-none">${Units.temp(h.tempC)}</div>
+            <div class="mt-1 text-xs text-white/65">${escapeHtml(h.condition)} • ${h.precipChance}%</div>
+          </button>
+        `;
+            }).join('');
+        }
+
+        function drawHourlyChart(hourly) {
+            const canvas = el('hourlyChart');
+            const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = Math.floor(rect.width * dpr);
+            canvas.height = Math.floor(80 * dpr);
+            const ctx = canvas.getContext('2d');
+            ctx.scale(dpr, dpr);
+
+            const w = rect.width;
+            const h = 80;
+            ctx.clearRect(0, 0, w, h);
+
+            // Use the same slice as hourly strip
+            const start = state.hourlyOffset;
+            const end = Math.min(hourly.length, start + state.hourlyPageSize);
+            const slice = hourly.slice(start, end);
+            if (slice.length < 2) return;
+
+            const temps = slice.map(x => x.tempC);
+            const minT = Math.min(...temps);
+            const maxT = Math.max(...temps);
+            const padX = 10;
+            const padY = 12;
+            const xStep = (w - padX * 2) / (slice.length - 1);
+            const yScale = (h - padY * 2) / Math.max(1, (maxT - minT));
+
+            // Grid
+            ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < 4; i++) {
+                const yy = padY + (i / 3) * (h - padY * 2);
+                ctx.beginPath();
+                ctx.moveTo(padX, yy);
+                ctx.lineTo(w - padX, yy);
+                ctx.stroke();
+            }
+
+            // Line
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = 'rgba(255,255,255,0.82)';
+            ctx.beginPath();
+            slice.forEach((p, i) => {
+                const x = padX + i * xStep;
+                const y = padY + (maxT - p.tempC) * yScale;
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+
+            // Area
+            const grad = ctx.createLinearGradient(0, 0, 0, h);
+            grad.addColorStop(0, 'rgba(255,255,255,0.18)');
+            grad.addColorStop(1, 'rgba(255,255,255,0.02)');
+            ctx.fillStyle = grad;
+            ctx.lineTo(padX + (slice.length - 1) * xStep, h - padY);
+            ctx.lineTo(padX, h - padY);
+            ctx.closePath();
+            ctx.fill();
+
+            // Points + labels
+            slice.forEach((p, i) => {
+                const x = padX + i * xStep;
+                const y = padY + (maxT - p.tempC) * yScale;
+                const selected = state.previewHourIndex === (start + i);
+
+                ctx.fillStyle = selected ? 'rgba(255,255,255,0.98)' : 'rgba(255,255,255,0.82)';
+                ctx.beginPath();
+                ctx.arc(x, y, selected ? 3.5 : 2.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.font = '11px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = 'rgba(255,255,255,0.75)';
+                const label = Units.temp(p.tempC);
+                ctx.fillText(label, x, Math.max(10, y - 8));
+            });
+        }
+
+        function escapeHtml(str) {
+            return String(str)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+        }
+
+        // ------------------------------
+        // Controls & events
+        // ------------------------------
+        function initLocations() {
+            const select = el('locationSelect');
+            const names = Object.keys(SAMPLE);
+            select.innerHTML = names.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+            select.value = state.location;
+        }
+
+        function wireEvents() {
+            el('locationSelect').addEventListener('change', (e) => {
+                state.location = e.target.value;
+                state.previewHourIndex = null;
+                state.hourlyOffset = 0;
+                render();
+            });
+
+            el('searchInput').addEventListener('input', (e) => {
+                const q = e.target.value.trim().toLowerCase();
+                const names = Object.keys(SAMPLE);
+                const filtered = q ? names.filter(n => n.toLowerCase().includes(q)) : names;
+                const select = el('locationSelect');
+                const prev = select.value;
+                select.innerHTML = filtered.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+                // Keep selection if still present; otherwise pick first.
+                if (filtered.includes(prev)) select.value = prev;
+                else if (filtered[0]) {
+                    select.value = filtered[0];
+                    state.location = filtered[0];
+                    state.previewHourIndex = null;
+                    state.hourlyOffset = 0;
+                    render();
+                }
+            });
+
+            el('unitC').addEventListener('click', () => {
+                Units.mode = 'C';
+                el('unitC').classList.add('bg-white/10');
+                el('unitF').classList.remove('bg-white/10');
+                render();
+            });
+            el('unitF').addEventListener('click', () => {
+                Units.mode = 'F';
+                el('unitF').classList.add('bg-white/10');
+                el('unitC').classList.remove('bg-white/10');
+                render();
+            });
+
+            el('refreshBtn').addEventListener('click', render);
+
+            el('hourlyStrip').addEventListener('click', (e) => {
+                const btn = e.target.closest('[data-hour]');
+                if (!btn) return;
+                const idx = Number(btn.getAttribute('data-hour'));
+                state.previewHourIndex = (state.previewHourIndex === idx) ? null : idx;
+                render();
+            });
+
+            el('hourlyPrev').addEventListener('click', () => {
+                state.hourlyOffset = Math.max(0, state.hourlyOffset - state.hourlyPageSize);
+                state.previewHourIndex = null;
+                render();
+            });
+            el('hourlyNext').addEventListener('click', () => {
+                const len = SAMPLE[state.location].hourly.length;
+                state.hourlyOffset = Math.min(Math.max(0, len - state.hourlyPageSize), state.hourlyOffset + state.hourlyPageSize);
+                state.previewHourIndex = null;
+                render();
+            });
+
+            // Modal
+            const openModal = () => {
+                el('modalBackdrop').classList.remove('hidden');
+                el('modalBackdrop').classList.add('flex');
+            };
+            const closeModal = () => {
+                el('modalBackdrop').classList.add('hidden');
+                el('modalBackdrop').classList.remove('flex');
+            };
+            el('aboutBtn').addEventListener('click', openModal);
+            el('helpBtn').addEventListener('click', openModal);
+            el('modalBackdrop').addEventListener('click', (e) => {
+                if (e.target?.dataset?.close === '1') closeModal();
+            });
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') closeModal();
+            });
+
+            // Redraw chart on resize
+            let rAF = null;
+            window.addEventListener('resize', () => {
+                cancelAnimationFrame(rAF);
+                rAF = requestAnimationFrame(() => drawHourlyChart(SAMPLE[state.location].hourly));
+            });
+        }
+
+        // ------------------------------
+        // Boot
+        // ------------------------------
+        initLocations();
+        wireEvents();
+        render();
+    </script>
+</body>
+
+</html>
