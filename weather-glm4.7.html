@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather App</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Weather Animations */
+        @keyframes spin-slow {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
+        @keyframes pulse-glow {
+
+            0%,
+            100% {
+                filter: drop-shadow(0 0 10px rgba(255, 200, 50, 0.6));
+            }
+
+            50% {
+                filter: drop-shadow(0 0 20px rgba(255, 200, 50, 0.9));
+            }
+        }
+
+        @keyframes rain {
+            0% {
+                transform: translateY(-5px);
+                opacity: 0;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                transform: translateY(15px);
+                opacity: 0;
+            }
+        }
+
+        @keyframes snow {
+            0% {
+                transform: translateY(-5px) rotate(0deg);
+                opacity: 0;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                transform: translateY(15px) rotate(180deg);
+                opacity: 0;
+            }
+        }
+
+        @keyframes cloud-drift {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            50% {
+                transform: translateX(5px);
+            }
+        }
+
+        @keyframes lightning {
+
+            0%,
+            90%,
+            100% {
+                opacity: 0;
+            }
+
+            92%,
+            94% {
+                opacity: 1;
+            }
+        }
+
+        .sun-rays {
+            animation: spin-slow 12s linear infinite;
+            transform-origin: center;
+        }
+
+        .sun-core {
+            animation: pulse-glow 3s ease-in-out infinite;
+        }
+
+        .cloud-float {
+            animation: float 4s ease-in-out infinite;
+        }
+
+        .cloud-drift {
+            animation: cloud-drift 5s ease-in-out infinite;
+        }
+
+        .raindrop {
+            animation: rain 1s linear infinite;
+        }
+
+        .raindrop:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .raindrop:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        .raindrop:nth-child(4) {
+            animation-delay: 0.6s;
+        }
+
+        .raindrop:nth-child(5) {
+            animation-delay: 0.8s;
+        }
+
+        .snowflake {
+            animation: snow 2s linear infinite;
+        }
+
+        .snowflake:nth-child(2) {
+            animation-delay: 0.3s;
+        }
+
+        .snowflake:nth-child(3) {
+            animation-delay: 0.6s;
+        }
+
+        .snowflake:nth-child(4) {
+            animation-delay: 0.9s;
+        }
+
+        .snowflake:nth-child(5) {
+            animation-delay: 1.2s;
+        }
+
+        .lightning-flash {
+            animation: lightning 4s infinite;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .gradient-bg {
+            background: linear-gradient(135deg, #1e3a5f 0%, #4a90a4 50%, #87ceeb 100%);
+        }
+
+        .night-gradient {
+            background: linear-gradient(135deg, #0f1729 0%, #1a2a4a 50%, #2d3a5a 100%);
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen gradient-bg text-white">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <!-- Header -->
+        <header class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-3xl font-bold">Weather</h1>
+                <p class="text-white/70" id="current-date">Loading...</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="glass rounded-full px-4 py-2 flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span class="font-medium">San Francisco, CA</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Current Weather -->
+        <section class="glass rounded-3xl p-8 mb-6">
+            <div class="flex flex-col md:flex-row items-center justify-between">
+                <div class="flex items-center gap-6 mb-6 md:mb-0">
+                    <div id="current-icon" class="w-32 h-32">
+                        <!-- Icon inserted by JS -->
+                    </div>
+                    <div>
+                        <div class="text-7xl font-light" id="current-temp">72°</div>
+                        <div class="text-xl text-white/80 capitalize" id="current-condition">Partly Cloudy</div>
+                        <div class="text-white/60" id="feels-like">Feels like 70°</div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4 text-center">
+                    <div class="glass rounded-xl p-4">
+                        <div class="text-white/60 text-sm mb-1">Humidity</div>
+                        <div class="text-2xl font-semibold" id="humidity">65%</div>
+                    </div>
+                    <div class="glass rounded-xl p-4">
+                        <div class="text-white/60 text-sm mb-1">Wind</div>
+                        <div class="text-2xl font-semibold" id="wind">12 mph</div>
+                    </div>
+                    <div class="glass rounded-xl p-4">
+                        <div class="text-white/60 text-sm mb-1">UV Index</div>
+                        <div class="text-2xl font-semibold" id="uv-index">6</div>
+                    </div>
+                    <div class="glass rounded-xl p-4">
+                        <div class="text-white/60 text-sm mb-1">Visibility</div>
+                        <div class="text-2xl font-semibold" id="visibility">10 mi</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Hourly Forecast -->
+        <section class="glass rounded-3xl p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">Hourly Forecast</h2>
+            <div class="flex gap-4 overflow-x-auto pb-2 scrollbar-hide" id="hourly-forecast">
+                <!-- Hourly items inserted by JS -->
+            </div>
+        </section>
+
+        <!-- Weekly Outlook -->
+        <section class="glass rounded-3xl p-6">
+            <h2 class="text-xl font-semibold mb-4">7-Day Forecast</h2>
+            <div class="space-y-3" id="weekly-forecast">
+                <!-- Daily items inserted by JS -->
+            </div>
+        </section>
+
+        <!-- Additional Info -->
+        <section class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+            <div class="glass rounded-xl p-4 text-center">
+                <div class="text-white/60 text-sm mb-1">Sunrise</div>
+                <div class="text-lg font-semibold" id="sunrise">6:42 AM</div>
+            </div>
+            <div class="glass rounded-xl p-4 text-center">
+                <div class="text-white/60 text-sm mb-1">Sunset</div>
+                <div class="text-lg font-semibold" id="sunset">7:38 PM</div>
+            </div>
+            <div class="glass rounded-xl p-4 text-center">
+                <div class="text-white/60 text-sm mb-1">Pressure</div>
+                <div class="text-lg font-semibold" id="pressure">30.1 in</div>
+            </div>
+            <div class="glass rounded-xl p-4 text-center">
+                <div class="text-white/60 text-sm mb-1">Dew Point</div>
+                <div class="text-lg font-semibold" id="dew-point">58°</div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        // Weather icon SVG components
+        const weatherIcons = {
+            sunny: `
+                <svg viewBox="0 0 100 100" class="w-full h-full">
+                    <g class="sun-rays">
+                        <g stroke="#fbbf24" stroke-width="3" stroke-linecap="round">
+                            <line x1="50" y1="10" x2="50" y2="20" />
+                            <line x1="50" y1="80" x2="50" y2="90" />
+                            <line x1="10" y1="50" x2="20" y2="50" />
+                            <line x1="80" y1="50" x2="90" y2="50" />
+                            <line x1="22" y1="22" x2="29" y2="29" />
+                            <line x1="71" y1="71" x2="78" y2="78" />
+                            <line x1="22" y1="78" x2="29" y2="71" />
+                            <line x1="71" y1="29" x2="78" y2="22" />
+                        </g>
+                    </g>
+                    <circle class="sun-core" cx="50" cy="50" r="18" fill="#fbbf24" />
+                </svg>
+            `,
+            partlyCloudy: `
+                <svg viewBox="0 0 100 100" class="w-full h-full">
+                    <g class="sun-rays" style="transform-origin: 65px 30px;">
+                        <g stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round">
+                            <line x1="65" y1="8" x2="65" y2="16" />
+                            <line x1="65" y1="44" x2="65" y2="52" />
+                            <line x1="35" y1="28" x2="41" y2="34" />
+                            <line x1="89" y1="28" x2="95" y2="34" />
+                        </g>
+                    </g>
+                    <circle class="sun-core" cx="65" cy="30" r="12" fill="#fbbf24" />
+                    <g class="cloud-drift">
+                        <ellipse cx="45" cy="65" rx="25" ry="15" fill="#e5e7eb" />
+                        <ellipse cx="60" cy="60" rx="18" ry="12" fill="#f3f4f6" />
+                        <ellipse cx="35" cy="60" rx="15" ry="10" fill="#d1d5db" />
+                        <ellipse cx="50" cy="55" rx="12" ry="8" fill="#f9fafb" />
+                    </g>
+                </svg>
+            `,
+            cloudy: `
+                <svg viewBox="0 0 100 100" class="w-full h-full">
+                    <g class="cloud-float">
+                        <ellipse cx="50" cy="55" rx="30" ry="18" fill="#9ca3af" />
+                        <ellipse cx="70" cy="50" rx="22" ry="14" fill="#bdc3c7" />
+                        <ellipse cx="35" cy="50" rx="18" ry="12" fill="#808588" />
+                        <ellipse cx="55" cy="42" rx="15" ry="10" fill="#d1d5db" />
+                        <ellipse cx="45" cy="65" rx="25" ry="15" fill="#9ca3af" />
+                    </g>
+                </svg>
+            `,
+            rainy: `
+                <svg viewBox="0 0 100 100" class="w-full h-full">
+                    <g class="cloud-drift">
+                        <ellipse cx="50" cy="40" rx="28" ry="16" fill="#6b7280" />
+                        <ellipse cx="68" cy="35" rx="20" ry="13" fill="#9ca3af" />
+                        <ellipse cx="35" cy="35" rx="16" ry="11" fill="#4b5563" />
+                        <ellipse cx="52" cy="28" rx="14" ry="9" fill="#bdc3c7" />
+                    </g>
+                    <g fill="#60a5fa">
+                        <circle class="raindrop" cx="35" cy="60" r="2" />
+                        <circle class="raindrop" cx="50" cy="65" r="2" />
+                        <circle class="raindrop" cx="65" cy="58" r="2" />
+                        <circle class="raindrop" cx="42" cy="75" r="2" />
+                        <circle class="raindrop" cx="58" cy="72" r="2" />
+                    </g>
+                </svg>
+            `,
+            stormy: `
+                <svg viewBox="0 0 100 100" class="w-full h-full">
+                    <g class="cloud-drift">
+                        <ellipse cx="50" cy="35" rx="28" ry="16" fill="#374151" />
+                        <ellipse cx="68" cy="30" rx="20" ry="13" fill="#4b5563" />
+                        <ellipse cx="35" cy="30" rx="16" ry="11" fill="#1f2937" />
+                        <ellipse cx="52" cy="23" rx="14" ry="9" fill="#6b7280" />
+                    </g>
+                    <polygon class="lightning-flash" points="52,45 42,60 50,60 38,82 62,55 52,55 58,45" fill="#fbbf24" />
+                    <g fill="#60a5fa">
+                        <circle class="raindrop" cx="30" cy="65" r="2" />
+                        <circle class="raindrop" cx="70" cy="62" r="2" />
+                        <circle class="raindrop" cx="45" cy="78" r="2" />
+                        <circle class="raindrop" cx="60" cy="75" r="2" />
+                    </g>
+                </svg>
+            `,
+            snowy: `
+                <svg viewBox="0 0 100 100" class="w-full h-full">
+                    <g class="cloud-drift">
+                        <ellipse cx="50" cy="35" rx="28" ry="16" fill="#9ca3af" />
+                        <ellipse cx="68" cy="30" rx="20" ry="13" fill="#bdc3c7" />
+                        <ellipse cx="35" cy="30" rx="16" ry="11" fill="#6b7280" />
+                        <ellipse cx="52" cy="23" rx="14" ry="9" fill="#d1d5db" />
+                    </g>
+                    <g fill="white">
+                        <circle class="snowflake" cx="35" cy="60" r="3" />
+                        <circle class="snowflake" cx="55" cy="68" r="3" />
+                        <circle class="snowflake" cx="70" cy="58" r="3" />
+                        <circle class="snowflake" cx="45" cy="78" r="3" />
+                        <circle class="snowflake" cx="62" cy="75" r="3" />
+                    </g>
+                </svg>
+            `,
+            night: `
+                <svg viewBox="0 0 100 100" class="w-full h-full">
+                    <path d="M55 20 C35 20 25 40 25 55 C25 75 40 85 55 80 C40 80 30 65 30 50 C30 35 40 20 55 20 Z" fill="#fef3c7" />
+                    <circle cx="75" cy="35" r="2" fill="white" opacity="0.8" />
+                    <circle cx="20" cy="45" r="1.5" fill="white" opacity="0.6" />
+                    <circle cx="80" cy="70" r="1" fill="white" opacity="0.5" />
+                    <circle cx="40" cy="80" r="1" fill="white" opacity="0.4" />
+                </svg>
+            `,
+            nightCloudy: `
+                <svg viewBox="0 0 100 100" class="w-full h-full">
+                    <path d="M60 18 C45 18 35 32 35 45 C35 60 47 68 60 64 C48 64 40 52 40 40 C40 28 48 18 60 18 Z" fill="#fef3c7" />
+                    <g class="cloud-drift">
+                        <ellipse cx="50" cy="55" rx="28" ry="16" fill="#4b5563" />
+                        <ellipse cx="68" cy="50" rx="20" ry="13" fill="#6b7280" />
+                        <ellipse cx="35" cy="50" rx="16" ry="11" fill="#374151" />
+                        <ellipse cx="52" cy="43" rx="14" ry="9" fill="#9ca3af" />
+                    </g>
+                </svg>
+            `
+        };
+
+        // Sample weather data
+        const weatherData = {
+            current: {
+                temp: 72,
+                feelsLike: 70,
+                condition: 'Partly Cloudy',
+                icon: 'partlyCloudy',
+                humidity: 65,
+                wind: 12,
+                uvIndex: 6,
+                visibility: 10,
+                pressure: 30.1,
+                dewPoint: 58,
+                sunrise: '6:42 AM',
+                sunset: '7:38 PM'
+            },
+            hourly: [
+                { time: 'Now', temp: 72, icon: 'partlyCloudy' },
+                { time: '1 PM', temp: 74, icon: 'sunny' },
+                { time: '2 PM', temp: 76, icon: 'sunny' },
+                { time: '3 PM', temp: 78, icon: 'sunny' },
+                { time: '4 PM', temp: 77, icon: 'partlyCloudy' },
+                { time: '5 PM', temp: 75, icon: 'partlyCloudy' },
+                { time: '6 PM', temp: 72, icon: 'partlyCloudy' },
+                { time: '7 PM', temp: 69, icon: 'cloudy' },
+                { time: '8 PM', temp: 66, icon: 'nightCloudy' },
+                { time: '9 PM', temp: 64, icon: 'night' },
+                { time: '10 PM', temp: 62, icon: 'night' },
+                { time: '11 PM', temp: 61, icon: 'night' },
+                { time: '12 AM', temp: 60, icon: 'night' },
+                { time: '1 AM', temp: 59, icon: 'night' },
+                { time: '2 AM', temp: 58, icon: 'night' },
+                { time: '3 AM', temp: 57, icon: 'night' },
+                { time: '4 AM', temp: 57, icon: 'night' },
+                { time: '5 AM', temp: 56, icon: 'night' },
+                { time: '6 AM', temp: 58, icon: 'partlyCloudy' },
+                { time: '7 AM', temp: 61, icon: 'sunny' },
+                { time: '8 AM', temp: 64, icon: 'sunny' },
+                { time: '9 AM', temp: 67, icon: 'sunny' },
+                { time: '10 AM', temp: 70, icon: 'sunny' },
+                { time: '11 AM', temp: 72, icon: 'partlyCloudy' },
+            ],
+            weekly: [
+                { day: 'Today', high: 78, low: 58, condition: 'Partly Cloudy', icon: 'partlyCloudy', precipitation: 10 },
+                { day: 'Tuesday', high: 82, low: 62, condition: 'Sunny', icon: 'sunny', precipitation: 0 },
+                { day: 'Wednesday', high: 75, low: 60, condition: 'Cloudy', icon: 'cloudy', precipitation: 20 },
+                { day: 'Thursday', high: 68, low: 55, condition: 'Rainy', icon: 'rainy', precipitation: 80 },
+                { day: 'Friday', high: 65, low: 52, condition: 'Stormy', icon: 'stormy', precipitation: 90 },
+                { day: 'Saturday', high: 70, low: 54, condition: 'Partly Cloudy', icon: 'partlyCloudy', precipitation: 15 },
+                { day: 'Sunday', high: 74, low: 56, condition: 'Sunny', icon: 'sunny', precipitation: 5 },
+            ]
+        };
+
+        // Format current date
+        function formatDate() {
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const date = new Date();
+            return date.toLocaleDateString('en-US', options);
+        }
+
+        // Render current weather
+        function renderCurrentWeather() {
+            document.getElementById('current-date').textContent = formatDate();
+            document.getElementById('current-temp').textContent = `${weatherData.current.temp}°`;
+            document.getElementById('current-condition').textContent = weatherData.current.condition;
+            document.getElementById('feels-like').textContent = `Feels like ${weatherData.current.feelsLike}°`;
+            document.getElementById('humidity').textContent = `${weatherData.current.humidity}%`;
+            document.getElementById('wind').textContent = `${weatherData.current.wind} mph`;
+            document.getElementById('uv-index').textContent = weatherData.current.uvIndex;
+            document.getElementById('visibility').textContent = `${weatherData.current.visibility} mi`;
+            document.getElementById('sunrise').textContent = weatherData.current.sunrise;
+            document.getElementById('sunset').textContent = weatherData.current.sunset;
+            document.getElementById('pressure').textContent = `${weatherData.current.pressure} in`;
+            document.getElementById('dew-point').textContent = `${weatherData.current.dewPoint}°`;
+            document.getElementById('current-icon').innerHTML = weatherIcons[weatherData.current.icon];
+        }
+
+        // Render hourly forecast
+        function renderHourlyForecast() {
+            const container = document.getElementById('hourly-forecast');
+            container.innerHTML = weatherData.hourly.map(hour => `
+                <div class="flex flex-col items-center min-w-[70px] glass rounded-xl p-3 hover:bg-white/20 transition-colors cursor-pointer">
+                    <span class="text-white/70 text-sm mb-2">${hour.time}</span>
+                    <div class="w-10 h-10 mb-2">${weatherIcons[hour.icon]}</div>
+                    <span class="text-lg font-semibold">${hour.temp}°</span>
+                </div>
+            `).join('');
+        }
+
+        // Render weekly forecast
+        function renderWeeklyForecast() {
+            const container = document.getElementById('weekly-forecast');
+            container.innerHTML = weatherData.weekly.map((day, index) => `
+                <div class="flex items-center justify-between py-3 ${index < weatherData.weekly.length - 1 ? 'border-b border-white/10' : ''} hover:bg-white/5 rounded-lg px-2 transition-colors cursor-pointer">
+                    <div class="flex items-center gap-4 w-32">
+                        <span class="font-medium ${index === 0 ? 'text-yellow-300' : ''}">${day.day}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <svg class="w-5 h-5 text-blue-300" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2c-5.33 4.55-8 8.48-8 11.8 0 4.98 3.8 8.2 8 8.2s8-3.22 8-8.2c0-3.32-2.67-7.25-8-11.8z"/>
+                        </svg>
+                        <span class="text-white/60 text-sm w-8">${day.precipitation}%</span>
+                    </div>
+                    <div class="w-10 h-10">${weatherIcons[day.icon]}</div>
+                    <div class="flex items-center gap-3 w-28 justify-end">
+                        <span class="font-semibold">${day.high}°</span>
+                        <span class="text-white/50">${day.low}°</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Initialize app
+        function init() {
+            renderCurrentWeather();
+            renderHourlyForecast();
+            renderWeeklyForecast();
+        }
+
+        // Run on load
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+
+</html>
