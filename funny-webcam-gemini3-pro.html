@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FunCam - Live Webcam Filters</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        /* Custom Scrollbar for filter list */
+        .filter-scroll::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        .filter-scroll::-webkit-scrollbar-track {
+            background: #1f2937;
+        }
+
+        .filter-scroll::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 4px;
+        }
+
+        .filter-scroll::-webkit-scrollbar-thumb:hover {
+            background: #6b7280;
+        }
+
+        /* Filter Classes */
+        .filter-normal {
+            filter: none;
+        }
+
+        .filter-grayscale {
+            filter: grayscale(1);
+        }
+
+        .filter-sepia {
+            filter: sepia(1);
+        }
+
+        .filter-invert {
+            filter: invert(1);
+        }
+
+        .filter-alien {
+            filter: hue-rotate(90deg) invert(0.2);
+        }
+
+        .filter-contrast {
+            filter: contrast(200%);
+        }
+
+        .filter-blur {
+            filter: blur(3px);
+        }
+
+        .filter-poster {
+            filter: brightness(1.2) contrast(1.5) saturate(1.5);
+        }
+
+        .filter-dream {
+            filter: brightness(1.1) contrast(0.9) saturate(1.2) sepia(0.3) blur(0.5px);
+        }
+
+        /* SVG Filter Classes */
+        .filter-wavy {
+            filter: url(#wavy);
+        }
+
+        .filter-noise {
+            filter: url(#noise);
+        }
+
+        .filter-psycho {
+            filter: url(#psycho);
+        }
+
+        /* Transforms */
+        .transform-mirror {
+            transform: scaleX(-1);
+        }
+
+        .transform-upside {
+            transform: scaleY(-1);
+        }
+
+        .transform-spin {
+            animation: spin 10s linear infinite;
+        }
+
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        video {
+            transition: filter 0.3s ease, transform 0.3s ease;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-900 text-white min-h-screen flex flex-col items-center p-4">
+
+    <!-- SVG Definitions for Advanced Filters -->
+    <svg style="position: absolute; width: 0; height: 0; pointer-events: none;">
+        <defs>
+            <filter id="wavy">
+                <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="1" result="turbulence" />
+                <feDisplacementMap in2="turbulence" in="SourceGraphic" scale="50" xChannelSelector="R"
+                    yChannelSelector="G" />
+            </filter>
+
+            <filter id="noise">
+                <feTurbulence type="fractalNoise" baseFrequency="0.5" numOctaves="3" stitchTiles="stitch" />
+                <feColorMatrix type="saturate" values="0" />
+                <feComponentTransfer>
+                    <feFuncR type="linear" slope="2" intercept="-0.5" />
+                    <feFuncG type="linear" slope="2" intercept="-0.5" />
+                    <feFuncB type="linear" slope="2" intercept="-0.5" />
+                </feComponentTransfer>
+                <feBlend in="SourceGraphic" mode="multiply" />
+            </filter>
+
+            <filter id="psycho">
+                <feTurbulence type="turbulence" baseFrequency="0.05" numOctaves="2" result="turbulence" />
+                <feDisplacementMap in2="turbulence" in="SourceGraphic" scale="50" xChannelSelector="R"
+                    yChannelSelector="G" />
+                <feColorMatrix type="hueRotate" values="90">
+                    <animate attributeName="values" from="0" to="360" dur="2s" repeatCount="indefinite" />
+                </feColorMatrix>
+            </filter>
+        </defs>
+    </svg>
+
+    <!-- Header -->
+    <header class="w-full max-w-4xl flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">
+            FunCam 📸
+        </h1>
+        <div class="flex gap-2">
+            <button id="toggle-camera"
+                class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-medium transition">
+                Start Camera
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Camera View -->
+    <main class="w-full max-w-4xl flex-grow flex flex-col items-center gap-6">
+
+        <!-- Video Container -->
+        <div
+            class="relative w-full aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl border border-gray-800 group">
+            <video id="webcam" autoplay playsinline muted
+                class="w-full h-full object-cover transform scale-x-[-1]"></video>
+
+            <!-- Snapshot Flash Animation -->
+            <div id="flash"
+                class="absolute inset-0 bg-white opacity-0 pointer-events-none transition-opacity duration-200"></div>
+
+            <!-- Placeholder if camera not active -->
+            <div id="placeholder" class="absolute inset-0 flex flex-col items-center justify-center text-gray-500 z-10">
+                <svg class="w-16 h-16 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z">
+                    </path>
+                </svg>
+                <p>Waiting for camera access...</p>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="w-full bg-gray-800 p-4 rounded-xl shadow-lg">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-gray-300 hidden sm:block">Filters</h3>
+                <div class="flex gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                    <button id="toggle-mirror"
+                        class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-full font-bold shadow transition flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                        </svg>
+                        <span class="hidden xs:inline">Mirror</span>
+                    </button>
+                    <button id="take-photo"
+                        class="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white px-6 py-2 rounded-full font-bold shadow-lg transform active:scale-95 transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z">
+                            </path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                        Snap
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filter Buttons List -->
+            <div class="filter-scroll flex gap-4 overflow-x-auto pb-4 snap-x">
+                <!-- Buttons are generated by JS -->
+            </div>
+        </div>
+    </main>
+
+    <!-- Photo Gallery / Preview Modal -->
+    <div id="gallery"
+        class="hidden fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-gray-800 rounded-xl p-4 max-w-2xl w-full flex flex-col gap-4 shadow-2xl">
+            <div class="flex justify-between items-center">
+                <h3 class="text-xl font-bold">Your Photo</h3>
+                <button id="close-gallery" class="text-gray-400 hover:text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+            <div class="relative aspect-video bg-black rounded-lg overflow-hidden flex items-center justify-center">
+                <canvas id="photo-canvas" class="max-w-full max-h-full object-contain"></canvas>
+            </div>
+            <div class="flex justify-end gap-2">
+                <a id="download-link" href="#"
+                    class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                    </svg>
+                    Download
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('webcam');
+        const placeholder = document.getElementById('placeholder');
+        const toggleBtn = document.getElementById('toggle-camera');
+        const filterList = document.querySelector('.filter-scroll');
+        const takePhotoBtn = document.getElementById('take-photo');
+        const toggleMirrorBtn = document.getElementById('toggle-mirror');
+        const flash = document.getElementById('flash');
+        const gallery = document.getElementById('gallery');
+        const closeGalleryBtn = document.getElementById('close-gallery');
+        const photoCanvas = document.getElementById('photo-canvas');
+        const downloadLink = document.getElementById('download-link');
+
+        let stream = null;
+        let currentFilterClass = 'filter-normal';
+        let isMirrored = true;
+
+        const filters = [
+            { name: 'Normal', class: 'filter-normal', emoji: '😐' },
+            { name: 'Alien', class: 'filter-alien', emoji: '👽' },
+            { name: 'Wavy', class: 'filter-wavy', emoji: '〰️' },
+            { name: 'B&W', class: 'filter-grayscale', emoji: '⚫' },
+            { name: 'Sepia', class: 'filter-sepia', emoji: '📜' },
+            { name: 'Psycho', class: 'filter-psycho', emoji: '🌈' },
+            { name: 'Poster', class: 'filter-poster', emoji: '🎨' },
+            { name: 'Ghost', class: 'filter-dream', emoji: '👻' },
+            { name: 'Invert', class: 'filter-invert', emoji: '🔄' },
+            { name: 'Noise', class: 'filter-noise', emoji: '📺' },
+            { name: 'Contrast', class: 'filter-contrast', emoji: '🌗' },
+        ];
+
+        // Initialize Filter Buttons
+        filters.forEach(filter => {
+            const btn = document.createElement('button');
+            btn.className = `flex-shrink-0 w-24 h-24 bg-gray-700 rounded-xl flex flex-col items-center justify-center gap-2 border-2 border-transparent hover:bg-gray-600 hover:border-gray-500 transition snap-center cursor-pointer`;
+            btn.innerHTML = `
+                <span class="text-3xl">${filter.emoji}</span>
+                <span class="text-xs font-medium">${filter.name}</span>
+            `;
+            btn.onclick = () => applyFilter(filter.class, btn);
+            filterList.appendChild(btn);
+        });
+
+        // Highlight active filter
+        function applyFilter(className, btnElement) {
+            // Remove old filter class
+            video.classList.remove(currentFilterClass);
+
+            // Add new filter class
+            currentFilterClass = className;
+            video.classList.add(currentFilterClass);
+
+            // Update UI
+            document.querySelectorAll('.filter-scroll button').forEach(b => {
+                b.classList.remove('border-pink-500', 'bg-gray-600');
+                b.classList.add('border-transparent', 'bg-gray-700');
+            });
+            if (btnElement) {
+                btnElement.classList.remove('border-transparent', 'bg-gray-700');
+                btnElement.classList.add('border-pink-500', 'bg-gray-600');
+            }
+        }
+
+        // Set Normal as active initially
+        applyFilter('filter-normal', filterList.firstChild);
+
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                video.srcObject = stream;
+                video.onloadedmetadata = () => {
+                    video.play();
+                    placeholder.style.display = 'none';
+                    toggleBtn.textContent = 'Stop Camera';
+                    toggleBtn.onclick = stopCamera;
+                    takePhotoBtn.disabled = false;
+                };
+            } catch (err) {
+                console.error("Error accessing webcam: ", err);
+                alert("Could not access webcam. Please ensure you have given permission.");
+            }
+        }
+
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+                video.srcObject = null;
+                placeholder.style.display = 'flex';
+                toggleBtn.textContent = 'Start Camera';
+                toggleBtn.onclick = startCamera;
+                takePhotoBtn.disabled = true;
+            }
+        }
+
+        toggleBtn.onclick = startCamera;
+
+        // Mirror Toggle
+        toggleMirrorBtn.onclick = () => {
+            isMirrored = !isMirrored;
+            if (isMirrored) {
+                video.classList.add('scale-x-[-1]');
+            } else {
+                video.classList.remove('scale-x-[-1]');
+            }
+        };
+
+        // Automatically try to start
+        startCamera();
+
+        // Snapshot Logic
+        takePhotoBtn.onclick = () => {
+            if (!stream) return;
+
+            // Flash effect
+            flash.classList.remove('opacity-0');
+            setTimeout(() => flash.classList.add('opacity-0'), 100);
+
+            // Capture
+            const width = video.videoWidth;
+            const height = video.videoHeight;
+
+            photoCanvas.width = width;
+            photoCanvas.height = height;
+            const ctx = photoCanvas.getContext('2d');
+
+            // We need to apply the same filter to the context
+            const computedStyle = window.getComputedStyle(video);
+            const filterValue = computedStyle.filter;
+
+            // Mirror logic based on state
+            if (isMirrored) {
+                ctx.translate(width, 0);
+                ctx.scale(-1, 1);
+            }
+
+            // Apply filter
+            ctx.filter = filterValue;
+
+            ctx.drawImage(video, 0, 0, width, height);
+
+            // Reset transform
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+            // Show Gallery
+            gallery.classList.remove('hidden');
+
+            // Prepare download
+            const dataURL = photoCanvas.toDataURL('image/png');
+            downloadLink.href = dataURL;
+            downloadLink.download = `funcam_${Date.now()}.png`;
+        };
+
+        closeGalleryBtn.onclick = () => {
+            gallery.classList.add('hidden');
+        };
+
+        // Close gallery on outside click
+        gallery.onclick = (e) => {
+            if (e.target === gallery) {
+                gallery.classList.add('hidden');
+            }
+        };
+
+    </script>
+</body>
+
+</html>
