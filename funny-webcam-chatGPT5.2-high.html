@@ -1,0 +1,1204 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FunnyCam — Live Webcam Filters</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        /* Crisp pixelated scaling when pixelate filter is active */
+        canvas.pixelated {
+            image-rendering: pixelated;
+        }
+
+        /* Subtle scanline overlay (used by some filters) */
+        .scanlines::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background: repeating-linear-gradient(to bottom,
+                    rgba(0, 0, 0, 0.10) 0px,
+                    rgba(0, 0, 0, 0.10) 1px,
+                    rgba(0, 0, 0, 0.00) 3px,
+                    rgba(0, 0, 0, 0.00) 6px);
+            mix-blend-mode: multiply;
+            opacity: .35;
+        }
+
+        .glass {
+            background: radial-gradient(1200px 600px at 50% 30%, rgba(56, 189, 248, .12), rgba(2, 6, 23, 0) 55%),
+                radial-gradient(900px 500px at 30% 70%, rgba(167, 139, 250, .12), rgba(2, 6, 23, 0) 55%),
+                radial-gradient(700px 500px at 70% 75%, rgba(34, 197, 94, .10), rgba(2, 6, 23, 0) 55%),
+                linear-gradient(180deg, #0b1022 0%, #050816 55%, #040611 100%);
+        }
+    </style>
+</head>
+
+<body class="min-h-screen text-slate-100 glass">
+    <header class="px-4 md:px-8 pt-6 pb-3">
+        <div class="max-w-6xl mx-auto flex items-start md:items-center justify-between gap-4">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-semibold tracking-tight">FunnyCam</h1>
+                <p class="text-slate-300 text-sm md:text-base">Live webcam + goofy filters + stickers. Snap and download
+                    shots.</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <span id="statusDot" class="inline-flex h-2.5 w-2.5 rounded-full bg-slate-500"></span>
+                <span id="statusText" class="text-sm text-slate-300">Idle</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="px-4 md:px-8 pb-10">
+        <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-5 gap-6">
+            <!-- Preview -->
+            <section class="lg:col-span-3">
+                <div class="relative rounded-2xl overflow-hidden bg-slate-950/50 border border-white/10 shadow-2xl">
+                    <div id="stage" class="relative aspect-video w-full scanlines">
+                        <video id="video" class="hidden" playsinline muted></video>
+                        <canvas id="canvas" class="absolute inset-0 w-full h-full"></canvas>
+                        <div class="absolute left-3 top-3 flex flex-wrap gap-2">
+                            <span id="pillFilter"
+                                class="text-xs px-2 py-1 rounded-full bg-black/40 border border-white/10">Filter:
+                                None</span>
+                            <span id="pillOverlay"
+                                class="text-xs px-2 py-1 rounded-full bg-black/40 border border-white/10">Sticker:
+                                None</span>
+                            <span id="pillFPS"
+                                class="text-xs px-2 py-1 rounded-full bg-black/40 border border-white/10">~0 fps</span>
+                        </div>
+                        <div id="hint" class="absolute inset-0 grid place-items-center p-6">
+                            <div class="max-w-md text-center">
+                                <div class="text-lg font-medium">Start your camera</div>
+                                <div class="text-slate-300 text-sm mt-1">Choose a filter, add a sticker, and hit Snap.
+                                </div>
+                                <div class="mt-4 flex items-center justify-center gap-2">
+                                    <button id="btnStartHero"
+                                        class="px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-semibold">Start
+                                        Camera</button>
+                                    <button id="btnDemo"
+                                        class="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10">Try
+                                        without camera</button>
+                                </div>
+                                <p class="text-xs text-slate-400 mt-3">Works best on HTTPS or localhost. Nothing is
+                                    uploaded.</p>
+                            </div>
+                        </div>
+                        <div id="toast"
+                            class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 text-xs px-3 py-2 rounded-xl bg-black/60 border border-white/10">
+                        </div>
+                    </div>
+
+                    <div class="p-4 border-t border-white/10 flex flex-wrap items-center justify-between gap-3">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button id="btnStart"
+                                class="px-3 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-semibold">Start</button>
+                            <button id="btnStop"
+                                class="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10">Stop</button>
+                            <button id="btnFlip"
+                                class="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10">Switch
+                                Camera</button>
+                            <button id="btnMirror"
+                                class="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10">Mirror:
+                                On</button>
+                            <span class="text-xs text-slate-300">Intensity</span>
+                            <input id="intensity" type="range" min="0" max="1" step="0.01" value="0.75"
+                                class="w-36 accent-sky-400" />
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button id="btnSnap"
+                                class="px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold">Snap</button>
+                            <button id="btnClear"
+                                class="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10">Clear
+                                Shots</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-sm font-semibold text-slate-200">Snapshots</h2>
+                        <p class="text-xs text-slate-400">Saved in your browser session. Click a shot to download.</p>
+                    </div>
+                    <div id="shots" class="mt-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div>
+                </div>
+            </section>
+
+            <!-- Controls -->
+            <aside class="lg:col-span-2">
+                <div class="rounded-2xl bg-slate-950/40 border border-white/10 shadow-xl p-4">
+                    <h2 class="text-sm font-semibold text-slate-200">Filters</h2>
+                    <p class="text-xs text-slate-400 mt-1">These run locally on your device. Some are heavier
+                        (Pixelate/Thermal/Edge).</p>
+                    <div id="filterGrid" class="mt-3 grid grid-cols-2 gap-2"></div>
+
+                    <div class="mt-5">
+                        <h2 class="text-sm font-semibold text-slate-200">Stickers</h2>
+                        <p class="text-xs text-slate-400 mt-1">If FaceDetector is supported, stickers try to follow your
+                            face.</p>
+                        <div id="overlayGrid" class="mt-3 grid grid-cols-2 gap-2"></div>
+                    </div>
+
+                    <div class="mt-5 p-3 rounded-xl bg-white/5 border border-white/10">
+                        <h3 class="text-sm font-semibold">Tips</h3>
+                        <ul class="mt-2 text-xs text-slate-300 space-y-1 list-disc list-inside">
+                            <li>Use <span class="font-semibold">Switch Camera</span> on mobile to toggle front/back.
+                            </li>
+                            <li>Turn <span class="font-semibold">Mirror</span> off for accurate text/handedness.</li>
+                            <li>Pixel-heavy filters look best with slightly lower intensity.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="mt-4 rounded-2xl bg-slate-950/40 border border-white/10 shadow-xl p-4">
+                    <h2 class="text-sm font-semibold text-slate-200">Privacy</h2>
+                    <p class="text-xs text-slate-300 mt-2">This page uses <code
+                            class="px-1 py-0.5 rounded bg-black/40 border border-white/10">getUserMedia</code> to access
+                        your webcam. Video stays on your device. Nothing is uploaded anywhere.</p>
+                    <p id="faceNote" class="text-xs text-slate-400 mt-2"></p>
+                </div>
+            </aside>
+        </div>
+    </main>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const stage = document.getElementById('stage');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+        const hint = document.getElementById('hint');
+        const toast = document.getElementById('toast');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+
+        const pillFilter = document.getElementById('pillFilter');
+        const pillOverlay = document.getElementById('pillOverlay');
+        const pillFPS = document.getElementById('pillFPS');
+
+        const btnStart = document.getElementById('btnStart');
+        const btnStop = document.getElementById('btnStop');
+        const btnFlip = document.getElementById('btnFlip');
+        const btnMirror = document.getElementById('btnMirror');
+        const btnSnap = document.getElementById('btnSnap');
+        const btnClear = document.getElementById('btnClear');
+        const btnStartHero = document.getElementById('btnStartHero');
+        const btnDemo = document.getElementById('btnDemo');
+        const intensityEl = document.getElementById('intensity');
+
+        const shotsEl = document.getElementById('shots');
+        const filterGrid = document.getElementById('filterGrid');
+        const overlayGrid = document.getElementById('overlayGrid');
+        const faceNote = document.getElementById('faceNote');
+
+        const state = {
+            running: false,
+            demo: false,
+            stream: null,
+            facingMode: 'user',
+            mirror: true,
+            intensity: 0.75,
+            filter: 'none',
+            overlay: 'none',
+            lastFrameTime: performance.now(),
+            fpsEMA: 0,
+            // face detection
+            faceDetector: null,
+            faceSupported: false,
+            lastFaceDetect: 0,
+            faces: [],
+            // animated overlay state
+            t0: performance.now(),
+            bubbles: []
+        };
+
+        const FILTERS = [
+            { id: 'none', name: 'None', badge: 'Clean' },
+            { id: 'vintage', name: 'Vintage', badge: 'Warm' },
+            { id: 'noir', name: 'Noir', badge: 'B&W' },
+            { id: 'rainbow', name: 'Rainbow', badge: 'Hue' },
+            { id: 'pixel', name: 'Pixelate', badge: 'Chunky' },
+            { id: 'glitch', name: 'Glitch', badge: 'RGB' },
+            { id: 'thermal', name: 'Thermal', badge: 'Heat' },
+            { id: 'edge', name: 'Edge', badge: 'Comic' }
+        ];
+
+        const OVERLAYS = [
+            { id: 'none', name: 'None', badge: '—' },
+            { id: 'glasses', name: 'Glasses', badge: 'Cool' },
+            { id: 'mustache', name: 'Mustache', badge: 'Fancy' },
+            { id: 'partyhat', name: 'Party Hat', badge: 'Party' },
+            { id: 'antennae', name: 'Antennae', badge: 'Alien' },
+            { id: 'bubbles', name: 'Bubbles', badge: 'Float' },
+            { id: 'confetti', name: 'Confetti', badge: 'Yay' }
+        ];
+
+        function setStatus(kind, text) {
+            const dot = {
+                idle: 'bg-slate-500',
+                ok: 'bg-emerald-400',
+                warn: 'bg-amber-400',
+                err: 'bg-rose-400'
+            }[kind] || 'bg-slate-500';
+            statusDot.className = `inline-flex h-2.5 w-2.5 rounded-full ${dot}`;
+            statusText.textContent = text;
+        }
+
+        let toastTimer = null;
+        function showToast(msg) {
+            toast.textContent = msg;
+            toast.classList.remove('hidden');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => toast.classList.add('hidden'), 2200);
+        }
+
+        function makeButton({ label, badge, active }) {
+            const btn = document.createElement('button');
+            btn.className = `text-left px-3 py-2 rounded-xl border transition select-none ${active ? 'bg-sky-500/15 border-sky-400/40' : 'bg-white/5 hover:bg-white/10 border-white/10'}`;
+            btn.innerHTML = `
+        <div class="flex items-center justify-between gap-2">
+          <div class="text-sm font-semibold">${label}</div>
+          <span class="text-[11px] px-2 py-0.5 rounded-full bg-black/30 border border-white/10 text-slate-200">${badge}</span>
+        </div>
+      `;
+            return btn;
+        }
+
+        function renderChoices() {
+            filterGrid.innerHTML = '';
+            for (const f of FILTERS) {
+                const btn = makeButton({ label: f.name, badge: f.badge, active: state.filter === f.id });
+                btn.addEventListener('click', () => {
+                    state.filter = f.id;
+                    pillFilter.textContent = `Filter: ${f.name}`;
+                    canvas.classList.toggle('pixelated', state.filter === 'pixel');
+                    stage.classList.toggle('scanlines', state.filter === 'glitch' || state.filter === 'noir');
+                    renderChoices();
+                });
+                filterGrid.appendChild(btn);
+            }
+
+            overlayGrid.innerHTML = '';
+            for (const o of OVERLAYS) {
+                const btn = makeButton({ label: o.name, badge: o.badge, active: state.overlay === o.id });
+                btn.addEventListener('click', () => {
+                    state.overlay = o.id;
+                    pillOverlay.textContent = `Sticker: ${o.name}`;
+                    renderChoices();
+                });
+                overlayGrid.appendChild(btn);
+            }
+        }
+
+        // Offscreen canvases
+        const workCanvas = document.createElement('canvas');
+        const workCtx = workCanvas.getContext('2d', { willReadFrequently: true });
+
+        const tinyCanvas = document.createElement('canvas');
+        const tinyCtx = tinyCanvas.getContext('2d', { willReadFrequently: true });
+
+        function fitCanvasesFromVideo() {
+            const w = video.videoWidth || 1280;
+            const h = video.videoHeight || 720;
+
+            // Display canvas at full video res up to a cap for performance
+            const maxW = 1280;
+            const scale = Math.min(1, maxW / w);
+            canvas.width = Math.round(w * scale);
+            canvas.height = Math.round(h * scale);
+
+            // Work canvas reduced; heavier filters will run on workCanvas
+            const targetW = Math.min(640, canvas.width);
+            const targetScale = targetW / canvas.width;
+            workCanvas.width = Math.max(2, Math.round(canvas.width * targetScale));
+            workCanvas.height = Math.max(2, Math.round(canvas.height * targetScale));
+
+            tinyCanvas.width = Math.max(2, Math.round(workCanvas.width * 0.5));
+            tinyCanvas.height = Math.max(2, Math.round(workCanvas.height * 0.5));
+        }
+
+        async function setupFaceDetector() {
+            state.faceSupported = false;
+            state.faceDetector = null;
+            try {
+                if ('FaceDetector' in window) {
+                    state.faceDetector = new FaceDetector({ fastMode: true, maxDetectedFaces: 1 });
+                    // Some browsers expose FaceDetector but throw when used.
+                    state.faceSupported = true;
+                    faceNote.textContent = 'FaceDetector: supported (stickers will try to track your face).';
+                } else {
+                    faceNote.textContent = 'FaceDetector: not available (stickers will be placed approximately).';
+                }
+            } catch (e) {
+                state.faceSupported = false;
+                state.faceDetector = null;
+                faceNote.textContent = 'FaceDetector: not available (stickers will be placed approximately).';
+            }
+        }
+
+        function stopCamera() {
+            if (state.stream) {
+                state.stream.getTracks().forEach(t => t.stop());
+            }
+            state.stream = null;
+            state.running = false;
+            state.demo = false;
+            setStatus('idle', 'Idle');
+            hint.classList.remove('hidden');
+        }
+
+        async function startCamera() {
+            stopCamera();
+            setStatus('warn', 'Requesting camera…');
+
+            try {
+                const constraints = {
+                    video: {
+                        facingMode: state.facingMode,
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: false
+                };
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                state.stream = stream;
+                video.srcObject = stream;
+                await video.play();
+                fitCanvasesFromVideo();
+                hint.classList.add('hidden');
+                state.running = true;
+                state.demo = false;
+                setStatus('ok', 'Live');
+                showToast('Camera started');
+            } catch (err) {
+                console.error(err);
+                setStatus('err', 'Camera blocked');
+                showToast('Could not start camera (permissions / HTTPS)');
+                // keep hint visible
+                state.running = false;
+            }
+        }
+
+        // Demo mode: draws a synthetic moving scene when webcam is unavailable
+        function startDemo() {
+            stopCamera();
+            state.demo = true;
+            state.running = true;
+            // Set a reasonable canvas size
+            canvas.width = 960;
+            canvas.height = 540;
+            workCanvas.width = 480;
+            workCanvas.height = 270;
+            tinyCanvas.width = 240;
+            tinyCanvas.height = 135;
+            hint.classList.add('hidden');
+            setStatus('warn', 'Demo');
+            showToast('Demo mode (no camera)');
+        }
+
+        function drawDemoScene(t, w, h, outCtx) {
+            outCtx.save();
+            outCtx.clearRect(0, 0, w, h);
+            const g = outCtx.createLinearGradient(0, 0, w, h);
+            g.addColorStop(0, '#0ea5e9');
+            g.addColorStop(1, '#a78bfa');
+            outCtx.fillStyle = g;
+            outCtx.fillRect(0, 0, w, h);
+
+            // Blobs
+            const n = 8;
+            for (let i = 0; i < n; i++) {
+                const r = (Math.sin(t * 0.001 + i) * 0.5 + 0.5) * 90 + 40;
+                const x = (Math.sin(t * 0.0009 + i * 1.7) * 0.5 + 0.5) * w;
+                const y = (Math.cos(t * 0.0011 + i * 2.1) * 0.5 + 0.5) * h;
+                outCtx.beginPath();
+                outCtx.arc(x, y, r, 0, Math.PI * 2);
+                outCtx.fillStyle = `rgba(2,6,23,${0.15 + i * 0.02})`;
+                outCtx.fill();
+            }
+
+            // A "face" target
+            const cx = w * 0.5 + Math.sin(t * 0.0012) * w * 0.12;
+            const cy = h * 0.52 + Math.cos(t * 0.0010) * h * 0.08;
+            const rr = Math.min(w, h) * 0.18;
+            outCtx.beginPath();
+            outCtx.arc(cx, cy, rr, 0, Math.PI * 2);
+            outCtx.fillStyle = 'rgba(255,255,255,0.10)';
+            outCtx.fill();
+
+            outCtx.fillStyle = 'rgba(255,255,255,0.14)';
+            outCtx.beginPath();
+            outCtx.arc(cx - rr * 0.35, cy - rr * 0.15, rr * 0.10, 0, Math.PI * 2);
+            outCtx.arc(cx + rr * 0.35, cy - rr * 0.15, rr * 0.10, 0, Math.PI * 2);
+            outCtx.fill();
+
+            outCtx.restore();
+
+            return { cx, cy, rr };
+        }
+
+        function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+
+        function applyVignette(outCtx, w, h, amount) {
+            const r = Math.max(w, h);
+            const g = outCtx.createRadialGradient(w * 0.5, h * 0.5, r * 0.15, w * 0.5, h * 0.5, r * 0.62);
+            g.addColorStop(0, 'rgba(0,0,0,0)');
+            g.addColorStop(1, `rgba(0,0,0,${0.75 * amount})`);
+            outCtx.fillStyle = g;
+            outCtx.fillRect(0, 0, w, h);
+        }
+
+        function applyNoise(outCtx, w, h, amount) {
+            const n = Math.floor((w * h) * 0.0025 * amount);
+            outCtx.save();
+            outCtx.globalAlpha = 0.20 * amount;
+            outCtx.fillStyle = '#fff';
+            for (let i = 0; i < n; i++) {
+                const x = Math.random() * w;
+                const y = Math.random() * h;
+                outCtx.fillRect(x, y, 1, 1);
+            }
+            outCtx.restore();
+        }
+
+        function applyScanlineFlash(outCtx, w, h, t, amount) {
+            const y = ((t * 0.08) % (h + 120)) - 60;
+            const g = outCtx.createLinearGradient(0, y - 40, 0, y + 40);
+            g.addColorStop(0, 'rgba(255,255,255,0)');
+            g.addColorStop(0.5, `rgba(255,255,255,${0.16 * amount})`);
+            g.addColorStop(1, 'rgba(255,255,255,0)');
+            outCtx.fillStyle = g;
+            outCtx.fillRect(0, y - 60, w, 120);
+        }
+
+        function thermalMap(r, g, b) {
+            // map luminance to a thermal palette
+            const y = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+            // gradient stops: black -> blue -> cyan -> green -> yellow -> orange -> red -> white
+            const stops = [
+                { t: 0.00, c: [0, 0, 0] },
+                { t: 0.12, c: [0, 0, 140] },
+                { t: 0.28, c: [0, 220, 255] },
+                { t: 0.45, c: [0, 255, 120] },
+                { t: 0.62, c: [255, 255, 0] },
+                { t: 0.78, c: [255, 120, 0] },
+                { t: 0.92, c: [255, 0, 0] },
+                { t: 1.00, c: [255, 255, 255] },
+            ];
+            let i = 0;
+            while (i < stops.length - 1 && y > stops[i + 1].t) i++;
+            const a = stops[i], b2 = stops[i + 1];
+            const u = (y - a.t) / Math.max(1e-6, (b2.t - a.t));
+            return [
+                Math.round(a.c[0] + (b2.c[0] - a.c[0]) * u),
+                Math.round(a.c[1] + (b2.c[1] - a.c[1]) * u),
+                Math.round(a.c[2] + (b2.c[2] - a.c[2]) * u)
+            ];
+        }
+
+        function applyThermal(img, intensity) {
+            const d = img.data;
+            const amt = clamp01(intensity);
+            for (let i = 0; i < d.length; i += 4) {
+                const r = d[i], g = d[i + 1], b = d[i + 2];
+                const [tr, tg, tb] = thermalMap(r, g, b);
+                d[i] = Math.round(r * (1 - amt) + tr * amt);
+                d[i + 1] = Math.round(g * (1 - amt) + tg * amt);
+                d[i + 2] = Math.round(b * (1 - amt) + tb * amt);
+            }
+            return img;
+        }
+
+        function applyNoir(img, intensity) {
+            const d = img.data;
+            const amt = clamp01(intensity);
+            // grayscale + contrast
+            const contrast = 1 + 1.2 * amt; // 1..2.2
+            const intercept = 128 * (1 - contrast);
+            for (let i = 0; i < d.length; i += 4) {
+                const y = 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+                let v = y;
+                v = v * contrast + intercept;
+                v = Math.max(0, Math.min(255, v));
+                d[i] = d[i + 1] = d[i + 2] = v;
+            }
+            return img;
+        }
+
+        function applyVintage(img, intensity) {
+            const d = img.data;
+            const amt = clamp01(intensity);
+            for (let i = 0; i < d.length; i += 4) {
+                const r = d[i], g = d[i + 1], b = d[i + 2];
+                // sepia-ish
+                const sr = 0.393 * r + 0.769 * g + 0.189 * b;
+                const sg = 0.349 * r + 0.686 * g + 0.168 * b;
+                const sb = 0.272 * r + 0.534 * g + 0.131 * b;
+                d[i] = Math.min(255, r * (1 - amt) + sr * amt);
+                d[i + 1] = Math.min(255, g * (1 - amt) + sg * amt);
+                d[i + 2] = Math.min(255, b * (1 - amt) + sb * amt);
+            }
+            return img;
+        }
+
+        function applyGlitch(outCtx, w, h, t, intensity) {
+            const amt = clamp01(intensity);
+            // RGB channel shifts
+            const dx = Math.round((Math.sin(t * 0.006) * 0.5 + 0.5) * 10 * amt);
+            const dy = Math.round((Math.cos(t * 0.004) * 0.5 + 0.5) * 6 * amt);
+
+            outCtx.save();
+            outCtx.globalCompositeOperation = 'screen';
+            outCtx.globalAlpha = 0.55 * amt;
+
+            outCtx.drawImage(workCanvas, dx, 0, w, h);
+            outCtx.fillStyle = 'rgba(255,0,80,0.25)';
+            outCtx.fillRect(0, 0, w, h);
+
+            outCtx.globalCompositeOperation = 'screen';
+            outCtx.globalAlpha = 0.45 * amt;
+            outCtx.drawImage(workCanvas, -dx, dy, w, h);
+            outCtx.fillStyle = 'rgba(0,220,255,0.18)';
+            outCtx.fillRect(0, 0, w, h);
+
+            outCtx.restore();
+
+            // jitter bands
+            const bands = Math.floor(6 + 18 * amt);
+            for (let i = 0; i < bands; i++) {
+                if (Math.random() > 0.25 * amt) continue;
+                const y = Math.random() * h;
+                const bh = (Math.random() * 18 + 4) * (0.4 + amt);
+                const xoff = (Math.random() * 2 - 1) * 30 * amt;
+                outCtx.drawImage(outCtx.canvas, 0, y, w, bh, xoff, y, w, bh);
+            }
+        }
+
+        function applyEdge(img, w, h, intensity) {
+            const amt = clamp01(intensity);
+            const d = img.data;
+            const gray = new Float32Array(w * h);
+            for (let i = 0, p = 0; i < d.length; i += 4, p++) {
+                gray[p] = (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 255;
+            }
+
+            const out = new Uint8ClampedArray(d.length);
+            // Sobel
+            const kx = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
+            const ky = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
+
+            function idx(x, y) { return y * w + x; }
+            for (let y = 1; y < h - 1; y++) {
+                for (let x = 1; x < w - 1; x++) {
+                    let gx = 0, gy = 0;
+                    let ki = 0;
+                    for (let oy = -1; oy <= 1; oy++) {
+                        for (let ox = -1; ox <= 1; ox++) {
+                            const v = gray[idx(x + ox, y + oy)];
+                            gx += v * kx[ki];
+                            gy += v * ky[ki];
+                            ki++;
+                        }
+                    }
+                    const mag = Math.min(1, Math.sqrt(gx * gx + gy * gy));
+                    // edge ink on white-ish paper
+                    const ink = 1 - Math.pow(mag, 0.55 + 1.2 * (1 - amt));
+                    const paper = 0.94;
+                    const v = Math.round(255 * (paper * ink));
+                    const p = (y * w + x) * 4;
+                    out[p] = out[p + 1] = out[p + 2] = v;
+                    out[p + 3] = 255;
+                }
+            }
+
+            // mix with original for lower intensities
+            for (let i = 0; i < d.length; i += 4) {
+                d[i] = Math.round(d[i] * (1 - amt) + out[i] * amt);
+                d[i + 1] = Math.round(d[i + 1] * (1 - amt) + out[i + 1] * amt);
+                d[i + 2] = Math.round(d[i + 2] * (1 - amt) + out[i + 2] * amt);
+            }
+            return img;
+        }
+
+        function applyRainbow(outCtx, w, h, t, intensity) {
+            const amt = clamp01(intensity);
+            outCtx.save();
+            outCtx.globalAlpha = 0.35 * amt;
+            outCtx.globalCompositeOperation = 'overlay';
+            const hue = (t * 0.03) % 360;
+            const g = outCtx.createLinearGradient(0, 0, w, h);
+            g.addColorStop(0, `hsl(${hue}, 90%, 60%)`);
+            g.addColorStop(0.5, `hsl(${(hue + 120) % 360}, 90%, 60%)`);
+            g.addColorStop(1, `hsl(${(hue + 240) % 360}, 90%, 60%)`);
+            outCtx.fillStyle = g;
+            outCtx.fillRect(0, 0, w, h);
+            outCtx.restore();
+        }
+
+        function withMirror(drawFn) {
+            if (!state.mirror) return drawFn();
+            const w = workCanvas.width;
+            workCtx.save();
+            workCtx.translate(w, 0);
+            workCtx.scale(-1, 1);
+            drawFn();
+            workCtx.restore();
+        }
+
+        async function detectFaceMaybe(now) {
+            if (!state.faceSupported || !state.faceDetector) return;
+            if (now - state.lastFaceDetect < 180) return; // ~5-6 fps face detect
+            state.lastFaceDetect = now;
+
+            try {
+                // detect on a smaller canvas for speed
+                const w = tinyCanvas.width, h = tinyCanvas.height;
+                tinyCtx.drawImage(workCanvas, 0, 0, w, h);
+                const faces = await state.faceDetector.detect(tinyCanvas);
+                state.faces = faces || [];
+            } catch (e) {
+                // Some browsers throw intermittently; disable
+                state.faceSupported = false;
+                state.faceDetector = null;
+                faceNote.textContent = 'FaceDetector: unavailable (stickers will be placed approximately).';
+            }
+        }
+
+        function getAnchorRect(displayW, displayH) {
+            // Returns an approximate face-like rect in DISPLAY canvas coordinates.
+            // If face detection exists, map from tinyCanvas to display.
+            if (state.faces && state.faces.length) {
+                const box = state.faces[0].boundingBox;
+                const scaleX = displayW / tinyCanvas.width;
+                const scaleY = displayH / tinyCanvas.height;
+                // Expand a bit
+                const x = box.x * scaleX;
+                const y = box.y * scaleY;
+                const w = box.width * scaleX;
+                const h = box.height * scaleY;
+                const pad = 0.12;
+                return {
+                    x: x - w * pad,
+                    y: y - h * pad,
+                    w: w * (1 + 2 * pad),
+                    h: h * (1 + 2 * pad)
+                };
+            }
+
+            const w = displayW * 0.42;
+            const h = displayH * 0.58;
+            return {
+                x: (displayW - w) / 2,
+                y: (displayH - h) / 2 + displayH * 0.05,
+                w,
+                h
+            };
+        }
+
+        function drawSticker(ctx, w, h, now) {
+            const id = state.overlay;
+            if (id === 'none') return;
+
+            const r = getAnchorRect(w, h);
+            ctx.save();
+            ctx.globalAlpha = 0.95;
+
+            const amt = clamp01(state.intensity);
+
+            if (id === 'glasses') {
+                const gx = r.x + r.w * 0.12;
+                const gy = r.y + r.h * 0.28;
+                const gw = r.w * 0.76;
+                const gh = r.h * 0.22;
+
+                ctx.lineWidth = Math.max(2, gw * 0.015);
+                ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+                ctx.fillStyle = 'rgba(15,23,42,0.10)';
+
+                const lensW = gw * 0.40;
+                const gap = gw * 0.06;
+                const lensH = gh;
+                const rx = lensH * 0.25;
+
+                roundRect(ctx, gx, gy, lensW, lensH, rx);
+                ctx.fill();
+                ctx.stroke();
+
+                roundRect(ctx, gx + lensW + gap, gy, lensW, lensH, rx);
+                ctx.fill();
+                ctx.stroke();
+
+                // bridge
+                ctx.beginPath();
+                ctx.moveTo(gx + lensW, gy + lensH * 0.55);
+                ctx.lineTo(gx + lensW + gap, gy + lensH * 0.55);
+                ctx.stroke();
+
+                // shine
+                ctx.globalAlpha = 0.22;
+                ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+                ctx.lineWidth = Math.max(1, gw * 0.008);
+                ctx.beginPath();
+                ctx.moveTo(gx + lensW * 0.20, gy + lensH * 0.25);
+                ctx.lineTo(gx + lensW * 0.45, gy + lensH * 0.10);
+                ctx.stroke();
+
+            } else if (id === 'mustache') {
+                const mx = r.x + r.w * 0.20;
+                const my = r.y + r.h * 0.63;
+                const mw = r.w * 0.60;
+                const mh = r.h * 0.18;
+
+                ctx.fillStyle = 'rgba(17,24,39,0.85)';
+                ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+                ctx.lineWidth = Math.max(1.5, mw * 0.01);
+
+                ctx.beginPath();
+                // left curl
+                ctx.moveTo(mx + mw * 0.50, my + mh * 0.45);
+                ctx.bezierCurveTo(mx + mw * 0.35, my - mh * 0.30, mx + mw * 0.02, my + mh * 0.25, mx + mw * 0.20, my + mh * 0.70);
+                ctx.bezierCurveTo(mx + mw * 0.05, my + mh * 0.78, mx + mw * 0.05, my + mh * 1.05, mx + mw * 0.22, my + mh * 0.95);
+                // right curl
+                ctx.moveTo(mx + mw * 0.50, my + mh * 0.45);
+                ctx.bezierCurveTo(mx + mw * 0.65, my - mh * 0.30, mx + mw * 0.98, my + mh * 0.25, mx + mw * 0.80, my + mh * 0.70);
+                ctx.bezierCurveTo(mx + mw * 0.95, my + mh * 0.78, mx + mw * 0.95, my + mh * 1.05, mx + mw * 0.78, my + mh * 0.95);
+                ctx.stroke();
+
+                // fill: two teardrops
+                ctx.beginPath();
+                ctx.moveTo(mx + mw * 0.50, my + mh * 0.46);
+                ctx.bezierCurveTo(mx + mw * 0.34, my - mh * 0.20, mx + mw * 0.05, my + mh * 0.25, mx + mw * 0.25, my + mh * 0.85);
+                ctx.bezierCurveTo(mx + mw * 0.34, my + mh * 1.05, mx + mw * 0.47, my + mh * 0.90, mx + mw * 0.50, my + mh * 0.70);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.moveTo(mx + mw * 0.50, my + mh * 0.46);
+                ctx.bezierCurveTo(mx + mw * 0.66, my - mh * 0.20, mx + mw * 0.95, my + mh * 0.25, mx + mw * 0.75, my + mh * 0.85);
+                ctx.bezierCurveTo(mx + mw * 0.66, my + mh * 1.05, mx + mw * 0.53, my + mh * 0.90, mx + mw * 0.50, my + mh * 0.70);
+                ctx.closePath();
+                ctx.fill();
+
+            } else if (id === 'partyhat') {
+                const hx = r.x + r.w * 0.22;
+                const hy = r.y - r.h * 0.22;
+                const hw = r.w * 0.56;
+                const hh = r.h * 0.42;
+
+                // hat triangle
+                const g = ctx.createLinearGradient(hx, hy, hx + hw, hy + hh);
+                g.addColorStop(0, 'rgba(236,72,153,0.95)');
+                g.addColorStop(0.5, 'rgba(59,130,246,0.95)');
+                g.addColorStop(1, 'rgba(34,197,94,0.95)');
+                ctx.fillStyle = g;
+                ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+                ctx.lineWidth = Math.max(2, hw * 0.012);
+
+                ctx.beginPath();
+                ctx.moveTo(hx + hw * 0.5, hy);
+                ctx.lineTo(hx, hy + hh);
+                ctx.lineTo(hx + hw, hy + hh);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                // brim
+                ctx.fillStyle = 'rgba(255,255,255,0.85)';
+                roundRect(ctx, hx - hw * 0.05, hy + hh * 0.92, hw * 1.10, hh * 0.16, hh * 0.08);
+                ctx.fill();
+
+                // pom-pom
+                ctx.globalAlpha = 0.95;
+                ctx.beginPath();
+                ctx.arc(hx + hw * 0.5, hy, Math.max(8, hw * 0.08), 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255,255,255,0.9)';
+                ctx.fill();
+            } else if (id === 'antennae') {
+                const ax = r.x + r.w * 0.5;
+                const ay = r.y + r.h * 0.05;
+                const len = r.h * 0.36;
+                const sway = Math.sin(now * 0.006) * (0.18 + 0.35 * amt);
+
+                ctx.strokeStyle = 'rgba(16,185,129,0.95)';
+                ctx.lineWidth = Math.max(2, r.w * 0.015);
+                ctx.lineCap = 'round';
+
+                // left
+                ctx.beginPath();
+                ctx.moveTo(ax - r.w * 0.10, ay);
+                ctx.quadraticCurveTo(ax - r.w * 0.24, ay - len * 0.55, ax - r.w * 0.24 + sway * r.w * 0.10, ay - len);
+                ctx.stroke();
+
+                // right
+                ctx.beginPath();
+                ctx.moveTo(ax + r.w * 0.10, ay);
+                ctx.quadraticCurveTo(ax + r.w * 0.24, ay - len * 0.55, ax + r.w * 0.24 - sway * r.w * 0.10, ay - len);
+                ctx.stroke();
+
+                // tips
+                ctx.fillStyle = 'rgba(236,72,153,0.95)';
+                ctx.beginPath();
+                ctx.arc(ax - r.w * 0.24 + sway * r.w * 0.10, ay - len, Math.max(6, r.w * 0.03), 0, Math.PI * 2);
+                ctx.arc(ax + r.w * 0.24 - sway * r.w * 0.10, ay - len, Math.max(6, r.w * 0.03), 0, Math.PI * 2);
+                ctx.fill();
+            } else if (id === 'bubbles') {
+                drawBubbles(ctx, w, h, now, amt);
+            } else if (id === 'confetti') {
+                drawConfetti(ctx, w, h, now, amt);
+            }
+
+            ctx.restore();
+        }
+
+        function roundRect(ctx, x, y, w, h, r) {
+            r = Math.min(r, w / 2, h / 2);
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.arcTo(x + w, y, x + w, y + h, r);
+            ctx.arcTo(x + w, y + h, x, y + h, r);
+            ctx.arcTo(x, y + h, x, y, r);
+            ctx.arcTo(x, y, x + w, y, r);
+            ctx.closePath();
+        }
+
+        function ensureBubbles(w, h) {
+            const desired = 18;
+            while (state.bubbles.length < desired) {
+                state.bubbles.push({
+                    x: Math.random() * w,
+                    y: h + Math.random() * h,
+                    r: 8 + Math.random() * 22,
+                    s: 0.4 + Math.random() * 1.4,
+                    phase: Math.random() * Math.PI * 2
+                });
+            }
+        }
+
+        function drawBubbles(ctx, w, h, now, amt) {
+            ensureBubbles(w, h);
+            ctx.save();
+            ctx.globalCompositeOperation = 'screen';
+            for (const b of state.bubbles) {
+                b.y -= b.s * (0.8 + 2.0 * amt);
+                b.x += Math.sin(now * 0.002 + b.phase) * (0.35 + 1.2 * amt);
+                if (b.y < -b.r * 2) {
+                    b.y = h + b.r * 2 + Math.random() * h * 0.4;
+                    b.x = Math.random() * w;
+                }
+
+                const grad = ctx.createRadialGradient(b.x - b.r * 0.3, b.y - b.r * 0.3, b.r * 0.2, b.x, b.y, b.r);
+                grad.addColorStop(0, `rgba(255,255,255,${0.22 * amt})`);
+                grad.addColorStop(0.6, `rgba(59,130,246,${0.14 * amt})`);
+                grad.addColorStop(1, `rgba(0,0,0,0)`);
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = `rgba(255,255,255,${0.10 + 0.18 * amt})`;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, b.r * 0.92, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        function drawConfetti(ctx, w, h, now, amt) {
+            const n = Math.floor(60 + 140 * amt);
+            ctx.save();
+            ctx.globalAlpha = 0.65;
+            for (let i = 0; i < n; i++) {
+                const seed = (i * 99991) % 2147483647;
+                const x = (Math.sin(seed * 0.00001 + now * 0.0012) * 0.5 + 0.5) * w;
+                const y = ((now * 0.08 + i * 17) % (h + 80)) - 40;
+                const rot = (now * 0.01 + i) % (Math.PI * 2);
+                const size = 4 + (i % 7);
+                const hue = (i * 23 + now * 0.02) % 360;
+                ctx.fillStyle = `hsla(${hue}, 90%, 60%, ${0.22 + 0.45 * amt})`;
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(rot);
+                ctx.fillRect(-size * 0.5, -size * 0.2, size, size * 0.4);
+                ctx.restore();
+            }
+            ctx.restore();
+        }
+
+        function drawFrame(now) {
+            if (!state.running) return;
+
+            // FPS estimate
+            const dt = Math.max(0.001, (now - state.lastFrameTime) / 1000);
+            state.lastFrameTime = now;
+            const fps = 1 / dt;
+            state.fpsEMA = state.fpsEMA ? (state.fpsEMA * 0.9 + fps * 0.1) : fps;
+            pillFPS.textContent = `~${Math.round(state.fpsEMA)} fps`;
+
+            const w = canvas.width, h = canvas.height;
+
+            // Choose processing resolution based on filter
+            const heavy = (state.filter === 'pixel' || state.filter === 'thermal' || state.filter === 'edge');
+            const baseW = heavy ? Math.min(workCanvas.width, 420) : workCanvas.width;
+            const scale = baseW / workCanvas.width;
+            const pw = Math.max(2, Math.round(workCanvas.width * scale));
+            const ph = Math.max(2, Math.round(workCanvas.height * scale));
+
+            // draw input into workCanvas (full), then we may downscale to tiny processing
+            workCtx.save();
+            workCtx.clearRect(0, 0, workCanvas.width, workCanvas.height);
+
+            if (state.demo) {
+                // draw demo directly to workCanvas
+                drawDemoScene(now, workCanvas.width, workCanvas.height, workCtx);
+            } else {
+                withMirror(() => {
+                    workCtx.drawImage(video, 0, 0, workCanvas.width, workCanvas.height);
+                });
+            }
+            workCtx.restore();
+
+            // face detect (optional)
+            detectFaceMaybe(now);
+
+            // Build a processed frame into an intermediate buffer if needed
+            let srcCanvas = workCanvas;
+
+            if (heavy) {
+                tinyCanvas.width = pw;
+                tinyCanvas.height = ph;
+                tinyCtx.clearRect(0, 0, pw, ph);
+                tinyCtx.drawImage(workCanvas, 0, 0, pw, ph);
+                srcCanvas = tinyCanvas;
+            }
+
+            // Draw base to display canvas (scaled)
+            ctx.save();
+            ctx.clearRect(0, 0, w, h);
+
+            // For some filters, use CSS-like filtering during draw
+            const amt = clamp01(state.intensity);
+            if (state.filter === 'vintage') {
+                ctx.filter = `contrast(${1 + 0.15 * amt}) saturate(${1 + 0.25 * amt})`;
+            } else if (state.filter === 'noir') {
+                ctx.filter = `contrast(${1 + 0.65 * amt})`;
+            } else if (state.filter === 'rainbow') {
+                ctx.filter = `saturate(${1.1 + 0.9 * amt})`;
+            } else {
+                ctx.filter = 'none';
+            }
+
+            // Mirror on display too (so stickers align); mirror is already applied to workCanvas via draw
+            // But when demo, workCanvas isn't mirrored; apply mirror here for consistency.
+            if (state.mirror) {
+                ctx.translate(w, 0);
+                ctx.scale(-1, 1);
+            }
+
+            // base draw
+            ctx.drawImage(srcCanvas, 0, 0, w, h);
+            ctx.filter = 'none';
+            ctx.restore();
+
+            // Pixel/pixel-processing filters operate on display pixels after base draw
+            if (state.filter === 'pixel') {
+                // pixelate by re-drawing at low res
+                const block = Math.round(4 + 34 * amt);
+                const tw = Math.max(2, Math.round(w / block));
+                const th = Math.max(2, Math.round(h / block));
+                tinyCanvas.width = tw;
+                tinyCanvas.height = th;
+                tinyCtx.imageSmoothingEnabled = false;
+                tinyCtx.clearRect(0, 0, tw, th);
+                tinyCtx.drawImage(canvas, 0, 0, tw, th);
+
+                ctx.imageSmoothingEnabled = false;
+                ctx.clearRect(0, 0, w, h);
+                ctx.drawImage(tinyCanvas, 0, 0, w, h);
+                ctx.imageSmoothingEnabled = true;
+            }
+
+            if (state.filter === 'glitch') {
+                // Use workCanvas as base and glitch onto display
+                // (Re-draw base frame into display then layer glitch)
+                ctx.save();
+                ctx.clearRect(0, 0, w, h);
+                // draw base without mirror issues by drawing current canvas as-is
+                ctx.drawImage(canvas, 0, 0);
+                applyGlitch(ctx, w, h, now, amt);
+                applyScanlineFlash(ctx, w, h, now, amt);
+                ctx.restore();
+            }
+
+            if (state.filter === 'rainbow') {
+                applyRainbow(ctx, w, h, now, amt);
+            }
+
+            // ImageData filters
+            if (state.filter === 'thermal' || state.filter === 'noir' || state.filter === 'vintage' || state.filter === 'edge') {
+                // Downsample for speed, then upsample
+                const procScale = (state.filter === 'edge') ? (0.55 - 0.20 * amt) : (0.60 - 0.15 * amt);
+                const tw = Math.max(2, Math.round(w * procScale));
+                const th = Math.max(2, Math.round(h * procScale));
+
+                tinyCanvas.width = tw;
+                tinyCanvas.height = th;
+                tinyCtx.imageSmoothingEnabled = true;
+                tinyCtx.clearRect(0, 0, tw, th);
+                tinyCtx.drawImage(canvas, 0, 0, tw, th);
+
+                let img = tinyCtx.getImageData(0, 0, tw, th);
+                if (state.filter === 'thermal') img = applyThermal(img, amt);
+                if (state.filter === 'noir') img = applyNoir(img, amt);
+                if (state.filter === 'vintage') img = applyVintage(img, amt);
+                if (state.filter === 'edge') img = applyEdge(img, tw, th, amt);
+                tinyCtx.putImageData(img, 0, 0);
+
+                ctx.clearRect(0, 0, w, h);
+                ctx.imageSmoothingEnabled = (state.filter !== 'pixel');
+                ctx.drawImage(tinyCanvas, 0, 0, w, h);
+                ctx.imageSmoothingEnabled = true;
+            }
+
+            // Extra flourishes
+            if (state.filter === 'vintage') {
+                applyVignette(ctx, w, h, 0.60 * amt);
+                applyNoise(ctx, w, h, 0.85 * amt);
+            } else if (state.filter === 'noir') {
+                applyVignette(ctx, w, h, 0.75 * amt);
+                applyNoise(ctx, w, h, 0.50 * amt);
+            } else if (state.filter === 'thermal') {
+                applyNoise(ctx, w, h, 0.25 * amt);
+            } else if (state.filter === 'edge') {
+                // slight paper tint
+                ctx.save();
+                ctx.globalAlpha = 0.10 + 0.12 * amt;
+                ctx.globalCompositeOperation = 'multiply';
+                ctx.fillStyle = '#fef3c7';
+                ctx.fillRect(0, 0, w, h);
+                ctx.restore();
+            }
+
+            // Stickers/overlays on top (mirror matching)
+            ctx.save();
+            if (state.mirror) {
+                ctx.translate(w, 0);
+                ctx.scale(-1, 1);
+            }
+            drawSticker(ctx, w, h, now);
+            ctx.restore();
+
+            requestAnimationFrame(drawFrame);
+        }
+
+        function ensureLoop() {
+            if (!state.running) return;
+            requestAnimationFrame(drawFrame);
+        }
+
+        function snap() {
+            if (!state.running) {
+                showToast('Start camera first');
+                return;
+            }
+            const url = canvas.toDataURL('image/png');
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `funnycam_${new Date().toISOString().replace(/[:.]/g, '-')}.png`;
+
+            const card = document.createElement('button');
+            card.className = 'group relative rounded-xl overflow-hidden border border-white/10 bg-white/5 hover:bg-white/10 transition';
+            card.title = 'Click to download';
+            card.innerHTML = `
+        <img src="${url}" alt="Snapshot" class="w-full h-28 object-cover" />
+        <div class="absolute inset-x-2 bottom-2 text-[11px] px-2 py-1 rounded-lg bg-black/60 border border-white/10 opacity-0 group-hover:opacity-100 transition">
+          Download
+        </div>
+      `;
+            card.addEventListener('click', () => a.click());
+            shotsEl.prepend(card);
+            showToast('Snapshot saved');
+        }
+
+        function clearShots() {
+            shotsEl.innerHTML = '';
+            showToast('Cleared');
+        }
+
+        // UI wiring
+        btnStart.addEventListener('click', async () => {
+            if (!navigator.mediaDevices?.getUserMedia) {
+                showToast('getUserMedia not supported');
+                setStatus('err', 'Unsupported');
+                return;
+            }
+            await startCamera();
+            ensureLoop();
+        });
+        btnStartHero.addEventListener('click', async () => {
+            await btnStart.click();
+        });
+
+        btnStop.addEventListener('click', () => {
+            stopCamera();
+            // keep last frame on canvas
+            showToast('Stopped');
+        });
+
+        btnFlip.addEventListener('click', async () => {
+            state.facingMode = (state.facingMode === 'user') ? 'environment' : 'user';
+            showToast(`Camera: ${state.facingMode}`);
+            if (state.stream) {
+                await startCamera();
+            }
+            ensureLoop();
+        });
+
+        btnMirror.addEventListener('click', () => {
+            state.mirror = !state.mirror;
+            btnMirror.textContent = `Mirror: ${state.mirror ? 'On' : 'Off'}`;
+            showToast(`Mirror ${state.mirror ? 'On' : 'Off'}`);
+        });
+
+        btnSnap.addEventListener('click', snap);
+        btnClear.addEventListener('click', clearShots);
+
+        btnDemo.addEventListener('click', () => {
+            startDemo();
+            ensureLoop();
+        });
+
+        intensityEl.addEventListener('input', (e) => {
+            state.intensity = Number(e.target.value);
+        });
+
+        // Handle resize (keep resolution, just re-render)
+        window.addEventListener('resize', () => {
+            // No need to resize canvas; it scales via CSS.
+        });
+
+        // Initialize
+        (async function init() {
+            renderChoices();
+            canvas.classList.toggle('pixelated', state.filter === 'pixel');
+            pillFilter.textContent = 'Filter: None';
+            pillOverlay.textContent = 'Sticker: None';
+            setStatus('idle', 'Idle');
+            await setupFaceDetector();
+
+            // Prewarm animation state
+            for (let i = 0; i < 18; i++) state.bubbles.push({ x: Math.random() * 960, y: 540 + Math.random() * 540, r: 8 + Math.random() * 22, s: 0.4 + Math.random() * 1.4, phase: Math.random() * Math.PI * 2 });
+
+            // Keyboard shortcuts
+            window.addEventListener('keydown', (e) => {
+                if (e.key === ' ') { e.preventDefault(); snap(); }
+                if (e.key.toLowerCase() === 's') btnStart.click();
+                if (e.key.toLowerCase() === 'x') btnStop.click();
+            });
+        })();
+    </script>
+</body>
+
+</html>
