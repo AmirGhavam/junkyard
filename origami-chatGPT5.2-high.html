@@ -1,0 +1,1416 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Origami Guide — Steps, Crease Patterns, Animated Folds</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        :root {
+            --stage: 420px;
+        }
+
+        @media (max-width: 1024px) {
+            :root {
+                --stage: 340px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            :root {
+                --stage: 300px;
+            }
+        }
+
+        /* Subtle paper texture */
+        .paperTexture {
+            background-image:
+                radial-gradient(circle at 15% 25%, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0) 55%),
+                radial-gradient(circle at 70% 80%, rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0) 55%),
+                linear-gradient(180deg, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0));
+            background-blend-mode: overlay, multiply, normal;
+        }
+
+        /* Folding stage */
+        .stageWrap {
+            width: var(--stage);
+            height: var(--stage);
+            perspective: 900px;
+        }
+
+        .stage {
+            width: 100%;
+            height: 100%;
+            border-radius: 18px;
+            position: relative;
+            overflow: hidden;
+            transform-style: preserve-3d;
+        }
+
+        /* A "demo" folding animation applied to the whole stage */
+        @keyframes foldWiggle {
+            0% {
+                transform: rotateX(0deg) rotateY(0deg) scale(1);
+                filter: saturate(1);
+            }
+
+            20% {
+                transform: rotateX(10deg) rotateY(-10deg) scale(0.99);
+            }
+
+            50% {
+                transform: rotateX(-12deg) rotateY(14deg) scale(0.985);
+            }
+
+            80% {
+                transform: rotateX(6deg) rotateY(-6deg) scale(0.995);
+            }
+
+            100% {
+                transform: rotateX(0deg) rotateY(0deg) scale(1);
+                filter: saturate(1);
+            }
+        }
+
+        .foldAnim {
+            animation: foldWiggle 700ms cubic-bezier(.2, .9, .2, 1) both;
+        }
+
+        .ghost {
+            opacity: 0.0;
+            transform: translateZ(-1px) scale(0.98);
+            transition: opacity 220ms ease, transform 220ms ease;
+        }
+
+        .ghost.show {
+            opacity: 0.18;
+            transform: translateZ(-1px) scale(1);
+        }
+
+        /* SVG styling */
+        .cp-valley {
+            stroke-dasharray: 3 3;
+        }
+
+        .cp-mountain {
+            stroke-dasharray: 10 5;
+        }
+
+        /* Scrollbar (nice, unobtrusive) */
+        .thinScroll::-webkit-scrollbar {
+            height: 8px;
+            width: 8px;
+        }
+
+        .thinScroll::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, .6);
+            border-radius: 999px;
+        }
+
+        .thinScroll::-webkit-scrollbar-track {
+            background: rgba(148, 163, 184, .15);
+        }
+
+        /* Reduce motion */
+        @media (prefers-reduced-motion: reduce) {
+            .foldAnim {
+                animation: none !important;
+            }
+
+            .ghost {
+                transition: none !important;
+            }
+        }
+    </style>
+</head>
+
+<body class="min-h-screen bg-slate-950 text-slate-100">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <header class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+                <h1 class="text-2xl sm:text-3xl font-semibold tracking-tight">Origami Guide</h1>
+                <p class="text-slate-300 mt-1">Step-by-step folds with paper preview, crease patterns (CP), multiple
+                    models, and an animated folding demo.</p>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-3 sm:items-end">
+                <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-3">
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <div class="text-xs text-slate-400">Keyboard</div>
+                            <div class="text-sm text-slate-200">←/→ steps, Space play/pause, C creases</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <path d="M5 20V7a2 2 0 0 1 2-2h10" stroke="currentColor" stroke-width="1.8"
+                                    stroke-linecap="round" />
+                                <path d="M19 4v13a2 2 0 0 1-2 2H7" stroke="currentColor" stroke-width="1.8"
+                                    stroke-linecap="round" />
+                                <path d="M8 8h8M8 12h8M8 16h6" stroke="currentColor" stroke-width="1.6"
+                                    stroke-linecap="round" opacity=".9" />
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="text-xs text-slate-400">Tip</div>
+                            <div class="text-sm text-slate-200">Toggle CP view to see all creases at once.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="mt-6 grid grid-cols-1 lg:grid-cols-12 gap-4">
+            <!-- Models / Settings -->
+            <aside class="lg:col-span-3">
+                <section class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
+                    <div class="flex items-center justify-between">
+                        <h2 class="font-semibold">Models</h2>
+                        <span id="modelCount" class="text-xs text-slate-400"></span>
+                    </div>
+                    <div id="modelList" class="mt-3 grid gap-2"></div>
+                </section>
+
+                <section class="mt-4 bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
+                    <h2 class="font-semibold">Paper preview</h2>
+                    <div class="mt-3 flex items-center gap-3">
+                        <div
+                            class="w-20 h-20 rounded-xl border border-slate-700 shadow-sm overflow-hidden relative bg-slate-900">
+                            <svg id="paperSwatch" viewBox="0 0 100 100" class="w-full h-full">
+                                <rect x="0" y="0" width="100" height="100" rx="12" ry="12" fill="#22c55e" />
+                                <polygon points="0,0 100,0 0,100" fill="#16a34a" opacity="0.55" />
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <label class="block text-xs text-slate-300">Front color</label>
+                            <input id="frontColor" type="color"
+                                class="mt-1 w-full h-10 bg-slate-800 border border-slate-700 rounded-lg"
+                                value="#22c55e" />
+                            <label class="block text-xs text-slate-300 mt-2">Back color</label>
+                            <input id="backColor" type="color"
+                                class="mt-1 w-full h-10 bg-slate-800 border border-slate-700 rounded-lg"
+                                value="#16a34a" />
+                            <label class="mt-3 flex items-center gap-2 text-sm text-slate-200 select-none">
+                                <input id="twoTone" type="checkbox" class="accent-slate-200" checked>
+                                Two-tone paper
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 grid grid-cols-2 gap-2">
+                        <button id="toggleCreases"
+                            class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm">Creases:
+                            <span id="creaseState">On</span></button>
+                        <button id="toggleArrows"
+                            class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm">Arrows:
+                            <span id="arrowState">On</span></button>
+                    </div>
+                    <div class="mt-2 text-xs text-slate-400">Valley = dashed, Mountain = long-dash.</div>
+                </section>
+
+                <section class="mt-4 bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
+                    <h2 class="font-semibold">Crease pattern (CP)</h2>
+                    <div class="mt-3 grid grid-cols-2 gap-2">
+                        <button id="viewCP"
+                            class="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-sm font-medium">Open CP
+                            view</button>
+                        <button id="downloadCP"
+                            class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm">Download
+                            SVG</button>
+                    </div>
+                    <div class="mt-3">
+                        <label class="block text-xs text-slate-300">Playback speed</label>
+                        <input id="speed" type="range" min="0.6" max="1.6" value="1" step="0.1" class="w-full" />
+                        <div class="flex justify-between text-xs text-slate-400"><span>Slower</span><span>Faster</span>
+                        </div>
+                    </div>
+                </section>
+            </aside>
+
+            <!-- Stage -->
+            <section class="lg:col-span-6">
+                <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h2 id="stageTitle" class="text-lg font-semibold">Model</h2>
+                                <span id="difficulty"
+                                    class="text-xs px-2 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-300"></span>
+                            </div>
+                            <p id="stageDesc" class="text-sm text-slate-300 mt-1"></p>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <div class="inline-flex rounded-xl overflow-hidden border border-slate-800 bg-slate-950">
+                                <button id="tabFolding" class="px-3 py-2 text-sm bg-slate-800">Folding</button>
+                                <button id="tabCP" class="px-3 py-2 text-sm">CP</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 flex items-center justify-center">
+                        <div class="stageWrap">
+                            <div id="stage"
+                                class="stage bg-slate-950 border border-slate-800 shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
+                                <div class="absolute inset-0 paperTexture opacity-30 pointer-events-none"></div>
+
+                                <!-- ghost layer shows previous step faintly -->
+                                <div id="ghost" class="absolute inset-0 ghost pointer-events-none"></div>
+                                <div id="svgHost" class="absolute inset-0"></div>
+
+                                <div
+                                    class="absolute left-3 top-3 px-2 py-1 rounded-lg bg-slate-950/60 border border-slate-800 text-xs text-slate-200">
+                                    <span id="stepBadge">Step</span>
+                                </div>
+
+                                <div id="cpLegend"
+                                    class="hidden absolute right-3 top-3 px-2 py-2 rounded-lg bg-slate-950/60 border border-slate-800 text-xs text-slate-200">
+                                    <div class="flex items-center gap-2"><span
+                                            class="inline-block w-5 border-t-2 border-slate-200"
+                                            style="border-top-style: dashed"></span><span>Valley</span></div>
+                                    <div class="flex items-center gap-2 mt-1"><span
+                                            class="inline-block w-5 border-t-2 border-slate-200"
+                                            style="border-top-style: dashed; border-top-width:2px; border-top-style: dashed; border-image: none"></span><span
+                                            class="hidden"></span></div>
+                                    <div class="flex items-center gap-2 mt-1"><span
+                                            class="inline-block w-5 border-t-2 border-slate-200"
+                                            style="border-top-style: dashed"></span><span class="hidden"></span></div>
+                                    <div class="flex items-center gap-2 mt-1"><span
+                                            class="inline-block w-5 border-t-2 border-slate-200"
+                                            style="border-top-style: dotted"></span><span class="hidden"></span></div>
+                                    <div class="flex items-center gap-2 mt-1"><span
+                                            class="inline-block w-5 border-t-2 border-slate-200"
+                                            style="border-top-style: dashed"></span><span class="hidden"></span></div>
+                                    <div class="flex items-center gap-2 mt-1"><span
+                                            class="inline-block w-5 border-t-2 border-slate-200"
+                                            style="border-top-style: dashed"></span><span class="hidden"></span></div>
+                                    <div class="flex items-center gap-2 mt-1"><span
+                                            class="inline-block w-5 border-t-2 border-slate-200"
+                                            style="border-top-style: dashed"></span><span class="hidden"></span></div>
+                                    <div class="mt-1 flex items-center gap-2"><span
+                                            class="inline-block w-5 border-t-2 border-slate-200"
+                                            style="border-top-style: dashed"></span><span class="hidden"></span></div>
+                                    <div class="mt-1 flex items-center gap-2"><span
+                                            class="inline-block w-5 border-t-2 border-slate-200"
+                                            style="border-top-style: dashed"></span><span class="hidden"></span></div>
+                                    <div class="mt-1 flex items-center gap-2"><span
+                                            class="inline-block w-5 border-t-2 border-slate-200"
+                                            style="border-top-style: dashed"></span><span class="hidden"></span></div>
+                                    <div class="mt-1 flex items-center gap-2"><span
+                                            class="inline-block w-5 border-t-2 border-slate-200"
+                                            style="border-top-style: dashed"></span><span class="hidden"></span></div>
+                                    <div class="mt-1 flex items-center gap-2"><span
+                                            class="inline-block w-5 border-t-2 border-slate-200"
+                                            style="border-top-style: dashed"></span><span class="hidden"></span></div>
+                                    <div class="mt-1 flex items-center gap-2"><span
+                                            class="inline-block w-5 border-t-2 border-slate-200"
+                                            style="border-top-style: dashed"></span><span class="hidden"></span></div>
+                                    <div class="mt-1 flex items-center gap-2"><span
+                                            class="inline-block w-5 border-t-2 border-slate-200"
+                                            style="border-top-style: dashed"></span><span class="hidden"></span></div>
+                                    <div class="mt-2 pt-2 border-t border-slate-800 flex items-center gap-2"><span
+                                            class="inline-block w-5 border-t-2 border-slate-200"
+                                            style="border-top-style: solid"></span><span>Edge</span></div>
+                                    <div class="mt-1 flex items-center gap-2"><span
+                                            class="inline-block w-5 border-t-2 border-slate-200"
+                                            style="border-top-style: dashed"></span><span>Valley</span></div>
+                                    <div class="mt-1 flex items-center gap-2"><span
+                                            class="inline-block w-5 border-t-2 border-slate-200"
+                                            style="border-top-style: dashed; border-top-width: 2px"></span><span
+                                            class="hidden"></span></div>
+                                    <div class="mt-1 flex items-center gap-2"><span
+                                            class="inline-block w-5 border-t-2 border-slate-200"
+                                            style="border-top-style: dashed; border-top-width: 2px"></span><span
+                                            class="hidden"></span></div>
+                                    <div class="mt-1 flex items-center gap-2"><span
+                                            class="inline-block w-5 border-t-2 border-slate-200"
+                                            style="border-top-style: dashed; border-top-width: 2px"></span><span
+                                            class="hidden"></span></div>
+                                    <div class="mt-1 flex items-center gap-2"><span
+                                            class="inline-block w-5 border-t-2 border-slate-200"
+                                            style="border-top-style: dashed; border-top-width: 2px"></span><span
+                                            class="hidden"></span></div>
+                                    <div class="mt-1 flex items-center gap-2"><span
+                                            class="inline-block w-5 border-t-2 border-slate-200"
+                                            style="border-top-style: dashed; border-top-width: 2px"></span><span
+                                            class="hidden"></span></div>
+                                    <div class="mt-1 flex items-center gap-2"><span
+                                            class="inline-block w-5 border-t-2 border-slate-200"
+                                            style="border-top-style: dashed; border-top-width: 2px"></span><span
+                                            class="hidden"></span></div>
+                                    <div class="mt-2 pt-2 border-t border-slate-800 flex items-center gap-2"><span
+                                            class="inline-block w-5 border-t-2 border-slate-200"
+                                            style="border-top-style: dashed; border-top-width:2px"></span><span>Mountain</span>
+                                    </div>
+                                </div>
+
+                                <div id="toast"
+                                    class="pointer-events-none opacity-0 transition-opacity duration-200 absolute left-1/2 -translate-x-1/2 bottom-3 px-3 py-2 rounded-xl bg-slate-950/70 border border-slate-800 text-sm text-slate-200">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div class="flex items-center gap-2">
+                            <button id="prev"
+                                class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm">Prev</button>
+                            <button id="next"
+                                class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm">Next</button>
+                            <button id="play"
+                                class="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-sm font-medium">Play</button>
+                            <button id="reset"
+                                class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm">Reset</button>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center justify-between text-xs text-slate-400">
+                                <span id="progressLabel">Progress</span>
+                                <span id="progressPct">0%</span>
+                            </div>
+                            <div class="mt-1 h-2 rounded-full bg-slate-800 overflow-hidden border border-slate-700">
+                                <div id="progressBar" class="h-full bg-indigo-500" style="width:0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Steps / Instructions -->
+            <aside class="lg:col-span-3">
+                <section class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
+                    <div class="flex items-center justify-between">
+                        <h2 class="font-semibold">Steps</h2>
+                        <span id="stepCount" class="text-xs text-slate-400"></span>
+                    </div>
+                    <div id="stepList" class="mt-3 max-h-[360px] overflow-auto thinScroll pr-1"></div>
+                </section>
+
+                <section class="mt-4 bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
+                    <h2 class="font-semibold">Current instruction</h2>
+                    <div class="mt-3">
+                        <div id="instructionTitle" class="text-sm font-semibold text-slate-100"></div>
+                        <div id="instructionText" class="mt-2 text-sm text-slate-300 leading-relaxed"></div>
+                        <div class="mt-3 p-3 rounded-xl bg-slate-950/50 border border-slate-800">
+                            <div class="text-xs text-slate-400">Fold notation (quick)</div>
+                            <ul class="mt-1 text-xs text-slate-300 list-disc pl-4 space-y-1">
+                                <li><span class="font-medium">Valley</span>: fold towards you (dashed crease).</li>
+                                <li><span class="font-medium">Mountain</span>: fold away from you (long-dash crease).
+                                </li>
+                                <li><span class="font-medium">Squash / Open</span>: press flat after opening a pocket.
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+            </aside>
+        </main>
+
+        <footer class="mt-8 text-xs text-slate-500">
+            Built as an interactive reference: diagrams are simplified (clean crease guidance + animated transitions),
+            not a full physical simulation.
+        </footer>
+    </div>
+
+    <!-- CP modal -->
+    <div id="cpModal" class="fixed inset-0 hidden">
+        <div class="absolute inset-0 bg-black/70"></div>
+        <div class="relative max-w-4xl mx-auto mt-10 sm:mt-14 p-4">
+            <div class="bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden">
+                <div class="p-4 flex items-start justify-between gap-3">
+                    <div>
+                        <div class="text-lg font-semibold">Crease Pattern</div>
+                        <div id="cpModalSub" class="text-sm text-slate-300 mt-1"></div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button id="cpDownload2"
+                            class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm">Download
+                            SVG</button>
+                        <button id="cpClose"
+                            class="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-sm font-medium">Close</button>
+                    </div>
+                </div>
+                <div class="px-4 pb-4">
+                    <div class="rounded-xl border border-slate-800 bg-slate-900/40 overflow-hidden">
+                        <div id="cpHost" class="w-full"></div>
+                    </div>
+                    <div class="mt-3 text-xs text-slate-400">
+                        Tip: Print this CP for practice. Valley is dashed; mountain is long-dash.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // -------------------------
+        // Data: simplified diagrams
+        // -------------------------
+        const MODELS = [
+            {
+                id: 'boat',
+                name: 'Classic Boat',
+                difficulty: 'Easy',
+                desc: 'A classic beginner model. Uses strong creases and a simple open-out at the end.',
+                paper: 'Square',
+                steps: [
+                    {
+                        title: 'Start',
+                        text: 'Begin with a square sheet, colored side up. Keep it flat and align corners carefully.',
+                        shapes: [
+                            { points: [[0, 0], [100, 0], [100, 100], [0, 100]], side: 'front', stroke: true }
+                        ],
+                        creases: [],
+                        arrows: []
+                    },
+                    {
+                        title: 'Fold diagonally (valley)',
+                        text: 'Fold the square corner-to-corner to make a triangle. Press a sharp crease.',
+                        shapes: [
+                            { points: [[0, 0], [100, 0], [0, 100]], side: 'front', stroke: true },
+                            { points: [[100, 0], [100, 100], [0, 100]], side: 'back', stroke: true, opacity: 0.92 }
+                        ],
+                        creases: [
+                            { a: [0, 100], b: [100, 0], type: 'valley' }
+                        ],
+                        arrows: [
+                            { from: [82, 18], to: [52, 48] }
+                        ],
+                        animate: { type: 'fold' }
+                    },
+                    {
+                        title: 'Unfold, then other diagonal',
+                        text: 'Unfold. Fold the other diagonal and unfold again. You should have an “X” crease.',
+                        shapes: [
+                            { points: [[0, 0], [100, 0], [100, 100], [0, 100]], side: 'front', stroke: true }
+                        ],
+                        creases: [
+                            { a: [0, 0], b: [100, 100], type: 'valley' },
+                            { a: [0, 100], b: [100, 0], type: 'valley' }
+                        ],
+                        arrows: [
+                            { from: [22, 18], to: [50, 50] },
+                            { from: [82, 18], to: [50, 50] }
+                        ],
+                        animate: { type: 'flip' }
+                    },
+                    {
+                        title: 'Fold in half (valley)',
+                        text: 'Fold the square in half to make a rectangle. Crease well and keep the edges aligned.',
+                        shapes: [
+                            { points: [[0, 0], [100, 0], [100, 50], [0, 50]], side: 'front', stroke: true },
+                            { points: [[0, 50], [100, 50], [100, 100], [0, 100]], side: 'back', stroke: true, opacity: 0.88 }
+                        ],
+                        creases: [
+                            { a: [0, 50], b: [100, 50], type: 'valley' }
+                        ],
+                        arrows: [
+                            { from: [50, 78], to: [50, 50] }
+                        ],
+                        animate: { type: 'fold' }
+                    },
+                    {
+                        title: 'Fold top corners to the center',
+                        text: 'Bring the top-left and top-right corners down to meet at the center line, forming a triangle top.',
+                        shapes: [
+                            { points: [[0, 0], [100, 0], [100, 50], [0, 50]], side: 'front', stroke: true, opacity: 0.55 },
+                            { points: [[0, 0], [50, 28], [0, 50]], side: 'front', stroke: true },
+                            { points: [[100, 0], [50, 28], [100, 50]], side: 'front', stroke: true },
+                            { points: [[0, 50], [100, 50], [100, 100], [0, 100]], side: 'back', stroke: true, opacity: 0.92 }
+                        ],
+                        creases: [
+                            { a: [0, 0], b: [50, 28], type: 'valley' },
+                            { a: [100, 0], b: [50, 28], type: 'valley' },
+                            { a: [0, 50], b: [100, 50], type: 'edge' }
+                        ],
+                        arrows: [
+                            { from: [18, 12], to: [50, 28] },
+                            { from: [82, 12], to: [50, 28] }
+                        ],
+                        animate: { type: 'fold' }
+                    },
+                    {
+                        title: 'Fold bottom flaps up (front & back)',
+                        text: 'Fold the bottom edge up to the base of the triangle. Flip and repeat on the back.',
+                        shapes: [
+                            { points: [[0, 0], [100, 0], [100, 50], [0, 50]], side: 'front', stroke: true, opacity: 0.45 },
+                            { points: [[0, 50], [100, 50], [100, 72], [0, 72]], side: 'front', stroke: true },
+                            { points: [[10, 28], [90, 28], [100, 50], [0, 50]], side: 'front', stroke: true },
+                            { points: [[0, 72], [100, 72], [100, 100], [0, 100]], side: 'back', stroke: true, opacity: 0.9 }
+                        ],
+                        creases: [
+                            { a: [0, 72], b: [100, 72], type: 'valley' },
+                            { a: [0, 50], b: [100, 50], type: 'edge' }
+                        ],
+                        arrows: [
+                            { from: [50, 94], to: [50, 72] }
+                        ],
+                        animate: { type: 'fold' }
+                    },
+                    {
+                        title: 'Open into a diamond (squash)',
+                        text: 'Open the model from the bottom and squash it flat into a diamond shape. Match layers symmetrically.',
+                        shapes: [
+                            { points: [[50, 8], [92, 50], [50, 92], [8, 50]], side: 'front', stroke: true },
+                            { points: [[50, 18], [78, 50], [50, 82], [22, 50]], side: 'back', stroke: true, opacity: 0.85 }
+                        ],
+                        creases: [
+                            { a: [50, 8], b: [50, 92], type: 'valley' },
+                            { a: [8, 50], b: [92, 50], type: 'valley' }
+                        ],
+                        arrows: [
+                            { from: [50, 90], to: [50, 55] }
+                        ],
+                        animate: { type: 'squash' }
+                    },
+                    {
+                        title: 'Form the boat',
+                        text: 'Pull the two top points apart gently to open the boat. Shape the bottom by pressing it flat.',
+                        shapes: [
+                            { points: [[10, 60], [50, 18], [90, 60], [72, 60], [50, 40], [28, 60]], side: 'front', stroke: true },
+                            { points: [[28, 60], [50, 40], [72, 60], [50, 82]], side: 'back', stroke: true, opacity: 0.85 }
+                        ],
+                        creases: [],
+                        arrows: [
+                            { from: [46, 22], to: [32, 22] },
+                            { from: [54, 22], to: [68, 22] }
+                        ],
+                        animate: { type: 'open' }
+                    }
+                ],
+                cp: [
+                    // A simplified CP for the classic boat (creases used in this guide)
+                    { a: [0, 0], b: [100, 100], type: 'valley' },
+                    { a: [0, 100], b: [100, 0], type: 'valley' },
+                    { a: [0, 50], b: [100, 50], type: 'valley' },
+                    { a: [0, 0], b: [50, 28], type: 'valley' },
+                    { a: [100, 0], b: [50, 28], type: 'valley' },
+                    { a: [0, 72], b: [100, 72], type: 'valley' },
+                    { a: [50, 8], b: [50, 92], type: 'valley' },
+                    { a: [8, 50], b: [92, 50], type: 'valley' }
+                ]
+            },
+            {
+                id: 'dart',
+                name: 'Dart Airplane',
+                difficulty: 'Easy',
+                desc: 'A fast, classic dart plane. Emphasis on straight symmetry for best flight.',
+                paper: 'Rectangle',
+                steps: [
+                    {
+                        title: 'Start with a rectangle',
+                        text: 'Use A4/Letter paper. Place it vertically (portrait).',
+                        shapes: [
+                            { points: [[20, 0], [80, 0], [80, 100], [20, 100]], side: 'front', stroke: true }
+                        ],
+                        creases: [],
+                        arrows: []
+                    },
+                    {
+                        title: 'Fold in half lengthwise (valley)',
+                        text: 'Fold the paper in half lengthwise and crease, then keep it folded.',
+                        shapes: [
+                            { points: [[20, 0], [80, 0], [80, 100], [20, 100]], side: 'front', stroke: true, opacity: 0.2 },
+                            { points: [[50, 0], [80, 0], [80, 100], [50, 100]], side: 'front', stroke: true }
+                        ],
+                        creases: [
+                            { a: [50, 0], b: [50, 100], type: 'valley' }
+                        ],
+                        arrows: [
+                            { from: [34, 50], to: [50, 50] }
+                        ],
+                        animate: { type: 'fold' }
+                    },
+                    {
+                        title: 'Fold top corners to center',
+                        text: 'Fold the top-left and top-right corners down to meet at the center crease.',
+                        shapes: [
+                            { points: [[50, 0], [80, 0], [80, 100], [50, 100]], side: 'front', stroke: true, opacity: 0.5 },
+                            { points: [[50, 0], [65, 0], [50, 28]], side: 'front', stroke: true },
+                            { points: [[80, 0], [65, 0], [50, 28]], side: 'back', stroke: true, opacity: 0.9 },
+                            { points: [[50, 28], [80, 0], [80, 40], [50, 40]], side: 'front', stroke: true, opacity: 0.35 }
+                        ],
+                        creases: [
+                            { a: [80, 0], b: [50, 28], type: 'valley' },
+                            { a: [65, 0], b: [50, 28], type: 'valley' }
+                        ],
+                        arrows: [
+                            { from: [76, 10], to: [56, 26] }
+                        ],
+                        animate: { type: 'fold' }
+                    },
+                    {
+                        title: 'Fold the new top edges to center',
+                        text: 'Fold the slanted edges to the center again to make a sharper nose.',
+                        shapes: [
+                            { points: [[50, 0], [80, 0], [80, 100], [50, 100]], side: 'front', stroke: true, opacity: 0.35 },
+                            { points: [[50, 0], [58, 0], [50, 18]], side: 'front', stroke: true },
+                            { points: [[80, 0], [58, 0], [50, 18]], side: 'back', stroke: true, opacity: 0.9 },
+                            { points: [[50, 18], [80, 0], [80, 32], [50, 32]], side: 'front', stroke: true, opacity: 0.28 }
+                        ],
+                        creases: [
+                            { a: [80, 0], b: [50, 18], type: 'valley' }
+                        ],
+                        arrows: [
+                            { from: [76, 14], to: [56, 18] }
+                        ],
+                        animate: { type: 'fold' }
+                    },
+                    {
+                        title: 'Fold down to lock the nose',
+                        text: 'Fold the tip down slightly to lock layers. Crease firmly.',
+                        shapes: [
+                            { points: [[50, 0], [80, 0], [80, 100], [50, 100]], side: 'front', stroke: true, opacity: 0.35 },
+                            { points: [[50, 0], [80, 0], [50, 22]], side: 'front', stroke: true },
+                            { points: [[50, 22], [80, 0], [80, 38], [50, 38]], side: 'back', stroke: true, opacity: 0.86 }
+                        ],
+                        creases: [
+                            { a: [50, 22], b: [80, 0], type: 'valley' }
+                        ],
+                        arrows: [
+                            { from: [62, 10], to: [62, 24] }
+                        ],
+                        animate: { type: 'flip' }
+                    },
+                    {
+                        title: 'Fold the plane in half',
+                        text: 'Fold the model in half along the center crease so the nose is on the outside.',
+                        shapes: [
+                            { points: [[50, 0], [80, 0], [80, 100], [50, 100]], side: 'front', stroke: true }
+                        ],
+                        creases: [
+                            { a: [50, 0], b: [50, 100], type: 'edge' }
+                        ],
+                        arrows: [
+                            { from: [64, 60], to: [50, 60] }
+                        ],
+                        animate: { type: 'fold' }
+                    },
+                    {
+                        title: 'Fold down wings',
+                        text: 'Fold each wing down to create a long edge. Make both wings match for stable flight.',
+                        shapes: [
+                            { points: [[50, 0], [80, 0], [80, 100], [50, 100]], side: 'front', stroke: true, opacity: 0.25 },
+                            { points: [[50, 28], [80, 54], [80, 78], [50, 52]], side: 'front', stroke: true },
+                            { points: [[50, 28], [80, 54], [80, 34], [50, 8]], side: 'back', stroke: true, opacity: 0.86 },
+                            { points: [[50, 52], [80, 78], [80, 100], [50, 100]], side: 'front', stroke: true, opacity: 0.35 }
+                        ],
+                        creases: [
+                            { a: [50, 28], b: [80, 54], type: 'valley' }
+                        ],
+                        arrows: [
+                            { from: [72, 32], to: [70, 62] }
+                        ],
+                        animate: { type: 'open' }
+                    },
+                    {
+                        title: 'Finished airplane',
+                        text: 'Open the wings slightly and add a small upward bend at the back edges for lift.',
+                        shapes: [
+                            { points: [[18, 54], [80, 20], [80, 34], [26, 66]], side: 'front', stroke: true },
+                            { points: [[18, 54], [26, 66], [80, 100], [72, 88]], side: 'back', stroke: true, opacity: 0.84 },
+                            { points: [[26, 66], [80, 34], [80, 100]], side: 'front', stroke: true, opacity: 0.28 }
+                        ],
+                        creases: [],
+                        arrows: [
+                            { from: [70, 78], to: [76, 72] }
+                        ],
+                        animate: { type: 'squash' }
+                    }
+                ],
+                cp: [
+                    { a: [50, 0], b: [50, 100], type: 'valley' },
+                    { a: [80, 0], b: [50, 28], type: 'valley' },
+                    { a: [80, 0], b: [50, 18], type: 'valley' },
+                    { a: [50, 28], b: [80, 54], type: 'valley' }
+                ]
+            },
+            {
+                id: 'crane',
+                name: 'Mini Crane (Simplified)',
+                difficulty: 'Intermediate',
+                desc: 'A simplified crane workflow: pre-creases, bird-base shaping, then neck/tail and wings.',
+                paper: 'Square',
+                steps: [
+                    {
+                        title: 'Start (color side up)',
+                        text: 'Start with a square. This guide emphasizes the key base transitions using simplified layer diagrams.',
+                        shapes: [
+                            { points: [[0, 0], [100, 0], [100, 100], [0, 100]], side: 'front', stroke: true }
+                        ],
+                        creases: [],
+                        arrows: []
+                    },
+                    {
+                        title: 'Make an “X” crease',
+                        text: 'Fold both diagonals (valley folds) and unfold. You should see an X from corner to corner.',
+                        shapes: [
+                            { points: [[0, 0], [100, 0], [100, 100], [0, 100]], side: 'front', stroke: true }
+                        ],
+                        creases: [
+                            { a: [0, 0], b: [100, 100], type: 'valley' },
+                            { a: [0, 100], b: [100, 0], type: 'valley' }
+                        ],
+                        arrows: [
+                            { from: [22, 18], to: [50, 50] },
+                            { from: [82, 18], to: [50, 50] }
+                        ],
+                        animate: { type: 'flip' }
+                    },
+                    {
+                        title: 'Add “+” crease',
+                        text: 'Fold in half horizontally and vertically. Unfold to get both diagonal and straight pre-creases.',
+                        shapes: [
+                            { points: [[0, 0], [100, 0], [100, 100], [0, 100]], side: 'front', stroke: true }
+                        ],
+                        creases: [
+                            { a: [0, 0], b: [100, 100], type: 'valley' },
+                            { a: [0, 100], b: [100, 0], type: 'valley' },
+                            { a: [0, 50], b: [100, 50], type: 'valley' },
+                            { a: [50, 0], b: [50, 100], type: 'valley' }
+                        ],
+                        arrows: [
+                            { from: [50, 86], to: [50, 50] }
+                        ],
+                        animate: { type: 'fold' }
+                    },
+                    {
+                        title: 'Collapse to preliminary base',
+                        text: 'Use the pre-creases to collapse the paper into a flat square (preliminary base).',
+                        shapes: [
+                            { points: [[50, 10], [90, 50], [50, 90], [10, 50]], side: 'front', stroke: true },
+                            { points: [[50, 20], [78, 50], [50, 80], [22, 50]], side: 'back', stroke: true, opacity: 0.85 }
+                        ],
+                        creases: [
+                            { a: [50, 10], b: [50, 90], type: 'valley' },
+                            { a: [10, 50], b: [90, 50], type: 'valley' }
+                        ],
+                        arrows: [
+                            { from: [50, 88], to: [50, 52] }
+                        ],
+                        animate: { type: 'squash' }
+                    },
+                    {
+                        title: 'Form the bird base (kite folds)',
+                        text: 'Fold the outer edges into the center to form a kite shape. Repeat on the other side/layer.',
+                        shapes: [
+                            { points: [[50, 8], [86, 50], [50, 92], [14, 50]], side: 'front', stroke: true, opacity: 0.4 },
+                            { points: [[50, 12], [72, 50], [50, 88], [28, 50]], side: 'front', stroke: true },
+                            { points: [[50, 12], [28, 50], [50, 50]], side: 'back', stroke: true, opacity: 0.84 },
+                            { points: [[50, 12], [72, 50], [50, 50]], side: 'back', stroke: true, opacity: 0.84 }
+                        ],
+                        creases: [
+                            { a: [28, 50], b: [50, 12], type: 'valley' },
+                            { a: [72, 50], b: [50, 12], type: 'valley' },
+                            { a: [50, 12], b: [50, 88], type: 'edge' }
+                        ],
+                        arrows: [
+                            { from: [24, 54], to: [44, 40] },
+                            { from: [76, 54], to: [56, 40] }
+                        ],
+                        animate: { type: 'fold' }
+                    },
+                    {
+                        title: 'Inside reverse fold: neck & tail',
+                        text: 'Lift a thin flap and perform an inside reverse fold to make the neck. Repeat on the other flap for the tail.',
+                        shapes: [
+                            { points: [[50, 10], [74, 54], [50, 92], [26, 54]], side: 'front', stroke: true },
+                            { points: [[50, 10], [62, 46], [50, 76], [38, 46]], side: 'back', stroke: true, opacity: 0.85 },
+                            { points: [[62, 46], [82, 28], [78, 22], [56, 42]], side: 'front', stroke: true },
+                            { points: [[38, 46], [18, 28], [22, 22], [44, 42]], side: 'front', stroke: true }
+                        ],
+                        creases: [
+                            { a: [56, 42], b: [82, 28], type: 'mountain' },
+                            { a: [44, 42], b: [18, 28], type: 'mountain' }
+                        ],
+                        arrows: [
+                            { from: [68, 42], to: [78, 28] },
+                            { from: [32, 42], to: [22, 28] }
+                        ],
+                        animate: { type: 'open' }
+                    },
+                    {
+                        title: 'Fold down wings',
+                        text: 'Fold the wings down. Adjust the angle, then make a small reverse fold at the tip for the head.',
+                        shapes: [
+                            { points: [[50, 18], [92, 56], [50, 70], [8, 56]], side: 'front', stroke: true },
+                            { points: [[50, 18], [70, 40], [50, 56], [30, 40]], side: 'back', stroke: true, opacity: 0.82 },
+                            { points: [[70, 40], [84, 34], [82, 30], [66, 38]], side: 'front', stroke: true }
+                        ],
+                        creases: [
+                            { a: [50, 56], b: [92, 56], type: 'valley' },
+                            { a: [50, 56], b: [8, 56], type: 'valley' }
+                        ],
+                        arrows: [
+                            { from: [76, 44], to: [76, 56] },
+                            { from: [24, 44], to: [24, 56] }
+                        ],
+                        animate: { type: 'fold' }
+                    },
+                    {
+                        title: 'Finished crane (shape)',
+                        text: 'Gently pull the neck and tail to inflate the body. Shape the wings and head for the final look.',
+                        shapes: [
+                            { points: [[14, 58], [50, 32], [86, 58], [50, 70]], side: 'front', stroke: true },
+                            { points: [[50, 32], [68, 18], [72, 22], [56, 38]], side: 'front', stroke: true },
+                            { points: [[50, 32], [32, 18], [28, 22], [44, 38]], side: 'front', stroke: true },
+                            { points: [[50, 70], [62, 84], [58, 86], [48, 74]], side: 'back', stroke: true, opacity: 0.82 }
+                        ],
+                        creases: [],
+                        arrows: [
+                            { from: [66, 22], to: [72, 18] }
+                        ],
+                        animate: { type: 'squash' }
+                    }
+                ],
+                cp: [
+                    { a: [0, 0], b: [100, 100], type: 'valley' },
+                    { a: [0, 100], b: [100, 0], type: 'valley' },
+                    { a: [0, 50], b: [100, 50], type: 'valley' },
+                    { a: [50, 0], b: [50, 100], type: 'valley' },
+                    { a: [28, 50], b: [50, 12], type: 'valley' },
+                    { a: [72, 50], b: [50, 12], type: 'valley' },
+                    { a: [56, 42], b: [82, 28], type: 'mountain' },
+                    { a: [44, 42], b: [18, 28], type: 'mountain' },
+                    { a: [50, 56], b: [92, 56], type: 'valley' },
+                    { a: [50, 56], b: [8, 56], type: 'valley' }
+                ]
+            }
+        ];
+
+        // -------------------------
+        // State
+        // -------------------------
+        const state = {
+            modelId: 'boat',
+            step: 0,
+            showCreases: true,
+            showArrows: true,
+            frontColor: '#22c55e',
+            backColor: '#16a34a',
+            twoTone: true,
+            mode: 'folding', // folding | cp
+            playing: false,
+            timer: null,
+            speed: 1
+        };
+
+        // -------------------------
+        // Utilities
+        // -------------------------
+        const $ = (sel) => document.querySelector(sel);
+        const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+
+        function ptsToStr(points) {
+            return points.map(([x, y]) => `${x},${y}`).join(' ');
+        }
+
+        function colors() {
+            const front = state.frontColor;
+            const back = state.twoTone ? state.backColor : state.frontColor;
+            return { front, back };
+        }
+
+        function toast(msg) {
+            const el = $('#toast');
+            el.textContent = msg;
+            el.classList.remove('opacity-0');
+            el.classList.add('opacity-100');
+            clearTimeout(el._t);
+            el._t = setTimeout(() => {
+                el.classList.add('opacity-0');
+                el.classList.remove('opacity-100');
+            }, 1100);
+        }
+
+        function currentModel() {
+            return MODELS.find(m => m.id === state.modelId) || MODELS[0];
+        }
+
+        function currentStep() {
+            const m = currentModel();
+            return m.steps[clamp(state.step, 0, m.steps.length - 1)];
+        }
+
+        function creaseStyle(type) {
+            if (type === 'edge') return { cls: '', opacity: 0.45, width: 1.5 };
+            if (type === 'mountain') return { cls: 'cp-mountain', opacity: 0.95, width: 1.8 };
+            return { cls: 'cp-valley', opacity: 0.9, width: 1.8 };
+        }
+
+        function arrowPath(from, to) {
+            const [x1, y1] = from, [x2, y2] = to;
+            // Slight curve
+            const cx = (x1 + x2) / 2;
+            const cy = (y1 + y2) / 2 - 8;
+            return `M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`;
+        }
+
+        function makeSVG({ shapes, creases, arrows }, opts) {
+            const { front, back } = colors();
+            const showCreases = opts.showCreases;
+            const showArrows = opts.showArrows;
+
+            const svgParts = [];
+            svgParts.push(`<svg viewBox="0 0 100 100" class="w-full h-full" role="img" aria-label="Origami step diagram">
+        <defs>
+          <linearGradient id="paperShade" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="rgba(255,255,255,0.18)"/>
+            <stop offset="1" stop-color="rgba(0,0,0,0.22)"/>
+          </linearGradient>
+          <marker id="arrowHead" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L6,3 L0,6 Z" fill="rgba(226,232,240,0.95)" />
+          </marker>
+          <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="1.2" stdDeviation="1.4" flood-color="rgba(0,0,0,0.35)"/>
+          </filter>
+        </defs>
+      `);
+
+            // Background faint grid
+            svgParts.push(`<g opacity="0.10">
+        ${Array.from({ length: 9 }).map((_, i) => {
+                const t = (i + 1) * 10;
+                return `<line x1="${t}" y1="0" x2="${t}" y2="100" stroke="rgba(148,163,184,0.7)" stroke-width="0.4"/>
+                  <line x1="0" y1="${t}" x2="100" y2="${t}" stroke="rgba(148,163,184,0.7)" stroke-width="0.4"/>`;
+            }).join('')}
+      </g>`);
+
+            // Paper shapes
+            svgParts.push(`<g filter="url(#softShadow)">`);
+            for (const s of shapes || []) {
+                const fill = (s.side === 'back') ? back : front;
+                const op = (s.opacity ?? 1);
+                const stroke = s.stroke ? 'rgba(15, 23, 42, 0.55)' : 'transparent';
+                const strokeW = s.stroke ? 0.9 : 0;
+                svgParts.push(`<polygon points="${ptsToStr(s.points)}" fill="${fill}" fill-opacity="${op}" stroke="${stroke}" stroke-width="${strokeW}"/>`);
+                // subtle shading overlay
+                svgParts.push(`<polygon points="${ptsToStr(s.points)}" fill="url(#paperShade)" fill-opacity="0.12" stroke="none"/>`);
+            }
+            svgParts.push(`</g>`);
+
+            // Creases
+            if (showCreases && (creases?.length)) {
+                svgParts.push(`<g>
+          ${creases.map(c => {
+                    const st = creaseStyle(c.type);
+                    return `<line x1="${c.a[0]}" y1="${c.a[1]}" x2="${c.b[0]}" y2="${c.b[1]}" stroke="rgba(226,232,240,${st.opacity})" stroke-width="${st.width}" class="${st.cls}" stroke-linecap="round"/>`;
+                }).join('')}
+        </g>`);
+            }
+
+            // Arrows
+            if (showArrows && (arrows?.length)) {
+                svgParts.push(`<g>
+          ${arrows.map(a => {
+                    const d = arrowPath(a.from, a.to);
+                    return `<path d="${d}" fill="none" stroke="rgba(226,232,240,0.95)" stroke-width="1.8" stroke-linecap="round" marker-end="url(#arrowHead)"/>`;
+                }).join('')}
+        </g>`);
+            }
+
+            svgParts.push(`</svg>`);
+            return svgParts.join('');
+        }
+
+        function makeCPSVG(model) {
+            const { front } = colors();
+            const lines = model.cp || [];
+
+            const svg = `
+        <svg viewBox="0 0 100 100" class="w-full h-auto" role="img" aria-label="Crease pattern">
+          <defs>
+            <pattern id="cpGrid" width="10" height="10" patternUnits="userSpaceOnUse">
+              <path d="M10 0H0V10" fill="none" stroke="rgba(148,163,184,0.20)" stroke-width="0.6"/>
+            </pattern>
+          </defs>
+          <rect x="0" y="0" width="100" height="100" rx="4" fill="rgba(15,23,42,0.35)"/>
+          <rect x="2" y="2" width="96" height="96" fill="${front}" fill-opacity="0.08" stroke="rgba(226,232,240,0.22)" stroke-width="1"/>
+          <rect x="2" y="2" width="96" height="96" fill="url(#cpGrid)" opacity="0.65"/>
+          <g>
+            ${lines.map(l => {
+                const st = creaseStyle(l.type);
+                return `<line x1="${l.a[0]}" y1="${l.a[1]}" x2="${l.b[0]}" y2="${l.b[1]}" stroke="rgba(226,232,240,${st.opacity})" stroke-width="${st.width}" class="${st.cls}" stroke-linecap="round"/>`;
+            }).join('')}
+          </g>
+          <rect x="2" y="2" width="96" height="96" fill="none" stroke="rgba(226,232,240,0.55)" stroke-width="1.2"/>
+        </svg>
+      `;
+            return svg;
+        }
+
+        function downloadTextFile(filename, text, mime = 'image/svg+xml') {
+            const blob = new Blob([text], { type: mime });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(a.href), 800);
+        }
+
+        // -------------------------
+        // Rendering
+        // -------------------------
+        function renderModelList() {
+            $('#modelCount').textContent = `${MODELS.length} models`;
+            const host = $('#modelList');
+            const { front, back } = colors();
+
+            host.innerHTML = MODELS.map(m => {
+                const active = m.id === state.modelId;
+                const pill = m.difficulty === 'Intermediate' ? 'bg-amber-500/15 text-amber-200 border-amber-600/30' : 'bg-emerald-500/15 text-emerald-200 border-emerald-600/30';
+                // Thumbnail: quick CP preview
+                const thumb = `
+          <svg viewBox="0 0 100 100" class="w-10 h-10 rounded-lg overflow-hidden">
+            <rect x="0" y="0" width="100" height="100" rx="16" fill="${front}" fill-opacity="0.16" />
+            <polygon points="0,0 100,0 0,100" fill="${back}" fill-opacity="0.18" />
+            ${(m.cp || []).slice(0, 4).map(l => {
+                    const st = creaseStyle(l.type);
+                    return `<line x1="${l.a[0]}" y1="${l.a[1]}" x2="${l.b[0]}" y2="${l.b[1]}" stroke="rgba(226,232,240,0.55)" stroke-width="1.5" class="${st.cls}"/>`;
+                }).join('')}
+          </svg>`;
+
+                return `
+          <button data-model="${m.id}" class="w-full text-left group rounded-xl border ${active ? 'border-indigo-500/60 bg-indigo-500/10' : 'border-slate-800 bg-slate-950/30 hover:bg-slate-900/40'} p-3 transition">
+            <div class="flex items-center gap-3">
+              <div class="shrink-0">${thumb}</div>
+              <div class="min-w-0">
+                <div class="flex items-center gap-2">
+                  <div class="font-medium truncate">${m.name}</div>
+                  <span class="text-[11px] px-2 py-0.5 rounded-full border ${pill}">${m.difficulty}</span>
+                </div>
+                <div class="text-xs text-slate-400 truncate">${m.paper} paper • ${m.steps.length} steps</div>
+              </div>
+            </div>
+          </button>`;
+            }).join('');
+
+            host.querySelectorAll('button[data-model]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    setModel(btn.dataset.model);
+                });
+            });
+        }
+
+        function renderPaperSwatch() {
+            const { front, back } = colors();
+            const svg = $('#paperSwatch');
+            svg.innerHTML = `
+        <rect x="0" y="0" width="100" height="100" rx="12" ry="12" fill="${front}"/>
+        ${state.twoTone ? `<polygon points="0,0 100,0 0,100" fill="${back}" opacity="0.55"/>` : ''}
+        <rect x="6" y="6" width="88" height="88" rx="10" fill="none" stroke="rgba(226,232,240,0.22)" stroke-width="2"/>
+      `;
+        }
+
+        function renderStageMeta() {
+            const m = currentModel();
+            $('#stageTitle').textContent = m.name;
+            $('#difficulty').textContent = m.difficulty;
+            $('#stageDesc').textContent = m.desc;
+        }
+
+        function renderStepsList() {
+            const m = currentModel();
+            $('#stepCount').textContent = `${m.steps.length} steps`;
+            const host = $('#stepList');
+            host.innerHTML = m.steps.map((s, idx) => {
+                const active = idx === state.step;
+                const done = idx < state.step;
+                return `
+          <button data-step="${idx}" class="w-full text-left rounded-xl border ${active ? 'border-indigo-500/60 bg-indigo-500/10' : 'border-slate-800 bg-slate-950/30 hover:bg-slate-900/40'} p-3 transition">
+            <div class="flex items-start gap-3">
+              <div class="mt-0.5 w-7 h-7 rounded-lg flex items-center justify-center border ${done ? 'border-emerald-600/50 bg-emerald-500/10 text-emerald-200' : active ? 'border-indigo-500/50 bg-indigo-500/10 text-indigo-100' : 'border-slate-700 bg-slate-900/40 text-slate-300'} text-xs font-semibold">${idx + 1}</div>
+              <div class="min-w-0">
+                <div class="text-sm font-medium truncate">${s.title}</div>
+                <div class="text-xs text-slate-400 line-clamp-2">${s.text}</div>
+              </div>
+            </div>
+          </button>`;
+            }).join('');
+
+            host.querySelectorAll('button[data-step]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    goToStep(Number(btn.dataset.step), { animate: true });
+                });
+            });
+        }
+
+        function renderInstruction() {
+            const m = currentModel();
+            const s = currentStep();
+            $('#instructionTitle').textContent = `Step ${state.step + 1} — ${s.title}`;
+            $('#instructionText').textContent = s.text;
+            $('#stepBadge').textContent = `${m.name}: Step ${state.step + 1}/${m.steps.length}`;
+
+            const pct = Math.round((state.step) / Math.max(1, m.steps.length - 1) * 100);
+            $('#progressPct').textContent = `${pct}%`;
+            $('#progressBar').style.width = `${pct}%`;
+            $('#progressLabel').textContent = `${state.step + 1} of ${m.steps.length}`;
+
+            $('#prev').disabled = state.step === 0;
+            $('#next').disabled = state.step === (m.steps.length - 1);
+            $('#prev').classList.toggle('opacity-50', $('#prev').disabled);
+            $('#next').classList.toggle('opacity-50', $('#next').disabled);
+        }
+
+        function renderTabs() {
+            const folding = state.mode === 'folding';
+            $('#tabFolding').className = `px-3 py-2 text-sm ${folding ? 'bg-slate-800' : ''}`;
+            $('#tabCP').className = `px-3 py-2 text-sm ${!folding ? 'bg-slate-800' : ''}`;
+            $('#cpLegend').classList.toggle('hidden', folding);
+        }
+
+        function renderStage({ animate = false } = {}) {
+            const m = currentModel();
+            const s = currentStep();
+
+            const host = $('#svgHost');
+            const ghost = $('#ghost');
+
+            if (state.mode === 'cp') {
+                // CP view in stage
+                ghost.innerHTML = '';
+                ghost.classList.remove('show');
+                host.innerHTML = makeCPSVG(m);
+                return;
+            }
+
+            const nextSVG = makeSVG(s, { showCreases: state.showCreases, showArrows: state.showArrows });
+
+            if (animate && host.innerHTML) {
+                // Ghost previous
+                ghost.innerHTML = host.innerHTML;
+                requestAnimationFrame(() => ghost.classList.add('show'));
+
+                // Update host
+                host.innerHTML = nextSVG;
+
+                // Apply folding animation to stage container
+                const stage = $('#stage');
+                stage.classList.remove('foldAnim');
+                void stage.offsetWidth; // reflow
+                stage.classList.add('foldAnim');
+
+                // Hide ghost after a beat
+                setTimeout(() => ghost.classList.remove('show'), 240);
+            } else {
+                ghost.innerHTML = '';
+                ghost.classList.remove('show');
+                host.innerHTML = nextSVG;
+            }
+        }
+
+        function renderAll({ animateStage = false } = {}) {
+            renderPaperSwatch();
+            renderModelList();
+            renderStageMeta();
+            renderStepsList();
+            renderInstruction();
+            renderTabs();
+            renderStage({ animate: animateStage });
+            $('#creaseState').textContent = state.showCreases ? 'On' : 'Off';
+            $('#arrowState').textContent = state.showArrows ? 'On' : 'Off';
+        }
+
+        // -------------------------
+        // Actions
+        // -------------------------
+        function stopPlaying() {
+            state.playing = false;
+            clearInterval(state.timer);
+            state.timer = null;
+            $('#play').textContent = 'Play';
+            $('#play').classList.remove('bg-rose-600', 'hover:bg-rose-500');
+            $('#play').classList.add('bg-emerald-600', 'hover:bg-emerald-500');
+        }
+
+        function startPlaying() {
+            if (state.playing) return;
+            state.playing = true;
+            $('#play').textContent = 'Pause';
+            $('#play').classList.remove('bg-emerald-600', 'hover:bg-emerald-500');
+            $('#play').classList.add('bg-rose-600', 'hover:bg-rose-500');
+
+            const tickMs = () => Math.round(1600 / state.speed);
+
+            state.timer = setInterval(() => {
+                const m = currentModel();
+                if (state.mode !== 'folding') {
+                    // If CP mode, just stop playback
+                    stopPlaying();
+                    return;
+                }
+                if (state.step >= m.steps.length - 1) {
+                    stopPlaying();
+                    toast('Finished');
+                    return;
+                }
+                goToStep(state.step + 1, { animate: true, quiet: true });
+            }, tickMs());
+        }
+
+        function setModel(id) {
+            const exists = MODELS.some(m => m.id === id);
+            if (!exists) return;
+            stopPlaying();
+            state.modelId = id;
+            state.step = 0;
+            state.mode = 'folding';
+            renderAll({ animateStage: true });
+            toast('Model switched');
+        }
+
+        function goToStep(n, { animate = true, quiet = false } = {}) {
+            const m = currentModel();
+            const next = clamp(n, 0, m.steps.length - 1);
+            if (next === state.step) return;
+            state.step = next;
+            renderStepsList();
+            renderInstruction();
+            renderStage({ animate });
+            if (!quiet) toast(`Step ${state.step + 1}`);
+        }
+
+        function nextStep() {
+            const m = currentModel();
+            if (state.step < m.steps.length - 1) goToStep(state.step + 1, { animate: true });
+        }
+
+        function prevStep() {
+            if (state.step > 0) goToStep(state.step - 1, { animate: true });
+        }
+
+        function resetSteps() {
+            stopPlaying();
+            goToStep(0, { animate: true });
+            toast('Reset');
+        }
+
+        function setMode(mode) {
+            state.mode = mode;
+            if (mode === 'cp') stopPlaying();
+            renderTabs();
+            renderStage({ animate: true });
+            toast(mode === 'cp' ? 'CP view' : 'Folding view');
+        }
+
+        function openCPModal() {
+            const m = currentModel();
+            $('#cpModalSub').textContent = `${m.name} • ${m.paper} paper • ${m.cp?.length || 0} creases`;
+            $('#cpHost').innerHTML = makeCPSVG(m);
+            $('#cpModal').classList.remove('hidden');
+        }
+
+        function closeCPModal() {
+            $('#cpModal').classList.add('hidden');
+        }
+
+        function downloadCurrentCP() {
+            const m = currentModel();
+            const svg = makeCPSVG(m);
+            downloadTextFile(`${m.id}-crease-pattern.svg`, svg, 'image/svg+xml');
+            toast('Downloaded CP');
+        }
+
+        // -------------------------
+        // Wire up
+        // -------------------------
+        function init() {
+            // Initial render
+            renderAll({ animateStage: false });
+            $('#modelCount').textContent = `${MODELS.length} models`;
+
+            // Paper controls
+            $('#frontColor').addEventListener('input', (e) => {
+                state.frontColor = e.target.value;
+                renderAll({ animateStage: false });
+            });
+            $('#backColor').addEventListener('input', (e) => {
+                state.backColor = e.target.value;
+                renderAll({ animateStage: false });
+            });
+            $('#twoTone').addEventListener('change', (e) => {
+                state.twoTone = e.target.checked;
+                renderAll({ animateStage: false });
+            });
+
+            $('#toggleCreases').addEventListener('click', () => {
+                state.showCreases = !state.showCreases;
+                renderAll({ animateStage: false });
+            });
+            $('#toggleArrows').addEventListener('click', () => {
+                state.showArrows = !state.showArrows;
+                renderAll({ animateStage: false });
+            });
+
+            // Buttons
+            $('#prev').addEventListener('click', prevStep);
+            $('#next').addEventListener('click', nextStep);
+            $('#reset').addEventListener('click', resetSteps);
+
+            $('#play').addEventListener('click', () => {
+                if (state.playing) stopPlaying();
+                else startPlaying();
+            });
+
+            $('#tabFolding').addEventListener('click', () => setMode('folding'));
+            $('#tabCP').addEventListener('click', () => setMode('cp'));
+
+            // CP modal
+            $('#viewCP').addEventListener('click', openCPModal);
+            $('#downloadCP').addEventListener('click', downloadCurrentCP);
+            $('#cpDownload2').addEventListener('click', downloadCurrentCP);
+            $('#cpClose').addEventListener('click', closeCPModal);
+            $('#cpModal').addEventListener('click', (e) => {
+                if (e.target === $('#cpModal').firstElementChild) closeCPModal();
+            });
+
+            // Speed
+            $('#speed').addEventListener('input', (e) => {
+                state.speed = Number(e.target.value);
+                if (state.playing) {
+                    stopPlaying();
+                    startPlaying();
+                }
+            });
+
+            // Keyboard
+            window.addEventListener('keydown', (e) => {
+                const key = e.key.toLowerCase();
+                if (key === 'arrowright') { e.preventDefault(); nextStep(); }
+                if (key === 'arrowleft') { e.preventDefault(); prevStep(); }
+                if (key === ' ') {
+                    e.preventDefault();
+                    if (state.playing) stopPlaying();
+                    else startPlaying();
+                }
+                if (key === 'c') {
+                    state.showCreases = !state.showCreases;
+                    renderAll({ animateStage: false });
+                    toast(`Creases ${state.showCreases ? 'on' : 'off'}`);
+                }
+                if (key === 'a') {
+                    state.showArrows = !state.showArrows;
+                    renderAll({ animateStage: false });
+                    toast(`Arrows ${state.showArrows ? 'on' : 'off'}`);
+                }
+                if (key === 'escape') closeCPModal();
+            });
+
+            // Default legend fix: show actual valley/mountain in stage CP legend
+            // (The legend inside stage is static text; modal includes explanation)
+
+            toast('Ready');
+        }
+
+        init();
+    </script>
+</body>
+
+</html>
