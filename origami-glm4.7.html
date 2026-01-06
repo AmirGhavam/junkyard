@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Origami Guide - Interactive Folding Instructions</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @keyframes fold {
+            0% {
+                transform: rotateX(0deg) rotateY(0deg);
+            }
+
+            50% {
+                transform: rotateX(180deg) rotateY(0deg);
+            }
+
+            100% {
+                transform: rotateX(180deg) rotateY(180deg);
+            }
+        }
+
+        @keyframes unfold {
+            0% {
+                transform: rotateX(180deg) rotateY(180deg);
+            }
+
+            50% {
+                transform: rotateX(180deg) rotateY(0deg);
+            }
+
+            100% {
+                transform: rotateX(0deg) rotateY(0deg);
+            }
+        }
+
+        .folding {
+            animation: fold 1s ease-in-out;
+        }
+
+        .unfolding {
+            animation: unfold 1s ease-in-out;
+        }
+
+        .crease-line {
+            stroke-dasharray: 5, 5;
+        }
+
+        .mountain-fold {
+            stroke: #ef4444;
+            stroke-width: 2;
+            stroke-dasharray: 8, 4;
+        }
+
+        .valley-fold {
+            stroke: #3b82f6;
+            stroke-width: 2;
+            stroke-dasharray: 4, 4;
+        }
+
+        .paper-shadow {
+            filter: drop-shadow(4px 4px 8px rgba(0, 0, 0, 0.2));
+        }
+
+        .step-indicator {
+            transition: all 0.3s ease;
+        }
+
+        .step-indicator.active {
+            transform: scale(1.2);
+        }
+
+        .model-card {
+            transition: all 0.3s ease;
+        }
+
+        .model-card:hover {
+            transform: translateY(-4px);
+        }
+
+        .arrow-indicator {
+            transition: all 0.5s ease;
+        }
+    </style>
+</head>
+
+<body class="bg-gradient-to-br from-amber-50 to-orange-100 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white/80 backdrop-blur-sm shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div
+                        class="w-10 h-10 bg-gradient-to-br from-red-500 to-pink-500 rounded-lg flex items-center justify-center">
+                        <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                        </svg>
+                    </div>
+                    <h1
+                        class="text-2xl font-bold bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
+                        Origami Guide
+                    </h1>
+                </div>
+                <nav class="flex gap-4">
+                    <button onclick="showModels()"
+                        class="px-4 py-2 text-gray-600 hover:text-orange-600 transition">Models</button>
+                    <button onclick="showLegend()"
+                        class="px-4 py-2 text-gray-600 hover:text-orange-600 transition">Legend</button>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 py-8">
+        <!-- Model Selection -->
+        <section id="model-selection" class="mb-8">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Choose a Model</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="model-grid">
+                <!-- Models will be populated here -->
+            </div>
+        </section>
+
+        <!-- Main Work Area -->
+        <div class="grid lg:grid-cols-2 gap-8">
+            <!-- Left Panel - Paper Preview & Animation -->
+            <div class="space-y-6">
+                <!-- Paper Preview -->
+                <div class="bg-white rounded-2xl shadow-xl p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        Paper Preview
+                    </h3>
+                    <div class="flex justify-center items-center bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl p-8"
+                        id="paper-container">
+                        <svg id="paper-preview" viewBox="0 0 200 200" class="w-64 h-64 paper-shadow">
+                            <!-- Paper will be drawn here -->
+                        </svg>
+                    </div>
+
+                    <!-- Fold Type Toggle -->
+                    <div class="mt-4 flex justify-center gap-4">
+                        <button onclick="toggleView('solid')" id="view-solid"
+                            class="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium transition">
+                            Solid View
+                        </button>
+                        <button onclick="toggleView('crease')" id="view-crease"
+                            class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition hover:bg-gray-300">
+                            Crease Pattern
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Animation Controls -->
+                <div class="bg-white rounded-2xl shadow-xl p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Animation
+                    </h3>
+                    <div class="flex items-center justify-center gap-4">
+                        <button onclick="prevStep()"
+                            class="w-12 h-12 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center transition">
+                            <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15 19l-7-7 7-7" />
+                            </svg>
+                        </button>
+                        <button onclick="playAnimation()" id="play-btn"
+                            class="w-16 h-16 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 rounded-full flex items-center justify-center transition shadow-lg">
+                            <svg class="w-8 h-8 text-white" id="play-icon" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M8 5v14l11-7z" />
+                            </svg>
+                        </button>
+                        <button onclick="nextStep()"
+                            class="w-12 h-12 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center transition">
+                            <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="mt-4 text-center text-gray-500 text-sm">
+                        <span id="current-step-display">Step 1</span> of <span id="total-steps-display">10</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel - Instructions -->
+            <div class="space-y-6">
+                <!-- Current Step Info -->
+                <div class="bg-white rounded-2xl shadow-xl p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                        <span id="model-title">Paper Crane</span>
+                    </h3>
+                    <div class="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-4 mb-4">
+                        <p class="text-gray-700" id="step-description">
+                            Start with a square sheet of paper, colored side down.
+                        </p>
+                    </div>
+
+                    <!-- Fold Type Indicator -->
+                    <div class="flex items-center gap-3 mb-4" id="fold-type-indicator">
+                        <span class="text-sm text-gray-500">Fold Type:</span>
+                        <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium"
+                            id="fold-type">
+                            Valley Fold
+                        </span>
+                    </div>
+
+                    <!-- Difficulty & Time -->
+                    <div class="flex gap-4 text-sm">
+                        <div class="flex items-center gap-1">
+                            <svg class="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path
+                                    d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                            </svg>
+                            <span class="text-gray-600" id="difficulty">Medium</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span class="text-gray-600" id="time">~10 min</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step Navigation -->
+                <div class="bg-white rounded-2xl shadow-xl p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Steps</h3>
+                    <div class="flex flex-wrap gap-2" id="step-indicators">
+                        <!-- Step indicators will be populated here -->
+                    </div>
+                </div>
+
+                <!-- All Steps List -->
+                <div class="bg-white rounded-2xl shadow-xl p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">All Steps</h3>
+                    <div class="space-y-3 max-h-64 overflow-y-auto" id="steps-list">
+                        <!-- Steps will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Legend Modal -->
+        <div id="legend-modal"
+            class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50">
+            <div class="bg-white rounded-2xl p-8 max-w-md mx-4">
+                <h3 class="text-xl font-bold text-gray-800 mb-6">Crease Pattern Legend</h3>
+                <div class="space-y-4">
+                    <div class="flex items-center gap-4">
+                        <div class="w-24 h-1 bg-blue-500"
+                            style="background: repeating-linear-gradient(90deg, #3b82f6, #3b82f6 8px, transparent 8px, transparent 12px);">
+                        </div>
+                        <span class="text-gray-700">Valley Fold (fold forward)</span>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <div class="w-24 h-1 bg-red-500"
+                            style="background: repeating-linear-gradient(90deg, #ef4444, #ef4444 4px, transparent 4px, transparent 8px);">
+                        </div>
+                        <span class="text-gray-700">Mountain Fold (fold backward)</span>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <div class="w-24 h-1 border-2 border-dashed border-gray-400"></div>
+                        <span class="text-gray-700">Existing Crease</span>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <div class="w-24 h-1 border-2 border-dotted border-gray-400" style="border-style: dotted;">
+                        </div>
+                        <span class="text-gray-700">Fold Line (direction indicated)</span>
+                    </div>
+                </div>
+                <button onclick="hideLegend()"
+                    class="mt-6 w-full py-3 bg-gray-100 hover:bg-gray-200 rounded-xl font-medium transition">
+                    Close
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Origami Models Data
+        const models = [
+            {
+                id: 'crane',
+                name: 'Paper Crane',
+                icon: '🦢',
+                difficulty: 'Medium',
+                time: '~10 min',
+                color: 'from-red-400 to-pink-500',
+                steps: [
+                    {
+                        description: 'Start with a square sheet of paper, colored side down.',
+                        foldType: 'Prepare',
+                        creases: [],
+                        arrows: []
+                    },
+                    {
+                        description: 'Fold the paper in half diagonally, bringing the top corner to the bottom corner.',
+                        foldType: 'Valley Fold',
+                        creases: [{ type: 'valley', x1: 100, y1: 20, x2: 100, y2: 180 }],
+                        arrows: [{ fromX: 100, fromY: 20, toX: 100, toY: 180, color: '#3b82f6' }]
+                    },
+                    {
+                        description: 'Fold in half again diagonally to create a triangle.',
+                        foldType: 'Valley Fold',
+                        creases: [{ type: 'valley', x1: 30, y1: 100, x2: 170, y2: 100 }],
+                        arrows: [{ fromX: 30, fromY: 100, toX: 170, toY: 100, color: '#3b82f6' }]
+                    },
+                    {
+                        description: 'Unfold the paper. You should have an "X" crease pattern.',
+                        foldType: 'Unfold',
+                        creases: [
+                            { type: 'valley', x1: 100, y1: 20, x2: 100, y2: 180 },
+                            { type: 'valley', x1: 30, y1: 100, x2: 170, y2: 100 }
+                        ],
+                        arrows: []
+                    },
+                    {
+                        description: 'Fold the paper in half vertically, then unfold.',
+                        foldType: 'Valley Fold',
+                        creases: [
+                            { type: 'valley', x1: 100, y1: 20, x2: 100, y2: 180 },
+                            { type: 'valley', x1: 30, y1: 100, x2: 170, y2: 100 },
+                            { type: 'valley', x1: 100, y1: 20, x2: 100, y2: 180, existing: true }
+                        ],
+                        arrows: [{ fromX: 100, fromY: 20, toX: 100, toY: 180, color: '#3b82f6' }]
+                    },
+                    {
+                        description: 'Create a "waterbomb base" by pushing the sides inward along the creases.',
+                        foldType: 'Mountain & Valley',
+                        creases: [
+                            { type: 'valley', x1: 100, y1: 20, x2: 100, y2: 180 },
+                            { type: 'valley', x1: 30, y1: 100, x2: 170, y2: 100 },
+                            { type: 'mountain', x1: 100, y1: 100, x2: 100, y2: 180 }
+                        ],
+                        arrows: []
+                    },
+                    {
+                        description: 'Fold the top edges to the center line.',
+                        foldType: 'Valley Fold',
+                        creases: [
+                            { type: 'valley', x1: 100, y1: 40, x2: 100, y2: 100 },
+                            { type: 'valley', x1: 50, y1: 70, x2: 100, y2: 100 },
+                            { type: 'valley', x1: 150, y1: 70, x2: 100, y2: 100 }
+                        ],
+                        arrows: [
+                            { fromX: 50, fromY: 70, toX: 80, toY: 85, color: '#3b82f6' },
+                            { fromX: 150, fromY: 70, toX: 120, toY: 85, color: '#3b82f6' }
+                        ]
+                    },
+                    {
+                        description: 'Fold the top point down to create the head.',
+                        foldType: 'Valley Fold',
+                        creases: [
+                            { type: 'valley', x1: 70, y1: 50, x2: 130, y2: 50 }
+                        ],
+                        arrows: [{ fromX: 100, fromY: 30, toX: 100, toY: 50, color: '#3b82f6' }]
+                    },
+                    {
+                        description: 'Fold the wings outward at an angle.',
+                        foldType: 'Valley Fold',
+                        creases: [
+                            { type: 'valley', x1: 60, y1: 80, x2: 30, y2: 150 },
+                            { type: 'valley', x1: 140, y1: 80, x2: 170, y2: 150 }
+                        ],
+                        arrows: []
+                    },
+                    {
+                        description: 'Gently pull the wings apart to inflate the crane body. Your crane is complete!',
+                        foldType: 'Finish',
+                        creases: [],
+                        arrows: []
+                    }
+                ]
+            },
+            {
+                id: 'boat',
+                name: 'Paper Boat',
+                icon: '⛵',
+                difficulty: 'Easy',
+                time: '~5 min',
+                color: 'from-blue-400 to-cyan-500',
+                steps: [
+                    {
+                        description: 'Start with a rectangular sheet of paper (8.5" x 11" or A4).',
+                        foldType: 'Prepare',
+                        creases: [],
+                        arrows: []
+                    },
+                    {
+                        description: 'Fold the paper in half vertically to create a center crease, then unfold.',
+                        foldType: 'Valley Fold',
+                        creases: [{ type: 'valley', x1: 100, y1: 20, x2: 100, y2: 180 }],
+                        arrows: [{ fromX: 100, fromY: 20, toX: 100, toY: 180, color: '#3b82f6' }]
+                    },
+                    {
+                        description: 'Fold the top corners to the center line to form a triangle.',
+                        foldType: 'Valley Fold',
+                        creases: [
+                            { type: 'valley', x1: 100, y1: 40, x2: 50, y2: 100 },
+                            { type: 'valley', x1: 100, y1: 40, x2: 150, y2: 100 }
+                        ],
+                        arrows: [
+                            { fromX: 40, fromY: 20, toX: 70, toY: 50, color: '#3b82f6' },
+                            { fromX: 160, fromY: 20, toX: 130, toY: 50, color: '#3b82f6' }
+                        ]
+                    },
+                    {
+                        description: 'Fold the bottom rectangular strip upward.',
+                        foldType: 'Valley Fold',
+                        creases: [{ type: 'valley', x1: 50, y1: 140, x2: 150, y2: 140 }],
+                        arrows: [{ fromX: 100, fromY: 170, toX: 100, toY: 140, color: '#3b82f6' }]
+                    },
+                    {
+                        description: 'Fold the corners to the center again.',
+                        foldType: 'Valley Fold',
+                        creases: [
+                            { type: 'valley', x1: 100, y1: 100, x2: 70, y2: 140 },
+                            { type: 'valley', x1: 100, y1: 100, x2: 130, y2: 140 }
+                        ],
+                        arrows: []
+                    },
+                    {
+                        description: 'Fold the remaining bottom flap up and tuck it in.',
+                        foldType: 'Valley Fold',
+                        creases: [{ type: 'valley', x1: 70, y1: 160, x2: 130, y2: 160 }],
+                        arrows: [{ fromX: 100, fromY: 175, toX: 100, toY: 160, color: '#3b82f6' }]
+                    },
+                    {
+                        description: 'Pull the sides apart and flatten to form the boat shape.',
+                        foldType: 'Shape',
+                        creases: [],
+                        arrows: []
+                    },
+                    {
+                        description: 'Your paper boat is ready to sail!',
+                        foldType: 'Finish',
+                        creases: [],
+                        arrows: []
+                    }
+                ]
+            },
+            {
+                id: 'butterfly',
+                name: 'Butterfly',
+                icon: '🦋',
+                difficulty: 'Easy',
+                time: '~5 min',
+                color: 'from-purple-400 to-pink-500',
+                steps: [
+                    {
+                        description: 'Start with a square sheet of paper, colored side up.',
+                        foldType: 'Prepare',
+                        creases: [],
+                        arrows: []
+                    },
+                    {
+                        description: 'Fold the paper in half vertically and unfold.',
+                        foldType: 'Valley Fold',
+                        creases: [{ type: 'valley', x1: 100, y1: 20, x2: 100, y2: 180 }],
+                        arrows: [{ fromX: 100, fromY: 20, toX: 100, toY: 180, color: '#3b82f6' }]
+                    },
+                    {
+                        description: 'Fold the paper in half horizontally and unfold.',
+                        foldType: 'Valley Fold',
+                        creases: [
+                            { type: 'valley', x1: 100, y1: 20, x2: 100, y2: 180 },
+                            { type: 'valley', x1: 20, y1: 100, x2: 180, y2: 100 }
+                        ],
+                        arrows: [{ fromX: 20, fromY: 100, toX: 180, toY: 100, color: '#3b82f6' }]
+                    },
+                    {
+                        description: 'Fold all four corners to the center point.',
+                        foldType: 'Valley Fold',
+                        creases: [
+                            { type: 'valley', x1: 40, y1: 40, x2: 100, y2: 100 },
+                            { type: 'valley', x1: 160, y1: 40, x2: 100, y2: 100 },
+                            { type: 'valley', x1: 40, y1: 160, x2: 100, y2: 100 },
+                            { type: 'valley', x1: 160, y1: 160, x2: 100, y2: 100 }
+                        ],
+                        arrows: [
+                            { fromX: 40, fromY: 40, toX: 80, toY: 80, color: '#3b82f6' },
+                            { fromX: 160, fromY: 40, toX: 120, toY: 80, color: '#3b82f6' },
+                            { fromX: 40, fromY: 160, toX: 80, toY: 120, color: '#3b82f6' },
+                            { fromX: 160, fromY: 160, toX: 120, toY: 120, color: '#3b82f6' }
+                        ]
+                    },
+                    {
+                        description: 'Fold the top and bottom edges to the center.',
+                        foldType: 'Valley Fold',
+                        creases: [
+                            { type: 'valley', x1: 40, y1: 70, x2: 160, y2: 70 },
+                            { type: 'valley', x1: 40, y1: 130, x2: 160, y2: 130 }
+                        ],
+                        arrows: []
+                    },
+                    {
+                        description: 'Fold the triangle flaps outward to create wings.',
+                        foldType: 'Valley Fold',
+                        creases: [
+                            { type: 'valley', x1: 60, y1: 100, x2: 30, y2: 60 },
+                            { type: 'valley', x1: 140, y1: 100, x2: 170, y2: 60 },
+                            { type: 'valley', x1: 60, y1: 100, x2: 30, y2: 140 },
+                            { type: 'valley', x1: 140, y1: 100, x2: 170, y2: 140 }
+                        ],
+                        arrows: []
+                    },
+                    {
+                        description: 'Pinch the center to create the butterfly body and spread the wings.',
+                        foldType: 'Shape',
+                        creases: [],
+                        arrows: []
+                    },
+                    {
+                        description: 'Your beautiful butterfly is complete!',
+                        foldType: 'Finish',
+                        creases: [],
+                        arrows: []
+                    }
+                ]
+            },
+            {
+                id: 'frog',
+                name: 'Jumping Frog',
+                icon: '🐸',
+                difficulty: 'Medium',
+                time: '~8 min',
+                color: 'from-green-400 to-emerald-500',
+                steps: [
+                    {
+                        description: 'Start with a square sheet of paper, colored side down.',
+                        foldType: 'Prepare',
+                        creases: [],
+                        arrows: []
+                    },
+                    {
+                        description: 'Fold the paper in half horizontally and unfold.',
+                        foldType: 'Valley Fold',
+                        creases: [{ type: 'valley', x1: 20, y1: 100, x2: 180, y2: 100 }],
+                        arrows: [{ fromX: 20, fromY: 100, toX: 180, toY: 100, color: '#3b82f6' }]
+                    },
+                    {
+                        description: 'Fold the top corners down to the center line.',
+                        foldType: 'Valley Fold',
+                        creases: [
+                            { type: 'valley', x1: 40, y1: 60, x2: 100, y2: 100 },
+                            { type: 'valley', x1: 160, y1: 60, x2: 100, y2: 100 }
+                        ],
+                        arrows: [
+                            { fromX: 40, fromY: 20, toX: 60, toY: 60, color: '#3b82f6' },
+                            { fromX: 160, fromY: 20, toX: 140, toY: 60, color: '#3b82f6' }
+                        ]
+                    },
+                    {
+                        description: 'Fold the top triangle down.',
+                        foldType: 'Valley Fold',
+                        creases: [{ type: 'valley', x1: 60, y1: 80, x2: 140, y2: 80 }],
+                        arrows: [{ fromX: 100, fromY: 50, toX: 100, toY: 80, color: '#3b82f6' }]
+                    },
+                    {
+                        description: 'Fold the bottom corners up to the top edge.',
+                        foldType: 'Valley Fold',
+                        creases: [
+                            { type: 'valley', x1: 60, y1: 140, x2: 100, y2: 80 },
+                            { type: 'valley', x1: 140, y1: 140, x2: 100, y2: 80 }
+                        ],
+                        arrows: []
+                    },
+                    {
+                        description: 'Fold the sides in to make the body narrower.',
+                        foldType: 'Valley Fold',
+                        creases: [
+                            { type: 'valley', x1: 80, y1: 80, x2: 80, y2: 160 },
+                            { type: 'valley', x1: 120, y1: 80, x2: 120, y2: 160 }
+                        ],
+                        arrows: []
+                    },
+                    {
+                        description: 'Fold the bottom up and crease well, then unfold.',
+                        foldType: 'Valley Fold',
+                        creases: [{ type: 'valley', x1: 80, y1: 140, x2: 120, y2: 140 }],
+                        arrows: [{ fromX: 100, fromY: 170, toX: 100, toY: 140, color: '#3b82f6' }]
+                    },
+                    {
+                        description: 'Push the back legs forward and fold down to create the jumping mechanism.',
+                        foldType: 'Mountain & Valley',
+                        creases: [{ type: 'mountain', x1: 80, y1: 140, x2: 120, y2: 140 }],
+                        arrows: []
+                    },
+                    {
+                        description: 'Add eyes by folding small triangles at the top. Press the back to make it jump!',
+                        foldType: 'Finish',
+                        creases: [],
+                        arrows: []
+                    }
+                ]
+            },
+            {
+                id: 'heart',
+                name: 'Heart',
+                icon: '❤️',
+                difficulty: 'Easy',
+                time: '~3 min',
+                color: 'from-red-400 to-rose-500',
+                steps: [
+                    {
+                        description: 'Start with a square sheet of paper, colored side up.',
+                        foldType: 'Prepare',
+                        creases: [],
+                        arrows: []
+                    },
+                    {
+                        description: 'Fold the paper in half vertically and unfold.',
+                        foldType: 'Valley Fold',
+                        creases: [{ type: 'valley', x1: 100, y1: 20, x2: 100, y2: 180 }],
+                        arrows: [{ fromX: 100, fromY: 20, toX: 100, toY: 180, color: '#3b82f6' }]
+                    },
+                    {
+                        description: 'Fold the paper in half horizontally.',
+                        foldType: 'Valley Fold',
+                        creases: [
+                            { type: 'valley', x1: 100, y1: 20, x2: 100, y2: 180 },
+                            { type: 'valley', x1: 20, y1: 100, x2: 180, y2: 100 }
+                        ],
+                        arrows: [{ fromX: 20, fromY: 100, toX: 180, toY: 100, color: '#3b82f6' }]
+                    },
+                    {
+                        description: 'Fold the top corners down at an angle to form the top curves of the heart.',
+                        foldType: 'Valley Fold',
+                        creases: [
+                            { type: 'valley', x1: 80, y1: 60, x2: 100, y2: 100 },
+                            { type: 'valley', x1: 120, y1: 60, x2: 100, y2: 100 }
+                        ],
+                        arrows: [
+                            { fromX: 60, fromY: 40, toX: 90, toY: 70, color: '#3b82f6' },
+                            { fromX: 140, fromY: 40, toX: 110, toY: 70, color: '#3b82f6' }
+                        ]
+                    },
+                    {
+                        description: 'Fold the bottom point up to create the heart tip.',
+                        foldType: 'Valley Fold',
+                        creases: [
+                            { type: 'valley', x1: 100, y1: 140, x2: 100, y2: 180 }
+                        ],
+                        arrows: [{ fromX: 100, fromY: 180, toX: 100, toY: 140, color: '#3b82f6' }]
+                    },
+                    {
+                        description: 'Unfold and shape the heart by adjusting the curves.',
+                        foldType: 'Shape',
+                        creases: [],
+                        arrows: []
+                    },
+                    {
+                        description: 'Your heart is complete! Perfect for Valentine\'s Day!',
+                        foldType: 'Finish',
+                        creases: [],
+                        arrows: []
+                    }
+                ]
+            },
+            {
+                id: 'star',
+                name: 'Star',
+                icon: '⭐',
+                difficulty: 'Medium',
+                time: '~7 min',
+                color: 'from-yellow-400 to-amber-500',
+                steps: [
+                    {
+                        description: 'Start with a square sheet of paper, colored side down.',
+                        foldType: 'Prepare',
+                        creases: [],
+                        arrows: []
+                    },
+                    {
+                        description: 'Fold the paper in half diagonally both ways to create an "X" crease.',
+                        foldType: 'Valley Fold',
+                        creases: [
+                            { type: 'valley', x1: 100, y1: 20, x2: 100, y2: 180 },
+                            { type: 'valley', x1: 30, y1: 100, x2: 170, y2: 100 }
+                        ],
+                        arrows: []
+                    },
+                    {
+                        description: 'Fold in half vertically and horizontally.',
+                        foldType: 'Valley Fold',
+                        creases: [
+                            { type: 'valley', x1: 100, y1: 20, x2: 100, y2: 180 },
+                            { type: 'valley', x1: 30, y1: 100, x2: 170, y2: 100 },
+                            { type: 'valley', x1: 20, y1: 100, x2: 180, y2: 100, existing: true },
+                            { type: 'valley', x1: 100, y1: 20, x2: 100, y2: 180, existing: true }
+                        ],
+                        arrows: []
+                    },
+                    {
+                        description: 'Bring all corners to the center to create a smaller square.',
+                        foldType: 'Valley Fold',
+                        creases: [
+                            { type: 'valley', x1: 30, y1: 30, x2: 100, y2: 100 },
+                            { type: 'valley', x1: 170, y1: 30, x2: 100, y2: 100 },
+                            { type: 'valley', x1: 30, y1: 170, x2: 100, y2: 100 },
+                            { type: 'valley', x1: 170, y1: 170, x2: 100, y2: 100 }
+                        ],
+                        arrows: []
+                    },
+                    {
+                        description: 'Fold the new corners to the center again.',
+                        foldType: 'Valley Fold',
+                        creases: [
+                            { type: 'valley', x1: 55, y1: 55, x2: 100, y2: 100 },
+                            { type: 'valley', x1: 145, y1: 55, x2: 100, y2: 100 },
+                            { type: 'valley', x1: 55, y1: 145, x2: 100, y2: 100 },
+                            { type: 'valley', x1: 145, y1: 145, x2: 100, y2: 100 }
+                        ],
+                        arrows: []
+                    },
+                    {
+                        description: 'Unfold the last two folds completely.',
+                        foldType: 'Unfold',
+                        creases: [
+                            { type: 'valley', x1: 55, y1: 55, x2: 100, y2: 100, existing: true },
+                            { type: 'valley', x1: 145, y1: 55, x2: 100, y2: 100, existing: true },
+                            { type: 'valley', x1: 55, y1: 145, x2: 100, y2: 100, existing: true },
+                            { type: 'valley', x1: 145, y1: 145, x2: 100, y2: 100, existing: true }
+                        ],
+                        arrows: []
+                    },
+                    {
+                        description: 'Lift and pinch the corners to form the star points.',
+                        foldType: 'Mountain & Valley',
+                        creases: [],
+                        arrows: []
+                    },
+                    {
+                        description: 'Your shining star is complete!',
+                        foldType: 'Finish',
+                        creases: [],
+                        arrows: []
+                    }
+                ]
+            }
+        ];
+
+        let currentModel = models[0];
+        let currentStep = 0;
+        let currentView = 'solid';
+        let isPlaying = false;
+        let animationInterval = null;
+
+        // Initialize
+        function init() {
+            renderModelGrid();
+            selectModel(currentModel.id);
+        }
+
+        // Render model selection grid
+        function renderModelGrid() {
+            const grid = document.getElementById('model-grid');
+            grid.innerHTML = models.map(model => `
+                <div class="model-card cursor-pointer" onclick="selectModel('${model.id}')">
+                    <div class="bg-gradient-to-br ${model.color} rounded-xl p-6 text-center">
+                        <div class="text-4xl mb-2">${model.icon}</div>
+                        <h3 class="text-white font-semibold">${model.name}</h3>
+                        <p class="text-white/80 text-sm">${model.difficulty}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Select a model
+        function selectModel(modelId) {
+            currentModel = models.find(m => m.id === modelId);
+            currentStep = 0;
+            stopAnimation();
+            updateUI();
+            renderPaper();
+        }
+
+        // Update UI elements
+        function updateUI() {
+            document.getElementById('model-title').textContent = currentModel.name;
+            document.getElementById('difficulty').textContent = currentModel.difficulty;
+            document.getElementById('time').textContent = currentModel.time;
+            document.getElementById('step-description').textContent = currentModel.steps[currentStep].description;
+            document.getElementById('fold-type').textContent = currentModel.steps[currentStep].foldType;
+            document.getElementById('current-step-display').textContent = `Step ${currentStep + 1}`;
+            document.getElementById('total-steps-display').textContent = currentModel.steps.length;
+
+            // Update fold type badge color
+            const foldType = currentModel.steps[currentStep].foldType.toLowerCase();
+            const foldBadge = document.getElementById('fold-type');
+            if (foldType.includes('valley')) {
+                foldBadge.className = 'px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium';
+            } else if (foldType.includes('mountain')) {
+                foldBadge.className = 'px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-medium';
+            } else if (foldType.includes('unfold')) {
+                foldBadge.className = 'px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm font-medium';
+            } else if (foldType.includes('finish')) {
+                foldBadge.className = 'px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium';
+            } else {
+                foldBadge.className = 'px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-medium';
+            }
+
+            // Render step indicators
+            renderStepIndicators();
+
+            // Render steps list
+            renderStepsList();
+        }
+
+        // Render step indicators
+        function renderStepIndicators() {
+            const container = document.getElementById('step-indicators');
+            container.innerHTML = currentModel.steps.map((_, index) => `
+                <button onclick="goToStep(${index})" 
+                    class="step-indicator w-10 h-10 rounded-full font-medium transition
+                    ${index === currentStep
+                    ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white scale-110'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}">
+                    ${index + 1}
+                </button>
+            `).join('');
+        }
+
+        // Render steps list
+        function renderStepsList() {
+            const container = document.getElementById('steps-list');
+            container.innerHTML = currentModel.steps.map((step, index) => `
+                <div class="flex items-start gap-3 p-3 rounded-lg cursor-pointer transition
+                    ${index === currentStep ? 'bg-orange-50 border border-orange-200' : 'hover:bg-gray-50'}"
+                    onclick="goToStep(${index})">
+                    <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium
+                        ${index === currentStep
+                    ? 'bg-orange-500 text-white'
+                    : index < currentStep
+                        ? 'bg-green-500 text-white'
+                        : 'bg-gray-200 text-gray-600'}">
+                        ${index + 1}
+                    </div>
+                    <p class="text-sm text-gray-700 ${index === currentStep ? 'font-medium' : ''}">${step.description}</p>
+                </div>
+            `).join('');
+        }
+
+        // Render paper preview
+        function renderPaper() {
+            const svg = document.getElementById('paper-preview');
+            const step = currentModel.steps[currentStep];
+
+            let content = '';
+
+            // Draw paper base
+            if (currentView === 'solid') {
+                content += `
+                    <rect x="20" y="20" width="160" height="160" fill="#fef3c7" stroke="#d97706" stroke-width="2" rx="2"/>
+                    <rect x="20" y="20" width="160" height="160" fill="url(#paperGradient)" opacity="0.3"/>
+                `;
+            } else {
+                content += `
+                    <rect x="20" y="20" width="160" height="160" fill="#ffffff" stroke="#9ca3af" stroke-width="2" rx="2"/>
+                `;
+            }
+
+            // Draw creases
+            step.creases.forEach(crease => {
+                const className = crease.existing ? 'crease-line' :
+                    crease.type === 'mountain' ? 'mountain-fold' : 'valley-fold';
+                const opacity = crease.existing ? '0.4' : '1';
+                content += `<line x1="${crease.x1}" y1="${crease.y1}" x2="${crease.x2}" y2="${crease.y2}" 
+                    class="${className}" opacity="${opacity}"/>`;
+            });
+
+            // Draw arrows
+            step.arrows.forEach(arrow => {
+                const angle = Math.atan2(arrow.toY - arrow.fromY, arrow.toX - arrow.fromX);
+                const arrowLength = Math.sqrt(Math.pow(arrow.toX - arrow.fromX, 2) + Math.pow(arrow.toY - arrow.fromY, 2));
+
+                content += `
+                    <defs>
+                        <marker id="arrowhead-${arrow.color.replace('#', '')}" markerWidth="10" markerHeight="7" 
+                            refX="9" refY="3.5" orient="auto">
+                            <polygon points="0 0, 10 3.5, 0 7" fill="${arrow.color}"/>
+                        </marker>
+                    </defs>
+                    <line x1="${arrow.fromX}" y1="${arrow.fromY}" x2="${arrow.toX}" y2="${arrow.toY}" 
+                        stroke="${arrow.color}" stroke-width="3" marker-end="url(#arrowhead-${arrow.color.replace('#', '')})"
+                        class="arrow-indicator"/>
+                `;
+            });
+
+            // Add gradient definition
+            content += `
+                <defs>
+                    <linearGradient id="paperGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#f59e0b;stop-opacity:0.5"/>
+                        <stop offset="100%" style="stop-color:#d97706;stop-opacity:0.5"/>
+                    </linearGradient>
+                </defs>
+            `;
+
+            svg.innerHTML = content;
+
+            // Trigger animation
+            if (step.arrows.length > 0) {
+                const arrows = svg.querySelectorAll('.arrow-indicator');
+                arrows.forEach((arrow, i) => {
+                    setTimeout(() => {
+                        arrow.style.opacity = '0';
+                        setTimeout(() => {
+                            arrow.style.opacity = '1';
+                        }, 50);
+                    }, i * 200);
+                });
+            }
+        }
+
+        // Toggle view between solid and crease pattern
+        function toggleView(view) {
+            currentView = view;
+            document.getElementById('view-solid').className = view === 'solid'
+                ? 'px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium transition'
+                : 'px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition hover:bg-gray-300';
+            document.getElementById('view-crease').className = view === 'crease'
+                ? 'px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium transition'
+                : 'px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition hover:bg-gray-300';
+            renderPaper();
+        }
+
+        // Navigation functions
+        function goToStep(step) {
+            currentStep = step;
+            updateUI();
+            renderPaper();
+        }
+
+        function nextStep() {
+            if (currentStep < currentModel.steps.length - 1) {
+                currentStep++;
+                updateUI();
+                renderPaper();
+            }
+        }
+
+        function prevStep() {
+            if (currentStep > 0) {
+                currentStep--;
+                updateUI();
+                renderPaper();
+            }
+        }
+
+        // Animation controls
+        function playAnimation() {
+            if (isPlaying) {
+                stopAnimation();
+                return;
+            }
+
+            isPlaying = true;
+            document.getElementById('play-icon').innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+
+            animationInterval = setInterval(() => {
+                if (currentStep < currentModel.steps.length - 1) {
+                    nextStep();
+                } else {
+                    stopAnimation();
+                }
+            }, 2000);
+        }
+
+        function stopAnimation() {
+            isPlaying = false;
+            document.getElementById('play-icon').innerHTML = '<path d="M8 5v14l11-7z"/>';
+            if (animationInterval) {
+                clearInterval(animationInterval);
+                animationInterval = null;
+            }
+        }
+
+        // Modal controls
+        function showLegend() {
+            document.getElementById('legend-modal').classList.remove('hidden');
+            document.getElementById('legend-modal').classList.add('flex');
+        }
+
+        function hideLegend() {
+            document.getElementById('legend-modal').classList.add('hidden');
+            document.getElementById('legend-modal').classList.remove('flex');
+        }
+
+        function showModels() {
+            document.getElementById('model-selection').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Close modal on outside click
+        document.getElementById('legend-modal').addEventListener('click', function (e) {
+            if (e.target === this) {
+                hideLegend();
+            }
+        });
+
+        // Keyboard navigation
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'ArrowRight') {
+                nextStep();
+            } else if (e.key === 'ArrowLeft') {
+                prevStep();
+            } else if (e.key === ' ') {
+                e.preventDefault();
+                playAnimation();
+            }
+        });
+
+        // Initialize on load
+        init();
+    </script>
+</body>
+
+</html>
