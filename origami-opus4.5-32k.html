@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Origami Guide - Interactive Folding Tutorial</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap');
+
+        body {
+            font-family: 'Nunito', sans-serif;
+        }
+
+        .paper-container {
+            perspective: 1000px;
+        }
+
+        .paper {
+            transform-style: preserve-3d;
+            transition: transform 0.8s ease-in-out;
+        }
+
+        .fold-line {
+            stroke-dasharray: 5, 5;
+            animation: dash 1s linear infinite;
+        }
+
+        @keyframes dash {
+            to {
+                stroke-dashoffset: -10;
+            }
+        }
+
+        .crease-pattern line {
+            transition: all 0.3s ease;
+        }
+
+        .model-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .step-indicator.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .arrow-animate {
+            animation: arrowMove 1s ease-in-out infinite;
+        }
+
+        @keyframes arrowMove {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
+        .fold-animation {
+            animation: foldPaper 2s ease-in-out forwards;
+        }
+
+        @keyframes foldPaper {
+            0% {
+                transform: rotateX(0deg);
+            }
+
+            100% {
+                transform: rotateX(-180deg);
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-gradient-to-br from-amber-50 to-orange-100 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white/80 backdrop-blur-sm shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="text-4xl">🦢</div>
+                    <div>
+                        <h1
+                            class="text-2xl font-bold bg-gradient-to-r from-orange-500 to-pink-500 bg-clip-text text-transparent">
+                            Origami Master</h1>
+                        <p class="text-sm text-gray-500">Interactive Folding Guide</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <button id="toggleCrease"
+                        class="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition font-semibold">
+                        📐 Crease Pattern
+                    </button>
+                    <button id="autoPlay"
+                        class="px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition font-semibold">
+                        ▶️ Auto Play
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-8">
+        <!-- Model Selection -->
+        <section class="mb-8">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Choose Your Model</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4" id="modelGrid">
+                <!-- Models will be inserted here -->
+            </div>
+        </section>
+
+        <!-- Main Content -->
+        <div class="grid lg:grid-cols-3 gap-8">
+            <!-- Paper Preview -->
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-2xl shadow-xl p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-bold text-gray-800" id="currentModelName">Paper Crane</h3>
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm text-gray-500">Difficulty:</span>
+                            <div id="difficultyStars" class="flex gap-1"></div>
+                        </div>
+                    </div>
+
+                    <!-- Paper Display -->
+                    <div
+                        class="paper-container bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl p-8 flex items-center justify-center min-h-[400px] relative">
+                        <svg id="paperSvg" viewBox="0 0 400 400" class="w-full max-w-md paper">
+                            <!-- Paper will be drawn here -->
+                        </svg>
+
+                        <!-- Crease Pattern Overlay -->
+                        <svg id="creaseSvg" viewBox="0 0 400 400"
+                            class="w-full max-w-md absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 transition-opacity duration-300 pointer-events-none crease-pattern">
+                            <!-- Crease pattern will be drawn here -->
+                        </svg>
+                    </div>
+
+                    <!-- Step Controls -->
+                    <div class="mt-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <button id="prevStep"
+                                class="px-6 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
+                                ← Previous
+                            </button>
+                            <div class="text-center">
+                                <span class="text-2xl font-bold text-gray-800" id="stepNumber">1</span>
+                                <span class="text-gray-500">/ <span id="totalSteps">8</span></span>
+                            </div>
+                            <button id="nextStep"
+                                class="px-6 py-3 bg-gradient-to-r from-orange-500 to-pink-500 text-white rounded-xl hover:opacity-90 transition font-semibold">
+                                Next →
+                            </button>
+                        </div>
+
+                        <!-- Step Indicators -->
+                        <div class="flex gap-2 justify-center flex-wrap" id="stepIndicators">
+                            <!-- Step dots will be inserted here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Instructions Panel -->
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-2xl shadow-xl p-6 sticky top-24">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">📖 Instructions</h3>
+
+                    <div class="space-y-4">
+                        <div class="bg-amber-50 rounded-xl p-4 border-l-4 border-amber-400">
+                            <h4 class="font-bold text-amber-800 mb-2" id="stepTitle">Step 1</h4>
+                            <p class="text-gray-700" id="stepDescription">Start with a square piece of paper, colored
+                                side down.</p>
+                        </div>
+
+                        <div class="bg-blue-50 rounded-xl p-4">
+                            <h4 class="font-semibold text-blue-800 mb-2">💡 Tip</h4>
+                            <p class="text-sm text-gray-600" id="stepTip">Make sure your creases are sharp and precise
+                                for best results.</p>
+                        </div>
+
+                        <div class="bg-purple-50 rounded-xl p-4">
+                            <h4 class="font-semibold text-purple-800 mb-2">🎯 Fold Type</h4>
+                            <div class="flex items-center gap-3" id="foldTypeDisplay">
+                                <div class="w-10 h-10 bg-purple-200 rounded-lg flex items-center justify-center">
+                                    <span class="text-xl">⬇️</span>
+                                </div>
+                                <span class="text-gray-700" id="foldTypeName">Valley Fold</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Legend -->
+                    <div class="mt-6 pt-6 border-t border-gray-200">
+                        <h4 class="font-semibold text-gray-800 mb-3">Legend</h4>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-0.5 bg-blue-500"></div>
+                                <span class="text-gray-600">Valley Fold</span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-0.5 border-t-2 border-dashed border-red-500"></div>
+                                <span class="text-gray-600">Mountain Fold</span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-0.5 bg-green-500"></div>
+                                <span class="text-gray-600">Existing Crease</span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="text-lg">➡️</span>
+                                <span class="text-gray-600">Fold Direction</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-12 py-6 bg-white/50 backdrop-blur-sm">
+        <div class="max-w-7xl mx-auto px-4 text-center text-gray-500">
+            <p>✨ Happy Folding! Practice makes perfect. ✨</p>
+        </div>
+    </footer>
+
+    <script>
+        // Origami Models Data
+        const models = {
+            crane: {
+                name: "Paper Crane",
+                emoji: "🦢",
+                difficulty: 4,
+                steps: [
+                    {
+                        title: "Start Position",
+                        description: "Start with a square piece of paper, colored side up. Rotate it to look like a diamond.",
+                        tip: "Use thin, crisp paper for best results. Traditional origami paper works great!",
+                        foldType: "none",
+                        foldIcon: "📄",
+                        draw: (ctx) => drawSquare(ctx, 0, '#ff6b6b', '#fff')
+                    },
+                    {
+                        title: "Diagonal Fold",
+                        description: "Fold the paper in half diagonally, bringing the bottom corner to the top corner.",
+                        tip: "Align the edges precisely before making the crease.",
+                        foldType: "valley",
+                        foldIcon: "⬇️",
+                        draw: (ctx) => drawTriangle(ctx, 0, '#ff6b6b')
+                    },
+                    {
+                        title: "Second Diagonal",
+                        description: "Unfold, then fold diagonally the other way. Unfold again.",
+                        tip: "You should now have an X crease pattern.",
+                        foldType: "valley",
+                        foldIcon: "⬇️",
+                        draw: (ctx) => drawSquareWithCreases(ctx, '#ff6b6b')
+                    },
+                    {
+                        title: "Horizontal Fold",
+                        description: "Turn paper over. Fold in half horizontally and unfold. Fold in half vertically and unfold.",
+                        tip: "The paper should now have a grid of creases.",
+                        foldType: "mountain",
+                        foldIcon: "⬆️",
+                        draw: (ctx) => drawSquareWithAllCreases(ctx, '#fff')
+                    },
+                    {
+                        title: "Square Base",
+                        description: "Using the creases as guides, collapse the paper into a smaller square (preliminary base).",
+                        tip: "Push the sides in while bringing the top down.",
+                        foldType: "collapse",
+                        foldIcon: "🔄",
+                        draw: (ctx) => drawSquareBase(ctx, '#ff6b6b')
+                    },
+                    {
+                        title: "Kite Fold",
+                        description: "Fold the left and right edges to the center line.",
+                        tip: "Make sure the flaps are even on both sides.",
+                        foldType: "valley",
+                        foldIcon: "⬇️",
+                        draw: (ctx) => drawKiteFold(ctx, '#ff6b6b')
+                    },
+                    {
+                        title: "Petal Fold",
+                        description: "Lift the bottom point up and fold along the creases to create the petal fold. Repeat on back.",
+                        tip: "This is the trickiest step - take your time!",
+                        foldType: "petal",
+                        foldIcon: "🌸",
+                        draw: (ctx) => drawPetalFold(ctx, '#ff6b6b')
+                    },
+                    {
+                        title: "Fold Wings Down",
+                        description: "Fold the top flaps down on each side to form the wings.",
+                        tip: "The narrow points will become the head and tail.",
+                        foldType: "valley",
+                        foldIcon: "⬇️",
+                        draw: (ctx) => drawWingFold(ctx, '#ff6b6b')
+                    },
+                    {
+                        title: "Form Head",
+                        description: "Inside reverse fold one of the narrow points to create the head.",
+                        tip: "Push the tip inside and fold to create the beak.",
+                        foldType: "reverse",
+                        foldIcon: "↩️",
+                        draw: (ctx) => drawCraneFinal(ctx, '#ff6b6b')
+                    }
+                ]
+            },
+            boat: {
+                name: "Paper Boat",
+                emoji: "⛵",
+                difficulty: 2,
+                steps: [
+                    {
+                        title: "Start Position",
+                        description: "Start with a rectangular piece of paper (letter size works great).",
+                        tip: "Any rectangular paper will work for this model.",
+                        foldType: "none",
+                        foldIcon: "📄",
+                        draw: (ctx) => drawRectangle(ctx, '#4299e1')
+                    },
+                    {
+                        title: "Fold in Half",
+                        description: "Fold the paper in half from top to bottom.",
+                        tip: "Make sure the edges align perfectly.",
+                        foldType: "valley",
+                        foldIcon: "⬇️",
+                        draw: (ctx) => drawFoldedRectangle(ctx, '#4299e1')
+                    },
+                    {
+                        title: "Create Triangle",
+                        description: "Fold the top corners down to meet at the center.",
+                        tip: "Leave some space at the bottom for the next step.",
+                        foldType: "valley",
+                        foldIcon: "⬇️",
+                        draw: (ctx) => drawBoatTriangle(ctx, '#4299e1')
+                    },
+                    {
+                        title: "Fold Bottom Flaps",
+                        description: "Fold the bottom rectangular flaps up on each side.",
+                        tip: "Fold one to the front and one to the back.",
+                        foldType: "valley",
+                        foldIcon: "⬆️",
+                        draw: (ctx) => drawBoatHat(ctx, '#4299e1')
+                    },
+                    {
+                        title: "Open and Flatten",
+                        description: "Open from the bottom and flatten into a square shape.",
+                        tip: "This is called a squash fold.",
+                        foldType: "squash",
+                        foldIcon: "🔄",
+                        draw: (ctx) => drawBoatSquare(ctx, '#4299e1')
+                    },
+                    {
+                        title: "Final Shape",
+                        description: "Pull the top layers apart gently to form the boat shape.",
+                        tip: "You can adjust the sails by pulling more or less.",
+                        foldType: "pull",
+                        foldIcon: "↔️",
+                        draw: (ctx) => drawBoatFinal(ctx, '#4299e1')
+                    }
+                ]
+            },
+            heart: {
+                name: "Paper Heart",
+                emoji: "❤️",
+                difficulty: 1,
+                steps: [
+                    {
+                        title: "Start Position",
+                        description: "Start with a square piece of paper, colored side down.",
+                        tip: "Red or pink paper makes the cutest hearts!",
+                        foldType: "none",
+                        foldIcon: "📄",
+                        draw: (ctx) => drawSquare(ctx, 0, '#fff', '#fc8181')
+                    },
+                    {
+                        title: "Fold in Half",
+                        description: "Fold the paper in half from bottom to top, then unfold.",
+                        tip: "This creates a center crease guide.",
+                        foldType: "valley",
+                        foldIcon: "⬇️",
+                        draw: (ctx) => drawHeartStep2(ctx)
+                    },
+                    {
+                        title: "Fold to Center",
+                        description: "Fold the bottom edge up to meet the center crease.",
+                        tip: "Keep the fold parallel to the edge.",
+                        foldType: "valley",
+                        foldIcon: "⬆️",
+                        draw: (ctx) => drawHeartStep3(ctx)
+                    },
+                    {
+                        title: "Flip and Fold",
+                        description: "Turn over. Fold the bottom corners up to the center top.",
+                        tip: "The corners should meet at the top center.",
+                        foldType: "valley",
+                        foldIcon: "⬆️",
+                        draw: (ctx) => drawHeartStep4(ctx)
+                    },
+                    {
+                        title: "Round the Corners",
+                        description: "Fold down the top corners and side corners to round the heart shape.",
+                        tip: "Small folds make the heart look more rounded.",
+                        foldType: "valley",
+                        foldIcon: "⬇️",
+                        draw: (ctx) => drawHeartFinal(ctx)
+                    }
+                ]
+            },
+            airplane: {
+                name: "Paper Airplane",
+                emoji: "✈️",
+                difficulty: 1,
+                steps: [
+                    {
+                        title: "Start Position",
+                        description: "Start with a rectangular piece of paper in portrait orientation.",
+                        tip: "Letter or A4 paper works perfectly.",
+                        foldType: "none",
+                        foldIcon: "📄",
+                        draw: (ctx) => drawRectangle(ctx, '#48bb78')
+                    },
+                    {
+                        title: "Fold in Half",
+                        description: "Fold the paper in half lengthwise, then unfold to create a center crease.",
+                        tip: "This center line will be your guide.",
+                        foldType: "valley",
+                        foldIcon: "⬇️",
+                        draw: (ctx) => drawPlaneStep2(ctx)
+                    },
+                    {
+                        title: "Fold Top Corners",
+                        description: "Fold the top corners down to meet the center crease.",
+                        tip: "Make sure both sides are symmetrical.",
+                        foldType: "valley",
+                        foldIcon: "⬇️",
+                        draw: (ctx) => drawPlaneStep3(ctx)
+                    },
+                    {
+                        title: "Fold Triangle Down",
+                        description: "Fold the pointed top down about 2 inches from the tip.",
+                        tip: "This adds weight to the nose for better flight.",
+                        foldType: "valley",
+                        foldIcon: "⬇️",
+                        draw: (ctx) => drawPlaneStep4(ctx)
+                    },
+                    {
+                        title: "Fold in Half",
+                        description: "Fold the entire plane in half along the center crease.",
+                        tip: "The previous folds should be on the outside.",
+                        foldType: "valley",
+                        foldIcon: "⬇️",
+                        draw: (ctx) => drawPlaneStep5(ctx)
+                    },
+                    {
+                        title: "Create Wings",
+                        description: "Fold down each wing, aligning with the bottom edge of the body.",
+                        tip: "Make both wings equal for balanced flight!",
+                        foldType: "valley",
+                        foldIcon: "⬇️",
+                        draw: (ctx) => drawPlaneFinal(ctx)
+                    }
+                ]
+            },
+            frog: {
+                name: "Jumping Frog",
+                emoji: "🐸",
+                difficulty: 3,
+                steps: [
+                    {
+                        title: "Start Position",
+                        description: "Start with a rectangular piece of paper, colored side up.",
+                        tip: "Green paper makes the most realistic frog!",
+                        foldType: "none",
+                        foldIcon: "📄",
+                        draw: (ctx) => drawRectangle(ctx, '#68d391')
+                    },
+                    {
+                        title: "Create X Crease",
+                        description: "Fold the top right corner to the left edge, unfold. Repeat with top left corner.",
+                        tip: "This creates an X at the top of the paper.",
+                        foldType: "valley",
+                        foldIcon: "⬇️",
+                        draw: (ctx) => drawFrogStep2(ctx)
+                    },
+                    {
+                        title: "Collapse Top",
+                        description: "Push the sides in and collapse the top into a triangle.",
+                        tip: "Use the X creases as guides.",
+                        foldType: "collapse",
+                        foldIcon: "🔄",
+                        draw: (ctx) => drawFrogStep3(ctx)
+                    },
+                    {
+                        title: "Create Front Legs",
+                        description: "Fold the triangle flaps up and outward to form the front legs.",
+                        tip: "Angle them outward for the leg shape.",
+                        foldType: "valley",
+                        foldIcon: "⬆️",
+                        draw: (ctx) => drawFrogStep4(ctx)
+                    },
+                    {
+                        title: "Fold Sides In",
+                        description: "Fold both sides of the rectangle to meet at the center.",
+                        tip: "This creates the body of the frog.",
+                        foldType: "valley",
+                        foldIcon: "➡️",
+                        draw: (ctx) => drawFrogStep5(ctx)
+                    },
+                    {
+                        title: "Create Back Legs",
+                        description: "Fold the bottom up, then fold it back down to create a spring mechanism.",
+                        tip: "This is what makes the frog jump!",
+                        foldType: "valley",
+                        foldIcon: "⬆️",
+                        draw: (ctx) => drawFrogFinal(ctx)
+                    }
+                ]
+            }
+        };
+
+        // Current state
+        let currentModel = 'crane';
+        let currentStep = 0;
+        let showCrease = false;
+        let isAutoPlaying = false;
+        let autoPlayInterval = null;
+
+        // DOM Elements
+        const paperSvg = document.getElementById('paperSvg');
+        const creaseSvg = document.getElementById('creaseSvg');
+        const modelGrid = document.getElementById('modelGrid');
+        const stepIndicators = document.getElementById('stepIndicators');
+        const prevBtn = document.getElementById('prevStep');
+        const nextBtn = document.getElementById('nextStep');
+        const toggleCreaseBtn = document.getElementById('toggleCrease');
+        const autoPlayBtn = document.getElementById('autoPlay');
+
+        // Initialize
+        function init() {
+            renderModelGrid();
+            selectModel('crane');
+            setupEventListeners();
+        }
+
+        // Render model selection grid
+        function renderModelGrid() {
+            modelGrid.innerHTML = Object.entries(models).map(([key, model]) => `
+                <div class="model-card bg-white rounded-xl p-4 shadow-md cursor-pointer transition hover:shadow-lg border-2 ${currentModel === key ? 'border-orange-500' : 'border-transparent'}" data-model="${key}">
+                    <div class="text-4xl text-center mb-2">${model.emoji}</div>
+                    <h3 class="font-semibold text-center text-gray-800">${model.name}</h3>
+                    <div class="flex justify-center mt-2">
+                        ${renderStars(model.difficulty)}
+                    </div>
+                </div>
+            `).join('');
+
+            // Add click listeners
+            document.querySelectorAll('.model-card').forEach(card => {
+                card.addEventListener('click', () => selectModel(card.dataset.model));
+            });
+        }
+
+        // Render difficulty stars
+        function renderStars(count) {
+            return Array(5).fill(0).map((_, i) =>
+                `<span class="text-sm ${i < count ? 'text-yellow-400' : 'text-gray-300'}">★</span>`
+            ).join('');
+        }
+
+        // Select a model
+        function selectModel(modelKey) {
+            currentModel = modelKey;
+            currentStep = 0;
+
+            // Stop auto play if running
+            if (isAutoPlaying) toggleAutoPlay();
+
+            // Update UI
+            document.getElementById('currentModelName').textContent = models[modelKey].name;
+            document.getElementById('difficultyStars').innerHTML = renderStars(models[modelKey].difficulty);
+            document.getElementById('totalSteps').textContent = models[modelKey].steps.length;
+
+            // Update model cards
+            document.querySelectorAll('.model-card').forEach(card => {
+                card.classList.toggle('border-orange-500', card.dataset.model === modelKey);
+                card.classList.toggle('border-transparent', card.dataset.model !== modelKey);
+            });
+
+            renderStepIndicators();
+            updateStep();
+        }
+
+        // Render step indicators
+        function renderStepIndicators() {
+            const steps = models[currentModel].steps;
+            stepIndicators.innerHTML = steps.map((_, i) => `
+                <button class="step-indicator w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition ${i === currentStep ? 'bg-gradient-to-r from-orange-500 to-pink-500 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}" data-step="${i}">
+                    ${i + 1}
+                </button>
+            `).join('');
+
+            // Add click listeners
+            document.querySelectorAll('.step-indicator').forEach(indicator => {
+                indicator.addEventListener('click', () => goToStep(parseInt(indicator.dataset.step)));
+            });
+        }
+
+        // Go to specific step
+        function goToStep(step) {
+            currentStep = step;
+            updateStep();
+        }
+
+        // Update current step display
+        function updateStep() {
+            const model = models[currentModel];
+            const step = model.steps[currentStep];
+
+            // Update step info
+            document.getElementById('stepNumber').textContent = currentStep + 1;
+            document.getElementById('stepTitle').textContent = step.title;
+            document.getElementById('stepDescription').textContent = step.description;
+            document.getElementById('stepTip').textContent = step.tip;
+            document.getElementById('foldTypeName').textContent = getFoldTypeName(step.foldType);
+            document.querySelector('#foldTypeDisplay span').textContent = step.foldIcon;
+
+            // Update indicators
+            document.querySelectorAll('.step-indicator').forEach((indicator, i) => {
+                indicator.classList.toggle('bg-gradient-to-r', i === currentStep);
+                indicator.classList.toggle('from-orange-500', i === currentStep);
+                indicator.classList.toggle('to-pink-500', i === currentStep);
+                indicator.classList.toggle('text-white', i === currentStep);
+                indicator.classList.toggle('bg-gray-200', i !== currentStep);
+                indicator.classList.toggle('text-gray-600', i !== currentStep);
+            });
+
+            // Update buttons
+            prevBtn.disabled = currentStep === 0;
+            nextBtn.textContent = currentStep === model.steps.length - 1 ? 'Complete! ✓' : 'Next →';
+
+            // Draw paper
+            drawPaper();
+            drawCreasePattern();
+        }
+
+        // Get fold type name
+        function getFoldTypeName(type) {
+            const names = {
+                none: 'No Fold',
+                valley: 'Valley Fold',
+                mountain: 'Mountain Fold',
+                collapse: 'Collapse/Squash',
+                petal: 'Petal Fold',
+                reverse: 'Reverse Fold',
+                squash: 'Squash Fold',
+                pull: 'Pull Apart'
+            };
+            return names[type] || 'Fold';
+        }
+
+        // Draw paper visualization
+        function drawPaper() {
+            const model = models[currentModel];
+            const step = model.steps[currentStep];
+
+            // Add animation class
+            paperSvg.classList.add('fold-animation');
+            setTimeout(() => paperSvg.classList.remove('fold-animation'), 100);
+
+            step.draw(paperSvg);
+        }
+
+        // Drawing functions
+        function drawSquare(svg, rotation, color1, color2) {
+            svg.innerHTML = `
+                <defs>
+                    <linearGradient id="paperGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:${color1};stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:${color2 || color1};stop-opacity:1" />
+                    </linearGradient>
+                    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feDropShadow dx="3" dy="3" stdDeviation="5" flood-opacity="0.3"/>
+                    </filter>
+                </defs>
+                <g transform="rotate(${rotation}, 200, 200)" filter="url(#shadow)">
+                    <rect x="80" y="80" width="240" height="240" fill="url(#paperGrad)" stroke="#ccc" stroke-width="2" rx="2"/>
+                </g>
+            `;
+        }
+
+        function drawTriangle(svg, rotation, color) {
+            svg.innerHTML = `
+                <defs>
+                    <filter id="shadow"><feDropShadow dx="3" dy="3" stdDeviation="5" flood-opacity="0.3"/></filter>
+                </defs>
+                <g filter="url(#shadow)">
+                    <polygon points="200,80 320,320 80,320" fill="${color}" stroke="#ccc" stroke-width="2"/>
+                    <line x1="200" y1="80" x2="200" y2="320" stroke="#888" stroke-width="1" stroke-dasharray="5,5" class="fold-line"/>
+                </g>
+            `;
+        }
+
+        function drawSquareWithCreases(svg, color) {
+            svg.innerHTML = `
+                <defs><filter id="shadow"><feDropShadow dx="3" dy="3" stdDeviation="5" flood-opacity="0.3"/></filter></defs>
+                <g transform="rotate(45, 200, 200)" filter="url(#shadow)">
+                    <rect x="80" y="80" width="240" height="240" fill="${color}" stroke="#ccc" stroke-width="2"/>
+                    <line x1="80" y1="200" x2="320" y2="200" stroke="#888" stroke-width="2"/>
+                    <line x1="200" y1="80" x2="200" y2="320" stroke="#888" stroke-width="2"/>
+                </g>
+            `;
+        }
+
+        function drawSquareWithAllCreases(svg, color) {
+            svg.innerHTML = `
+                <defs><filter id="shadow"><feDropShadow dx="3" dy="3" stdDeviation="5" flood-opacity="0.3"/></filter></defs>
+                <g transform="rotate(45, 200, 200)" filter="url(#shadow)">
+                    <rect x="80" y="80" width="240" height="240" fill="${color}" stroke="#ccc" stroke-width="2"/>
+                    <line x1="80" y1="200" x2="320" y2="200" stroke="blue" stroke-width="2"/>
+                    <line x1="200" y1="80" x2="200" y2="320" stroke="blue" stroke-width="2"/>
+                    <line x1="80" y1="80" x2="320" y2="320" stroke="red" stroke-width="2" stroke-dasharray="5,5"/>
+                    <line x1="320" y1="80" x2="80" y2="320" stroke="red" stroke-width="2" stroke-dasharray="5,5"/>
+                </g>
+            `;
+        }
+
+        function drawSquareBase(svg, color) {
+            svg.innerHTML = `
+                <defs><filter id="shadow"><feDropShadow dx="3" dy="3" stdDeviation="5" flood-opacity="0.3"/></filter></defs>
+                <g filter="url(#shadow)">
+                    <polygon points="200,100 300,250 200,250 100,250" fill="${color}" stroke="#ccc" stroke-width="2"/>
+                    <polygon points="200,100 200,250 100,250" fill="#ff8585" stroke="#ccc" stroke-width="2"/>
+                    <line x1="200" y1="100" x2="200" y2="350" stroke="#888" stroke-width="1" stroke-dasharray="5,5"/>
+                </g>
+            `;
+        }
+
+        function drawKiteFold(svg, color) {
+            svg.innerHTML = `
+                <defs><filter id="shadow"><feDropShadow dx="3" dy="3" stdDeviation="5" flood-opacity="0.3"/></filter></defs>
+                <g filter="url(#shadow)">
+                    <polygon points="200,80 280,200 200,350 120,200" fill="${color}" stroke="#ccc" stroke-width="2"/>
+                    <line x1="200" y1="80" x2="200" y2="350" stroke="#888" stroke-width="2"/>
+                    <polygon points="200,200 150,200 200,130" fill="#ff8585" stroke="#ccc" stroke-width="1"/>
+                    <polygon points="200,200 250,200 200,130" fill="#ff9999" stroke="#ccc" stroke-width="1"/>
+                </g>
+            `;
+        }
+
+        function drawPetalFold(svg, color) {
+            svg.innerHTML = `
+                <defs><filter id="shadow"><feDropShadow dx="3" dy="3" stdDeviation="5" flood-opacity="0.3"/></filter></defs>
+                <g filter="url(#shadow)">
+                    <polygon points="200,60 260,180 200,350 140,180" fill="${color}" stroke="#ccc" stroke-width="2"/>
+                    <line x1="200" y1="60" x2="200" y2="350" stroke="#888" stroke-width="2"/>
+                </g>
+            `;
+        }
+
+        function drawWingFold(svg, color) {
+            svg.innerHTML = `
+                <defs><filter id="shadow"><feDropShadow dx="3" dy="3" stdDeviation="5" flood-opacity="0.3"/></filter></defs>
+                <g filter="url(#shadow)">
+                    <polygon points="200,60 200,350 140,200" fill="${color}" stroke="#ccc" stroke-width="2"/>
+                    <polygon points="200,60 200,350 260,200" fill="#ff8585" stroke="#ccc" stroke-width="2"/>
+                    <polygon points="100,220 200,200 140,300" fill="#ffaaaa" stroke="#ccc" stroke-width="1"/>
+                    <polygon points="300,220 200,200 260,300" fill="#ffcccc" stroke="#ccc" stroke-width="1"/>
+                </g>
+            `;
+        }
+
+        function drawCraneFinal(svg, color) {
+            svg.innerHTML = `
+                <defs><filter id="shadow"><feDropShadow dx="3" dy="3" stdDeviation="5" flood-opacity="0.3"/></filter></defs>
+                <g filter="url(#shadow)">
+                    <!-- Body -->
+                    <polygon points="200,180 280,250 200,320 120,250" fill="${color}" stroke="#ccc" stroke-width="2"/>
+                    <!-- Left Wing -->
+                    <polygon points="120,250 50,200 120,180 180,220" fill="#ff8585" stroke="#ccc" stroke-width="1"/>
+                    <!-- Right Wing -->
+                    <polygon points="280,250 350,200 280,180 220,220" fill="#ffaaaa" stroke="#ccc" stroke-width="1"/>
+                    <!-- Tail -->
+                    <polygon points="200,320 180,380 220,380" fill="${color}" stroke="#ccc" stroke-width="1"/>
+                    <!-- Neck and Head -->
+                    <polygon points="200,180 190,100 210,100" fill="${color}" stroke="#ccc" stroke-width="1"/>
+                    <polygon points="190,100 170,80 210,100" fill="${color}" stroke="#ccc" stroke-width="1"/>
+                </g>
+                <text x="200" y="30" text-anchor="middle" fill="#666" font-size="14">🎉 Complete!</text>
+            `;
+        }
+
+        // Boat drawing functions
+        function drawRectangle(svg, color) {
+            svg.innerHTML = `
+                <defs><filter id="shadow"><feDropShadow dx="3" dy="3" stdDeviation="5" flood-opacity="0.3"/></filter></defs>
+                <rect x="100" y="80" width="200" height="260" fill="${color}" stroke="#ccc" stroke-width="2" filter="url(#shadow)" rx="2"/>
+            `;
+        }
+
+        function drawFoldedRectangle(svg, color) {
+            svg.innerHTML = `
+                <defs><filter id="shadow"><feDropShadow dx="3" dy="3" stdDeviation="5" flood-opacity="0.3"/></filter></defs>
+                <rect x="100" y="170" width="200" height="130" fill="${color}" stroke="#ccc" stroke-width="2" filter="url(#shadow)"/>
+                <line x1="100" y1="170" x2="300" y2="170" stroke="#666" stroke-width="2"/>
+            `;
+        }
+
+        function drawBoatTriangle(svg, color) {
+            svg.innerHTML = `
+                <defs><filter id="shadow"><feDropShadow dx="3" dy="3" stdDeviation="5" flood-opacity="0.3"/></filter></defs>
+                <g filter="url(#shadow)">
+                    <polygon points="200,100 280,200 120,200" fill="${color}" stroke="#ccc" stroke-width="2"/>
+                    <rect x="120" y="200" width="160" height="60" fill="#63b3ed" stroke="#ccc" stroke-width="2"/>
+                </g>
+            `;
+        }
+
+        function drawBoatHat(svg, color) {
+            svg.innerHTML = `
+                <defs><filter id="shadow"><feDropShadow dx="3" dy="3" stdDeviation="5" flood-opacity="0.3"/></filter></defs>
+                <g filter="url(#shadow)">
+                    <polygon points="200,100 300,200 100,200" fill="${color}" stroke="#ccc" stroke-width="2"/>
+                    <polygon points="100,200 300,200 280,230 120,230" fill="#63b3ed" stroke="#ccc" stroke-width="2"/>
+                </g>
+            `;
+        }
+
+        function drawBoatSquare(svg, color) {
+            svg.innerHTML = `
+                <defs><filter id="shadow"><feDropShadow dx="3" dy="3" stdDeviation="5" flood-opacity="0.3"/></filter></defs>
+                <g transform="rotate(45, 200, 200)" filter="url(#shadow)">
+                    <rect x="130" y="130" width="140" height="140" fill="${color}" stroke="#ccc" stroke-width="2"/>
+                </g>
+            `;
+        }
+
+        function drawBoatFinal(svg, color) {
+            svg.innerHTML = `
+                <defs><filter id="shadow"><feDropShadow dx="3" dy="3" stdDeviation="5" flood-opacity="0.3"/></filter></defs>
+                <g filter="url(#shadow)">
+                    <!-- Hull -->
+                    <polygon points="80,280 120,320 280,320 320,280 280,280 120,280" fill="${color}" stroke="#ccc" stroke-width="2"/>
+                    <!-- Sails -->
+                    <polygon points="160,120 160,280 200,280" fill="#bee3f8" stroke="#ccc" stroke-width="2"/>
+                    <polygon points="240,120 240,280 200,280" fill="#90cdf4" stroke="#ccc" stroke-width="2"/>
+                </g>
+                <text x="200" y="360" text-anchor="middle" fill="#666" font-size="14">🎉 Ready to sail!</text>
+            `;
+        }
+
+        // Heart drawing functions
+        function drawHeartStep2(svg) {
+            svg.innerHTML = `
+                <defs><filter id="shadow"><feDropShadow dx="3" dy="3" stdDeviation="5" flood-opacity="0.3"/></filter></defs>
+                <g filter="url(#shadow)">
+                    <rect x="80" y="80" width="240" height="240" fill="#fff" stroke="#ccc" stroke-width="2"/>
+                    <line x1="80" y1="200" x2="320" y2="200" stroke="#fc8181" stroke-width="2"/>
+                </g>
+            `;
+        }
+
+        function drawHeartStep3(svg) {
+            svg.innerHTML = `
+                <defs><filter id="shadow"><feDropShadow dx="3" dy="3" stdDeviation="5" flood-opacity="0.3"/></filter></defs>
+                <g filter="url(#shadow)">
+                    <rect x="80" y="80" width="240" height="120" fill="#fff" stroke="#ccc" stroke-width="2"/>
+                    <rect x="80" y="200" width="240" height="120" fill="#fc8181" stroke="#ccc" stroke-width="2"/>
+                </g>
+            `;
+        }
+
+        function drawHeartStep4(svg) {
+            svg.innerHTML = `
+                <defs><filter id="shadow"><feDropShadow dx="3" dy="3" stdDeviation="5" flood-opacity="0.3"/></filter></defs>
+                <g filter="url(#shadow)">
+                    <polygon points="200,100 300,200 300,320 100,320 100,200" fill="#fc8181" stroke="#ccc" stroke-width="2"/>
+                </g>
+            `;
+        }
+
+        function drawHeartFinal(svg) {
+            svg.innerHTML = `
+                <defs><filter id="shadow"><feDropShadow dx="3" dy="3" stdDeviation="5" flood-opacity="0.3"/></filter></defs>
+                <g filter="url(#shadow)">
+                    <path d="M200,320 C100,250 80,180 120,140 C160,100 200,130 200,160 C200,130 240,100 280,140 C320,180 300,250 200,320" fill="#fc8181" stroke="#e53e3e" stroke-width="2"/>
+                </g>
+                <text x="200" y="360" text-anchor="middle" fill="#666" font-size="14">💕 Beautiful!</text>
+            `;
+        }
+
+        // Airplane drawing functions
+        function drawPlaneStep2(svg) {
+            svg.innerHTML = `
+                <defs><filter id="shadow"><feDropShadow dx="3" dy="3" stdDeviation="5" flood-opacity="0.3"/></filter></defs>
+                <g filter="url(#shadow)">
+                    <rect x="100" y="80" width="200" height="260" fill="#48bb78" stroke="#ccc" stroke-width="2"/>
+                    <line x1="200" y1="80" x2="200" y2="340" stroke="#2f855a" stroke-width="2"/>
+                </g>
+            `;
+        }
+
+        function drawPlaneStep3(svg) {
+            svg.innerHTML = `
+                <defs><filter id="shadow"><feDropShadow dx="3" dy="3" stdDeviation="5" flood-opacity="0.3"/></filter></defs>
+                <g filter="url(#shadow)">
+                    <polygon points="100,180 200,80 300,180 300,340 100,340" fill="#48bb78" stroke="#ccc" stroke-width="2"/>
+                    <polygon points="100,180 200,80 200,180" fill="#68d391" stroke="#ccc" stroke-width="1"/>
+                    <polygon points="300,180 200,80 200,180" fill="#9ae6b4" stroke="#ccc" stroke-width="1"/>
+                </g>
+            `;
+        }
+
+        function drawPlaneStep4(svg) {
+            svg.innerHTML = `
+                <defs><filter id="shadow"><feDropShadow dx="3" dy="3" stdDeviation="5" flood-opacity="0.3"/></filter></defs>
+                <g filter="url(#shadow)">
+                    <polygon points="100,200 200,80 300,200 300,340 100,340" fill="#48bb78" stroke="#ccc" stroke-width="2"/>
+                    <polygon points="120,200 200,100 280,200" fill="#68d391" stroke="#ccc" stroke-width="1"/>
+                </g>
+            `;
+        }
+
+        function drawPlaneStep5(svg) {
+            svg.innerHTML = `
+                <defs><filter id="shadow"><feDropShadow dx="3" dy="3" stdDeviation="5" flood-opacity="0.3"/></filter></defs>
+                <g filter="url(#shadow)">
+                    <polygon points="150,150 200,80 250,150 250,340 150,340" fill="#48bb78" stroke="#ccc" stroke-width="2"/>
+                </g>
+            `;
+        }
+
+        function drawPlaneFinal(svg) {
+            svg.innerHTML = `
+                <defs><filter id="shadow"><feDropShadow dx="3" dy="3" stdDeviation="5" flood-opacity="0.3"/></filter></defs>
+                <g filter="url(#shadow)">
+                    <!-- Body -->
+                    <polygon points="200,100 220,300 180,300" fill="#2f855a" stroke="#ccc" stroke-width="2"/>
+                    <!-- Left Wing -->
+                    <polygon points="180,180 80,280 180,280" fill="#48bb78" stroke="#ccc" stroke-width="2"/>
+                    <!-- Right Wing -->
+                    <polygon points="220,180 320,280 220,280" fill="#68d391" stroke="#ccc" stroke-width="2"/>
+                </g>
+                <text x="200" y="350" text-anchor="middle" fill="#666" font-size="14">✈️ Ready for takeoff!</text>
+            `;
+        }
+
+        // Frog drawing functions
+        function drawFrogStep2(svg) {
+            svg.innerHTML = `
+                <defs><filter id="shadow"><feDropShadow dx="3" dy="3" stdDeviation="5" flood-opacity="0.3"/></filter></defs>
+                <g filter="url(#shadow)">
+                    <rect x="100" y="80" width="200" height="260" fill="#68d391" stroke="#ccc" stroke-width="2"/>
+                    <line x1="100" y1="80" x2="250" y2="180" stroke="#2f855a" stroke-width="2"/>
+                    <line x1="300" y1="80" x2="150" y2="180" stroke="#2f855a" stroke-width="2"/>
+                </g>
+            `;
+        }
+
+        function drawFrogStep3(svg) {
+            svg.innerHTML = `
+                <defs><filter id="shadow"><feDropShadow dx="3" dy="3" stdDeviation="5" flood-opacity="0.3"/></filter></defs>
+                <g filter="url(#shadow)">
+                    <polygon points="100,180 200,80 300,180" fill="#48bb78" stroke="#ccc" stroke-width="2"/>
+                    <rect x="100" y="180" width="200" height="160" fill="#68d391" stroke="#ccc" stroke-width="2"/>
+                </g>
+            `;
+        }
+
+        function drawFrogStep4(svg) {
+            svg.innerHTML = `
+                <defs><filter id="shadow"><feDropShadow dx="3" dy="3" stdDeviation="5" flood-opacity="0.3"/></filter></defs>
+                <g filter="url(#shadow)">
+                    <polygon points="200,80 250,140 200,180 150,140" fill="#48bb78" stroke="#ccc" stroke-width="2"/>
+                    <polygon points="150,140 80,100 100,180" fill="#68d391" stroke="#ccc" stroke-width="1"/>
+                    <polygon points="250,140 320,100 300,180" fill="#9ae6b4" stroke="#ccc" stroke-width="1"/>
+                    <rect x="100" y="180" width="200" height="160" fill="#68d391" stroke="#ccc" stroke-width="2"/>
+                </g>
+            `;
+        }
+
+        function drawFrogStep5(svg) {
+            svg.innerHTML = `
+                <defs><filter id="shadow"><feDropShadow dx="3" dy="3" stdDeviation="5" flood-opacity="0.3"/></filter></defs>
+                <g filter="url(#shadow)">
+                    <polygon points="200,80 250,140 200,180 150,140" fill="#48bb78" stroke="#ccc" stroke-width="2"/>
+                    <polygon points="150,140 80,100 100,180" fill="#68d391" stroke="#ccc" stroke-width="1"/>
+                    <polygon points="250,140 320,100 300,180" fill="#9ae6b4" stroke="#ccc" stroke-width="1"/>
+                    <rect x="140" y="180" width="120" height="160" fill="#68d391" stroke="#ccc" stroke-width="2"/>
+                </g>
+            `;
+        }
+
+        function drawFrogFinal(svg) {
+            svg.innerHTML = `
+                <defs><filter id="shadow"><feDropShadow dx="3" dy="3" stdDeviation="5" flood-opacity="0.3"/></filter></defs>
+                <g filter="url(#shadow)">
+                    <!-- Head -->
+                    <ellipse cx="200" cy="130" rx="60" ry="40" fill="#48bb78" stroke="#ccc" stroke-width="2"/>
+                    <!-- Eyes -->
+                    <circle cx="175" cy="115" r="12" fill="#fff" stroke="#ccc" stroke-width="1"/>
+                    <circle cx="225" cy="115" r="12" fill="#fff" stroke="#ccc" stroke-width="1"/>
+                    <circle cx="175" cy="115" r="6" fill="#333"/>
+                    <circle cx="225" cy="115" r="6" fill="#333"/>
+                    <!-- Front legs -->
+                    <polygon points="140,150 80,180 100,200 160,170" fill="#68d391" stroke="#ccc" stroke-width="1"/>
+                    <polygon points="260,150 320,180 300,200 240,170" fill="#68d391" stroke="#ccc" stroke-width="1"/>
+                    <!-- Body -->
+                    <rect x="150" y="160" width="100" height="80" fill="#68d391" stroke="#ccc" stroke-width="2"/>
+                    <!-- Back legs (spring) -->
+                    <polygon points="150,240 120,280 150,300 170,260" fill="#48bb78" stroke="#ccc" stroke-width="1"/>
+                    <polygon points="250,240 280,280 250,300 230,260" fill="#48bb78" stroke="#ccc" stroke-width="1"/>
+                    <!-- Spring mechanism -->
+                    <rect x="150" y="280" width="100" height="30" fill="#48bb78" stroke="#ccc" stroke-width="2"/>
+                </g>
+                <text x="200" y="350" text-anchor="middle" fill="#666" font-size="14">🐸 Press the back to make it jump!</text>
+            `;
+        }
+
+        // Draw crease pattern
+        function drawCreasePattern() {
+            const patterns = {
+                crane: `
+                    <line x1="80" y1="80" x2="320" y2="320" stroke="red" stroke-width="2" stroke-dasharray="5,5"/>
+                    <line x1="320" y1="80" x2="80" y2="320" stroke="red" stroke-width="2" stroke-dasharray="5,5"/>
+                    <line x1="80" y1="200" x2="320" y2="200" stroke="blue" stroke-width="2"/>
+                    <line x1="200" y1="80" x2="200" y2="320" stroke="blue" stroke-width="2"/>
+                    <line x1="140" y1="140" x2="260" y2="260" stroke="green" stroke-width="1"/>
+                    <line x1="260" y1="140" x2="140" y2="260" stroke="green" stroke-width="1"/>
+                `,
+                boat: `
+                    <line x1="100" y1="200" x2="300" y2="200" stroke="blue" stroke-width="2"/>
+                    <line x1="200" y1="80" x2="100" y2="200" stroke="blue" stroke-width="2"/>
+                    <line x1="200" y1="80" x2="300" y2="200" stroke="blue" stroke-width="2"/>
+                `,
+                heart: `
+                    <line x1="80" y1="200" x2="320" y2="200" stroke="blue" stroke-width="2"/>
+                    <line x1="80" y1="260" x2="320" y2="260" stroke="blue" stroke-width="2"/>
+                    <line x1="200" y1="260" x2="80" y2="320" stroke="red" stroke-width="2" stroke-dasharray="5,5"/>
+                    <line x1="200" y1="260" x2="320" y2="320" stroke="red" stroke-width="2" stroke-dasharray="5,5"/>
+                `,
+                airplane: `
+                    <line x1="200" y1="80" x2="200" y2="340" stroke="blue" stroke-width="2"/>
+                    <line x1="100" y1="80" x2="200" y2="180" stroke="blue" stroke-width="2"/>
+                    <line x1="300" y1="80" x2="200" y2="180" stroke="blue" stroke-width="2"/>
+                `,
+                frog: `
+                    <line x1="100" y1="80" x2="250" y2="180" stroke="blue" stroke-width="2"/>
+                    <line x1="300" y1="80" x2="150" y2="180" stroke="blue" stroke-width="2"/>
+                    <line x1="100" y1="180" x2="300" y2="180" stroke="blue" stroke-width="2"/>
+                    <line x1="150" y1="180" x2="150" y2="340" stroke="blue" stroke-width="2"/>
+                    <line x1="250" y1="180" x2="250" y2="340" stroke="blue" stroke-width="2"/>
+                `
+            };
+
+            creaseSvg.innerHTML = `
+                <rect x="80" y="80" width="240" height="240" fill="none" stroke="#aaa" stroke-width="1"/>
+                ${patterns[currentModel] || patterns.crane}
+            `;
+        }
+
+        // Toggle crease pattern
+        function toggleCreasePattern() {
+            showCrease = !showCrease;
+            creaseSvg.style.opacity = showCrease ? '0.7' : '0';
+            toggleCreaseBtn.classList.toggle('bg-purple-500', showCrease);
+            toggleCreaseBtn.classList.toggle('text-white', showCrease);
+            toggleCreaseBtn.classList.toggle('bg-purple-100', !showCrease);
+            toggleCreaseBtn.classList.toggle('text-purple-700', !showCrease);
+        }
+
+        // Toggle auto play
+        function toggleAutoPlay() {
+            isAutoPlaying = !isAutoPlaying;
+
+            if (isAutoPlaying) {
+                autoPlayBtn.textContent = '⏸️ Pause';
+                autoPlayBtn.classList.remove('bg-green-100', 'text-green-700');
+                autoPlayBtn.classList.add('bg-red-100', 'text-red-700');
+
+                autoPlayInterval = setInterval(() => {
+                    const model = models[currentModel];
+                    if (currentStep < model.steps.length - 1) {
+                        currentStep++;
+                        updateStep();
+                    } else {
+                        toggleAutoPlay();
+                    }
+                }, 2500);
+            } else {
+                autoPlayBtn.textContent = '▶️ Auto Play';
+                autoPlayBtn.classList.add('bg-green-100', 'text-green-700');
+                autoPlayBtn.classList.remove('bg-red-100', 'text-red-700');
+                clearInterval(autoPlayInterval);
+            }
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            prevBtn.addEventListener('click', () => {
+                if (currentStep > 0) {
+                    currentStep--;
+                    updateStep();
+                }
+            });
+
+            nextBtn.addEventListener('click', () => {
+                const model = models[currentModel];
+                if (currentStep < model.steps.length - 1) {
+                    currentStep++;
+                    updateStep();
+                }
+            });
+
+            toggleCreaseBtn.addEventListener('click', toggleCreasePattern);
+            autoPlayBtn.addEventListener('click', toggleAutoPlay);
+
+            // Keyboard navigation
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowLeft' && currentStep > 0) {
+                    currentStep--;
+                    updateStep();
+                } else if (e.key === 'ArrowRight') {
+                    const model = models[currentModel];
+                    if (currentStep < model.steps.length - 1) {
+                        currentStep++;
+                        updateStep();
+                    }
+                }
+            });
+        }
+
+        // Start the app
+        init();
+    </script>
+</body>
+
+</html>
