@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>G-Cal Clone</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Custom scrollbar for better look */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            grid-auto-rows: minmax(100px, 1fr);
+        }
+
+        .week-grid {
+            display: grid;
+            grid-template-columns: 60px repeat(7, 1fr);
+        }
+
+        .day-grid {
+            display: grid;
+            grid-template-columns: 60px 1fr;
+        }
+
+        /* Lines for time grid */
+        .time-slot {
+            height: 48px;
+            /* 1 hour height */
+            border-bottom: 1px solid #e5e7eb;
+            box-sizing: border-box;
+        }
+
+        /* Event styling */
+        .event-block {
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .event-block:hover {
+            filter: brightness(0.95);
+            z-index: 10;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        /* Current time indicator */
+        .current-time-line::before {
+            content: '';
+            position: absolute;
+            left: -6px;
+            top: -5px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #ea4335;
+        }
+    </style>
+</head>
+
+<body class="bg-white h-screen flex flex-col overflow-hidden font-sans text-gray-800">
+
+    <!-- Header -->
+    <header class="h-16 border-b border-gray-200 flex items-center px-4 justify-between shrink-0">
+        <div class="flex items-center gap-4">
+            <div class="text-2xl text-blue-600 w-8 h-8 flex items-center justify-center">
+                <i class="fas fa-calendar-alt"></i>
+            </div>
+            <h1 class="text-xl font-medium text-gray-600 hidden sm:block">Calendar</h1>
+            <button id="todayBtn"
+                class="ml-8 border border-gray-300 rounded px-4 py-2 text-sm font-medium hover:bg-gray-100 transition">Today</button>
+            <div class="flex items-center gap-2">
+                <button id="prevBtn"
+                    class="p-2 rounded-full hover:bg-gray-100 w-9 h-9 flex items-center justify-center"><i
+                        class="fas fa-chevron-left text-sm"></i></button>
+                <button id="nextBtn"
+                    class="p-2 rounded-full hover:bg-gray-100 w-9 h-9 flex items-center justify-center"><i
+                        class="fas fa-chevron-right text-sm"></i></button>
+            </div>
+            <h2 id="currentDateDisplay" class="text-xl text-gray-700 ml-2 font-medium min-w-[200px]"></h2>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <select id="viewSelect"
+                class="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="month">Month</option>
+                <option value="week">Week</option>
+                <option value="day">Day</option>
+            </select>
+            <button
+                class="bg-blue-600 text-white rounded-full w-10 h-10 flex items-center justify-center shadow hover:bg-blue-700"
+                title="Create Event" onclick="openModal()">
+                <i class="fas fa-plus"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="flex flex-1 overflow-hidden">
+        <!-- Sidebar (Mini Calendar & Filters) -->
+        <aside class="w-64 border-r border-gray-200 p-4 hidden md:flex flex-col gap-6 overflow-y-auto">
+            <!-- Create Button Big -->
+            <button onclick="openModal()"
+                class="w-32 bg-white border shadow-md rounded-full py-3 px-4 flex items-center gap-3 hover:shadow-lg hover:bg-gray-50 transition">
+                <i class="fas fa-plus text-google-plus text-xl text-red-500"></i>
+                <span class="font-medium text-gray-600">Create</span>
+            </button>
+
+            <!-- Mini Calendar Placeholder (Static for MVP visual) -->
+            <div class="w-full">
+                <div class="flex justify-between mb-2">
+                    <span class="text-sm font-bold text-gray-700" id="miniCalTitle">September 2023</span>
+                    <div class="flex gap-2">
+                        <i class="fas fa-chevron-left text-xs cursor-pointer text-gray-500"></i>
+                        <i class="fas fa-chevron-right text-xs cursor-pointer text-gray-500"></i>
+                    </div>
+                </div>
+                <div class="grid grid-cols-7 text-center text-xs text-gray-500 mb-1">
+                    <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+                </div>
+                <div class="grid grid-cols-7 text-center text-xs gap-y-2 text-gray-700" id="miniCalGrid">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- Categories -->
+            <div>
+                <h3 class="text-sm font-medium text-gray-500 mb-3">My Calendars</h3>
+                <div class="flex flex-col gap-2">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked
+                            class="accent-blue-500 w-4 h-4 rounded text-blue-600 focus:ring-blue-500">
+                        <span class="text-sm">Work</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked
+                            class="accent-green-500 w-4 h-4 rounded text-green-600 focus:ring-green-500">
+                        <span class="text-sm">Personal</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked
+                            class="accent-purple-500 w-4 h-4 rounded text-purple-600 focus:ring-purple-500">
+                        <span class="text-sm">Birthdays</span>
+                    </label>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Calendar View Area -->
+        <main class="flex-1 flex flex-col relative" id="calendarContainer">
+            <!-- Header for Days (dynamic) -->
+            <div id="calendarHeader" class="border-b border-gray-200 bg-white flex shrink-0">
+                <!-- Rendered by JS -->
+            </div>
+
+            <!-- Calendar Grid (Scrollable) -->
+            <div id="calendarBody" class="flex-1 overflow-y-auto relative">
+                <!-- Rendered by JS -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Create/Edit Modal -->
+    <div id="eventModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6 transform transition-all scale-100">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-medium text-gray-900" id="modalTitle">Add Event</h3>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="eventForm" class="space-y-4">
+                <input type="hidden" id="eventId">
+                <div>
+                    <input type="text" id="eventTitle" placeholder="Add title"
+                        class="w-full border-b-2 border-gray-200 py-2 text-xl focus:outline-none focus:border-blue-500 transition-colors"
+                        required>
+                </div>
+                <div class="flex gap-4">
+                    <div class="flex-1">
+                        <label class="block text-xs text-gray-500 mb-1">Date</label>
+                        <input type="date" id="eventDate"
+                            class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+                    </div>
+                </div>
+                <div class="flex gap-4">
+                    <div class="flex-1">
+                        <label class="block text-xs text-gray-500 mb-1">Start Time</label>
+                        <input type="time" id="eventStart"
+                            class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+                    </div>
+                    <div class="flex-1">
+                        <label class="block text-xs text-gray-500 mb-1">End Time</label>
+                        <input type="time" id="eventEnd"
+                            class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Category / Color</label>
+                    <div class="flex gap-3">
+                        <div class="cursor-pointer w-6 h-6 rounded-full bg-blue-500 ring-2 ring-offset-1 ring-blue-500 color-option"
+                            data-color="blue" onclick="selectColor('blue')"></div>
+                        <div class="cursor-pointer w-6 h-6 rounded-full bg-green-500 color-option" data-color="green"
+                            onclick="selectColor('green')"></div>
+                        <div class="cursor-pointer w-6 h-6 rounded-full bg-purple-500 color-option" data-color="purple"
+                            onclick="selectColor('purple')"></div>
+                        <div class="cursor-pointer w-6 h-6 rounded-full bg-yellow-500 color-option" data-color="yellow"
+                            onclick="selectColor('yellow')"></div>
+                        <div class="cursor-pointer w-6 h-6 rounded-full bg-red-500 color-option" data-color="red"
+                            onclick="selectColor('red')"></div>
+                    </div>
+                    <input type="hidden" id="eventColor" value="blue">
+                </div>
+                <div class="pt-4 flex justify-end gap-2">
+                    <button type="button" id="deleteBtn" onclick="deleteEvent()"
+                        class="hidden px-4 py-2 text-red-600 hover:bg-red-50 rounded text-sm font-medium">Delete</button>
+                    <button type="button" onclick="closeModal()"
+                        class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded text-sm font-medium">Cancel</button>
+                    <button type="submit"
+                        class="px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 shadow">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Drag Overlay (Invisible) for click-drag simulation if needed, but managing via events -->
+
+    <script>
+        // --- State Management ---
+        const state = {
+            currentDate: new Date(),
+            view: 'month', // month, week, day
+            events: [],
+            selectedEventId: null
+        };
+
+        const colors = {
+            blue: { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200', dot: 'bg-blue-500' },
+            green: { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', dot: 'bg-green-500' },
+            purple: { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-200', dot: 'bg-purple-500' },
+            yellow: { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200', dot: 'bg-yellow-500' },
+            red: { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-200', dot: 'bg-red-500' }
+        };
+
+        // --- Helpers ---
+        const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        const daysShort = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+        function generateId() {
+            return Math.random().toString(36).substr(2, 9);
+        }
+
+        function formatDateKey(date) {
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        }
+
+        // Generate sample events
+        function initSampleEvents() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = today.getMonth();
+            const day = today.getDate();
+
+            // Helper to create date object
+            const d = (offset, hour, min) => new Date(year, month, day + offset, hour, min);
+
+            state.events = [
+                { id: generateId(), title: 'Team Meeting', start: d(0, 10, 0), end: d(0, 11, 30), color: 'blue' },
+                { id: generateId(), title: 'Lunch with Sarah', start: d(0, 12, 30), end: d(0, 13, 30), color: 'yellow' },
+                { id: generateId(), title: 'Project Review', start: d(1, 14, 0), end: d(1, 15, 0), color: 'purple' },
+                { id: generateId(), title: 'Dentist Appointment', start: d(-2, 9, 0), end: d(-2, 10, 0), color: 'red' },
+                { id: generateId(), title: 'Gym', start: d(0, 18, 0), end: d(0, 19, 0), color: 'green' },
+                { id: generateId(), title: 'Code Sprint', start: d(2, 10, 0), end: d(2, 16, 0), color: 'blue' },
+                { id: generateId(), title: 'Weekly Sync', start: d(3, 11, 0), end: d(3, 12, 0), color: 'purple' }
+            ];
+        }
+
+        // --- Render Logic ---
+
+        function render() {
+            renderHeader();
+            renderMiniCalendar();
+
+            const container = document.getElementById('calendarBody');
+            const headerContainer = document.getElementById('calendarHeader');
+            container.innerHTML = '';
+            headerContainer.innerHTML = '';
+
+            if (state.view === 'month') {
+                renderMonthView(container, headerContainer);
+            } else if (state.view === 'week') {
+                renderWeekView(container, headerContainer);
+            } else if (state.view === 'day') {
+                renderDayView(container, headerContainer);
+            }
+        }
+
+        function renderHeader() {
+            const display = document.getElementById('currentDateDisplay');
+            const date = state.currentDate;
+            if (state.view === 'month') {
+                display.textContent = `${months[date.getMonth()]} ${date.getFullYear()}`;
+            } else if (state.view === 'day') {
+                display.textContent = `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+            } else {
+                // Week view logic
+                const start = new Date(date);
+                start.setDate(date.getDate() - date.getDay());
+                const end = new Date(start);
+                end.setDate(start.getDate() + 6);
+
+                const startMonth = months[start.getMonth()];
+                const endMonth = months[end.getMonth()];
+
+                if (startMonth === endMonth) {
+                    display.textContent = `${startMonth} ${start.getFullYear()}`;
+                } else {
+                    display.textContent = `${startMonth.substring(0, 3)} - ${endMonth.substring(0, 3)} ${end.getFullYear()}`;
+                }
+            }
+        }
+
+        function renderMiniCalendar() {
+            const grid = document.getElementById('miniCalGrid');
+            const title = document.getElementById('miniCalTitle');
+            grid.innerHTML = '';
+
+            const current = state.currentDate;
+            title.textContent = `${months[current.getMonth()]} ${current.getFullYear()}`;
+
+            const firstDayOfMonth = new Date(current.getFullYear(), current.getMonth(), 1);
+            const daysInMonth = new Date(current.getFullYear(), current.getMonth() + 1, 0).getDate();
+            const startDay = firstDayOfMonth.getDay(); // 0 (Sun) to 6 (Sat)
+
+            // Previous month fill
+            const prevMonthDays = new Date(current.getFullYear(), current.getMonth(), 0).getDate();
+            for (let i = startDay - 1; i >= 0; i--) {
+                const dayDiv = document.createElement('div');
+                dayDiv.className = 'w-6 h-6 flex items-center justify-center rounded-full text-gray-300 mx-auto';
+                dayDiv.textContent = prevMonthDays - i;
+                grid.appendChild(dayDiv);
+            }
+
+            // Current month
+            const today = new Date();
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dayDiv = document.createElement('div');
+                const isToday = i === today.getDate() && current.getMonth() === today.getMonth() && current.getFullYear() === today.getFullYear();
+                const isSelected = i === current.getDate();
+
+                dayDiv.className = `w-6 h-6 flex items-center justify-center rounded-full mx-auto cursor-pointer hover:bg-gray-100 ${isToday ? 'bg-blue-600 text-white hover:bg-blue-700' : ''} ${isSelected && !isToday ? 'bg-blue-100 text-blue-600' : ''}`;
+                dayDiv.textContent = i;
+                dayDiv.onclick = () => {
+                    state.currentDate = new Date(current.getFullYear(), current.getMonth(), i);
+                    render();
+                };
+                grid.appendChild(dayDiv);
+            }
+        }
+
+        // --- Month View ---
+        function renderMonthView(container, headerContainer) {
+            // Header Days
+            headerContainer.className = 'grid grid-cols-7 border-b border-gray-200 bg-white';
+            daysShort.forEach(day => {
+                const d = document.createElement('div');
+                d.className = 'py-2 text-center text-sm font-medium text-gray-500 uppercase tracking-wide';
+                d.textContent = day;
+                headerContainer.appendChild(d);
+            });
+
+            container.className = 'flex-1 grid grid-cols-7 grid-rows-5'; // Fixed rows for simplicity or auto
+            container.style.display = 'grid';
+            container.style.gridTemplateRows = 'repeat(5, 1fr)'; // Ensure equal height rows
+
+            const year = state.currentDate.getFullYear();
+            const month = state.currentDate.getMonth();
+
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            const today = new Date();
+
+            // Calculate grid start date
+            let currentDay = new Date(year, month, 1);
+            currentDay.setDate(currentDay.getDate() - firstDay);
+
+            // 5 weeks * 7 days = 35 cells (or 6 weeks for full cover)
+            for (let i = 0; i < 35; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'border-r border-b border-gray-200 min-h-[100px] p-1 flex flex-col relative group transition hover:bg-gray-50';
+                if (i % 7 === 6) cell.className = cell.className.replace('border-r', ''); // remove right border for last col
+
+                const isCurrentMonth = currentDay.getMonth() === month;
+                const isToday = currentDay.getDate() === today.getDate() && currentDay.getMonth() === today.getMonth() && currentDay.getFullYear() === today.getFullYear();
+
+                // Day number
+                const dayNum = document.createElement('span');
+                dayNum.className = `text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full mb-1 ${!isCurrentMonth ? 'text-gray-400' : 'text-gray-700'} ${isToday ? 'bg-blue-600 text-white' : ''}`;
+                dayNum.textContent = currentDay.getDate();
+                cell.appendChild(dayNum);
+
+                // Click to create event (simple version: sets date in modal)
+                const cellDate = new Date(currentDay); // capture value
+                cell.onclick = (e) => {
+                    if (e.target === cell || e.target === dayNum) {
+                        openModal(null, cellDate);
+                    }
+                };
+
+                // Events for this day
+                const dayEvents = state.events.filter(e => {
+                    return e.start.getDate() === currentDay.getDate() &&
+                        e.start.getMonth() === currentDay.getMonth() &&
+                        e.start.getFullYear() === currentDay.getFullYear();
+                }).sort((a, b) => a.start - b.start);
+
+                dayEvents.forEach(evt => {
+                    const evtDiv = document.createElement('div');
+                    const colorClass = colors[evt.color];
+                    evtDiv.className = `text-xs truncate px-2 py-1 rounded mb-1 cursor-pointer ${colorClass.bg} ${colorClass.text} hover:opacity-80 event-block`;
+                    evtDiv.innerHTML = `<span class="font-bold mr-1">${formatTimeShort(evt.start)}</span> ${evt.title}`;
+                    evtDiv.onclick = (e) => {
+                        e.stopPropagation();
+                        openModal(evt);
+                    };
+                    cell.appendChild(evtDiv);
+                });
+
+                container.appendChild(cell);
+                currentDay.setDate(currentDay.getDate() + 1);
+            }
+        }
+
+        // --- Week View ---
+        function renderWeekView(container, headerContainer) {
+            const startOfWeek = new Date(state.currentDate);
+            startOfWeek.setDate(state.currentDate.getDate() - state.currentDate.getDay());
+
+            // Header: Time placeholder + 7 days
+            headerContainer.className = 'flex border-b border-gray-200 overflow-hidden bg-white';
+
+            const timeZoneSpacer = document.createElement('div');
+            timeZoneSpacer.className = 'w-[60px] shrink-0 border-r border-gray-200';
+            headerContainer.appendChild(timeZoneSpacer);
+
+            const daysContainer = document.createElement('div');
+            daysContainer.className = 'flex-1 grid grid-cols-7';
+            headerContainer.appendChild(daysContainer);
+
+            const today = new Date();
+            const weekDates = [];
+
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(startOfWeek);
+                d.setDate(startOfWeek.getDate() + i);
+                weekDates.push(d);
+
+                const isToday = d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+
+                const dayHead = document.createElement('div');
+                dayHead.className = 'py-3 text-center border-r border-gray-200 last:border-r-0';
+                dayHead.innerHTML = `
+                    <div class="text-xs font-medium uppercase text-gray-500 mb-1">${daysShort[i]}</div>
+                    <div class="text-2xl w-10 h-10 mx-auto flex items-center justify-center rounded-full ${isToday ? 'bg-blue-600 text-white' : 'text-gray-700'}">${d.getDate()}</div>
+                `;
+                daysContainer.appendChild(dayHead);
+            }
+
+            // Body: Time axis + Grid
+            container.className = 'flex overflow-y-auto relative bg-white';
+            // Scroll to 9am automatically
+            setTimeout(() => { container.scrollTop = 50 * 9; }, 0);
+
+            // Time Axis
+            const timeCol = document.createElement('div');
+            timeCol.className = 'w-[60px] shrink-0 border-r border-gray-200 text-xs text-gray-500 text-right pr-2 pt-2 bg-white sticky left-0 z-20';
+            for (let h = 0; h < 24; h++) {
+                const t = document.createElement('div');
+                t.className = 'h-[50px] relative -top-2.5';
+                if (h !== 0) t.textContent = `${h > 12 ? h - 12 : h} ${h >= 12 ? 'PM' : 'AM'}`;
+                timeCol.appendChild(t);
+            }
+            container.appendChild(timeCol);
+
+            // Grid
+            const gridContainer = document.createElement('div');
+            gridContainer.className = 'flex-1 grid grid-cols-7 relative min-h-[1200px]'; // 24 * 50px
+
+            // Draw horizontal lines
+            for (let h = 0; h < 24; h++) {
+                const line = document.createElement('div');
+                line.className = 'absolute w-full border-b border-gray-100';
+                line.style.top = `${h * 50}px`;
+                gridContainer.appendChild(line);
+            }
+
+            // Draw Columns and Events
+            weekDates.forEach((date, index) => {
+                const col = document.createElement('div');
+                col.className = 'relative border-r border-gray-200 h-full group hover:bg-gray-50 transition-colors';
+                if (index === 6) col.classList.remove('border-r');
+
+                // Click time slot to create
+                col.onclick = (e) => {
+                    const rect = col.getBoundingClientRect();
+                    const y = e.clientY - rect.top + container.scrollTop;
+                    const hour = Math.floor(y / 50);
+                    // Snap to nearest 30 mins (not implemented visual snap, just logic)
+                    const clickedDate = new Date(date);
+                    clickedDate.setHours(hour, 0, 0, 0);
+                    openModal(null, clickedDate);
+                };
+
+                // Filter events for this day
+                const dayEvents = state.events.filter(e => {
+                    return e.start.getDate() === date.getDate() &&
+                        e.start.getMonth() === date.getMonth() &&
+                        e.start.getFullYear() === date.getFullYear();
+                });
+
+                dayEvents.forEach(evt => {
+                    const el = createEventElement(evt, 50);
+                    col.appendChild(el);
+                });
+
+                // Current time line if today
+                if (date.getDate() === today.getDate() && date.getMonth() === today.getMonth()) {
+                    const now = new Date();
+                    const minutes = now.getHours() * 60 + now.getMinutes();
+                    const top = (minutes / 60) * 50;
+
+                    const timeLine = document.createElement('div');
+                    timeLine.className = 'absolute w-full border-t-2 border-red-500 z-20 pointer-events-none current-time-line';
+                    timeLine.style.top = `${top}px`;
+                    col.appendChild(timeLine);
+                }
+
+                gridContainer.appendChild(col);
+            });
+
+            container.appendChild(gridContainer);
+        }
+
+        // --- Day View ---
+        function renderDayView(container, headerContainer) {
+            const date = state.currentDate;
+            const today = new Date();
+            const isToday = date.getDate() === today.getDate() && date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear();
+
+            // Header
+            headerContainer.className = 'flex border-b border-gray-200 overflow-hidden bg-white';
+            const timeZoneSpacer = document.createElement('div');
+            timeZoneSpacer.className = 'w-[60px] shrink-0 border-r border-gray-200';
+            headerContainer.appendChild(timeZoneSpacer);
+
+            const dayHead = document.createElement('div');
+            dayHead.className = 'flex-1 py-3 pl-4';
+            dayHead.innerHTML = `
+                <div class="text-xs font-medium uppercase text-gray-500 mb-1">${daysShort[date.getDay()]}</div>
+                <div class="text-2xl w-10 h-10 flex items-center justify-center rounded-full ${isToday ? 'bg-blue-600 text-white' : 'text-gray-700'}">${date.getDate()}</div>
+            `;
+            headerContainer.appendChild(dayHead);
+
+            // Body
+            container.className = 'flex overflow-y-auto relative bg-white';
+            setTimeout(() => { container.scrollTop = 50 * 9; }, 0);
+
+            // Time Axis
+            const timeCol = document.createElement('div');
+            timeCol.className = 'w-[60px] shrink-0 border-r border-gray-200 text-xs text-gray-500 text-right pr-2 pt-2 sticky left-0 z-20 bg-white';
+            for (let h = 0; h < 24; h++) {
+                const t = document.createElement('div');
+                t.className = 'h-[50px] relative -top-2.5';
+                if (h !== 0) t.textContent = `${h > 12 ? h - 12 : h} ${h >= 12 ? 'PM' : 'AM'}`;
+                timeCol.appendChild(t);
+            }
+            container.appendChild(timeCol);
+
+            // Content
+            const col = document.createElement('div');
+            col.className = 'flex-1 relative min-h-[1200px] hover:bg-gray-50 transition-colors';
+
+            // Grid lines
+            for (let h = 0; h < 24; h++) {
+                const line = document.createElement('div');
+                line.className = 'absolute w-full border-b border-gray-100';
+                line.style.top = `${h * 50}px`;
+                col.appendChild(line);
+            }
+
+            // Events
+            const dayEvents = state.events.filter(e => {
+                return e.start.getDate() === date.getDate() &&
+                    e.start.getMonth() === date.getMonth() &&
+                    e.start.getFullYear() === date.getFullYear();
+            });
+
+            dayEvents.forEach(evt => {
+                const el = createEventElement(evt, 50); // 50px per hour
+                col.appendChild(el);
+            });
+
+            // Click to create
+            col.onclick = (e) => {
+                const rect = col.getBoundingClientRect();
+                const y = e.clientY - rect.top + container.scrollTop;
+                const hour = Math.floor(y / 50);
+                const clickedDate = new Date(date);
+                clickedDate.setHours(hour, 0, 0, 0);
+                openModal(null, clickedDate);
+            };
+
+            // Current time line
+            if (isToday) {
+                const now = new Date();
+                const minutes = now.getHours() * 60 + now.getMinutes();
+                const top = (minutes / 60) * 50;
+
+                const timeLine = document.createElement('div');
+                timeLine.className = 'absolute w-full border-t-2 border-red-500 z-20 pointer-events-none current-time-line';
+                timeLine.style.top = `${top}px`;
+                col.appendChild(timeLine);
+            }
+
+            container.appendChild(col);
+        }
+
+        function createEventElement(evt, hourHeight) {
+            const startMin = evt.start.getHours() * 60 + evt.start.getMinutes();
+            const endMin = evt.end.getHours() * 60 + evt.end.getMinutes();
+            const duration = endMin - startMin;
+
+            const top = (startMin / 60) * hourHeight;
+            const height = (duration / 60) * hourHeight;
+
+            const el = document.createElement('div');
+            const colorClass = colors[evt.color];
+
+            el.className = `absolute left-0 right-2 rounded px-2 py-1 text-xs border-l-4 cursor-pointer overflow-hidden event-block ${colorClass.bg} ${colorClass.border} ${colorClass.text}`;
+            el.style.top = `${top}px`;
+            el.style.height = `${height}px`;
+            el.style.width = '95%';
+            el.style.left = '2%';
+            el.style.zIndex = 10;
+
+            el.innerHTML = `
+                <div class="font-bold">${evt.title}</div>
+                <div>${formatTimeShort(evt.start)} - ${formatTimeShort(evt.end)}</div>
+            `;
+
+            el.onclick = (e) => {
+                e.stopPropagation();
+                openModal(evt);
+            };
+
+            return el;
+        }
+
+        // --- Interaction Logic ---
+
+        document.getElementById('prevBtn').onclick = () => {
+            if (state.view === 'month') {
+                state.currentDate.setMonth(state.currentDate.getMonth() - 1);
+            } else if (state.view === 'week') {
+                state.currentDate.setDate(state.currentDate.getDate() - 7);
+            } else {
+                state.currentDate.setDate(state.currentDate.getDate() - 1);
+            }
+            render();
+        };
+
+        document.getElementById('nextBtn').onclick = () => {
+            if (state.view === 'month') {
+                state.currentDate.setMonth(state.currentDate.getMonth() + 1);
+            } else if (state.view === 'week') {
+                state.currentDate.setDate(state.currentDate.getDate() + 7);
+            } else {
+                state.currentDate.setDate(state.currentDate.getDate() + 1);
+            }
+            render();
+        };
+
+        document.getElementById('todayBtn').onclick = () => {
+            state.currentDate = new Date();
+            render();
+        };
+
+        document.getElementById('viewSelect').onchange = (e) => {
+            state.view = e.target.value;
+            render();
+        };
+
+        // --- Modal & Forms ---
+        function openModal(evt = null, dateObj = null) {
+            const modal = document.getElementById('eventModal');
+            const form = document.getElementById('eventForm');
+            const deleteBtn = document.getElementById('deleteBtn');
+            const titleEl = document.getElementById('modalTitle');
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+
+            if (evt) {
+                // Edit Mode
+                state.selectedEventId = evt.id;
+                titleEl.textContent = 'Edit Event';
+                document.getElementById('eventId').value = evt.id;
+                document.getElementById('eventTitle').value = evt.title;
+                document.getElementById('eventDate').value = formatDateKey(evt.start);
+                document.getElementById('eventStart').value = formatTimeInput(evt.start);
+                document.getElementById('eventEnd').value = formatTimeInput(evt.end);
+                document.getElementById('eventColor').value = evt.color;
+                selectColor(evt.color);
+                deleteBtn.classList.remove('hidden');
+            } else {
+                // Create Mode
+                state.selectedEventId = null;
+                titleEl.textContent = 'Add Event';
+                document.getElementById('eventId').value = '';
+                document.getElementById('eventTitle').value = '';
+
+                const d = dateObj || state.currentDate;
+                document.getElementById('eventDate').value = formatDateKey(d);
+
+                // Default time: next full hour
+                const now = dateObj ? new Date(dateObj) : new Date();
+                if (!dateObj) now.setMinutes(0, 0, 0); // round if just generic open
+
+                const startH = String(now.getHours()).padStart(2, '0');
+                const startM = String(now.getMinutes()).padStart(2, '0');
+
+                const endD = new Date(now);
+                endD.setHours(now.getHours() + 1);
+                const endH = String(endD.getHours()).padStart(2, '0');
+                const endM = String(endD.getMinutes()).padStart(2, '0');
+
+                document.getElementById('eventStart').value = `${startH}:${startM}`;
+                document.getElementById('eventEnd').value = `${endH}:${endM}`;
+
+                selectColor('blue');
+                deleteBtn.classList.add('hidden');
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('eventModal').classList.add('hidden');
+            document.getElementById('eventModal').classList.remove('flex');
+        }
+
+        function selectColor(color) {
+            document.getElementById('eventColor').value = color;
+            document.querySelectorAll('.color-option').forEach(el => {
+                el.classList.remove('ring-2', 'ring-offset-1', `ring-${el.dataset.color}-500`);
+            });
+            const selectedEl = document.querySelector(`.color-option[data-color="${color}"]`);
+            if (selectedEl) {
+                selectedEl.classList.add('ring-2', 'ring-offset-1', `ring-${color}-500`);
+            }
+        }
+
+        document.getElementById('eventForm').onsubmit = (e) => {
+            e.preventDefault();
+
+            const id = document.getElementById('eventId').value;
+            const title = document.getElementById('eventTitle').value || '(No Title)';
+            const dateStr = document.getElementById('eventDate').value;
+            const startStr = document.getElementById('eventStart').value;
+            const endStr = document.getElementById('eventEnd').value;
+            const color = document.getElementById('eventColor').value;
+
+            // Construct Date objects
+            const start = new Date(`${dateStr}T${startStr}`);
+            const end = new Date(`${dateStr}T${endStr}`);
+
+            if (start >= end) {
+                alert('End time must be after start time');
+                return;
+            }
+
+            if (id) {
+                // Update
+                const idx = state.events.findIndex(e => e.id === id);
+                if (idx !== -1) {
+                    state.events[idx] = { id, title, start, end, color };
+                }
+            } else {
+                // Create
+                state.events.push({
+                    id: generateId(),
+                    title,
+                    start,
+                    end,
+                    color
+                });
+            }
+
+            closeModal();
+            render();
+        };
+
+        function deleteEvent() {
+            if (state.selectedEventId) {
+                state.events = state.events.filter(e => e.id !== state.selectedEventId);
+                closeModal();
+                render();
+            }
+        }
+
+        // --- Utils ---
+        function formatTimeShort(date) {
+            let hours = date.getHours();
+            const ampm = hours >= 12 ? 'pm' : 'am';
+            hours = hours % 12;
+            hours = hours ? hours : 12;
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${hours}:${minutes}${ampm}`;
+        }
+
+        function formatTimeInput(date) {
+            return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+        }
+
+        // --- Init ---
+        initSampleEvents();
+        render();
+
+        // Close modal on outside click
+        document.getElementById('eventModal').addEventListener('click', (e) => {
+            if (e.target.id === 'eventModal') closeModal();
+        });
+
+    </script>
+</body>
+
+</html>
