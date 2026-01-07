@@ -1,0 +1,1489 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Calendar (Month / Week / Day)</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        :root {
+            --hour-h: 52;
+            /* px per hour */
+            --gutter-w: 64px;
+            --allday-h: 44px;
+        }
+
+        .no-select {
+            user-select: none;
+        }
+
+        .thin-scroll::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        .thin-scroll::-webkit-scrollbar-thumb {
+            background: rgba(100, 116, 139, .35);
+            border-radius: 999px;
+            border: 2px solid rgba(255, 255, 255, .0);
+            background-clip: padding-box;
+        }
+
+        .thin-scroll::-webkit-scrollbar-track {
+            background: rgba(148, 163, 184, .12);
+        }
+
+        .time-grid {
+            background-image:
+                linear-gradient(to right, rgba(148, 163, 184, .35) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(148, 163, 184, .25) 1px, transparent 1px);
+            background-size: 1px calc(var(--hour-h) * 1px), calc(100% / 7) 1px;
+            background-position: var(--gutter-w) 0, var(--gutter-w) 0;
+        }
+
+        .time-grid.day {
+            background-size: 1px calc(var(--hour-h) * 1px), 100% 1px;
+        }
+
+        .month-grid {
+            background-image:
+                linear-gradient(to right, rgba(148, 163, 184, .35) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(148, 163, 184, .25) 1px, transparent 1px);
+            background-size: calc(100% / 7) 1px, 1px calc(100% / 6);
+            background-position: 0 0, 0 0;
+        }
+
+        .evt-shadow {
+            box-shadow: 0 8px 18px rgba(2, 6, 23, .12);
+        }
+
+        /* Helps pointer-drag selection feel like a range */
+        .drag-overlay {
+            pointer-events: none;
+        }
+
+        /* Prevent accidental iOS overscroll bounce from eating pointer capture */
+        body {
+            overscroll-behavior: none;
+        }
+    </style>
+</head>
+
+<body class="h-screen overflow-hidden bg-slate-50 text-slate-900">
+    <div id="app" class="h-full flex flex-col">
+        <!-- Top Bar -->
+        <header class="border-b border-slate-200 bg-white">
+            <div class="mx-auto max-w-[1400px] px-4 py-3 flex items-center gap-3">
+                <div class="flex items-center gap-2">
+                    <div class="w-9 h-9 rounded-xl bg-slate-900 text-white grid place-items-center font-semibold">C
+                    </div>
+                    <div>
+                        <div class="text-sm font-semibold leading-tight">Calendar</div>
+                        <div class="text-xs text-slate-500 leading-tight">Month / Week / Day</div>
+                    </div>
+                </div>
+
+                <div class="ml-2 flex items-center gap-2">
+                    <button id="btnToday"
+                        class="px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-sm">Today</button>
+                    <button id="btnPrev" class="px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50"
+                        aria-label="Previous">
+                        <span class="text-sm">◀</span>
+                    </button>
+                    <button id="btnNext" class="px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50"
+                        aria-label="Next">
+                        <span class="text-sm">▶</span>
+                    </button>
+                </div>
+
+                <div class="ml-3 min-w-[260px]">
+                    <div id="rangeTitle" class="text-base font-semibold"></div>
+                    <div id="rangeSubtitle" class="text-xs text-slate-500"></div>
+                </div>
+
+                <div class="ml-auto flex items-center gap-2">
+                    <div class="hidden md:flex items-center gap-2 mr-2">
+                        <div class="text-xs text-slate-500">Drag to create</div>
+                        <div class="w-2.5 h-2.5 rounded-full bg-rose-500"></div>
+                        <div class="text-xs text-slate-500">Now</div>
+                    </div>
+                    <div class="flex items-center p-1 rounded-xl bg-slate-100 border border-slate-200">
+                        <button data-view="month"
+                            class="viewBtn px-3 py-1.5 rounded-lg text-sm font-medium">Month</button>
+                        <button data-view="week"
+                            class="viewBtn px-3 py-1.5 rounded-lg text-sm font-medium">Week</button>
+                        <button data-view="day" class="viewBtn px-3 py-1.5 rounded-lg text-sm font-medium">Day</button>
+                    </div>
+                    <button id="btnNew"
+                        class="px-3 py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-800 text-sm">New
+                        event</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main -->
+        <main class="flex-1 overflow-hidden">
+            <div class="mx-auto max-w-[1400px] h-full px-4 py-4 grid grid-cols-12 gap-4">
+                <!-- Sidebar -->
+                <aside class="col-span-12 md:col-span-3 lg:col-span-2 h-full">
+                    <div class="h-full flex flex-col gap-3">
+                        <section class="bg-white border border-slate-200 rounded-2xl p-3">
+                            <div class="flex items-center justify-between">
+                                <div class="text-sm font-semibold">Mini month</div>
+                                <button id="miniToday"
+                                    class="text-xs text-slate-600 hover:text-slate-900">Today</button>
+                            </div>
+                            <div id="miniMonth" class="mt-2"></div>
+                        </section>
+
+                        <section class="bg-white border border-slate-200 rounded-2xl p-3">
+                            <div class="text-sm font-semibold">Categories</div>
+                            <div id="catList" class="mt-2 space-y-1"></div>
+                            <div class="mt-3 flex gap-2">
+                                <input id="search" class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm"
+                                    placeholder="Search events…" />
+                            </div>
+                            <div class="mt-2 flex items-center gap-2">
+                                <label class="text-xs text-slate-500">Show:</label>
+                                <select id="filterCat"
+                                    class="flex-1 px-2 py-2 rounded-lg border border-slate-200 text-sm">
+                                    <option value="all">All categories</option>
+                                </select>
+                            </div>
+                        </section>
+
+                        <section
+                            class="bg-white border border-slate-200 rounded-2xl p-3 overflow-hidden flex-1 hidden md:flex flex-col">
+                            <div class="flex items-center justify-between">
+                                <div class="text-sm font-semibold">Agenda</div>
+                                <div class="text-xs text-slate-500" id="agendaHint">Next 14 days</div>
+                            </div>
+                            <div id="agenda" class="mt-2 overflow-auto thin-scroll pr-1"></div>
+                        </section>
+                    </div>
+                </aside>
+
+                <!-- Calendar Content -->
+                <section class="col-span-12 md:col-span-9 lg:col-span-10 h-full">
+                    <div class="h-full bg-white border border-slate-200 rounded-2xl overflow-hidden flex flex-col">
+                        <div id="calendar" class="flex-1 overflow-hidden"></div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal" class="fixed inset-0 hidden">
+        <div class="absolute inset-0 bg-slate-950/40"></div>
+        <div class="absolute inset-0 grid place-items-center p-4">
+            <div class="w-full max-w-xl rounded-2xl bg-white border border-slate-200 shadow-xl overflow-hidden">
+                <div class="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+                    <div>
+                        <div id="modalTitle" class="text-sm font-semibold">New event</div>
+                        <div id="modalSub" class="text-xs text-slate-500">Create or edit an event</div>
+                    </div>
+                    <button id="modalClose" class="px-2 py-1 rounded-lg hover:bg-slate-100">✕</button>
+                </div>
+                <form id="eventForm" class="p-4 space-y-3">
+                    <div>
+                        <label class="text-xs text-slate-600">Title</label>
+                        <input id="fTitle" required
+                            class="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200 text-sm"
+                            placeholder="e.g., Design review" />
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs text-slate-600">Start</label>
+                            <input id="fStart" type="datetime-local" required
+                                class="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200 text-sm" />
+                        </div>
+                        <div>
+                            <label class="text-xs text-slate-600">End</label>
+                            <input id="fEnd" type="datetime-local" required
+                                class="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200 text-sm" />
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-3">
+                        <label class="flex items-center gap-2 text-sm">
+                            <input id="fAllDay" type="checkbox" class="rounded border-slate-300" />
+                            <span>All-day</span>
+                        </label>
+
+                        <div class="flex-1 min-w-[240px]">
+                            <label class="text-xs text-slate-600">Category</label>
+                            <select id="fCat"
+                                class="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200 text-sm"></select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-xs text-slate-600">Notes</label>
+                        <textarea id="fNotes" rows="3"
+                            class="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200 text-sm"
+                            placeholder="Optional"></textarea>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-2">
+                        <button id="btnDelete" type="button"
+                            class="hidden px-3 py-2 rounded-lg border border-rose-200 text-rose-700 hover:bg-rose-50 text-sm">Delete</button>
+                        <div class="ml-auto flex items-center gap-2">
+                            <button type="button" id="modalCancel"
+                                class="px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-sm">Cancel</button>
+                            <button type="submit"
+                                class="px-3 py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-800 text-sm">Save</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /*********************
+         * Utilities
+         *********************/
+        const pad = (n) => String(n).padStart(2, '0');
+        const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+        const uid = () => Math.random().toString(16).slice(2) + Date.now().toString(16);
+
+        function toLocalInputValue(d) {
+            // datetime-local expects local time, no timezone suffix
+            const x = new Date(d);
+            return `${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}T${pad(x.getHours())}:${pad(x.getMinutes())}`;
+        }
+        function fromLocalInputValue(v) {
+            // interprets as local
+            return new Date(v);
+        }
+        function startOfDay(d) {
+            const x = new Date(d);
+            x.setHours(0, 0, 0, 0);
+            return x;
+        }
+        function endOfDay(d) {
+            const x = new Date(d);
+            x.setHours(23, 59, 59, 999);
+            return x;
+        }
+        function addDays(d, n) {
+            const x = new Date(d);
+            x.setDate(x.getDate() + n);
+            return x;
+        }
+        function addMinutes(d, n) {
+            const x = new Date(d);
+            x.setMinutes(x.getMinutes() + n);
+            return x;
+        }
+        function sameDay(a, b) {
+            return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+        }
+        function isToday(d) {
+            return sameDay(d, new Date());
+        }
+        function fmtDate(d, opts = {}) {
+            return new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short', day: 'numeric', ...opts }).format(d);
+        }
+        function fmtTime(d) {
+            return new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(d);
+        }
+        function fmtDow(d) {
+            return new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(d);
+        }
+        function fmtMonthYear(d) {
+            return new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(d);
+        }
+        function getWeekStart(d, weekStartsOnSunday = true) {
+            const x = startOfDay(d);
+            const day = x.getDay(); // 0 Sun
+            const offset = weekStartsOnSunday ? day : (day === 0 ? 6 : day - 1);
+            return addDays(x, -offset);
+        }
+        function getMonthGridStart(d, weekStartsOnSunday = true) {
+            const first = new Date(d.getFullYear(), d.getMonth(), 1);
+            return getWeekStart(first, weekStartsOnSunday);
+        }
+        function minutesSinceStartOfDay(d) {
+            return d.getHours() * 60 + d.getMinutes();
+        }
+        function snapMinutes(m, step = 15) {
+            return Math.round(m / step) * step;
+        }
+
+        function intersects(aStart, aEnd, bStart, bEnd) {
+            return aStart < bEnd && bStart < aEnd;
+        }
+
+        function normalizeAllDayRange(start, end) {
+            // For all-day events we store end as exclusive (common calendar convention)
+            const s = startOfDay(start);
+            const e = startOfDay(end);
+            if (e <= s) return { start: s, end: addDays(s, 1) };
+            return { start: s, end: e };
+        }
+
+        /*********************
+         * Data
+         *********************/
+        const categories = [
+            { id: 'work', name: 'Work', color: '#2563eb' },
+            { id: 'personal', name: 'Personal', color: '#16a34a' },
+            { id: 'family', name: 'Family', color: '#db2777' },
+            { id: 'health', name: 'Health', color: '#f97316' },
+            { id: 'travel', name: 'Travel', color: '#7c3aed' },
+            { id: 'focus', name: 'Focus', color: '#0f172a' },
+        ];
+
+        function catById(id) {
+            return categories.find(c => c.id === id) || categories[0];
+        }
+
+        // Sample events (local times)
+        const now = new Date();
+        const today = startOfDay(now);
+        const sampleEvents = [
+            {
+                id: uid(),
+                title: 'Standup',
+                start: addMinutes(new Date(today), 9 * 60 + 30),
+                end: addMinutes(new Date(today), 10 * 60),
+                allDay: false,
+                cat: 'work',
+                notes: 'Daily team sync'
+            },
+            {
+                id: uid(),
+                title: 'Design review',
+                start: addMinutes(new Date(today), 11 * 60),
+                end: addMinutes(new Date(today), 12 * 60 + 15),
+                allDay: false,
+                cat: 'work',
+                notes: 'Bring updated mocks'
+            },
+            {
+                id: uid(),
+                title: 'Gym',
+                start: addMinutes(new Date(today), 18 * 60),
+                end: addMinutes(new Date(today), 19 * 60),
+                allDay: false,
+                cat: 'health',
+                notes: 'Leg day'
+            },
+            {
+                id: uid(),
+                title: 'Dinner with friends',
+                start: addMinutes(new Date(today), 19 * 60 + 30),
+                end: addMinutes(new Date(today), 21 * 60),
+                allDay: false,
+                cat: 'personal',
+                notes: 'Downtown'
+            },
+            {
+                id: uid(),
+                title: 'Mom’s birthday',
+                start: addDays(today, 3),
+                end: addDays(today, 4),
+                allDay: true,
+                cat: 'family',
+                notes: 'Call in the morning'
+            },
+            {
+                id: uid(),
+                title: 'Offsite (SF)',
+                start: addDays(today, -2),
+                end: addDays(today, 1),
+                allDay: true,
+                cat: 'travel',
+                notes: 'Hotel + flights'
+            },
+            {
+                id: uid(),
+                title: 'Deep work block',
+                start: addMinutes(addDays(today, 1), 13 * 60),
+                end: addMinutes(addDays(today, 1), 16 * 60),
+                allDay: false,
+                cat: 'focus',
+                notes: 'No meetings'
+            },
+            {
+                id: uid(),
+                title: 'Doctor appointment',
+                start: addMinutes(addDays(today, 5), 10 * 60 + 15),
+                end: addMinutes(addDays(today, 5), 11 * 60),
+                allDay: false,
+                cat: 'health',
+                notes: 'Bring insurance card'
+            },
+            {
+                id: uid(),
+                title: 'Weekend trip',
+                start: addDays(today, 10),
+                end: addDays(today, 13),
+                allDay: true,
+                cat: 'travel',
+                notes: 'Pack light'
+            },
+            {
+                id: uid(),
+                title: '1:1',
+                start: addMinutes(addDays(today, -1), 15 * 60),
+                end: addMinutes(addDays(today, -1), 15 * 60 + 30),
+                allDay: false,
+                cat: 'work',
+                notes: ''
+            },
+        ];
+
+        /*********************
+         * State
+         *********************/
+        const state = {
+            view: 'week',
+            focusDate: new Date(),
+            events: sampleEvents,
+            filterCat: 'all',
+            search: '',
+            modal: { open: false, mode: 'new', eventId: null },
+            dragging: null, // { type:'time'|'month', start, end, dayIndex, pointerId }
+            now: new Date(),
+        };
+
+        /*********************
+         * DOM refs
+         *********************/
+        const el = {
+            rangeTitle: document.getElementById('rangeTitle'),
+            rangeSubtitle: document.getElementById('rangeSubtitle'),
+            calendar: document.getElementById('calendar'),
+            miniMonth: document.getElementById('miniMonth'),
+            catList: document.getElementById('catList'),
+            agenda: document.getElementById('agenda'),
+            filterCat: document.getElementById('filterCat'),
+            search: document.getElementById('search'),
+
+            modal: document.getElementById('modal'),
+            modalTitle: document.getElementById('modalTitle'),
+            modalSub: document.getElementById('modalSub'),
+            fTitle: document.getElementById('fTitle'),
+            fStart: document.getElementById('fStart'),
+            fEnd: document.getElementById('fEnd'),
+            fAllDay: document.getElementById('fAllDay'),
+            fCat: document.getElementById('fCat'),
+            fNotes: document.getElementById('fNotes'),
+            btnDelete: document.getElementById('btnDelete'),
+            eventForm: document.getElementById('eventForm'),
+        };
+
+        /*********************
+         * Filtering
+         *********************/
+        function matchesFilters(evt) {
+            if (state.filterCat !== 'all' && evt.cat !== state.filterCat) return false;
+            if (state.search.trim()) {
+                const q = state.search.trim().toLowerCase();
+                const t = (evt.title || '').toLowerCase();
+                const n = (evt.notes || '').toLowerCase();
+                if (!t.includes(q) && !n.includes(q)) return false;
+            }
+            return true;
+        }
+
+        function getVisibleEvents() {
+            return state.events.filter(matchesFilters);
+        }
+
+        /*********************
+         * Modal
+         *********************/
+        function openModalNew(draft) {
+            state.modal.open = true;
+            state.modal.mode = 'new';
+            state.modal.eventId = null;
+            el.modalTitle.textContent = 'New event';
+            el.btnDelete.classList.add('hidden');
+
+            const start = draft?.start ? new Date(draft.start) : addMinutes(new Date(), 30);
+            const end = draft?.end ? new Date(draft.end) : addMinutes(start, 60);
+            const allDay = !!draft?.allDay;
+            const cat = draft?.cat || 'work';
+
+            el.fTitle.value = draft?.title || '';
+            el.fStart.value = toLocalInputValue(start);
+            el.fEnd.value = toLocalInputValue(end);
+            el.fAllDay.checked = allDay;
+            el.fCat.value = cat;
+            el.fNotes.value = draft?.notes || '';
+            syncAllDayInputs();
+
+            el.modal.classList.remove('hidden');
+            document.body.classList.add('no-select');
+        }
+
+        function openModalEdit(evt) {
+            state.modal.open = true;
+            state.modal.mode = 'edit';
+            state.modal.eventId = evt.id;
+            el.modalTitle.textContent = 'Edit event';
+            el.btnDelete.classList.remove('hidden');
+
+            el.fTitle.value = evt.title;
+            el.fStart.value = toLocalInputValue(evt.start);
+            el.fEnd.value = toLocalInputValue(evt.end);
+            el.fAllDay.checked = !!evt.allDay;
+            el.fCat.value = evt.cat;
+            el.fNotes.value = evt.notes || '';
+            syncAllDayInputs();
+
+            el.modal.classList.remove('hidden');
+            document.body.classList.add('no-select');
+        }
+
+        function closeModal() {
+            state.modal.open = false;
+            state.modal.eventId = null;
+            el.modal.classList.add('hidden');
+            document.body.classList.remove('no-select');
+        }
+
+        function syncAllDayInputs() {
+            const allDay = el.fAllDay.checked;
+            el.fStart.type = allDay ? 'date' : 'datetime-local';
+            el.fEnd.type = allDay ? 'date' : 'datetime-local';
+
+            // If switching to all-day, coerce to dates
+            if (allDay) {
+                const s = fromLocalInputValue(el.fStart.value);
+                const e = fromLocalInputValue(el.fEnd.value);
+                const ns = startOfDay(s);
+                const ne = startOfDay(e);
+                el.fStart.value = `${ns.getFullYear()}-${pad(ns.getMonth() + 1)}-${pad(ns.getDate())}`;
+                el.fEnd.value = `${ne.getFullYear()}-${pad(ne.getMonth() + 1)}-${pad(ne.getDate())}`;
+            } else {
+                // if switching to timed, set reasonable defaults if only date provided
+                if (el.fStart.value.length === 10) {
+                    const s = new Date(el.fStart.value + 'T09:00');
+                    const e = addMinutes(s, 60);
+                    el.fStart.value = toLocalInputValue(s);
+                    el.fEnd.value = toLocalInputValue(e);
+                }
+                if (el.fEnd.value.length === 10) {
+                    const e = new Date(el.fEnd.value + 'T10:00');
+                    el.fEnd.value = toLocalInputValue(e);
+                }
+            }
+        }
+
+        function parseForm() {
+            const title = el.fTitle.value.trim();
+            const allDay = el.fAllDay.checked;
+            let start, end;
+
+            if (allDay) {
+                const s = new Date(el.fStart.value + 'T00:00');
+                const e = new Date(el.fEnd.value + 'T00:00');
+                const norm = normalizeAllDayRange(s, e);
+                start = norm.start;
+                end = norm.end;
+            } else {
+                start = fromLocalInputValue(el.fStart.value);
+                end = fromLocalInputValue(el.fEnd.value);
+                if (!(end > start)) end = addMinutes(start, 30);
+            }
+
+            return {
+                title,
+                start,
+                end,
+                allDay,
+                cat: el.fCat.value,
+                notes: el.fNotes.value.trim(),
+            };
+        }
+
+        /*********************
+         * Rendering helpers
+         *********************/
+        function eventChip(evt, compact = false) {
+            const cat = catById(evt.cat);
+            const time = evt.allDay ? 'All day' : `${fmtTime(evt.start)}–${fmtTime(evt.end)}`;
+            const label = compact ? evt.title : `${evt.title}`;
+            return `
+        <button data-action="open" data-id="${evt.id}" class="w-full text-left group rounded-md px-2 py-1.5 text-xs leading-tight border border-slate-200/60 hover:border-slate-200 hover:bg-slate-50/60">
+          <div class="flex items-start gap-2">
+            <span class="mt-0.5 w-2.5 h-2.5 rounded-sm" style="background:${cat.color}"></span>
+            <div class="min-w-0">
+              <div class="font-medium truncate">${escapeHtml(label)}</div>
+              <div class="text-[11px] text-slate-500 truncate">${escapeHtml(time)} · ${escapeHtml(cat.name)}</div>
+            </div>
+          </div>
+        </button>
+      `;
+        }
+
+        function escapeHtml(str) {
+            return String(str ?? '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+        }
+
+        function isInMonthGrid(date, monthDate) {
+            return date.getMonth() === monthDate.getMonth();
+        }
+
+        function rangeLabel() {
+            const d = state.focusDate;
+            if (state.view === 'month') return fmtMonthYear(d);
+            if (state.view === 'day') return fmtDate(d, { weekday: 'long' });
+            const ws = getWeekStart(d);
+            const we = addDays(ws, 6);
+            const sameMonth = ws.getMonth() === we.getMonth() && ws.getFullYear() === we.getFullYear();
+            const sameYear = ws.getFullYear() === we.getFullYear();
+            const left = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', ...(sameYear ? {} : { year: 'numeric' }) }).format(ws);
+            const right = new Intl.DateTimeFormat(undefined, { month: sameMonth ? undefined : 'short', day: 'numeric', year: 'numeric' }).format(we);
+            return `${left} – ${right}`;
+        }
+
+        function setViewButtons() {
+            document.querySelectorAll('.viewBtn').forEach(b => {
+                const active = b.dataset.view === state.view;
+                b.classList.toggle('bg-white', active);
+                b.classList.toggle('text-slate-900', active);
+                b.classList.toggle('shadow-sm', active);
+                b.classList.toggle('border', active);
+                b.classList.toggle('border-slate-200', active);
+                b.classList.toggle('text-slate-600', !active);
+                b.classList.toggle('hover:bg-white/70', !active);
+            });
+        }
+
+        /*********************
+         * Month view render
+         *********************/
+        function renderMonth() {
+            const focus = state.focusDate;
+            const gridStart = getMonthGridStart(focus);
+            const days = Array.from({ length: 42 }, (_, i) => addDays(gridStart, i));
+
+            const visible = getVisibleEvents();
+            // Group events by day for display (treat all-day spanning events across each covered day)
+            const byDay = new Map();
+            for (const d of days) { byDay.set(startOfDay(d).getTime(), []); }
+
+            for (const evt of visible) {
+                // Determine days that this event touches (for month chips)
+                const evtStart = evt.allDay ? startOfDay(evt.start) : startOfDay(evt.start);
+                const evtEndExclusive = evt.allDay ? startOfDay(evt.end) : addDays(startOfDay(evt.end), 1);
+                for (let cur = new Date(evtStart); cur < evtEndExclusive; cur = addDays(cur, 1)) {
+                    const key = startOfDay(cur).getTime();
+                    if (byDay.has(key)) byDay.get(key).push(evt);
+                }
+            }
+
+            const dow = Array.from({ length: 7 }, (_, i) => fmtDow(addDays(getWeekStart(new Date()), i)));
+
+            el.calendar.innerHTML = `
+        <div class="h-full flex flex-col">
+          <div class="grid grid-cols-7 border-b border-slate-200 bg-slate-50">
+            ${dow.map(d => `<div class="px-3 py-2 text-xs font-semibold text-slate-600">${escapeHtml(d)}</div>`).join('')}
+          </div>
+          <div id="monthBody" class="relative flex-1 overflow-auto thin-scroll month-grid">
+            <div class="grid grid-cols-7 grid-rows-6 min-h-full">
+              ${days.map(d => {
+                const inMonth = isInMonthGrid(d, focus);
+                const t = startOfDay(d).getTime();
+                const list = (byDay.get(t) || []).slice().sort((a, b) => a.allDay === b.allDay ? a.start - b.start : (a.allDay ? -1 : 1));
+                const show = list.slice(0, 3);
+                const more = Math.max(0, list.length - show.length);
+                const todayCls = isToday(d) ? 'ring-2 ring-rose-500 ring-inset' : '';
+                return `
+                  <div class="month-day relative p-2 border-r border-slate-200/0 border-b border-slate-200/0 min-h-[120px]" data-date="${d.toISOString()}" role="gridcell">
+                    <div class="flex items-center justify-between">
+                      <div class="w-7 h-7 rounded-lg grid place-items-center text-xs font-semibold ${inMonth ? 'text-slate-900' : 'text-slate-400'} ${todayCls}">
+                        ${d.getDate()}
+                      </div>
+                      <button class="text-[11px] text-slate-500 hover:text-slate-900" data-action="newOnDate" data-date="${d.toISOString()}">+</button>
+                    </div>
+                    <div class="mt-2 space-y-1">
+                      ${show.map(evt => monthPill(evt)).join('')}
+                      ${more ? `<button data-action="more" data-date="${d.toISOString()}" class="text-[11px] text-slate-500 hover:text-slate-900">+${more} more</button>` : ''}
+                    </div>
+                  </div>
+                `;
+            }).join('')}
+            </div>
+            <div id="monthDragOverlay" class="drag-overlay absolute inset-0"></div>
+          </div>
+        </div>
+      `;
+
+            wireMonthDrag();
+        }
+
+        function monthPill(evt) {
+            const cat = catById(evt.cat);
+            const time = evt.allDay ? '' : ` <span class="opacity-80">${escapeHtml(fmtTime(evt.start))}</span>`;
+            return `
+        <button data-action="open" data-id="${evt.id}" class="w-full text-left px-2 py-1 rounded-md text-[11px] leading-tight border border-slate-200/60 hover:border-slate-200 hover:bg-slate-50/70">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="w-2 h-2 rounded-sm" style="background:${cat.color}"></span>
+            <div class="truncate"><span class="font-medium">${escapeHtml(evt.title)}</span>${time}</div>
+          </div>
+        </button>
+      `;
+        }
+
+        /*********************
+         * Week/Day render
+         *********************/
+        function renderWeekOrDay() {
+            const focus = state.focusDate;
+            const weekStart = getWeekStart(focus);
+            const isDay = state.view === 'day';
+            const days = isDay ? [startOfDay(focus)] : Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+
+            const visible = getVisibleEvents();
+
+            // Split all-day vs timed, per day
+            const dayBuckets = days.map(d => ({
+                date: d,
+                allDay: [],
+                timed: [],
+            }));
+
+            for (const evt of visible) {
+                for (let i = 0; i < days.length; i++) {
+                    const d = days[i];
+                    // Determine if event intersects this day
+                    const dayStart = startOfDay(d);
+                    const dayEnd = addDays(dayStart, 1);
+
+                    if (evt.allDay) {
+                        // All-day intersects by [start, end) date boundaries
+                        if (intersects(evt.start, evt.end, dayStart, dayEnd)) dayBuckets[i].allDay.push(evt);
+                    } else {
+                        if (intersects(evt.start, evt.end, dayStart, dayEnd)) {
+                            // Clip to the day range for layout
+                            dayBuckets[i].timed.push(evt);
+                        }
+                    }
+                }
+            }
+
+            // Build header
+            const header = `
+        <div class="sticky top-0 z-20 bg-white border-b border-slate-200">
+          <div class="flex items-stretch">
+            <div class="w-[var(--gutter-w)] shrink-0 border-r border-slate-200 bg-slate-50"></div>
+            <div class="flex-1 grid ${isDay ? 'grid-cols-1' : 'grid-cols-7'}">
+              ${dayBuckets.map(b => {
+                const d = b.date;
+                const today = isToday(d);
+                return `
+                  <div class="px-3 py-2 border-r border-slate-200 last:border-r-0">
+                    <div class="flex items-baseline justify-between gap-2">
+                      <div class="min-w-0">
+                        <div class="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">${escapeHtml(fmtDow(d))}</div>
+                        <div class="flex items-center gap-2">
+                          <div class="text-sm font-semibold ${today ? 'text-rose-600' : 'text-slate-900'}">${d.getDate()}</div>
+                          <div class="text-xs text-slate-500 truncate">${escapeHtml(new Intl.DateTimeFormat(undefined, { month: 'short' }).format(d))}</div>
+                        </div>
+                      </div>
+                      <button data-action="newOnDate" data-date="${d.toISOString()}" class="text-xs text-slate-500 hover:text-slate-900">+</button>
+                    </div>
+                  </div>
+                `;
+            }).join('')}
+            </div>
+          </div>
+
+          <!-- All-day row -->
+          <div class="flex items-stretch border-t border-slate-200 bg-white">
+            <div class="w-[var(--gutter-w)] shrink-0 border-r border-slate-200 bg-slate-50 px-2 py-2">
+              <div class="text-[11px] text-slate-500">All-day</div>
+            </div>
+            <div class="flex-1 grid ${isDay ? 'grid-cols-1' : 'grid-cols-7'}">
+              ${dayBuckets.map(b => {
+                const items = b.allDay
+                    .slice()
+                    .sort((a, b) => (a.start - b.start) || a.title.localeCompare(b.title))
+                    .slice(0, 3);
+                const more = Math.max(0, b.allDay.length - items.length);
+                return `
+                  <div class="min-h-[var(--allday-h)] px-2 py-1 border-r border-slate-200 last:border-r-0">
+                    <div class="flex flex-col gap-1">
+                      ${items.map(evt => allDayPill(evt)).join('')}
+                      ${more ? `<button data-action="more" data-date="${b.date.toISOString()}" class="text-[11px] text-slate-500 hover:text-slate-900 text-left">+${more} more</button>` : ''}
+                    </div>
+                  </div>
+                `;
+            }).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+
+            // Time labels
+            const hours = Array.from({ length: 24 }, (_, h) => h);
+            const labels = `
+        <div class="w-[var(--gutter-w)] shrink-0 border-r border-slate-200 bg-slate-50 relative">
+          ${hours.map(h => {
+                const d = new Date();
+                d.setHours(h, 0, 0, 0);
+                return `
+              <div class="absolute left-0 right-0" style="top: calc(${h} * var(--hour-h) * 1px - 8px)">
+                <div class="px-2 text-[11px] text-slate-500 text-right">${escapeHtml(fmtTime(d).replace(':00', ''))}</div>
+              </div>
+            `;
+            }).join('')}
+        </div>
+      `;
+
+            // Body columns
+            const cols = dayBuckets.map((b, idx) => {
+                const d = b.date;
+                const timed = layoutTimedEventsForDay(b.timed, d);
+
+                return `
+          <div class="day-col relative border-r border-slate-200 last:border-r-0" data-day-index="${idx}" data-date="${d.toISOString()}">
+            <div class="absolute inset-0">
+              ${timed.map(x => timedBlock(x)).join('')}
+              ${renderNowIndicator(d)}
+            </div>
+          </div>
+        `;
+            }).join('');
+
+            el.calendar.innerHTML = `
+        <div class="h-full flex flex-col">
+          ${header}
+          <div id="timeScroll" class="relative flex-1 overflow-auto thin-scroll">
+            <div class="min-w-[900px] ${isDay ? 'min-w-[720px]' : ''}">
+              <div id="timeGrid" class="relative flex time-grid ${isDay ? 'day' : ''}" style="height: calc(24 * var(--hour-h) * 1px)">
+                ${labels}
+                <div class="flex-1 grid ${isDay ? 'grid-cols-1' : 'grid-cols-7'}" id="timeCols">
+                  ${cols}
+                </div>
+                <div id="timeDragOverlay" class="drag-overlay absolute inset-0"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+            wireTimeDrag();
+
+            // Scroll to around current time when opening week/day
+            const sc = document.getElementById('timeScroll');
+            const mins = minutesSinceStartOfDay(state.now);
+            const target = (mins / 60) * getHourHeight() - 200;
+            sc.scrollTop = clamp(target, 0, sc.scrollHeight);
+        }
+
+        function getHourHeight() {
+            return Number(getComputedStyle(document.documentElement).getPropertyValue('--hour-h'));
+        }
+
+        function allDayPill(evt) {
+            const cat = catById(evt.cat);
+            return `
+        <button data-action="open" data-id="${evt.id}" class="text-left rounded-md px-2 py-1 text-[11px] border border-slate-200/60 hover:border-slate-200 hover:bg-slate-50/70">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="w-2 h-2 rounded-sm" style="background:${cat.color}"></span>
+            <div class="truncate font-medium">${escapeHtml(evt.title)}</div>
+          </div>
+        </button>
+      `;
+        }
+
+        function layoutTimedEventsForDay(events, dayDate) {
+            const dayStart = startOfDay(dayDate);
+            const dayEnd = addDays(dayStart, 1);
+
+            // Clip events into the day range for display
+            const clipped = events.map(e => ({
+                evt: e,
+                start: new Date(Math.max(e.start.getTime(), dayStart.getTime())),
+                end: new Date(Math.min(e.end.getTime(), dayEnd.getTime())),
+            })).filter(x => x.end > x.start);
+
+            clipped.sort((a, b) => a.start - b.start || a.end - b.end);
+            const out = [];
+
+            // Create overlap clusters
+            let cluster = [];
+            let clusterEnd = null;
+            for (const item of clipped) {
+                if (!cluster.length) {
+                    cluster = [item];
+                    clusterEnd = item.end;
+                } else {
+                    if (item.start < clusterEnd) {
+                        cluster.push(item);
+                        if (item.end > clusterEnd) clusterEnd = item.end;
+                    } else {
+                        out.push(...assignColumns(cluster));
+                        cluster = [item];
+                        clusterEnd = item.end;
+                    }
+                }
+            }
+            if (cluster.length) out.push(...assignColumns(cluster));
+
+            return out;
+
+            function assignColumns(items) {
+                // Greedy column assignment within this cluster
+                const colsEnd = []; // end time per column
+                const assigned = [];
+
+                for (const it of items) {
+                    let col = 0;
+                    while (col < colsEnd.length && it.start < colsEnd[col]) col++;
+                    if (col === colsEnd.length) colsEnd.push(it.end);
+                    else colsEnd[col] = it.end;
+                    assigned.push({ ...it, col });
+                }
+                const colCount = colsEnd.length;
+                return assigned.map(a => ({ ...a, colCount }));
+            }
+        }
+
+        function timedBlock(x) {
+            const evt = x.evt;
+            const cat = catById(evt.cat);
+            const hh = getHourHeight();
+            const top = (minutesSinceStartOfDay(x.start) / 60) * hh;
+            const height = Math.max(((x.end - x.start) / (60 * 60 * 1000)) * hh, 18);
+            const left = (x.col / x.colCount) * 100;
+            const width = 100 / x.colCount;
+
+            const timeLabel = `${fmtTime(x.start)}–${fmtTime(x.end)}`;
+            return `
+        <button data-action="open" data-id="${evt.id}"
+          class="absolute evt-shadow rounded-lg border border-slate-200/60 hover:border-slate-200 overflow-hidden"
+          style="top:${top}px;height:${height}px;left:calc(${left}% + 6px);width:calc(${width}% - 12px);background: color-mix(in srgb, ${cat.color} 14%, white);">
+          <div class="h-full w-full border-l-4" style="border-left-color:${cat.color}">
+            <div class="px-2 py-1.5 text-[11px] leading-tight">
+              <div class="font-semibold truncate">${escapeHtml(evt.title)}</div>
+              <div class="text-slate-600 truncate">${escapeHtml(timeLabel)} · ${escapeHtml(cat.name)}</div>
+            </div>
+          </div>
+        </button>
+      `;
+        }
+
+        function renderNowIndicator(dayDate) {
+            if (!isToday(dayDate)) return '';
+            const hh = getHourHeight();
+            const mins = minutesSinceStartOfDay(state.now);
+            const top = (mins / 60) * hh;
+
+            // Show if within day range
+            if (top < 0 || top > 24 * hh) return '';
+
+            return `
+        <div class="absolute left-0 right-0" style="top:${top}px">
+          <div class="absolute -left-1.5 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-rose-500"></div>
+          <div class="h-px bg-rose-500"></div>
+        </div>
+      `;
+        }
+
+        /*********************
+         * Mini month
+         *********************/
+        function renderMiniMonth() {
+            const focus = state.focusDate;
+            const start = getMonthGridStart(focus);
+            const days = Array.from({ length: 42 }, (_, i) => addDays(start, i));
+            const dow = Array.from({ length: 7 }, (_, i) => fmtDow(addDays(getWeekStart(new Date()), i)).slice(0, 2));
+
+            el.miniMonth.innerHTML = `
+        <div class="flex items-center justify-between">
+          <button id="miniPrev" class="px-2 py-1 rounded-lg hover:bg-slate-100">◀</button>
+          <div class="text-xs font-semibold">${escapeHtml(fmtMonthYear(focus))}</div>
+          <button id="miniNext" class="px-2 py-1 rounded-lg hover:bg-slate-100">▶</button>
+        </div>
+        <div class="mt-2 grid grid-cols-7 gap-1">
+          ${dow.map(d => `<div class="text-[10px] text-slate-500 text-center">${escapeHtml(d)}</div>`).join('')}
+          ${days.map(d => {
+                const inMonth = d.getMonth() === focus.getMonth();
+                const today = isToday(d);
+                const focused = sameDay(d, state.focusDate);
+                const cls = [
+                    'miniDay text-xs w-8 h-8 rounded-lg grid place-items-center',
+                    inMonth ? 'text-slate-900' : 'text-slate-400',
+                    today ? 'ring-2 ring-rose-500 ring-inset' : 'hover:bg-slate-100',
+                    focused ? 'bg-slate-900 text-white hover:bg-slate-800' : ''
+                ].join(' ');
+                return `<button class="${cls}" data-action="jump" data-date="${d.toISOString()}">${d.getDate()}</button>`;
+            }).join('')}
+        </div>
+      `;
+
+            document.getElementById('miniPrev').onclick = () => {
+                const d = new Date(state.focusDate);
+                state.focusDate = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+                render();
+            };
+            document.getElementById('miniNext').onclick = () => {
+                const d = new Date(state.focusDate);
+                state.focusDate = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+                render();
+            };
+            el.miniMonth.querySelectorAll('[data-action="jump"]').forEach(btn => {
+                btn.onclick = () => {
+                    state.focusDate = new Date(btn.dataset.date);
+                    render();
+                };
+            });
+        }
+
+        /*********************
+         * Categories + agenda
+         *********************/
+        function renderCategories() {
+            el.catList.innerHTML = categories.map(c => `
+        <div class="flex items-center justify-between gap-2 px-2 py-1 rounded-lg hover:bg-slate-50">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="w-2.5 h-2.5 rounded-sm" style="background:${c.color}"></span>
+            <div class="text-sm truncate">${escapeHtml(c.name)}</div>
+          </div>
+          <div class="text-xs text-slate-500">${state.events.filter(e => e.cat === c.id).length}</div>
+        </div>
+      `).join('');
+
+            el.filterCat.innerHTML = `
+        <option value="all">All categories</option>
+        ${categories.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('')}
+      `;
+            el.filterCat.value = state.filterCat;
+
+            // Modal category select
+            el.fCat.innerHTML = categories.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+        }
+
+        function renderAgenda() {
+            const start = startOfDay(state.focusDate);
+            const end = addDays(start, 14);
+            const visible = getVisibleEvents();
+            const upcoming = visible
+                .filter(e => intersects(e.start, e.end, start, end))
+                .slice()
+                .sort((a, b) => a.start - b.start || a.end - b.end);
+
+            if (!upcoming.length) {
+                el.agenda.innerHTML = `<div class="text-sm text-slate-500 px-2 py-3">No events in the next 14 days.</div>`;
+                return;
+            }
+
+            // Group by day
+            const groups = new Map();
+            for (const e of upcoming) {
+                const key = startOfDay(e.start).getTime();
+                if (!groups.has(key)) groups.set(key, []);
+                groups.get(key).push(e);
+            }
+            const keys = Array.from(groups.keys()).sort((a, b) => a - b);
+            el.agenda.innerHTML = keys.map(k => {
+                const d = new Date(Number(k));
+                const list = groups.get(k);
+                return `
+          <div class="mb-3">
+            <div class="px-2 py-1 text-xs font-semibold ${isToday(d) ? 'text-rose-600' : 'text-slate-600'}">${escapeHtml(fmtDate(d, { weekday: 'short' }))}</div>
+            <div class="space-y-1">
+              ${list.map(evt => eventChip(evt, true)).join('')}
+            </div>
+          </div>
+        `;
+            }).join('');
+        }
+
+        /*********************
+         * Main render
+         *********************/
+        function render() {
+            setViewButtons();
+            el.rangeTitle.textContent = rangeLabel();
+            el.rangeSubtitle.textContent = state.view === 'month'
+                ? 'Drag across days to create an all-day range'
+                : 'Drag on the time grid to create a timed event';
+
+            renderMiniMonth();
+            renderCategories();
+            renderAgenda();
+
+            if (state.view === 'month') renderMonth();
+            else renderWeekOrDay();
+        }
+
+        /*********************
+         * Navigation
+         *********************/
+        function goToday() {
+            state.focusDate = new Date();
+            render();
+        }
+
+        function goPrev() {
+            const d = state.focusDate;
+            if (state.view === 'month') state.focusDate = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+            if (state.view === 'week') state.focusDate = addDays(d, -7);
+            if (state.view === 'day') state.focusDate = addDays(d, -1);
+            render();
+        }
+
+        function goNext() {
+            const d = state.focusDate;
+            if (state.view === 'month') state.focusDate = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+            if (state.view === 'week') state.focusDate = addDays(d, 7);
+            if (state.view === 'day') state.focusDate = addDays(d, 1);
+            render();
+        }
+
+        /*********************
+         * Event actions
+         *********************/
+        function getEventById(id) {
+            return state.events.find(e => e.id === id);
+        }
+
+        function onOpenEvent(id) {
+            const evt = getEventById(id);
+            if (!evt) return;
+            openModalEdit(evt);
+        }
+
+        function onMore(dateIso) {
+            // Jump to day view for that date
+            state.focusDate = new Date(dateIso);
+            state.view = 'day';
+            render();
+        }
+
+        function createDraftForDate(dateIso) {
+            const d = new Date(dateIso);
+            const s = addMinutes(startOfDay(d), 9 * 60);
+            const e = addMinutes(s, 60);
+            return { start: s, end: e, allDay: false, cat: state.filterCat !== 'all' ? state.filterCat : 'work' };
+        }
+
+        /*********************
+         * Drag-to-create (Month)
+         *********************/
+        function wireMonthDrag() {
+            const body = document.getElementById('monthBody');
+            if (!body) return;
+
+            const overlay = document.getElementById('monthDragOverlay');
+            const dayEls = Array.from(body.querySelectorAll('.month-day'));
+
+            const clearSel = () => {
+                overlay.innerHTML = '';
+                dayEls.forEach(x => x.classList.remove('bg-slate-900/5'));
+            };
+
+            const getCellFromTarget = (t) => t?.closest?.('.month-day');
+
+            body.onpointerdown = (e) => {
+                const cell = getCellFromTarget(e.target);
+                if (!cell) return;
+                if (e.button !== undefined && e.button !== 0) return;
+                if (e.target?.closest?.('button[data-action="open"]')) return; // allow click open
+                if (e.target?.closest?.('button[data-action="newOnDate"]')) return;
+
+                const start = startOfDay(new Date(cell.dataset.date));
+                state.dragging = { type: 'month', start, end: start, pointerId: e.pointerId };
+                body.setPointerCapture(e.pointerId);
+                document.body.classList.add('no-select');
+                clearSel();
+                highlightMonthRange();
+            };
+
+            body.onpointermove = (e) => {
+                if (!state.dragging || state.dragging.type !== 'month') return;
+                const cell = getCellFromTarget(e.target);
+                if (!cell) return;
+                state.dragging.end = startOfDay(new Date(cell.dataset.date));
+                highlightMonthRange();
+            };
+
+            body.onpointerup = (e) => {
+                if (!state.dragging || state.dragging.type !== 'month') return;
+                try { body.releasePointerCapture(state.dragging.pointerId); } catch { }
+                document.body.classList.remove('no-select');
+
+                const s = state.dragging.start;
+                const e2 = state.dragging.end;
+                const a = s <= e2 ? s : e2;
+                const b = s <= e2 ? e2 : s;
+                state.dragging = null;
+                clearSel();
+
+                // all-day end is exclusive => b + 1 day
+                openModalNew({
+                    title: '',
+                    start: a,
+                    end: addDays(b, 1),
+                    allDay: true,
+                    cat: state.filterCat !== 'all' ? state.filterCat : 'personal',
+                    notes: ''
+                });
+            };
+
+            body.onpointercancel = () => {
+                state.dragging = null;
+                document.body.classList.remove('no-select');
+                clearSel();
+            };
+
+            function highlightMonthRange() {
+                const s = state.dragging.start;
+                const e2 = state.dragging.end;
+                const a = s <= e2 ? s : e2;
+                const b = s <= e2 ? e2 : s;
+                dayEls.forEach(cell => {
+                    const d = startOfDay(new Date(cell.dataset.date));
+                    const on = d >= a && d <= b;
+                    cell.classList.toggle('bg-slate-900/5', on);
+                });
+            }
+        }
+
+        /*********************
+         * Drag-to-create (Week/Day time grid)
+         *********************/
+        function wireTimeDrag() {
+            const grid = document.getElementById('timeGrid');
+            const colsWrap = document.getElementById('timeCols');
+            const overlay = document.getElementById('timeDragOverlay');
+            if (!grid || !colsWrap || !overlay) return;
+
+            const isDay = state.view === 'day';
+
+            const getColFromTarget = (t) => t?.closest?.('.day-col');
+
+            function clearOverlay() {
+                overlay.innerHTML = '';
+            }
+
+            function pointerToDayAndMinutes(e) {
+                const rect = grid.getBoundingClientRect();
+                const gutter = Number(getComputedStyle(document.documentElement).getPropertyValue('--gutter-w').replace('px', '')) || 64;
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                const hh = getHourHeight();
+                const scroll = document.getElementById('timeScroll');
+                const yIn = y + (scroll?.scrollTop || 0);
+
+                // Determine column
+                let dayIndex = 0;
+                if (!isDay) {
+                    const colW = (rect.width - gutter) / 7;
+                    dayIndex = clamp(Math.floor((x - gutter) / colW), 0, 6);
+                }
+
+                const minutes = clamp(snapMinutes((yIn / (hh)) * 60, 15), 0, 24 * 60);
+                return { dayIndex, minutes };
+            }
+
+            colsWrap.onpointerdown = (e) => {
+                if (e.button !== undefined && e.button !== 0) return;
+                if (e.target?.closest?.('button[data-action="open"]')) return; // clicking event
+
+                const col = getColFromTarget(e.target);
+                if (!col) return;
+
+                const { dayIndex, minutes } = pointerToDayAndMinutes(e);
+                const dayDate = new Date(col.dataset.date);
+                const start = addMinutes(startOfDay(dayDate), minutes);
+                const end = addMinutes(start, 30);
+
+                state.dragging = { type: 'time', dayIndex, start, end, pointerId: e.pointerId };
+                colsWrap.setPointerCapture(e.pointerId);
+                document.body.classList.add('no-select');
+                clearOverlay();
+                drawTimeSelection();
+            };
+
+            colsWrap.onpointermove = (e) => {
+                if (!state.dragging || state.dragging.type !== 'time') return;
+                const { dayIndex, minutes } = pointerToDayAndMinutes(e);
+                // keep the column fixed to the drag start day, like Google Calendar
+                const d0 = state.dragging.start;
+                const fixedDay = startOfDay(d0);
+                const cur = addMinutes(fixedDay, minutes);
+
+                let a = state.dragging.start;
+                let b = cur;
+                if (b < a) [a, b] = [b, a];
+
+                // minimum 30 mins
+                if (b.getTime() - a.getTime() < 30 * 60 * 1000) b = addMinutes(a, 30);
+                state.dragging.start = a;
+                state.dragging.end = b;
+
+                clearOverlay();
+                drawTimeSelection();
+            };
+
+            colsWrap.onpointerup = (e) => {
+                if (!state.dragging || state.dragging.type !== 'time') return;
+                try { colsWrap.releasePointerCapture(state.dragging.pointerId); } catch { }
+                document.body.classList.remove('no-select');
+
+                const { start, end } = state.dragging;
+                state.dragging = null;
+                clearOverlay();
+
+                openModalNew({
+                    title: '',
+                    start,
+                    end,
+                    allDay: false,
+                    cat: state.filterCat !== 'all' ? state.filterCat : 'work',
+                    notes: ''
+                });
+            };
+
+            colsWrap.onpointercancel = () => {
+                state.dragging = null;
+                document.body.classList.remove('no-select');
+                clearOverlay();
+            };
+
+            function drawTimeSelection() {
+                if (!state.dragging || state.dragging.type !== 'time') return;
+
+                const hh = getHourHeight();
+                const start = state.dragging.start;
+                const end = state.dragging.end;
+                const top = (minutesSinceStartOfDay(start) / 60) * hh;
+                const height = Math.max(((end - start) / (60 * 60 * 1000)) * hh, 18);
+
+                // Find column element
+                const colEls = Array.from(colsWrap.querySelectorAll('.day-col'));
+                const colEl = colEls[state.dragging.dayIndex] || colEls[0];
+                if (!colEl) return;
+
+                const gridRect = document.getElementById('timeGrid').getBoundingClientRect();
+                const colRect = colEl.getBoundingClientRect();
+                const scroll = document.getElementById('timeScroll');
+
+                // Convert to overlay coords (overlay is absolute inset-0 in timeGrid)
+                const x = colRect.left - gridRect.left;
+                const w = colRect.width;
+
+                overlay.innerHTML = `
+          <div class="absolute rounded-lg border border-slate-900/10" style="left:${x + 6}px;width:${w - 12}px;top:${top}px;height:${height}px;background:rgba(15,23,42,.10)">
+            <div class="h-full w-full border-l-4" style="border-left-color:rgba(15,23,42,.45)">
+              <div class="px-2 py-1 text-[11px] text-slate-700">
+                ${escapeHtml(fmtTime(start))}–${escapeHtml(fmtTime(end))}
+              </div>
+            </div>
+          </div>
+        `;
+            }
+        }
+
+        /*********************
+         * Global wiring
+         *********************/
+        function wireGlobal() {
+            document.getElementById('btnToday').onclick = goToday;
+            document.getElementById('miniToday').onclick = goToday;
+            document.getElementById('btnPrev').onclick = goPrev;
+            document.getElementById('btnNext').onclick = goNext;
+
+            document.getElementById('btnNew').onclick = () => {
+                const draft = createDraftForDate(state.focusDate.toISOString());
+                openModalNew(draft);
+            };
+
+            document.querySelectorAll('.viewBtn').forEach(btn => {
+                btn.onclick = () => {
+                    state.view = btn.dataset.view;
+                    render();
+                };
+            });
+
+            // Modal
+            document.getElementById('modalClose').onclick = closeModal;
+            document.getElementById('modalCancel').onclick = closeModal;
+            el.modal.addEventListener('click', (e) => {
+                if (e.target === el.modal.firstElementChild) closeModal();
+            });
+            el.fAllDay.addEventListener('change', syncAllDayInputs);
+
+            el.eventForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const payload = parseForm();
+
+                if (state.modal.mode === 'new') {
+                    state.events.push({ id: uid(), ...payload });
+                } else {
+                    const idx = state.events.findIndex(ev => ev.id === state.modal.eventId);
+                    if (idx >= 0) state.events[idx] = { ...state.events[idx], ...payload };
+                }
+
+                closeModal();
+                render();
+            });
+
+            el.btnDelete.addEventListener('click', () => {
+                if (!state.modal.eventId) return;
+                state.events = state.events.filter(ev => ev.id !== state.modal.eventId);
+                closeModal();
+                render();
+            });
+
+            // Filters
+            el.filterCat.onchange = () => {
+                state.filterCat = el.filterCat.value;
+                render();
+            };
+            el.search.oninput = () => {
+                state.search = el.search.value;
+                render();
+            };
+
+            // Event delegation
+            document.body.addEventListener('click', (e) => {
+                const btn = e.target.closest('button[data-action]');
+                if (!btn) return;
+
+                const action = btn.dataset.action;
+                if (action === 'open') {
+                    onOpenEvent(btn.dataset.id);
+                } else if (action === 'more') {
+                    onMore(btn.dataset.date);
+                } else if (action === 'newOnDate') {
+                    const d = new Date(btn.dataset.date);
+                    const draft = createDraftForDate(d.toISOString());
+                    openModalNew(draft);
+                }
+            });
+
+            // ESC closes modal
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !el.modal.classList.contains('hidden')) closeModal();
+            });
+
+            // Keep "now" indicator fresh
+            setInterval(() => {
+                state.now = new Date();
+                // Update only if week/day view is visible to reduce churn
+                if (state.view !== 'month') render();
+            }, 60 * 1000);
+        }
+
+        // Initial boot
+        wireGlobal();
+        render();
+    </script>
+</body>
+
+</html>
