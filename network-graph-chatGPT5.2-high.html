@@ -1,0 +1,748 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Force-Directed Network Graph (Clusters + Zoom/Pan + Search)</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <style>
+        :root {
+            color-scheme: dark;
+        }
+
+        /* SVG text rendering */
+        .node-label {
+            pointer-events: none;
+            user-select: none;
+        }
+
+        /* Highlight styling */
+        .dim {
+            opacity: 0.12;
+        }
+
+        .node--match circle {
+            stroke: rgba(255, 255, 255, 0.95);
+            stroke-width: 2.5px;
+        }
+
+        .node--focus circle {
+            stroke: rgba(34, 211, 238, 0.95);
+            stroke-width: 3.25px;
+        }
+
+        .link--match {
+            stroke: rgba(255, 255, 255, 0.8) !important;
+            opacity: 0.8 !important;
+        }
+
+        /* Subtle glow */
+        .glow {
+            filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.25));
+        }
+
+        /* Better touch interactions */
+        svg {
+            touch-action: none;
+        }
+
+        /* For the results dropdown */
+        .results::-webkit-scrollbar {
+            height: 10px;
+            width: 10px;
+        }
+
+        .results::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.12);
+            border-radius: 999px;
+        }
+
+        .results::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.04);
+        }
+    </style>
+</head>
+
+<body class="min-h-screen bg-zinc-950 text-zinc-100">
+    <div class="min-h-screen grid grid-cols-1 lg:grid-cols-[360px_1fr]">
+        <!-- Sidebar -->
+        <aside class="border-b lg:border-b-0 lg:border-r border-white/10 bg-zinc-950/70 backdrop-blur px-5 py-5">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <h1 class="text-lg font-semibold tracking-tight">Network Graph</h1>
+                    <p class="text-sm text-zinc-400 mt-1">Force-directed layout with clustering, zoom/pan, drag, and
+                        search highlighting.</p>
+                </div>
+                <button id="btnResetView"
+                    class="shrink-0 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 px-3 py-2 text-xs">Reset
+                    view</button>
+            </div>
+
+            <div class="mt-5 space-y-4">
+                <!-- Search -->
+                <div>
+                    <label class="text-xs text-zinc-400">Search nodes (id/name)</label>
+                    <div class="mt-2 flex gap-2">
+                        <input id="searchInput" type="text" placeholder="e.g. Node 12"
+                            class="w-full rounded-lg border border-white/10 bg-zinc-900/50 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-cyan-400/40" />
+                        <button id="btnClear"
+                            class="rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 px-3 py-2 text-xs">Clear</button>
+                    </div>
+                    <div id="resultsWrap" class="mt-2 hidden">
+                        <div class="text-[11px] text-zinc-500 mb-1">Matches (click to focus)</div>
+                        <div id="results"
+                            class="results max-h-44 overflow-auto rounded-lg border border-white/10 bg-zinc-900/40">
+                        </div>
+                    </div>
+                    <div id="searchHint" class="mt-2 text-[11px] text-zinc-500">Tip: search also matches group labels
+                        like <span class="text-zinc-300">Group A</span>.</div>
+                </div>
+
+                <!-- Controls -->
+                <div class="rounded-xl border border-white/10 bg-zinc-900/30 p-4">
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <div class="text-sm font-medium">Graph controls</div>
+                            <div class="text-xs text-zinc-500">Regenerate a sample clustered network.</div>
+                        </div>
+                        <button id="btnRegenerate"
+                            class="rounded-lg bg-cyan-500/15 text-cyan-200 hover:bg-cyan-500/25 border border-cyan-400/20 px-3 py-2 text-xs">Regenerate</button>
+                    </div>
+
+                    <div class="mt-4 grid grid-cols-2 gap-3">
+                        <label class="flex items-center gap-2 text-xs text-zinc-300">
+                            <input id="toggleLabels" type="checkbox" class="accent-cyan-400" />
+                            Show labels
+                        </label>
+                        <label class="flex items-center gap-2 text-xs text-zinc-300">
+                            <input id="toggleClusters" type="checkbox" checked class="accent-cyan-400" />
+                            Cluster force
+                        </label>
+                        <label class="flex items-center gap-2 text-xs text-zinc-300">
+                            <input id="toggleNeighbors" type="checkbox" checked class="accent-cyan-400" />
+                            Highlight neighbors
+                        </label>
+                        <label class="flex items-center gap-2 text-xs text-zinc-300">
+                            <input id="toggleLinkDir" type="checkbox" class="accent-cyan-400" />
+                            Direction arrows
+                        </label>
+                    </div>
+
+                    <div class="mt-4">
+                        <div class="flex items-center justify-between text-xs text-zinc-400">
+                            <span>Link distance</span>
+                            <span id="linkDistLabel" class="tabular-nums">65</span>
+                        </div>
+                        <input id="linkDist" type="range" min="20" max="160" value="65"
+                            class="mt-2 w-full accent-cyan-400" />
+                    </div>
+
+                    <div class="mt-4">
+                        <div class="flex items-center justify-between text-xs text-zinc-400">
+                            <span>Repulsion</span>
+                            <span id="chargeLabel" class="tabular-nums">-140</span>
+                        </div>
+                        <input id="charge" type="range" min="-40" max="-420" value="-140"
+                            class="mt-2 w-full accent-cyan-400" />
+                    </div>
+                </div>
+
+                <!-- Legend -->
+                <div class="rounded-xl border border-white/10 bg-zinc-900/30 p-4">
+                    <div class="flex items-center justify-between">
+                        <div class="text-sm font-medium">Clusters</div>
+                        <div id="stats" class="text-xs text-zinc-500"></div>
+                    </div>
+                    <div id="legend" class="mt-3 grid grid-cols-2 gap-2"></div>
+                </div>
+
+                <!-- Help -->
+                <div class="text-xs text-zinc-500 leading-relaxed">
+                    <div class="text-zinc-400 font-medium mb-1">Gestures</div>
+                    <ul class="list-disc pl-4 space-y-1">
+                        <li>Scroll / trackpad to zoom; drag background to pan.</li>
+                        <li>Drag nodes to reposition (they stay pinned while dragging).</li>
+                        <li>Search to highlight; click a match to zoom to it.</li>
+                    </ul>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main -->
+        <main class="relative">
+            <div class="absolute inset-0">
+                <svg id="viz" class="w-full h-full"></svg>
+            </div>
+
+            <!-- HUD -->
+            <div
+                class="pointer-events-none absolute left-4 bottom-4 right-4 flex flex-col sm:flex-row gap-2 sm:items-end sm:justify-between">
+                <div
+                    class="pointer-events-auto rounded-xl border border-white/10 bg-zinc-950/40 backdrop-blur px-3 py-2 text-xs text-zinc-300">
+                    <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span class="text-zinc-400">Hover:</span>
+                        <span id="hoverText" class="font-medium">—</span>
+                        <span class="text-zinc-500">·</span>
+                        <span class="text-zinc-400">Zoom:</span>
+                        <span id="zoomText" class="tabular-nums">1.00×</span>
+                    </div>
+                </div>
+
+                <div
+                    class="pointer-events-auto rounded-xl border border-white/10 bg-zinc-950/40 backdrop-blur px-3 py-2 text-xs text-zinc-400">
+                    <span class="text-zinc-300">Search</span> highlights matches; <span class="text-zinc-300">Ctrl/⌘ +
+                        F</span> focuses the input.
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // ---------- Utilities
+        const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+        // ---------- Graph generation (sample)
+        function generateGraph({ n = 70, groups = 6, linkFactor = 1.35, seed = 1 } = {}) {
+            // Deterministic-ish PRNG
+            let s = seed >>> 0;
+            const rand = () => (s = (1664525 * s + 1013904223) >>> 0) / 4294967296;
+
+            const groupNames = Array.from({ length: groups }, (_, i) => `Group ${String.fromCharCode(65 + i)}`);
+            const nodes = Array.from({ length: n }, (_, i) => {
+                const group = Math.floor(rand() * groups);
+                return {
+                    id: `Node ${i + 1}`,
+                    name: `Node ${i + 1}`,
+                    group,
+                    groupLabel: groupNames[group],
+                    r: 6 + Math.floor(rand() * 5),
+                };
+            });
+
+            const links = [];
+
+            // Create intra-cluster links (denser)
+            for (let i = 0; i < n; i++) {
+                const a = nodes[i];
+                const desired = Math.max(1, Math.round(linkFactor + rand() * 3));
+                for (let k = 0; k < desired; k++) {
+                    let j = Math.floor(rand() * n);
+                    let tries = 0;
+                    while ((nodes[j].group !== a.group || j === i) && tries++ < 15) j = Math.floor(rand() * n);
+                    if (j !== i) links.push({ source: a.id, target: nodes[j].id, w: 1 });
+                }
+            }
+
+            // Sprinkle cross-cluster links to keep it connected
+            const cross = Math.max(6, Math.round(n * 0.12));
+            for (let t = 0; t < cross; t++) {
+                const a = nodes[Math.floor(rand() * n)];
+                let b = nodes[Math.floor(rand() * n)];
+                let tries = 0;
+                while (b.group === a.group && tries++ < 20) b = nodes[Math.floor(rand() * n)];
+                if (a.id !== b.id) links.push({ source: a.id, target: b.id, w: 0.7 });
+            }
+
+            // Deduplicate links (unordered)
+            const seen = new Set();
+            const uniq = [];
+            for (const l of links) {
+                const key = l.source < l.target ? `${l.source}__${l.target}` : `${l.target}__${l.source}`;
+                if (!seen.has(key)) { seen.add(key); uniq.push(l); }
+            }
+
+            return { nodes, links: uniq, groupNames };
+        }
+
+        // ---------- D3 setup
+        const svg = d3.select('#viz');
+        const hoverText = document.getElementById('hoverText');
+        const zoomText = document.getElementById('zoomText');
+
+        // Root group that gets zoom transforms
+        const gRoot = svg.append('g').attr('class', 'root');
+
+        // Layers
+        const gLinks = gRoot.append('g').attr('class', 'links');
+        const gNodes = gRoot.append('g').attr('class', 'nodes');
+        const gLabels = gRoot.append('g').attr('class', 'labels');
+
+        // Optional arrow markers
+        const defs = svg.append('defs');
+        defs.append('marker')
+            .attr('id', 'arrow')
+            .attr('viewBox', '0 -5 10 10')
+            .attr('refX', 18)
+            .attr('refY', 0)
+            .attr('markerWidth', 6)
+            .attr('markerHeight', 6)
+            .attr('orient', 'auto')
+            .append('path')
+            .attr('d', 'M0,-5L10,0L0,5')
+            .attr('fill', 'rgba(255,255,255,0.55)');
+
+        const color = d3.scaleOrdinal()
+            .range(['#22d3ee', '#a78bfa', '#34d399', '#fb7185', '#fbbf24', '#60a5fa', '#f472b6', '#a3e635']);
+
+        let width = 800, height = 600;
+        let graph = null;
+        let simulation = null;
+
+        const ui = {
+            searchInput: document.getElementById('searchInput'),
+            btnClear: document.getElementById('btnClear'),
+            btnRegenerate: document.getElementById('btnRegenerate'),
+            btnResetView: document.getElementById('btnResetView'),
+            resultsWrap: document.getElementById('resultsWrap'),
+            results: document.getElementById('results'),
+            legend: document.getElementById('legend'),
+            stats: document.getElementById('stats'),
+            toggleLabels: document.getElementById('toggleLabels'),
+            toggleClusters: document.getElementById('toggleClusters'),
+            toggleNeighbors: document.getElementById('toggleNeighbors'),
+            toggleLinkDir: document.getElementById('toggleLinkDir'),
+            linkDist: document.getElementById('linkDist'),
+            linkDistLabel: document.getElementById('linkDistLabel'),
+            charge: document.getElementById('charge'),
+            chargeLabel: document.getElementById('chargeLabel'),
+        };
+
+        // Zoom/pan
+        const zoom = d3.zoom()
+            .scaleExtent([0.15, 6])
+            .on('zoom', (event) => {
+                gRoot.attr('transform', event.transform);
+                zoomText.textContent = `${event.transform.k.toFixed(2)}×`;
+            });
+
+        svg.call(zoom);
+
+        function getSize() {
+            const rect = svg.node().getBoundingClientRect();
+            width = Math.max(320, rect.width);
+            height = Math.max(240, rect.height);
+            svg.attr('viewBox', `0 0 ${width} ${height}`);
+        }
+
+        // Cluster centers arranged in a ring
+        function computeClusterCenters(groupCount) {
+            const cx = width / 2;
+            const cy = height / 2;
+            const radius = Math.min(width, height) * 0.24;
+            const centers = {};
+            for (let i = 0; i < groupCount; i++) {
+                const a = (i / groupCount) * Math.PI * 2 - Math.PI / 2;
+                centers[i] = { x: cx + Math.cos(a) * radius, y: cy + Math.sin(a) * radius };
+            }
+            return centers;
+        }
+
+        // Neighbor map for highlighting
+        let neighborSet = new Set();
+        function buildNeighborSet(links) {
+            neighborSet = new Set();
+            for (const l of links) {
+                const a = typeof l.source === 'object' ? l.source.id : l.source;
+                const b = typeof l.target === 'object' ? l.target.id : l.target;
+                neighborSet.add(`${a}=>${b}`);
+                neighborSet.add(`${b}=>${a}`);
+            }
+        }
+        function isNeighbor(a, b) {
+            return neighborSet.has(`${a}=>${b}`);
+        }
+
+        // Render/Update
+        let linkSel, nodeSel, labelSel;
+
+        function render(newGraph) {
+            graph = newGraph;
+
+            // Reset scene
+            gLinks.selectAll('*').remove();
+            gNodes.selectAll('*').remove();
+            gLabels.selectAll('*').remove();
+
+            // Legend
+            ui.legend.innerHTML = '';
+            graph.groupNames.forEach((name, i) => {
+                const item = document.createElement('div');
+                item.className = 'flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2 py-1.5';
+                item.innerHTML = `
+          <span class="inline-block h-2.5 w-2.5 rounded-full" style="background:${color(i)}"></span>
+          <span class="text-xs text-zinc-300 truncate">${name}</span>
+        `;
+                ui.legend.appendChild(item);
+            });
+            ui.stats.textContent = `${graph.nodes.length} nodes · ${graph.links.length} links`;
+
+            // Build neighbor lookups
+            buildNeighborSet(graph.links);
+
+            // Links
+            linkSel = gLinks.selectAll('line')
+                .data(graph.links)
+                .join('line')
+                .attr('stroke', 'rgba(255,255,255,0.18)')
+                .attr('stroke-width', d => 1.2)
+                .attr('opacity', 0.9)
+                .attr('marker-end', ui.toggleLinkDir.checked ? 'url(#arrow)' : null);
+
+            // Nodes
+            nodeSel = gNodes.selectAll('g.node')
+                .data(graph.nodes, d => d.id)
+                .join(enter => {
+                    const ng = enter.append('g')
+                        .attr('class', 'node')
+                        .attr('tabindex', 0)
+                        .attr('role', 'button')
+                        .attr('aria-label', d => `${d.id}, ${d.groupLabel}`)
+                        .call(d3.drag()
+                            .on('start', dragstarted)
+                            .on('drag', dragged)
+                            .on('end', dragended)
+                        );
+
+                    ng.append('circle')
+                        .attr('r', d => d.r)
+                        .attr('fill', d => color(d.group))
+                        .attr('fill-opacity', 0.92)
+                        .attr('stroke', 'rgba(0,0,0,0.35)')
+                        .attr('stroke-width', 1);
+
+                    ng.append('circle')
+                        .attr('class', 'hit')
+                        .attr('r', d => d.r + 10)
+                        .attr('fill', 'transparent');
+
+                    return ng;
+                });
+
+            nodeSel
+                .on('mouseenter', (_, d) => {
+                    hoverText.textContent = `${d.id} · ${d.groupLabel}`;
+                })
+                .on('mouseleave', () => {
+                    hoverText.textContent = '—';
+                })
+                .on('click', (_, d) => {
+                    focusNode(d);
+                    applyHighlights({ query: d.id, focusId: d.id });
+                    ui.searchInput.value = d.id;
+                    updateSearchResults(d.id);
+                })
+                .on('keydown', (event, d) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        focusNode(d);
+                        applyHighlights({ query: d.id, focusId: d.id });
+                        ui.searchInput.value = d.id;
+                        updateSearchResults(d.id);
+                    }
+                });
+
+            // Labels
+            labelSel = gLabels.selectAll('text')
+                .data(graph.nodes, d => d.id)
+                .join('text')
+                .attr('class', 'node-label')
+                .attr('font-size', 11)
+                .attr('fill', 'rgba(255,255,255,0.78)')
+                .attr('paint-order', 'stroke')
+                .attr('stroke', 'rgba(0,0,0,0.45)')
+                .attr('stroke-width', 3)
+                .attr('stroke-linejoin', 'round')
+                .text(d => d.id);
+
+            setLabelsVisible(ui.toggleLabels.checked);
+
+            // Simulation
+            if (simulation) simulation.stop();
+
+            const centers = computeClusterCenters(graph.groupNames.length);
+
+            simulation = d3.forceSimulation(graph.nodes)
+                .force('link', d3.forceLink(graph.links)
+                    .id(d => d.id)
+                    .distance(+ui.linkDist.value)
+                    .strength(l => 0.14 + (l.w || 1) * 0.03)
+                )
+                .force('charge', d3.forceManyBody().strength(+ui.charge.value))
+                .force('collide', d3.forceCollide().radius(d => d.r + 5).iterations(2))
+                .force('center', d3.forceCenter(width / 2, height / 2))
+                .force('clusterX', d3.forceX(d => centers[d.group].x).strength(ui.toggleClusters.checked ? 0.08 : 0))
+                .force('clusterY', d3.forceY(d => centers[d.group].y).strength(ui.toggleClusters.checked ? 0.08 : 0))
+                .alpha(1)
+                .alphaDecay(0.03)
+                .on('tick', ticked);
+
+            // Apply current highlight state
+            applyHighlights({ query: ui.searchInput.value.trim() });
+
+            function ticked() {
+                linkSel
+                    .attr('x1', d => d.source.x)
+                    .attr('y1', d => d.source.y)
+                    .attr('x2', d => d.target.x)
+                    .attr('y2', d => d.target.y);
+
+                nodeSel.attr('transform', d => `translate(${d.x},${d.y})`);
+
+                labelSel
+                    .attr('x', d => d.x + (d.r + 6))
+                    .attr('y', d => d.y + 4);
+            }
+
+            function dragstarted(event, d) {
+                if (!event.active) simulation.alphaTarget(0.25).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+            }
+
+            function dragged(event, d) {
+                d.fx = event.x;
+                d.fy = event.y;
+            }
+
+            function dragended(event, d) {
+                if (!event.active) simulation.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+            }
+
+            // Nice initial framing
+            resetView(false);
+        }
+
+        function setLabelsVisible(visible) {
+            gLabels.style('display', visible ? null : 'none');
+        }
+
+        function resetView(animate = true) {
+            const t = d3.zoomIdentity.translate(0, 0).scale(1);
+            if (animate) {
+                svg.transition().duration(450).call(zoom.transform, t);
+            } else {
+                svg.call(zoom.transform, t);
+            }
+        }
+
+        function focusNode(node) {
+            // Focus by zooming to a point; keep current scale but clamp
+            const current = d3.zoomTransform(svg.node());
+            const k = clamp(current.k, 0.7, 2.6);
+            const tx = width / 2 - node.x * k;
+            const ty = height / 2 - node.y * k;
+            const t = d3.zoomIdentity.translate(tx, ty).scale(k);
+            svg.transition().duration(650).call(zoom.transform, t);
+
+            // Pulse effect
+            nodeSel.classed('glow', d => d.id === node.id);
+            setTimeout(() => nodeSel.classed('glow', false), 850);
+        }
+
+        // ---------- Search + highlight logic
+        function normalize(s) { return (s ?? '').toString().trim().toLowerCase(); }
+
+        function nodeMatchesQuery(d, q) {
+            if (!q) return false;
+            return normalize(d.id).includes(q) || normalize(d.name).includes(q) || normalize(d.groupLabel).includes(q);
+        }
+
+        function applyHighlights({ query, focusId = null } = {}) {
+            const q = normalize(query);
+            const highlightNeighbors = ui.toggleNeighbors.checked;
+
+            const matched = new Set();
+            if (q) {
+                for (const n of graph.nodes) {
+                    if (nodeMatchesQuery(n, q)) matched.add(n.id);
+                }
+            }
+
+            // For neighbor highlighting, expand to 1-hop neighborhood
+            const neighbor = new Set(matched);
+            if (q && highlightNeighbors) {
+                for (const l of graph.links) {
+                    const a = typeof l.source === 'object' ? l.source.id : l.source;
+                    const b = typeof l.target === 'object' ? l.target.id : l.target;
+                    if (matched.has(a)) neighbor.add(b);
+                    if (matched.has(b)) neighbor.add(a);
+                }
+            }
+
+            // Dim everything if there is a query
+            const dim = q.length > 0;
+
+            nodeSel
+                .classed('dim', d => dim && !neighbor.has(d.id))
+                .classed('node--match', d => matched.has(d.id))
+                .classed('node--focus', d => focusId && d.id === focusId);
+
+            // Links: highlight if either endpoint is a matched node (or neighbor-mode connection)
+            linkSel
+                .classed('dim', d => {
+                    if (!dim) return false;
+                    const a = d.source.id ?? d.source;
+                    const b = d.target.id ?? d.target;
+                    if (matched.size === 0) return true;
+                    if (highlightNeighbors) {
+                        // Keep links inside the displayed neighborhood
+                        return !(neighbor.has(a) && neighbor.has(b));
+                    }
+                    return !(matched.has(a) || matched.has(b));
+                })
+                .classed('link--match', d => {
+                    const a = d.source.id ?? d.source;
+                    const b = d.target.id ?? d.target;
+                    if (!q) return false;
+                    if (matched.size === 0) return false;
+                    if (highlightNeighbors) {
+                        return (matched.has(a) && neighbor.has(b)) || (matched.has(b) && neighbor.has(a));
+                    }
+                    return matched.has(a) || matched.has(b);
+                });
+
+            labelSel.classed('dim', d => dim && !neighbor.has(d.id));
+        }
+
+        function updateSearchResults(query) {
+            const q = normalize(query);
+            ui.results.innerHTML = '';
+
+            if (!q) {
+                ui.resultsWrap.classList.add('hidden');
+                return;
+            }
+
+            const matches = graph.nodes
+                .filter(n => nodeMatchesQuery(n, q))
+                .slice(0, 30);
+
+            if (matches.length === 0) {
+                ui.resultsWrap.classList.remove('hidden');
+                const empty = document.createElement('div');
+                empty.className = 'px-3 py-2 text-xs text-zinc-500';
+                empty.textContent = 'No matches.';
+                ui.results.appendChild(empty);
+                return;
+            }
+
+            ui.resultsWrap.classList.remove('hidden');
+
+            for (const n of matches) {
+                const row = document.createElement('button');
+                row.className = 'w-full text-left px-3 py-2 text-xs hover:bg-white/5 focus:bg-white/5 focus:outline-none flex items-center gap-2 border-b border-white/5 last:border-b-0';
+                row.innerHTML = `
+          <span class="inline-block h-2 w-2 rounded-full" style="background:${color(n.group)}"></span>
+          <span class="text-zinc-200">${n.id}</span>
+          <span class="ml-auto text-zinc-500">${n.groupLabel}</span>
+        `;
+                row.addEventListener('click', () => {
+                    applyHighlights({ query: n.id, focusId: n.id });
+                    focusNode(n);
+                    ui.searchInput.value = n.id;
+                    updateSearchResults(n.id);
+                });
+                ui.results.appendChild(row);
+            }
+        }
+
+        // ---------- Wiring UI
+        ui.btnClear.addEventListener('click', () => {
+            ui.searchInput.value = '';
+            updateSearchResults('');
+            applyHighlights({ query: '' });
+            ui.searchInput.focus();
+        });
+
+        ui.searchInput.addEventListener('input', (e) => {
+            const q = e.target.value;
+            updateSearchResults(q);
+            applyHighlights({ query: q });
+        });
+
+        ui.toggleLabels.addEventListener('change', () => setLabelsVisible(ui.toggleLabels.checked));
+
+        ui.toggleNeighbors.addEventListener('change', () => {
+            applyHighlights({ query: ui.searchInput.value.trim() });
+        });
+
+        ui.toggleLinkDir.addEventListener('change', () => {
+            gLinks.selectAll('line').attr('marker-end', ui.toggleLinkDir.checked ? 'url(#arrow)' : null);
+        });
+
+        ui.toggleClusters.addEventListener('change', () => {
+            if (!simulation) return;
+            const centers = computeClusterCenters(graph.groupNames.length);
+            simulation
+                .force('clusterX', d3.forceX(d => centers[d.group].x).strength(ui.toggleClusters.checked ? 0.08 : 0))
+                .force('clusterY', d3.forceY(d => centers[d.group].y).strength(ui.toggleClusters.checked ? 0.08 : 0))
+                .alpha(0.7)
+                .restart();
+        });
+
+        ui.linkDist.addEventListener('input', () => {
+            ui.linkDistLabel.textContent = ui.linkDist.value;
+            if (!simulation) return;
+            simulation.force('link').distance(+ui.linkDist.value);
+            simulation.alpha(0.55).restart();
+        });
+
+        ui.charge.addEventListener('input', () => {
+            ui.chargeLabel.textContent = ui.charge.value;
+            if (!simulation) return;
+            simulation.force('charge').strength(+ui.charge.value);
+            simulation.alpha(0.55).restart();
+        });
+
+        ui.btnRegenerate.addEventListener('click', () => {
+            const seed = Math.floor(Math.random() * 1e9);
+            const groups = 5 + Math.floor(Math.random() * 3);
+            const n = 60 + Math.floor(Math.random() * 25);
+            render(generateGraph({ n, groups, linkFactor: 1.2 + Math.random() * 0.7, seed }));
+        });
+
+        ui.btnResetView.addEventListener('click', () => resetView(true));
+
+        window.addEventListener('keydown', (e) => {
+            const isMac = navigator.platform.toUpperCase().includes('MAC');
+            if ((isMac ? e.metaKey : e.ctrlKey) && e.key.toLowerCase() === 'f') {
+                e.preventDefault();
+                ui.searchInput.focus();
+                ui.searchInput.select();
+            }
+            if (e.key === 'Escape') {
+                ui.searchInput.value = '';
+                updateSearchResults('');
+                applyHighlights({ query: '' });
+            }
+        });
+
+        // Resize
+        const ro = new ResizeObserver(() => {
+            getSize();
+            if (simulation) {
+                simulation.force('center', d3.forceCenter(width / 2, height / 2));
+                if (ui.toggleClusters.checked) {
+                    const centers = computeClusterCenters(graph.groupNames.length);
+                    simulation
+                        .force('clusterX', d3.forceX(d => centers[d.group].x).strength(0.08))
+                        .force('clusterY', d3.forceY(d => centers[d.group].y).strength(0.08));
+                }
+                simulation.alpha(0.25).restart();
+            }
+        });
+        ro.observe(svg.node());
+
+        // Initial boot
+        getSize();
+        ui.linkDistLabel.textContent = ui.linkDist.value;
+        ui.chargeLabel.textContent = ui.charge.value;
+        render(generateGraph({ n: 72, groups: 6, linkFactor: 1.35, seed: 42 }));
+    </script>
+</body>
+
+</html>
