@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Graph Explorer</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            overflow: hidden;
+        }
+
+        .node {
+            cursor: pointer;
+            transition: filter 0.2s;
+        }
+
+        .node:hover {
+            filter: brightness(1.2);
+        }
+
+        .node-label {
+            pointer-events: none;
+            text-anchor: middle;
+            font-size: 11px;
+            fill: #1f2937;
+            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+        }
+
+        .link {
+            stroke-opacity: 0.6;
+            transition: stroke-opacity 0.2s;
+        }
+
+        .link:hover {
+            stroke-opacity: 1;
+        }
+
+        .cluster-label {
+            pointer-events: none;
+            font-size: 14px;
+            font-weight: 600;
+            fill: #6b7280;
+            text-anchor: middle;
+        }
+
+        .highlighted {
+            stroke: #fbbf24 !important;
+            stroke-width: 3px !important;
+        }
+
+        .dimmed {
+            opacity: 0.2;
+        }
+
+        .search-result {
+            animation: pulse 1s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.8));
+            }
+
+            50% {
+                filter: drop-shadow(0 0 16px rgba(251, 191, 36, 1));
+            }
+        }
+
+        .controls-panel {
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.9);
+        }
+
+        #graph-container {
+            background: radial-gradient(circle at center, #f8fafc 0%, #e2e8f0 100%);
+        }
+
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 100;
+            max-width: 200px;
+        }
+    </style>
+</head>
+
+<body class="h-screen w-screen">
+    <div id="graph-container" class="w-full h-full relative">
+        <!-- Controls Panel -->
+        <div class="controls-panel absolute top-4 left-4 p-4 rounded-xl shadow-lg z-10 w-72">
+            <h1 class="text-xl font-bold text-gray-800 mb-3">🌐 Network Graph</h1>
+
+            <!-- Search -->
+            <div class="mb-4">
+                <label class="text-sm font-medium text-gray-600 block mb-1">Search Nodes</label>
+                <div class="relative">
+                    <input type="text" id="search-input"
+                        class="w-full px-3 py-2 pl-9 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        placeholder="Type to search...">
+                    <svg class="absolute left-3 top-2.5 h-4 w-4 text-gray-400" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </div>
+                <div id="search-results" class="mt-2 text-sm text-gray-500"></div>
+            </div>
+
+            <!-- Clusters -->
+            <div class="mb-4">
+                <label class="text-sm font-medium text-gray-600 block mb-2">Clusters</label>
+                <div id="cluster-legend" class="space-y-1"></div>
+            </div>
+
+            <!-- Controls -->
+            <div class="mb-4">
+                <label class="text-sm font-medium text-gray-600 block mb-2">Controls</label>
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="zoom-in"
+                        class="px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg text-sm font-medium transition">
+                        🔍+ Zoom In
+                    </button>
+                    <button id="zoom-out"
+                        class="px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg text-sm font-medium transition">
+                        🔍- Zoom Out
+                    </button>
+                    <button id="reset-view"
+                        class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition">
+                        ↺ Reset View
+                    </button>
+                    <button id="regenerate"
+                        class="px-3 py-1.5 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg text-sm font-medium transition">
+                        🔄 New Graph
+                    </button>
+                </div>
+            </div>
+
+            <!-- Physics Settings -->
+            <div class="mb-4">
+                <label class="text-sm font-medium text-gray-600 block mb-2">Physics</label>
+                <div class="space-y-2">
+                    <div>
+                        <div class="flex justify-between text-xs text-gray-500 mb-1">
+                            <span>Link Distance</span>
+                            <span id="distance-value">100</span>
+                        </div>
+                        <input type="range" id="link-distance" min="30" max="200" value="100"
+                            class="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-xs text-gray-500 mb-1">
+                            <span>Charge Force</span>
+                            <span id="charge-value">-300</span>
+                        </div>
+                        <input type="range" id="charge-force" min="-800" max="-50" value="-300"
+                            class="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats -->
+            <div class="text-xs text-gray-500 border-t pt-3">
+                <div class="flex justify-between">
+                    <span>Nodes:</span>
+                    <span id="node-count" class="font-medium">0</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Links:</span>
+                    <span id="link-count" class="font-medium">0</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Clusters:</span>
+                    <span id="cluster-count" class="font-medium">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tooltip -->
+        <div id="tooltip" class="tooltip hidden"></div>
+
+        <!-- SVG Container -->
+        <svg id="graph-svg" class="w-full h-full"></svg>
+    </div>
+
+    <script>
+        // Configuration
+        const config = {
+            nodeCount: 80,
+            clusterCount: 5,
+            minLinks: 2,
+            maxLinks: 5,
+            clusterColors: [
+                '#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6',
+                '#ec4899', '#06b6d4', '#84cc16'
+            ],
+            clusterNames: [
+                'Technology', 'Finance', 'Healthcare', 'Education',
+                'Entertainment', 'Energy', 'Transportation', 'Retail'
+            ]
+        };
+
+        // State
+        let simulation, svg, g, linkGroup, nodeGroup, labelGroup, zoom;
+        let nodes = [], links = [];
+        let selectedNode = null;
+        let searchResults = [];
+
+        // Initialize
+        function init() {
+            const container = document.getElementById('graph-container');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            // Create SVG
+            svg = d3.select('#graph-svg')
+                .attr('width', width)
+                .attr('height', height);
+
+            // Create main group for zoom/pan
+            g = svg.append('g');
+
+            // Create groups for elements
+            linkGroup = g.append('g').attr('class', 'links');
+            nodeGroup = g.append('g').attr('class', 'nodes');
+            labelGroup = g.append('g').attr('class', 'labels');
+
+            // Setup zoom behavior
+            zoom = d3.zoom()
+                .scaleExtent([0.1, 4])
+                .on('zoom', (event) => {
+                    g.attr('transform', event.transform);
+                });
+
+            svg.call(zoom);
+
+            // Generate initial graph
+            generateGraph();
+            updateGraph();
+            updateClusterLegend();
+            updateStats();
+            setupEventListeners();
+
+            // Center view
+            resetView();
+        }
+
+        // Generate random graph with clusters
+        function generateGraph() {
+            nodes = [];
+            links = [];
+
+            const clusterCenters = [];
+            for (let i = 0; i < config.clusterCount; i++) {
+                clusterCenters.push({
+                    x: Math.random() * 800 + 100,
+                    y: Math.random() * 600 + 100,
+                    id: i
+                });
+            }
+
+            // Generate nodes
+            const nodeNames = [
+                'Alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon', 'Zeta', 'Eta', 'Theta',
+                'Iota', 'Kappa', 'Lambda', 'Mu', 'Nu', 'Xi', 'Omicron', 'Pi', 'Rho',
+                'Sigma', 'Tau', 'Upsilon', 'Phi', 'Chi', 'Psi', 'Omega', 'Prime', 'Core',
+                'Link', 'Node', 'Edge', 'Path', 'Tree', 'Graph', 'Mesh', 'Grid', 'Star',
+                'Ring', 'Bus', 'Hub', 'Switch', 'Router', 'Gateway', 'Bridge', 'Port',
+                'Packet', 'Frame', 'Byte', 'Bit', 'Signal', 'Wave', 'Pulse', 'Stream',
+                'Data', 'Info', 'Code', 'File', 'Block', 'Sector', 'Track', 'Disk'
+            ];
+
+            for (let i = 0; i < config.nodeCount; i++) {
+                const clusterId = Math.floor(Math.random() * config.clusterCount);
+                const center = clusterCenters[clusterId];
+
+                nodes.push({
+                    id: i,
+                    name: nodeNames[i % nodeNames.length] + (Math.floor(i / nodeNames.length) > 0 ? ` ${i}` : ''),
+                    cluster: clusterId,
+                    radius: Math.random() * 15 + 10,
+                    x: center.x + (Math.random() - 0.5) * 200,
+                    y: center.y + (Math.random() - 0.5) * 200,
+                    value: Math.floor(Math.random() * 100)
+                });
+            }
+
+            // Generate links (prefer connections within clusters)
+            for (let i = 0; i < config.nodeCount; i++) {
+                const linkCount = Math.floor(Math.random() * (config.maxLinks - config.minLinks + 1)) + config.minLinks;
+
+                for (let j = 0; j < linkCount; j++) {
+                    let target;
+                    const sameCluster = Math.random() < 0.7; // 70% chance to link within cluster
+
+                    if (sameCluster) {
+                        const clusterNodes = nodes.filter(n => n.cluster === nodes[i].cluster && n.id !== i);
+                        if (clusterNodes.length > 0) {
+                            target = clusterNodes[Math.floor(Math.random() * clusterNodes.length)].id;
+                        }
+                    }
+
+                    if (!target) {
+                        target = Math.floor(Math.random() * config.nodeCount);
+                    }
+
+                    if (target !== i && !links.some(l =>
+                        (l.source === i && l.target === target) ||
+                        (l.source === target && l.target === i))) {
+                        links.push({
+                            source: i,
+                            target: target,
+                            value: Math.random()
+                        });
+                    }
+                }
+            }
+
+            // Convert link indices to references
+            links = links.map(l => ({
+                source: nodes[l.source],
+                target: nodes[l.target],
+                value: l.value
+            }));
+        }
+
+        // Update graph visualization
+        function updateGraph() {
+            // Clear existing elements
+            linkGroup.selectAll('*').remove();
+            nodeGroup.selectAll('*').remove();
+            labelGroup.selectAll('*').remove();
+
+            // Create links
+            const linkElements = linkGroup.selectAll('line')
+                .data(links)
+                .enter()
+                .append('line')
+                .attr('class', 'link')
+                .attr('stroke', '#94a3b8')
+                .attr('stroke-width', d => Math.sqrt(d.value) * 2 + 0.5);
+
+            // Create nodes
+            const nodeElements = nodeGroup.selectAll('circle')
+                .data(nodes)
+                .enter()
+                .append('circle')
+                .attr('class', 'node')
+                .attr('r', d => d.radius)
+                .attr('fill', d => config.clusterColors[d.cluster % config.clusterColors.length])
+                .attr('stroke', '#fff')
+                .attr('stroke-width', 2)
+                .call(d3.drag()
+                    .on('start', dragStarted)
+                    .on('drag', dragged)
+                    .on('end', dragEnded))
+                .on('click', nodeClicked)
+                .on('mouseover', showTooltip)
+                .on('mouseout', hideTooltip);
+
+            // Create labels
+            const labelElements = labelGroup.selectAll('text')
+                .data(nodes)
+                .enter()
+                .append('text')
+                .attr('class', 'node-label')
+                .text(d => d.name)
+                .attr('dy', d => d.radius + 15);
+
+            // Create force simulation
+            const linkDistance = parseInt(document.getElementById('link-distance').value);
+            const chargeForce = parseInt(document.getElementById('charge-force').value);
+
+            simulation = d3.forceSimulation(nodes)
+                .force('link', d3.forceLink(links).id(d => d.id).distance(linkDistance))
+                .force('charge', d3.forceManyBody().strength(chargeForce))
+                .force('center', d3.forceCenter(
+                    document.getElementById('graph-container').clientWidth / 2,
+                    document.getElementById('graph-container').clientHeight / 2
+                ))
+                .force('collide', d3.forceCollide().radius(d => d.radius + 5))
+                .force('x', d3.forceX().strength(0.05))
+                .force('y', d3.forceY().strength(0.05));
+
+            // Update positions on tick
+            simulation.on('tick', () => {
+                linkElements
+                    .attr('x1', d => d.source.x)
+                    .attr('y1', d => d.source.y)
+                    .attr('x2', d => d.target.x)
+                    .attr('y2', d => d.target.y);
+
+                nodeElements
+                    .attr('cx', d => d.x)
+                    .attr('cy', d => d.y);
+
+                labelElements
+                    .attr('x', d => d.x)
+                    .attr('y', d => d.y);
+            });
+        }
+
+        // Update cluster legend
+        function updateClusterLegend() {
+            const legend = document.getElementById('cluster-legend');
+            legend.innerHTML = '';
+
+            for (let i = 0; i < config.clusterCount; i++) {
+                const clusterNodes = nodes.filter(n => n.cluster === i);
+                if (clusterNodes.length === 0) continue;
+
+                const item = document.createElement('div');
+                item.className = 'flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-100 px-2 py-1 rounded';
+                item.innerHTML = `
+                    <div class="w-3 h-3 rounded-full" style="background-color: ${config.clusterColors[i % config.clusterColors.length]}"></div>
+                    <span class="text-gray-700">${config.clusterNames[i]}</span>
+                    <span class="text-gray-400 ml-auto">${clusterNodes.length}</span>
+                `;
+                item.onclick = () => highlightCluster(i);
+                legend.appendChild(item);
+            }
+        }
+
+        // Update statistics
+        function updateStats() {
+            document.getElementById('node-count').textContent = nodes.length;
+            document.getElementById('link-count').textContent = links.length;
+            document.getElementById('cluster-count').textContent = config.clusterCount;
+        }
+
+        // Event handlers
+        function dragStarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+
+        function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+
+        function dragEnded(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
+
+        function nodeClicked(event, d) {
+            event.stopPropagation();
+            selectedNode = selectedNode === d ? null : d;
+            highlightNode(d);
+        }
+
+        function showTooltip(event, d) {
+            const tooltip = document.getElementById('tooltip');
+            tooltip.innerHTML = `
+                <div class="font-bold">${d.name}</div>
+                <div class="text-gray-300">${config.clusterNames[d.cluster]}</div>
+                <div>Value: ${d.value}</div>
+                <div>Connections: ${links.filter(l => l.source === d || l.target === d).length}</div>
+            `;
+            tooltip.style.left = (event.pageX + 10) + 'px';
+            tooltip.style.top = (event.pageY - 10) + 'px';
+            tooltip.classList.remove('hidden');
+        }
+
+        function hideTooltip() {
+            document.getElementById('tooltip').classList.add('hidden');
+        }
+
+        function highlightCluster(clusterId) {
+            const nodesInCluster = nodes.filter(n => n.cluster === clusterId);
+            const nodeIdsInCluster = new Set(nodesInCluster.map(n => n.id));
+
+            nodeGroup.selectAll('circle')
+                .classed('dimmed', d => d.cluster !== clusterId)
+                .classed('highlighted', d => d.cluster === clusterId);
+
+            linkGroup.selectAll('line')
+                .classed('dimmed', d =>
+                    !nodeIdsInCluster.has(d.source.id) || !nodeIdsInCluster.has(d.target.id)
+                );
+
+            setTimeout(() => {
+                nodeGroup.selectAll('circle').classed('dimmed', false).classed('highlighted', false);
+                linkGroup.selectAll('line').classed('dimmed', false);
+            }, 2000);
+        }
+
+        function highlightNode(d) {
+            if (!d) {
+                nodeGroup.selectAll('circle').classed('dimmed', false).classed('highlighted', false);
+                linkGroup.selectAll('line').classed('dimmed', false);
+                return;
+            }
+
+            const connectedNodeIds = new Set();
+            connectedNodeIds.add(d.id);
+
+            links.forEach(l => {
+                if (l.source.id === d.id) connectedNodeIds.add(l.target.id);
+                if (l.target.id === d.id) connectedNodeIds.add(l.source.id);
+            });
+
+            nodeGroup.selectAll('circle')
+                .classed('dimmed', n => !connectedNodeIds.has(n.id))
+                .classed('highlighted', n => n.id === d.id);
+
+            linkGroup.selectAll('line')
+                .classed('dimmed', l =>
+                    l.source.id !== d.id && l.target.id !== d.id
+                );
+        }
+
+        // Search functionality
+        function search(query) {
+            const resultsDiv = document.getElementById('search-results');
+
+            if (!query.trim()) {
+                resultsDiv.textContent = '';
+                clearSearchHighlight();
+                return;
+            }
+
+            const matches = nodes.filter(n =>
+                n.name.toLowerCase().includes(query.toLowerCase())
+            );
+
+            if (matches.length === 0) {
+                resultsDiv.textContent = 'No matches found';
+                clearSearchHighlight();
+                return;
+            }
+
+            resultsDiv.textContent = `Found ${matches.length} match${matches.length > 1 ? 'es' : ''}`;
+
+            // Highlight matches
+            searchResults = matches;
+            const matchIds = new Set(matches.map(n => n.id));
+
+            nodeGroup.selectAll('circle')
+                .classed('dimmed', d => !matchIds.has(d.id))
+                .classed('search-result', d => matchIds.has(d.id));
+
+            linkGroup.selectAll('line')
+                .classed('dimmed', l =>
+                    !matchIds.has(l.source.id) && !matchIds.has(l.target.id)
+                );
+        }
+
+        function clearSearchHighlight() {
+            searchResults = [];
+            nodeGroup.selectAll('circle')
+                .classed('dimmed', false)
+                .classed('search-result', false);
+            linkGroup.selectAll('line').classed('dimmed', false);
+        }
+
+        // Reset view
+        function resetView() {
+            const container = document.getElementById('graph-container');
+            svg.transition().duration(750).call(
+                zoom.transform,
+                d3.zoomIdentity
+            );
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Search
+            document.getElementById('search-input').addEventListener('input', (e) => {
+                search(e.target.value);
+            });
+
+            // Zoom controls
+            document.getElementById('zoom-in').addEventListener('click', () => {
+                svg.transition().duration(300).call(zoom.scaleBy, 1.3);
+            });
+
+            document.getElementById('zoom-out').addEventListener('click', () => {
+                svg.transition().duration(300).call(zoom.scaleBy, 0.7);
+            });
+
+            document.getElementById('reset-view').addEventListener('click', resetView);
+
+            document.getElementById('regenerate').addEventListener('click', () => {
+                generateGraph();
+                updateGraph();
+                updateClusterLegend();
+                updateStats();
+                clearSearchHighlight();
+                document.getElementById('search-input').value = '';
+                document.getElementById('search-results').textContent = '';
+            });
+
+            // Physics controls
+            document.getElementById('link-distance').addEventListener('input', (e) => {
+                document.getElementById('distance-value').textContent = e.target.value;
+                if (simulation) {
+                    simulation.force('link').distance(+e.target.value);
+                    simulation.alpha(0.3).restart();
+                }
+            });
+
+            document.getElementById('charge-force').addEventListener('input', (e) => {
+                document.getElementById('charge-value').textContent = e.target.value;
+                if (simulation) {
+                    simulation.force('charge').strength(+e.target.value);
+                    simulation.alpha(0.3).restart();
+                }
+            });
+
+            // Click outside to deselect
+            svg.on('click', () => {
+                selectedNode = null;
+                highlightNode(null);
+            });
+
+            // Handle resize
+            window.addEventListener('resize', () => {
+                const container = document.getElementById('graph-container');
+                svg.attr('width', container.clientWidth)
+                    .attr('height', container.clientHeight);
+                if (simulation) {
+                    simulation.force('center', d3.forceCenter(
+                        container.clientWidth / 2,
+                        container.clientHeight / 2
+                    ));
+                    simulation.alpha(0.3).restart();
+                }
+            });
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+
+</html>
