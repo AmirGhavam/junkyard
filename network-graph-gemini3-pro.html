@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Graph Visualizer</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #0f172a;
+            /* slate-900 */
+            color: #e2e8f0;
+            /* slate-200 */
+        }
+
+        #graph-container {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .node text {
+            pointer-events: none;
+            text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
+        }
+
+        /* Custom Scrollbar for the list if needed */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Graph Container -->
+    <div id="graph-container"></div>
+
+    <!-- UI Overlay -->
+    <div class="absolute top-4 left-4 flex flex-col gap-4 w-80 max-w-[90vw] pointer-events-none">
+        <!-- Search Panel -->
+        <div class="bg-slate-800/90 backdrop-blur p-4 rounded-xl shadow-lg border border-slate-700 pointer-events-auto">
+            <h1 class="text-xl font-bold mb-2 text-white">Network Explorer</h1>
+            <p class="text-xs text-slate-400 mb-4">Force-directed layout with clustering</p>
+
+            <div class="relative">
+                <input type="text" id="search-input" placeholder="Search nodes..."
+                    class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-slate-500">
+                <div class="absolute right-3 top-2.5 text-slate-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </div>
+            </div>
+            <div id="search-stats" class="text-xs text-slate-400 mt-2 h-4"></div>
+        </div>
+
+        <!-- Controls -->
+        <div class="bg-slate-800/90 backdrop-blur p-4 rounded-xl shadow-lg border border-slate-700 pointer-events-auto">
+            <div class="flex justify-between items-center mb-2">
+                <h2 class="text-sm font-semibold text-slate-200">Controls</h2>
+                <button id="reset-zoom"
+                    class="text-xs bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded text-white transition-colors">
+                    Reset Zoom
+                </button>
+            </div>
+
+            <div class="space-y-3">
+                <div>
+                    <label class="flex justify-between text-xs text-slate-400 mb-1">
+                        <span>Node Count</span>
+                        <span id="node-count-val">100</span>
+                    </label>
+                    <input type="range" id="node-count" min="20" max="300" value="100"
+                        class="w-full h-1 bg-slate-600 rounded-lg appearance-none cursor-pointer">
+                </div>
+
+                <div>
+                    <label class="flex justify-between text-xs text-slate-400 mb-1">
+                        <span>Link Strength</span>
+                        <span id="force-val">50%</span>
+                    </label>
+                    <input type="range" id="force-strength" min="0" max="100" value="50"
+                        class="w-full h-1 bg-slate-600 rounded-lg appearance-none cursor-pointer">
+                </div>
+
+                <button id="regenerate-btn"
+                    class="w-full bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium py-2 rounded-lg transition-colors mt-2">
+                    Regenerate Graph
+                </button>
+            </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="bg-slate-800/90 backdrop-blur p-3 rounded-xl shadow-lg border border-slate-700 pointer-events-auto">
+            <h3 class="text-xs font-semibold text-slate-300 mb-2">Clusters</h3>
+            <div id="legend" class="flex flex-wrap gap-2">
+                <!-- Legend items injected by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Tooltip -->
+    <div id="tooltip"
+        class="fixed hidden bg-slate-900 border border-slate-600 text-white text-xs px-2 py-1 rounded shadow pointer-events-none z-50">
+    </div>
+
+    <script>
+        // --- Configuration ---
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        const colors = d3.schemeTableau10; // Nice color palette
+
+        let simulation, svg, g, link, node, labels;
+        let nodes = [];
+        let links = [];
+        let activeSearch = "";
+
+        // UI Elements
+        const container = document.getElementById('graph-container');
+        const tooltip = document.getElementById('tooltip');
+        const searchInput = document.getElementById('search-input');
+        const searchStats = document.getElementById('search-stats');
+        const nodeCountInput = document.getElementById('node-count');
+        const nodeCountVal = document.getElementById('node-count-val');
+        const forceInput = document.getElementById('force-strength');
+        const regenerateBtn = document.getElementById('regenerate-btn');
+        const resetZoomBtn = document.getElementById('reset-zoom');
+        const legendContainer = document.getElementById('legend');
+
+        // --- Data Generation ---
+        function generateData(count) {
+            const numGroups = 5;
+            const newNodes = [];
+            const newLinks = [];
+
+            // Create Nodes
+            for (let i = 0; i < count; i++) {
+                const group = Math.floor(Math.random() * numGroups);
+                newNodes.push({
+                    id: `n${i}`,
+                    name: `Node ${i}`,
+                    group: group,
+                    val: Math.random() * 10 + 5 // size
+                });
+            }
+
+            // Create Links
+            // Strategy: High probability of linking within the same group, low probability across groups
+            newNodes.forEach((source, i) => {
+                // Ensure at least one connection for non-isolated styling (though force layout handles isolated fine)
+                // Connect to a few others
+                const numConnections = Math.floor(Math.random() * 3) + 1;
+
+                for (let j = 0; j < numConnections; j++) {
+                    const targetIndex = Math.floor(Math.random() * count);
+                    if (targetIndex !== i) {
+                        const target = newNodes[targetIndex];
+                        // Higher chance to link if same group
+                        const sameGroup = source.group === target.group;
+                        const probability = sameGroup ? 0.8 : 0.05;
+
+                        if (Math.random() < probability) {
+                            newLinks.push({
+                                source: source.id,
+                                target: target.id,
+                                value: sameGroup ? 2 : 1 // stronger links for same group
+                            });
+                        }
+                    }
+                }
+            });
+
+            return { nodes: newNodes, links: newLinks, numGroups };
+        }
+
+        // --- Initialization ---
+        function initGraph() {
+            // Cleanup existing
+            d3.select("#graph-container").selectAll("*").remove();
+
+            // Create SVG
+            svg = d3.select("#graph-container")
+                .append("svg")
+                .attr("viewBox", [0, 0, width, height])
+                .attr("width", "100%")
+                .attr("height", "100%")
+                .style("cursor", "move");
+
+            // Group for zoom
+            g = svg.append("g");
+
+            // Zoom behavior
+            const zoom = d3.zoom()
+                .scaleExtent([0.1, 8])
+                .on("zoom", (event) => {
+                    g.attr("transform", event.transform);
+                });
+
+            svg.call(zoom)
+                .on("dblclick.zoom", null); // Disable double click zoom
+
+            // Handle Reset Zoom
+            resetZoomBtn.onclick = () => {
+                svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity);
+            };
+
+            updateSimulation();
+            updateLegend();
+        }
+
+        // --- Simulation & Rendering ---
+        function updateSimulation() {
+            const nodeCount = parseInt(nodeCountInput.value);
+            const data = generateData(nodeCount);
+            nodes = data.nodes;
+            links = data.links;
+
+            // Clear previous elements inside g
+            g.selectAll("*").remove();
+
+            // Link strength adjustment
+            const strengthVal = parseInt(forceInput.value) / 100; // 0 to 1
+
+            simulation = d3.forceSimulation(nodes)
+                .force("link", d3.forceLink(links).id(d => d.id).strength(d => d.value === 2 ? 0.5 + strengthVal : 0.1))
+                .force("charge", d3.forceManyBody().strength(-200)) // Repulsion
+                .force("center", d3.forceCenter(width / 2, height / 2))
+                .force("collide", d3.forceCollide().radius(d => d.val + 2).iterations(2));
+
+            // Draw Links
+            link = g.append("g")
+                .attr("stroke", "#475569") // slate-600
+                .attr("stroke-opacity", 0.6)
+                .selectAll("line")
+                .data(links)
+                .join("line")
+                .attr("stroke-width", d => Math.sqrt(d.value));
+
+            // Draw Nodes
+            node = g.append("g")
+                .attr("stroke", "#fff")
+                .attr("stroke-width", 1.5)
+                .selectAll("circle")
+                .data(nodes)
+                .join("circle")
+                .attr("r", d => d.val)
+                .attr("fill", d => d3.schemeTableau10[d.group % 10])
+                .style("cursor", "pointer")
+                .call(drag(simulation));
+
+            // Interactions
+            node.on("mouseover", (event, d) => {
+                tooltip.style.display = "block";
+                tooltip.innerHTML = `<strong>${d.name}</strong><br>Group: ${d.group}`;
+
+                // Highlight connected links
+                link.attr("stroke", l => (l.source === d || l.target === d) ? "#93c5fd" : "#475569")
+                    .attr("stroke-opacity", l => (l.source === d || l.target === d) ? 1 : 0.1);
+
+                node.attr("opacity", n => (n === d || isConnected(d, n)) ? 1 : 0.1);
+            })
+                .on("mousemove", (event) => {
+                    tooltip.style.left = (event.clientX + 10) + "px";
+                    tooltip.style.top = (event.clientY + 10) + "px";
+                })
+                .on("mouseout", () => {
+                    tooltip.style.display = "none";
+                    resetHighlight();
+                });
+
+            // Ticker
+            simulation.on("tick", () => {
+                link
+                    .attr("x1", d => d.source.x)
+                    .attr("y1", d => d.source.y)
+                    .attr("x2", d => d.target.x)
+                    .attr("y2", d => d.target.y);
+
+                node
+                    .attr("cx", d => d.x)
+                    .attr("cy", d => d.y);
+            });
+
+            // Re-apply search if exists
+            if (searchInput.value) {
+                performSearch(searchInput.value);
+            }
+        }
+
+        // --- Helper: Check Connection ---
+        function isConnected(a, b) {
+            return links.some(l => (l.source === a && l.target === b) || (l.source === b && l.target === a));
+        }
+
+        function resetHighlight() {
+            // If search is active, revert to search state, otherwise full reset
+            if (activeSearch) {
+                performSearch(activeSearch);
+            } else {
+                link.attr("stroke", "#475569").attr("stroke-opacity", 0.6);
+                node.attr("opacity", 1);
+            }
+        }
+
+        // --- Drag Behavior ---
+        function drag(simulation) {
+            function dragstarted(event) {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                event.subject.fx = event.subject.x;
+                event.subject.fy = event.subject.y;
+            }
+
+            function dragged(event) {
+                event.subject.fx = event.x;
+                event.subject.fy = event.y;
+            }
+
+            function dragended(event) {
+                if (!event.active) simulation.alphaTarget(0);
+                event.subject.fx = null;
+                event.subject.fy = null;
+            }
+
+            return d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended);
+        }
+
+        // --- Legend ---
+        function updateLegend() {
+            legendContainer.innerHTML = '';
+            for (let i = 0; i < 5; i++) {
+                const item = document.createElement('div');
+                item.className = "flex items-center gap-1 text-xs text-slate-300";
+                item.innerHTML = `
+                    <span class="w-3 h-3 rounded-full" style="background-color: ${d3.schemeTableau10[i]}"></span>
+                    <span>Group ${i}</span>
+                `;
+                legendContainer.appendChild(item);
+            }
+        }
+
+        // --- Search Functionality ---
+        function performSearch(query) {
+            activeSearch = query.toLowerCase();
+
+            if (!activeSearch) {
+                searchStats.innerText = "";
+                link.attr("stroke", "#475569").attr("stroke-opacity", 0.6);
+                node.attr("opacity", 1);
+                return;
+            }
+
+            const matches = nodes.filter(d => d.name.toLowerCase().includes(activeSearch));
+            searchStats.innerText = `${matches.length} matches found`;
+
+            // Dim everything
+            node.attr("opacity", 0.1);
+            link.attr("stroke-opacity", 0.05);
+
+            // Highlight matches
+            node.filter(d => d.name.toLowerCase().includes(activeSearch))
+                .attr("opacity", 1)
+                .attr("stroke", "#fff")
+                .attr("stroke-width", 2);
+
+            // Optional: Highlight links between matched nodes
+            // link.filter(l => matches.includes(l.source) && matches.includes(l.target))
+            //     .attr("stroke-opacity", 0.8)
+            //     .attr("stroke", "#facc15"); 
+        }
+
+        // --- Event Listeners ---
+        searchInput.addEventListener('input', (e) => {
+            performSearch(e.target.value);
+        });
+
+        nodeCountInput.addEventListener('input', (e) => {
+            nodeCountVal.innerText = e.target.value;
+        });
+
+        regenerateBtn.addEventListener('click', () => {
+            updateSimulation();
+            // Reset zoom too? optional. Let's keep zoom state but re-center force.
+            simulation.alpha(1).restart();
+        });
+
+        const forceValLabel = document.getElementById('force-val');
+
+        forceInput.addEventListener('input', () => {
+            // Update Label
+            forceValLabel.innerText = forceInput.value + '%';
+
+            // Restart simulation with new force without full regeneration
+            const strengthVal = parseInt(forceInput.value) / 100;
+            simulation.force("link").strength(d => d.value === 2 ? 0.5 + strengthVal : 0.1);
+            simulation.alpha(1).restart();
+        });
+
+        window.addEventListener('resize', () => {
+            // Basic resize handling
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            svg.attr("viewBox", [0, 0, w, h]);
+            simulation.force("center", d3.forceCenter(w / 2, h / 2));
+            simulation.alpha(0.3).restart();
+        });
+
+        // Start
+        initGraph();
+
+    </script>
+</body>
+
+</html>
