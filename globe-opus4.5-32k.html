@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Globe</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+
+        #globe-container {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .marker-label {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            transform: translate(-50%, -100%);
+            white-space: nowrap;
+        }
+
+        .pulse-ring {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            100% {
+                transform: scale(2);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-gray-900">
+    <div id="globe-container"></div>
+
+    <!-- UI Controls -->
+    <div class="fixed top-4 left-4 bg-gray-800/90 backdrop-blur p-4 rounded-xl text-white max-w-xs">
+        <h1 class="text-xl font-bold mb-3 text-cyan-400">🌍 Interactive Globe</h1>
+        <div class="space-y-2 text-sm">
+            <p><span class="text-yellow-400">🖱️ Drag:</span> Rotate globe</p>
+            <p><span class="text-yellow-400">🔍 Scroll:</span> Zoom in/out</p>
+            <p><span class="text-yellow-400">👆 Click:</span> Select country</p>
+        </div>
+        <div class="mt-4 space-y-2">
+            <label class="flex items-center gap-2">
+                <input type="checkbox" id="autoRotate" checked class="accent-cyan-500">
+                <span>Auto Rotate</span>
+            </label>
+            <label class="flex items-center gap-2">
+                <input type="checkbox" id="showMarkers" checked class="accent-cyan-500">
+                <span>Show Markers</span>
+            </label>
+            <label class="flex items-center gap-2">
+                <input type="checkbox" id="showAtmosphere" checked class="accent-cyan-500">
+                <span>Atmosphere</span>
+            </label>
+        </div>
+        <div class="mt-4">
+            <label class="text-sm text-gray-400">Rotation Speed</label>
+            <input type="range" id="rotationSpeed" min="0" max="100" value="30" class="w-full accent-cyan-500">
+        </div>
+    </div>
+
+    <!-- Country Info Panel -->
+    <div id="countryInfo" class="fixed bottom-4 left-4 bg-gray-800/90 backdrop-blur p-4 rounded-xl text-white hidden">
+        <h2 id="countryName" class="text-lg font-bold text-cyan-400"></h2>
+        <p id="countryDetails" class="text-sm text-gray-300 mt-1"></p>
+    </div>
+
+    <!-- Marker Labels Container -->
+    <div id="markerLabels"></div>
+
+    <script>
+        // Scene setup
+        const container = document.getElementById('globe-container');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        container.appendChild(renderer.domElement);
+
+        camera.position.z = 4;
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(5, 3, 5);
+        scene.add(directionalLight);
+
+        const backLight = new THREE.DirectionalLight(0x4488ff, 0.3);
+        backLight.position.set(-5, -3, -5);
+        scene.add(backLight);
+
+        // Procedural Earth Texture
+        function createProceduralEarthTexture(width, height) {
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+
+            // Ocean base
+            const oceanGradient = ctx.createLinearGradient(0, 0, 0, height);
+            oceanGradient.addColorStop(0, '#0a3d62');
+            oceanGradient.addColorStop(0.5, '#1e5f74');
+            oceanGradient.addColorStop(1, '#0a3d62');
+            ctx.fillStyle = oceanGradient;
+            ctx.fillRect(0, 0, width, height);
+
+            // Add ocean variation
+            for (let i = 0; i < 5000; i++) {
+                const x = Math.random() * width;
+                const y = Math.random() * height;
+                ctx.fillStyle = `rgba(${20 + Math.random() * 30}, ${80 + Math.random() * 40}, ${120 + Math.random() * 40}, 0.3)`;
+                ctx.beginPath();
+                ctx.arc(x, y, Math.random() * 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Simplified continent shapes using noise-like patterns
+            const continents = [
+                { x: 0.25, y: 0.35, w: 0.15, h: 0.25, name: 'North America' },
+                { x: 0.28, y: 0.55, w: 0.08, h: 0.2, name: 'South America' },
+                { x: 0.45, y: 0.25, w: 0.12, h: 0.3, name: 'Europe' },
+                { x: 0.45, y: 0.45, w: 0.15, h: 0.35, name: 'Africa' },
+                { x: 0.55, y: 0.25, w: 0.25, h: 0.35, name: 'Asia' },
+                { x: 0.8, y: 0.65, w: 0.1, h: 0.12, name: 'Australia' },
+                { x: 0.5, y: 0.9, w: 0.4, h: 0.1, name: 'Antarctica' }
+            ];
+
+            continents.forEach(cont => {
+                drawContinent(ctx, cont.x * width, cont.y * height, cont.w * width, cont.h * height);
+            });
+
+            // Add some islands
+            for (let i = 0; i < 50; i++) {
+                const x = Math.random() * width;
+                const y = 0.2 * height + Math.random() * 0.6 * height;
+                if (Math.random() > 0.7) {
+                    drawIsland(ctx, x, y, 5 + Math.random() * 15);
+                }
+            }
+
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function drawContinent(ctx, x, y, w, h) {
+            const landColors = ['#2d5a27', '#3d6b35', '#4a7c3f', '#5d8a4c', '#698f5a'];
+            const mountainColors = ['#6b5b4f', '#7d6d5f', '#8b7d6f'];
+            const desertColors = ['#c4a35a', '#d4b56a', '#e4c57a'];
+
+            // Draw main landmass with organic edges
+            ctx.save();
+            ctx.beginPath();
+
+            const points = 40;
+            for (let i = 0; i <= points; i++) {
+                const angle = (i / points) * Math.PI * 2;
+                const radiusX = w / 2 * (0.7 + Math.random() * 0.4);
+                const radiusY = h / 2 * (0.7 + Math.random() * 0.4);
+                const px = x + w / 2 + Math.cos(angle) * radiusX;
+                const py = y + h / 2 + Math.sin(angle) * radiusY;
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.clip();
+
+            // Fill with land colors
+            for (let i = 0; i < 500; i++) {
+                const lx = x + Math.random() * w;
+                const ly = y + Math.random() * h;
+                const color = landColors[Math.floor(Math.random() * landColors.length)];
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.arc(lx, ly, 3 + Math.random() * 8, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Add mountains
+            for (let i = 0; i < 50; i++) {
+                const mx = x + w * 0.2 + Math.random() * w * 0.6;
+                const my = y + h * 0.2 + Math.random() * h * 0.6;
+                ctx.fillStyle = mountainColors[Math.floor(Math.random() * mountainColors.length)];
+                ctx.beginPath();
+                ctx.arc(mx, my, 2 + Math.random() * 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Add deserts near equator
+            if (y > 300 && y < 600) {
+                for (let i = 0; i < 30; i++) {
+                    const dx = x + Math.random() * w;
+                    const dy = y + Math.random() * h * 0.5;
+                    ctx.fillStyle = desertColors[Math.floor(Math.random() * desertColors.length)];
+                    ctx.beginPath();
+                    ctx.arc(dx, dy, 2 + Math.random() * 5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            ctx.restore();
+        }
+
+        function drawIsland(ctx, x, y, size) {
+            ctx.fillStyle = '#3d6b35';
+            ctx.beginPath();
+            const points = 8;
+            for (let i = 0; i <= points; i++) {
+                const angle = (i / points) * Math.PI * 2;
+                const radius = size * (0.6 + Math.random() * 0.4);
+                const px = x + Math.cos(angle) * radius;
+                const py = y + Math.sin(angle) * radius;
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        // Create bump map texture
+        function createBumpTexture(width, height) {
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, width, height);
+
+            for (let i = 0; i < 10000; i++) {
+                const x = Math.random() * width;
+                const y = Math.random() * height;
+                const gray = Math.floor(Math.random() * 100);
+                ctx.fillStyle = `rgb(${gray}, ${gray}, ${gray})`;
+                ctx.beginPath();
+                ctx.arc(x, y, Math.random() * 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // Create specular map
+        function createSpecularTexture(width, height) {
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = '#4488aa';
+            ctx.fillRect(0, 0, width, height);
+
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // Create globe
+        const globeGeometry = new THREE.SphereGeometry(1, 64, 64);
+        const earthTexture = createProceduralEarthTexture(2048, 1024);
+        const bumpTexture = createBumpTexture(1024, 512);
+
+        const globeMaterial = new THREE.MeshPhongMaterial({
+            map: earthTexture,
+            bumpMap: bumpTexture,
+            bumpScale: 0.05,
+            specular: new THREE.Color(0x333333),
+            shininess: 15
+        });
+
+        const globe = new THREE.Mesh(globeGeometry, globeMaterial);
+        scene.add(globe);
+
+        // Create atmosphere
+        const atmosphereGeometry = new THREE.SphereGeometry(1.05, 64, 64);
+        const atmosphereMaterial = new THREE.ShaderMaterial({
+            vertexShader: `
+                varying vec3 vNormal;
+                void main() {
+                    vNormal = normalize(normalMatrix * normal);
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                varying vec3 vNormal;
+                void main() {
+                    float intensity = pow(0.7 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
+                    gl_FragColor = vec4(0.3, 0.6, 1.0, 1.0) * intensity;
+                }
+            `,
+            blending: THREE.AdditiveBlending,
+            side: THREE.BackSide,
+            transparent: true
+        });
+
+        const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+        scene.add(atmosphere);
+
+        // Create outer glow
+        const glowGeometry = new THREE.SphereGeometry(1.2, 64, 64);
+        const glowMaterial = new THREE.ShaderMaterial({
+            vertexShader: `
+                varying vec3 vNormal;
+                void main() {
+                    vNormal = normalize(normalMatrix * normal);
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                varying vec3 vNormal;
+                void main() {
+                    float intensity = pow(0.5 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 3.0);
+                    gl_FragColor = vec4(0.2, 0.5, 1.0, 0.5) * intensity;
+                }
+            `,
+            blending: THREE.AdditiveBlending,
+            side: THREE.BackSide,
+            transparent: true
+        });
+
+        const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+        scene.add(glow);
+
+        // Location markers data
+        const locations = [
+            { name: 'New York', lat: 40.7128, lon: -74.0060, color: 0xff4444 },
+            { name: 'London', lat: 51.5074, lon: -0.1278, color: 0x44ff44 },
+            { name: 'Tokyo', lat: 35.6762, lon: 139.6503, color: 0x4444ff },
+            { name: 'Sydney', lat: -33.8688, lon: 151.2093, color: 0xffff44 },
+            { name: 'Rio de Janeiro', lat: -22.9068, lon: -43.1729, color: 0xff44ff },
+            { name: 'Cairo', lat: 30.0444, lon: 31.2357, color: 0x44ffff },
+            { name: 'Moscow', lat: 55.7558, lon: 37.6173, color: 0xff8844 },
+            { name: 'Singapore', lat: 1.3521, lon: 103.8198, color: 0x88ff44 }
+        ];
+
+        const markers = [];
+        const markerGroup = new THREE.Group();
+
+        function latLonToVector3(lat, lon, radius) {
+            const phi = (90 - lat) * (Math.PI / 180);
+            const theta = (lon + 180) * (Math.PI / 180);
+
+            const x = -radius * Math.sin(phi) * Math.cos(theta);
+            const y = radius * Math.cos(phi);
+            const z = radius * Math.sin(phi) * Math.sin(theta);
+
+            return new THREE.Vector3(x, y, z);
+        }
+
+        locations.forEach(loc => {
+            const position = latLonToVector3(loc.lat, loc.lon, 1.02);
+
+            // Main marker
+            const markerGeometry = new THREE.SphereGeometry(0.02, 16, 16);
+            const markerMaterial = new THREE.MeshBasicMaterial({ color: loc.color });
+            const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+            marker.position.copy(position);
+            marker.userData = loc;
+            markerGroup.add(marker);
+            markers.push(marker);
+
+            // Marker spike
+            const spikeGeometry = new THREE.CylinderGeometry(0.003, 0.01, 0.08, 8);
+            const spikeMaterial = new THREE.MeshBasicMaterial({ color: loc.color });
+            const spike = new THREE.Mesh(spikeGeometry, spikeMaterial);
+            spike.position.copy(position);
+            spike.lookAt(0, 0, 0);
+            spike.rotateX(Math.PI / 2);
+            spike.translateY(0.04);
+            markerGroup.add(spike);
+
+            // Pulse ring
+            const ringGeometry = new THREE.RingGeometry(0.02, 0.025, 32);
+            const ringMaterial = new THREE.MeshBasicMaterial({
+                color: loc.color,
+                transparent: true,
+                opacity: 0.5,
+                side: THREE.DoubleSide
+            });
+            const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+            ring.position.copy(position);
+            ring.lookAt(0, 0, 0);
+            ring.userData.pulsePhase = Math.random() * Math.PI * 2;
+            markerGroup.add(ring);
+        });
+
+        scene.add(markerGroup);
+
+        // Country regions for highlighting (simplified)
+        const countryRegions = [
+            { name: 'United States', continent: 'North America', latRange: [25, 50], lonRange: [-130, -65] },
+            { name: 'Brazil', continent: 'South America', latRange: [-35, 5], lonRange: [-75, -35] },
+            { name: 'United Kingdom', continent: 'Europe', latRange: [50, 60], lonRange: [-10, 2] },
+            { name: 'Germany', continent: 'Europe', latRange: [47, 55], lonRange: [5, 15] },
+            { name: 'Russia', continent: 'Asia', latRange: [45, 75], lonRange: [30, 180] },
+            { name: 'China', continent: 'Asia', latRange: [20, 45], lonRange: [75, 135] },
+            { name: 'Japan', continent: 'Asia', latRange: [30, 45], lonRange: [129, 146] },
+            { name: 'Australia', continent: 'Oceania', latRange: [-45, -10], lonRange: [110, 155] },
+            { name: 'South Africa', continent: 'Africa', latRange: [-35, -22], lonRange: [16, 33] },
+            { name: 'Egypt', continent: 'Africa', latRange: [22, 32], lonRange: [24, 37] },
+            { name: 'India', continent: 'Asia', latRange: [8, 35], lonRange: [68, 97] }
+        ];
+
+        // Highlight sphere
+        const highlightGeometry = new THREE.SphereGeometry(1.01, 64, 64);
+        const highlightMaterial = new THREE.MeshBasicMaterial({
+            color: 0x00ffff,
+            transparent: true,
+            opacity: 0,
+            blending: THREE.AdditiveBlending
+        });
+        const highlight = new THREE.Mesh(highlightGeometry, highlightMaterial);
+        scene.add(highlight);
+
+        // Stars background
+        const starsGeometry = new THREE.BufferGeometry();
+        const starPositions = [];
+        for (let i = 0; i < 10000; i++) {
+            const x = (Math.random() - 0.5) * 200;
+            const y = (Math.random() - 0.5) * 200;
+            const z = (Math.random() - 0.5) * 200;
+            if (Math.sqrt(x * x + y * y + z * z) > 10) {
+                starPositions.push(x, y, z);
+            }
+        }
+        starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starPositions, 3));
+        const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.05, sizeAttenuation: true });
+        const stars = new THREE.Points(starsGeometry, starsMaterial);
+        scene.add(stars);
+
+        // Interaction variables
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+        let autoRotate = true;
+        let rotationSpeed = 0.003;
+        let targetRotationX = 0;
+        let targetRotationY = 0;
+        let currentZoom = 4;
+
+        // Raycaster for picking
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        // Event listeners
+        renderer.domElement.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            previousMousePosition = { x: e.clientX, y: e.clientY };
+        });
+
+        renderer.domElement.addEventListener('mousemove', (e) => {
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+            if (isDragging) {
+                const deltaX = e.clientX - previousMousePosition.x;
+                const deltaY = e.clientY - previousMousePosition.y;
+
+                targetRotationY += deltaX * 0.005;
+                targetRotationX += deltaY * 0.005;
+                targetRotationX = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, targetRotationX));
+
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            }
+
+            // Check for marker hover
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(markers);
+
+            if (intersects.length > 0) {
+                const marker = intersects[0].object;
+                document.body.style.cursor = 'pointer';
+                showMarkerLabel(marker.userData, e.clientX, e.clientY);
+            } else {
+                document.body.style.cursor = 'grab';
+                hideMarkerLabel();
+            }
+
+            // Check country hover
+            checkCountryHover();
+        });
+
+        renderer.domElement.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        renderer.domElement.addEventListener('mouseleave', () => {
+            isDragging = false;
+        });
+
+        renderer.domElement.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            currentZoom += e.deltaY * 0.001;
+            currentZoom = Math.max(2, Math.min(8, currentZoom));
+        });
+
+        renderer.domElement.addEventListener('click', (e) => {
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObject(globe);
+
+            if (intersects.length > 0) {
+                const point = intersects[0].point;
+                const lat = 90 - Math.acos(point.y) * (180 / Math.PI);
+                const lon = Math.atan2(point.z, -point.x) * (180 / Math.PI) - 180;
+
+                const country = findCountry(lat, lon);
+                if (country) {
+                    showCountryInfo(country);
+                    pulseHighlight();
+                }
+            }
+        });
+
+        // Marker label functions
+        const markerLabelsContainer = document.getElementById('markerLabels');
+        let currentLabel = null;
+
+        function showMarkerLabel(data, x, y) {
+            if (!currentLabel) {
+                currentLabel = document.createElement('div');
+                currentLabel.className = 'marker-label';
+                markerLabelsContainer.appendChild(currentLabel);
+            }
+            currentLabel.textContent = `📍 ${data.name}`;
+            currentLabel.style.left = x + 'px';
+            currentLabel.style.top = (y - 10) + 'px';
+            currentLabel.style.display = 'block';
+        }
+
+        function hideMarkerLabel() {
+            if (currentLabel) {
+                currentLabel.style.display = 'none';
+            }
+        }
+
+        // Country functions
+        function findCountry(lat, lon) {
+            for (const country of countryRegions) {
+                if (lat >= country.latRange[0] && lat <= country.latRange[1] &&
+                    lon >= country.lonRange[0] && lon <= country.lonRange[1]) {
+                    return country;
+                }
+            }
+            return null;
+        }
+
+        function checkCountryHover() {
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObject(globe);
+
+            if (intersects.length > 0) {
+                const point = intersects[0].point;
+                const lat = 90 - Math.acos(point.y) * (180 / Math.PI);
+                const lon = Math.atan2(point.z, -point.x) * (180 / Math.PI) - 180;
+
+                const country = findCountry(lat, lon);
+                if (country) {
+                    highlightMaterial.opacity = 0.1;
+                } else {
+                    highlightMaterial.opacity = 0;
+                }
+            }
+        }
+
+        function showCountryInfo(country) {
+            const infoPanel = document.getElementById('countryInfo');
+            const nameEl = document.getElementById('countryName');
+            const detailsEl = document.getElementById('countryDetails');
+
+            nameEl.textContent = country.name;
+            detailsEl.textContent = `Continent: ${country.continent}`;
+            infoPanel.classList.remove('hidden');
+
+            setTimeout(() => {
+                infoPanel.classList.add('hidden');
+            }, 3000);
+        }
+
+        function pulseHighlight() {
+            highlightMaterial.opacity = 0.3;
+            const startTime = Date.now();
+            function animate() {
+                const elapsed = Date.now() - startTime;
+                if (elapsed < 500) {
+                    highlightMaterial.opacity = 0.3 * (1 - elapsed / 500);
+                    requestAnimationFrame(animate);
+                } else {
+                    highlightMaterial.opacity = 0;
+                }
+            }
+            animate();
+        }
+
+        // UI Controls
+        document.getElementById('autoRotate').addEventListener('change', (e) => {
+            autoRotate = e.target.checked;
+        });
+
+        document.getElementById('showMarkers').addEventListener('change', (e) => {
+            markerGroup.visible = e.target.checked;
+        });
+
+        document.getElementById('showAtmosphere').addEventListener('change', (e) => {
+            atmosphere.visible = e.target.checked;
+            glow.visible = e.target.checked;
+        });
+
+        document.getElementById('rotationSpeed').addEventListener('input', (e) => {
+            rotationSpeed = e.target.value / 10000;
+        });
+
+        // Window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Animation loop
+        let time = 0;
+        function animate() {
+            requestAnimationFrame(animate);
+            time += 0.016;
+
+            // Auto rotation
+            if (autoRotate && !isDragging) {
+                targetRotationY += rotationSpeed;
+            }
+
+            // Smooth rotation
+            globe.rotation.x += (targetRotationX - globe.rotation.x) * 0.1;
+            globe.rotation.y += (targetRotationY - globe.rotation.y) * 0.1;
+
+            // Sync marker group rotation
+            markerGroup.rotation.copy(globe.rotation);
+            highlight.rotation.copy(globe.rotation);
+
+            // Smooth zoom
+            camera.position.z += (currentZoom - camera.position.z) * 0.1;
+
+            // Animate marker pulse rings
+            markerGroup.children.forEach(child => {
+                if (child.geometry.type === 'RingGeometry') {
+                    const phase = child.userData.pulsePhase || 0;
+                    const scale = 1 + 0.5 * Math.sin(time * 2 + phase);
+                    child.scale.set(scale, scale, scale);
+                    child.material.opacity = 0.5 * (1 - (scale - 1) / 0.5);
+                }
+            });
+
+            // Rotate stars slowly
+            stars.rotation.y += 0.0001;
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+    </script>
+</body>
+
+</html>
