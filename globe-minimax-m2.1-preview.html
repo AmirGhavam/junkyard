@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive 3D Globe</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .glow {
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+        }
+    </style>
+</head>
+
+<body class="bg-gray-900">
+    <div id="canvas-container"></div>
+
+    <!-- Control Panel -->
+    <div
+        class="fixed top-4 left-4 bg-gray-800/90 backdrop-blur-sm p-4 rounded-xl border border-gray-700 text-white w-72">
+        <h1 class="text-xl font-bold mb-3 flex items-center gap-2">
+            <span class="text-2xl">🌍</span> Interactive Globe
+        </h1>
+
+        <!-- Controls -->
+        <div class="space-y-3">
+            <div>
+                <label class="text-xs text-gray-400">Rotation Speed</label>
+                <input type="range" id="rotationSpeed" min="0" max="100" value="20"
+                    class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+            </div>
+
+            <div class="flex gap-2">
+                <button id="toggleRotation"
+                    class="flex-1 bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded-lg text-sm transition">
+                    ⏯️ Pause
+                </button>
+                <button id="resetView"
+                    class="flex-1 bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded-lg text-sm transition">
+                    🔄 Reset
+                </button>
+            </div>
+
+            <div>
+                <label class="text-xs text-gray-400">Zoom (Scroll on globe)</label>
+                <div class="flex gap-2 mt-1">
+                    <button id="zoomIn"
+                        class="flex-1 bg-green-600 hover:bg-green-700 px-3 py-2 rounded-lg text-sm transition">
+                        ➕ Zoom In
+                    </button>
+                    <button id="zoomOut"
+                        class="flex-1 bg-red-600 hover:bg-red-700 px-3 py-2 rounded-lg text-sm transition">
+                        ➖ Zoom Out
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Country Info -->
+        <div id="countryInfo" class="mt-4 p-3 bg-gray-700/50 rounded-lg hidden">
+            <h3 id="countryName" class="font-bold text-blue-400"></h3>
+            <p id="countryData" class="text-sm text-gray-300 mt-1"></p>
+        </div>
+    </div>
+
+    <!-- Location Markers Panel -->
+    <div
+        class="fixed top-4 right-4 bg-gray-800/90 backdrop-blur-sm p-4 rounded-xl border border-gray-700 text-white w-64">
+        <h2 class="text-lg font-bold mb-3 flex items-center gap-2">
+            <span class="text-xl">📍</span> Location Markers
+        </h2>
+
+        <div class="space-y-2 mb-3">
+            <input type="text" id="markerName" placeholder="Location name"
+                class="w-full bg-gray-700 px-3 py-2 rounded-lg text-sm">
+            <div class="flex gap-2">
+                <input type="number" id="markerLat" placeholder="Lat (-90 to 90)" step="0.1"
+                    class="w-1/2 bg-gray-700 px-3 py-2 rounded-lg text-sm">
+                <input type="number" id="markerLng" placeholder="Lng (-180 to 180)" step="0.1"
+                    class="w-1/2 bg-gray-700 px-3 py-2 rounded-lg text-sm">
+            </div>
+            <button id="addMarker"
+                class="w-full bg-purple-600 hover:bg-purple-700 px-3 py-2 rounded-lg text-sm transition">
+                ➕ Add Marker
+            </button>
+        </div>
+
+        <div id="markersList" class="space-y-2 max-h-48 overflow-y-auto"></div>
+    </div>
+
+    <!-- Instructions -->
+    <div
+        class="fixed bottom-4 left-4 bg-gray-800/90 backdrop-blur-sm p-3 rounded-xl border border-gray-700 text-white text-xs">
+        <p>🖱️ <strong>Drag</strong> to rotate | <strong>Scroll</strong> to zoom</p>
+        <p>👆 <strong>Click</strong> country to select | <strong>Double-click</strong> to add marker</p>
+    </div>
+
+    <script>
+        // Simplified world countries data with approximate coordinates and colors
+        const countriesData = [
+            { name: "United States", lat: 37, lng: -95, color: 0x3B82F6, neighbors: ["CA", "MX"] },
+            { name: "Canada", lat: 56, lng: -106, color: 0x10B981, neighbors: ["US"] },
+            { name: "Mexico", lat: 23, lng: -102, color: 0xF59E0B, neighbors: ["US", "GT", "BZ"] },
+            { name: "Brazil", lat: -14, lng: -51, color: 0xEF4444, neighbors: ["AR", "PY", "BO", "PE", "CO", "VE", "GY", "SR", "GF"] },
+            { name: "Argentina", lat: -38, lng: -63, color: 0x8B5CF6, neighbors: ["CL", "BO", "PY", "BR", "UY"] },
+            { name: "Russia", lat: 61, lng: 105, color: 0xEC4899, neighbors: ["CN", "MN", "KZ", "GE", "AZ", "NO", "FI", "EE", "LV", "LT", "PL", "BY", "UA"] },
+            { name: "China", lat: 35, lng: 105, color: 0xF97316, neighbors: ["RU", "MN", "KZ", "KG", "TJ", "AF", "PK", "IN", "NP", "BT", "MM", "LA", "VN", "KP"] },
+            { name: "India", lat: 20, lng: 77, color: 0x84CC16, neighbors: ["CN", "NP", "BT", "MM", "BD", "PK"] },
+            { name: "Australia", lat: -25, lng: 133, color: 0x06B6D4, neighbors: [] },
+            { name: "France", lat: 46, lng: 2, color: 0x6366F1, neighbors: ["ES", "IT", "CH", "DE", "BE", "LU", "MC", "AD"] },
+            { name: "Germany", lat: 51, lng: 9, color: 0x14B8A6, neighbors: ["DK", "PL", "CZ", "AT", "CH", "FR", "BE", "NL", "LU"] },
+            { name: "United Kingdom", lat: 55, lng: -3, color: 0xA855F7, neighbors: ["IE"] },
+            { name: "Spain", lat: 40, lng: -4, color: 0xEAB308, neighbors: ["PT", "FR", "GI", "MA"] },
+            { name: "Italy", lat: 41, lng: 12, color: 0x22C55E, neighbors: ["FR", "CH", "AT", "SI", "SM", "VA"] },
+            { name: "South Africa", lat: -30, lng: 22, color: 0xF43F5E, neighbors: ["NA", "BW", "ZW", "MZ", "SZ", "LS"] },
+            { name: "Egypt", lat: 26, lng: 30, color: 0x8B5CF6, neighbors: ["LY", "SD", "IL", "PS"] },
+            { name: "Nigeria", lat: 9, lng: 8, color: 0xFBBF24, neighbors: ["BJ", "TG", "CM", "ND"] },
+            { name: "Japan", lat: 36, lng: 138, color: 0xFB7185, neighbors: [] },
+            { name: "Indonesia", lat: -5, lng: 120, color: 0x4ADE80, neighbors: ["MY", "PG", "TL"] },
+            { name: "Saudi Arabia", lat: 23, lng: 45, color: 0xFCD34D, neighbors: ["JO", "IQ", "KW", "AE", "YE", "OM"] },
+            { name: "Turkey", lat: 38, lng: 35, color: 0xEF4444, neighbors: ["GR", "BG", "GE", "AM", "IR", "IQ", "SY"] },
+            { name: "Argentina", lat: -38, lng: -63, color: 0x3B82F6, neighbors: [] },
+            { name: "Chile", lat: -35, lng: -71, color: 0xDC2626, neighbors: ["AR", "BO", "PE"] },
+            { name: "Colombia", lat: 4, lng: -72, color: 0x65A30D, neighbors: ["VE", "BR", "EC", "PE", "PA"] },
+            { name: "Peru", lat: -9, lng: -75, color: 0xCA8A04, neighbors: ["EC", "CO", "BR", "BO", "CL"] },
+            { name: "Venezuela", lat: 7, lng: -66, color: 0x7C3AED, neighbors: ["CO", "BR", "GY"] },
+            { name: "Sudan", lat: 13, lng: 30, color: 0xDB2777, neighbors: ["LY", "TD", "CF", "SS", "ER", "ET"] },
+            { name: "Kenya", lat: 1, lng: 38, color: 0x0EA5E9, neighbors: ["ET", "SO", "TZ", "UG", "SS"] },
+            { name: "Thailand", lat: 15, lng: 100, color: 0xF43F5E, neighbors: ["MM", "LA", "KH", "MY"] },
+            { name: "Vietnam", lat: 14, lng: 108, color: 0xDC2626, neighbors: ["CN", "LA", "KH"] },
+            { name: "South Korea", lat: 35, lng: 128, color: 0x6366F1, neighbors: ["KP"] },
+            { name: "Poland", lat: 51, lng: 19, color: 0xEC4899, neighbors: ["DE", "CZ", "SK", "UA", "BY", "LT", "RU"] },
+            { name: "Ukraine", lat: 49, lng: 31, color: 0x3B82F6, neighbors: ["RU", "BY", "PL", "SK", "HU", "RO", "MD"] },
+            { name: "Norway", lat: 62, lng: 10, color: 0x14B8A6, neighbors: ["SE", "FI", "RU"] },
+            { name: "Sweden", lat: 62, lng: 15, color: 0xFACC15, neighbors: ["NO", "FI"] },
+            { name: "Finland", lat: 64, lng: 26, color: 0x0D9488, neighbors: ["SE", "NO", "RU"] },
+            { name: "Greece", lat: 39, lng: 22, color: 0x8B5CF6, neighbors: ["AL", "MK", "BG", "TR"] },
+            { name: "Portugal", lat: 39, lng: -8, color: 0x16A34A, neighbors: ["ES"] },
+            { name: "Morocco", lat: 32, lng: -5, color: 0xDC2626, neighbors: ["ES", "DZ", "Western Sahara"] },
+            { name: "Algeria", lat: 28, lng: 3, color: 0x65A30D, neighbors: ["TN", "LY", "ML", "MR", "MA", "Western Sahara"] },
+            { name: "Libya", lat: 27, lng: 17, color: 0x0891B2, neighbors: ["TN", "DZ", "SD", "EG"] },
+            { name: "Ethiopia", lat: 9, lng: 40, color: 0xEA580C, neighbors: ["ER", "DJ", "SO", "KE", "SD", "SS"] },
+            { name: "Pakistan", lat: 30, lng: 69, color: 0x1D4ED8, neighbors: ["AF", "IR", "CN", "IN"] },
+            { name: "Iran", lat: 32, lng: 53, color: 0x9F1239, neighbors: ["IQ", "TR", "AM", "AZ", "TM", "AF", "PK"] },
+            { name: "Iraq", lat: 33, lng: 44, color: 0x7C3AED, neighbors: ["TR", "SY", "IR", "KW", "SA"] },
+            { name: "Afghanistan", lat: 33, lng: 65, color: 0x4B5563, neighbors: ["TM", "UZ", "TJ", "CN", "PK", "IR"] },
+            { name: "Kazakhstan", lat: 48, lng: 67, color: 0x0891B2, neighbors: ["RU", "CN", "KG", "UZ", "TM"] },
+            { name: "Mongolia", lat: 46, lng: 103, color: 0xCA8A04, neighbors: ["RU", "CN"] },
+            { name: "Myanmar", lat: 22, lng: 98, color: 0x22C55E, neighbors: ["BD", "IN", "CN", "LA", "TH"] },
+            { name: "Malaysia", lat: 4, lng: 109, color: 0xDC2626, neighbors: ["BN", "TH", "ID"] },
+            { name: "Philippines", lat: 12, lng: 121, color: 0x3B82F6, neighbors: [] },
+            { name: "New Zealand", lat: -41, lng: 174, color: 0x0EA5E9, neighbors: [] },
+            { name: "South Africa", lat: -30, lng: 25, color: 0xF97316, neighbors: [] },
+            { name: "Congo", lat: -4, lng: 21, color: 0x22D3EE, neighbors: ["CD", "AO", "ZM", "TZ"] },
+            { name: "Democratic Republic of Congo", lat: -4, lng: 21, color: 0xA855F7, neighbors: ["CG", "AO", "ZM", "TZ", "RW", "BI", "SD", "CF", "CM"] },
+            { name: "Angola", lat: -12, lng: 17, color: 0xEF4444, neighbors: ["CD", "ZM", "NA", "BW"] },
+            { name: "Tanzania", lat: -6, lng: 35, color: 0x84CC16, neighbors: ["KE", "UG", "RW", "BI", "CD", "ZM", "MW", "MZ"] },
+            { name: "Mozambique", lat: -18, lng: 35, color: 0xF43F5E, neighbors: ["TZ", "ZW", "ZM", "MW", "SZ", "ZA"] },
+            { name: "Zimbabwe", lat: -19, lng: 29, color: 0xFCD34D, neighbors: ["MZ", "ZA", "BW", "ZM"] },
+            { name: "Zambia", lat: -14, lng: 27, color: 0x10B981, neighbors: ["CD", "TZ", "MW", "MZ", "ZW", "BW", "NA", "AO"] },
+            { name: "Namibia", lat: -22, lng: 17, color: 0x6366F1, neighbors: ["AO", "BW", "ZA"] },
+            { name: "Botswana", lat: -22, lng: 24, color: 0xD946EF, neighbors: ["NA", "ZW", "ZA"] },
+            { name: "Madagascar", lat: -20, lng: 47, color: 0xF97316, neighbors: [] },
+            { name: "Greenland", lat: 72, lng: -40, color: 0x94A3B8, neighbors: [] },
+            { name: "Iceland", lat: 65, lng: -19, color: 0x7DD3FC, neighbors: [] },
+        ];
+
+        // Scene setup
+        let scene, camera, renderer, globe;
+        let markers = [];
+        let selectedCountry = null;
+        let hoveredCountry = null;
+        let rotationSpeed = 0.002;
+        let isAutoRotating = true;
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+        let targetRotation = { x: 0, y: 0 };
+        let currentRotation = { x: 0, y: 0 };
+        let cameraDistance = 2.5;
+        let raycaster, mouse;
+
+        function init() {
+            // Create scene
+            scene = new THREE.Scene();
+
+            // Create camera
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = cameraDistance;
+
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            // Raycaster for mouse interaction
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+            // Create globe
+            createGlobe();
+
+            // Create stars background
+            createStars();
+
+            // Add ambient light
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+            scene.add(ambientLight);
+
+            // Add directional light (sun)
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(5, 3, 5);
+            scene.add(directionalLight);
+
+            // Add hemisphere light
+            const hemisphereLight = new THREE.HemisphereLight(0x87CEEB, 0x362d59, 0.3);
+            scene.add(hemisphereLight);
+
+            // Event listeners
+            setupEventListeners();
+
+            // Start animation
+            animate();
+
+            // Render initial markers
+            renderMarkersList();
+        }
+
+        function createGlobe() {
+            const globeGeometry = new THREE.SphereGeometry(1, 64, 64);
+
+            // Create procedural texture with country shapes
+            const canvas = document.createElement('canvas');
+            canvas.width = 2048;
+            canvas.height = 1024;
+            const ctx = canvas.getContext('2d');
+
+            // Ocean base
+            ctx.fillStyle = '#1e3a5f';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw grid lines
+            ctx.strokeStyle = 'rgba(100, 150, 200, 0.3)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= canvas.width; i += 64) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i, canvas.height);
+                ctx.stroke();
+            }
+            for (let i = 0; i <= canvas.height; i += 64) {
+                ctx.beginPath();
+                ctx.moveTo(0, i);
+                ctx.lineTo(canvas.width, i);
+                ctx.stroke();
+            }
+
+            // Draw countries as colored regions
+            countriesData.forEach((country, index) => {
+                drawCountryOnCanvas(ctx, country, index);
+            });
+
+            // Create texture from canvas
+            const texture = new THREE.CanvasTexture(canvas);
+
+            // Create materials
+            const globeMaterial = new THREE.MeshPhongMaterial({
+                map: texture,
+                bumpScale: 0.02,
+                specular: new THREE.Color(0x333333),
+                shininess: 5
+            });
+
+            globe = new THREE.Mesh(globeGeometry, globeMaterial);
+            scene.add(globe);
+
+            // Create atmosphere glow
+            const atmosphereGeometry = new THREE.SphereGeometry(1.05, 64, 64);
+            const atmosphereMaterial = new THREE.ShaderMaterial({
+                vertexShader: `
+                    varying vec3 vNormal;
+                    void main() {
+                        vNormal = normalize(normalMatrix * normal);
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                `,
+                fragmentShader: `
+                    varying vec3 vNormal;
+                    void main() {
+                        float intensity = pow(0.7 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
+                        gl_FragColor = vec4(0.3, 0.6, 1.0, 1.0) * intensity;
+                    }
+                `,
+                blending: THREE.AdditiveBlending,
+                side: THREE.BackSide,
+                transparent: true
+            });
+
+            const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+            scene.add(atmosphere);
+
+            // Create country highlight meshes (invisible initially)
+            createCountryHighlightMeshes();
+        }
+
+        function drawCountryOnCanvas(ctx, country, index) {
+            const lat = country.lat;
+            const lng = country.lng;
+
+            // Convert lat/lng to canvas coordinates
+            const x = ((lng + 180) / 360) * ctx.canvas.width;
+            const y = ((90 - lat) / 180) * ctx.canvas.height;
+
+            // Draw country as a circle/blob (simplified representation)
+            const radius = 30 + Math.random() * 20;
+
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+
+            // Color variation
+            const baseColor = country.color;
+            const r = (baseColor >> 16) & 0xFF;
+            const g = (baseColor >> 8) & 0xFF;
+            const b = baseColor & 0xFF;
+
+            ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+            ctx.fill();
+
+            // Add some texture variation
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            for (let i = 0; i < 5; i++) {
+                const ox = x + (Math.random() - 0.5) * radius;
+                const oy = y + (Math.random() - 0.5) * radius;
+                ctx.beginPath();
+                ctx.arc(ox, oy, Math.random() * radius * 0.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Store country center for interaction
+            country.canvasX = x;
+            country.canvasY = y;
+            country.radius = radius;
+        }
+
+        function createCountryHighlightMeshes() {
+            countriesData.forEach((country, index) => {
+                const lat = country.lat;
+                const lng = country.lng;
+
+                // Convert to 3D coordinates
+                const phi = (90 - lat) * (Math.PI / 180);
+                const theta = (lng + 180) * (Math.PI / 180);
+
+                const x = -Math.sin(phi) * Math.cos(theta);
+                const y = Math.cos(phi);
+                const z = Math.sin(phi) * Math.sin(theta);
+
+                // Create highlight mesh
+                const geometry = new THREE.SphereGeometry(0.05, 16, 16);
+                const material = new THREE.MeshBasicMaterial({
+                    color: 0xffffff,
+                    transparent: true,
+                    opacity: 0
+                });
+
+                const highlight = new THREE.Mesh(geometry, material);
+                highlight.position.set(x, y, z);
+                highlight.userData = { countryIndex: index, originalColor: country.color };
+
+                globe.add(highlight);
+                country.highlightMesh = highlight;
+            });
+        }
+
+        function createStars() {
+            const starsGeometry = new THREE.BufferGeometry();
+            const starsMaterial = new THREE.PointsMaterial({
+                color: 0xffffff,
+                size: 0.02,
+                transparent: true,
+                opacity: 0.8
+            });
+
+            const starsVertices = [];
+            for (let i = 0; i < 5000; i++) {
+                const x = (Math.random() - 0.5) * 100;
+                const y = (Math.random() - 0.5) * 100;
+                const z = (Math.random() - 0.5) * 100;
+                starsVertices.push(x, y, z);
+            }
+
+            starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starsVertices, 3));
+            const stars = new THREE.Points(starsGeometry, starsMaterial);
+            scene.add(stars);
+        }
+
+        function latLngToVector3(lat, lng, radius) {
+            const phi = (90 - lat) * (Math.PI / 180);
+            const theta = (lng + 180) * (Math.PI / 180);
+
+            const x = -(radius * Math.sin(phi) * Math.cos(theta));
+            const y = radius * Math.cos(phi);
+            const z = radius * Math.sin(phi) * Math.sin(theta);
+
+            return new THREE.Vector3(x, y, z);
+        }
+
+        function addMarkerToGlobe(name, lat, lng, color = 0xff0000) {
+            const position = latLngToVector3(lat, lng, 1.02);
+
+            // Marker group
+            const markerGroup = new THREE.Group();
+            markerGroup.userData = { name, lat, lng, color };
+
+            // Pin marker
+            const pinGeometry = new THREE.SphereGeometry(0.03, 16, 16);
+            const pinMaterial = new THREE.MeshPhongMaterial({
+                color: color,
+                emissive: color,
+                emissiveIntensity: 0.5
+            });
+            const pin = new THREE.Mesh(pinGeometry, pinMaterial);
+            markerGroup.add(pin);
+
+            // Glow effect
+            const glowGeometry = new THREE.SphereGeometry(0.05, 16, 16);
+            const glowMaterial = new THREE.MeshBasicMaterial({
+                color: color,
+                transparent: true,
+                opacity: 0.3
+            });
+            const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+            markerGroup.add(glow);
+
+            // Line to center
+            const lineMaterial = new THREE.LineBasicMaterial({ color: color, transparent: true, opacity: 0.5 });
+            const lineGeometry = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(0, 0, 0),
+                position.clone().sub(new THREE.Vector3(0, 0, 0)).multiplyScalar(-0.1)
+            ]);
+            const line = new THREE.Line(lineGeometry, lineMaterial);
+            markerGroup.add(line);
+
+            markerGroup.position.copy(position);
+            globe.add(markerGroup);
+            markers.push(markerGroup);
+
+            return markerGroup;
+        }
+
+        function removeMarker(index) {
+            if (index >= 0 && index < markers.length) {
+                globe.remove(markers[index]);
+                markers.splice(index, 1);
+                renderMarkersList();
+            }
+        }
+
+        function renderMarkersList() {
+            const listContainer = document.getElementById('markersList');
+            listContainer.innerHTML = '';
+
+            markers.forEach((marker, index) => {
+                const item = document.createElement('div');
+                item.className = 'flex items-center justify-between bg-gray-700/50 px-3 py-2 rounded-lg text-sm';
+                item.innerHTML = `
+                    <span class="truncate">${marker.userData.name}</span>
+                    <button onclick="removeMarker(${index})" class="text-red-400 hover:text-red-300">✕</button>
+                `;
+                listContainer.appendChild(item);
+            });
+        }
+
+        function setupEventListeners() {
+            const canvas = renderer.domElement;
+
+            // Mouse events
+            canvas.addEventListener('mousedown', onMouseDown);
+            canvas.addEventListener('mousemove', onMouseMove);
+            canvas.addEventListener('mouseup', onMouseUp);
+            canvas.addEventListener('wheel', onMouseWheel);
+            canvas.addEventListener('click', onClick);
+            canvas.addEventListener('dblclick', onDoubleClick);
+
+            // Touch events
+            canvas.addEventListener('touchstart', onTouchStart);
+            canvas.addEventListener('touchmove', onTouchMove);
+            canvas.addEventListener('touchend', onTouchEnd);
+
+            // UI controls
+            document.getElementById('toggleRotation').addEventListener('click', toggleRotation);
+            document.getElementById('resetView').addEventListener('click', resetView);
+            document.getElementById('zoomIn').addEventListener('click', () => zoomCamera(-0.3));
+            document.getElementById('zoomOut').addEventListener('click', () => zoomCamera(0.3));
+            document.getElementById('addMarker').addEventListener('click', addMarkerFromInput);
+            document.getElementById('rotationSpeed').addEventListener('input', updateRotationSpeed);
+
+            // Window resize
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function onMouseDown(event) {
+            isDragging = true;
+            previousMousePosition = {
+                x: event.clientX,
+                y: event.clientY
+            };
+        }
+
+        function onMouseMove(event) {
+            if (isDragging) {
+                const deltaX = event.clientX - previousMousePosition.x;
+                const deltaY = event.clientY - previousMousePosition.y;
+
+                targetRotation.y += deltaX * 0.005;
+                targetRotation.x += deltaY * 0.005;
+
+                // Clamp vertical rotation
+                targetRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, targetRotation.x));
+
+                previousMousePosition = {
+                    x: event.clientX,
+                    y: event.clientY
+                };
+            }
+
+            // Hover detection
+            const rect = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+            checkHover();
+        }
+
+        function onMouseUp() {
+            isDragging = false;
+        }
+
+        function onMouseWheel(event) {
+            event.preventDefault();
+            zoomCamera(event.deltaY * 0.001);
+        }
+
+        function onClick(event) {
+            const rect = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+
+            // Check country highlights
+            const highlightMeshes = countriesData.map(c => c.highlightMesh).filter(h => h);
+            const intersects = raycaster.intersectObjects(highlightMeshes);
+
+            if (intersects.length > 0) {
+                const mesh = intersects[0].object;
+                const countryIndex = mesh.userData.countryIndex;
+                selectCountry(countriesData[countryIndex]);
+            } else {
+                // Check markers
+                const markerMeshes = [];
+                markers.forEach(m => {
+                    m.children.forEach(c => markerMeshes.push(c));
+                });
+                const markerIntersects = raycaster.intersectObjects(markerMeshes);
+
+                if (markerIntersects.length > 0) {
+                    const marker = markerIntersects[0].object.parent;
+                    showMarkerInfo(marker);
+                }
+            }
+        }
+
+        function onDoubleClick(event) {
+            // Add marker at click position
+            const rect = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObject(globe);
+
+            if (intersects.length > 0) {
+                const point = intersects[0].point;
+                const lat = 90 - (Math.acos(point.y) * 180 / Math.PI);
+                const lng = (Math.atan2(point.z, -point.x) * 180 / Math.PI) - 180;
+
+                addMarkerToGlobe(`Point ${markers.length + 1}`, lat, lng);
+                renderMarkersList();
+            }
+        }
+
+        function checkHover() {
+            raycaster.setFromCamera(mouse, camera);
+
+            const highlightMeshes = countriesData.map(c => c.highlightMesh).filter(h => h);
+            const intersects = raycaster.intersectObjects(highlightMeshes);
+
+            // Reset previous hover
+            if (hoveredCountry) {
+                hoveredCountry.highlightMesh.material.opacity = 0;
+                hoveredCountry = null;
+                document.body.style.cursor = 'default';
+            }
+
+            if (intersects.length > 0) {
+                const mesh = intersects[0].object;
+                const countryIndex = mesh.userData.countryIndex;
+                hoveredCountry = countriesData[countryIndex];
+                hoveredCountry.highlightMesh.material.opacity = 0.5;
+                document.body.style.cursor = 'pointer';
+            }
+        }
+
+        function selectCountry(country) {
+            // Reset previous selection
+            if (selectedCountry) {
+                selectedCountry.highlightMesh.material.opacity = 0;
+            }
+
+            selectedCountry = country;
+            country.highlightMesh.material.opacity = 0.8;
+            country.highlightMesh.material.color.setHex(0xffff00);
+
+            // Show country info
+            const infoPanel = document.getElementById('countryInfo');
+            document.getElementById('countryName').textContent = country.name;
+            document.getElementById('countryData').innerHTML = `
+                Latitude: ${country.lat}°<br>
+                Longitude: ${country.lng}°<br>
+                Neighbors: ${country.neighbors.length > 0 ? country.neighbors.join(', ') : 'None'}
+            `;
+            infoPanel.classList.remove('hidden');
+        }
+
+        function showMarkerInfo(marker) {
+            const infoPanel = document.getElementById('countryInfo');
+            document.getElementById('countryName').textContent = `📍 ${marker.userData.name}`;
+            document.getElementById('countryData').innerHTML = `
+                Latitude: ${marker.userData.lat.toFixed(2)}°<br>
+                Longitude: ${marker.userData.lng.toFixed(2)}°
+            `;
+            infoPanel.classList.remove('hidden');
+        }
+
+        function onTouchStart(event) {
+            if (event.touches.length === 1) {
+                isDragging = true;
+                previousMousePosition = {
+                    x: event.touches[0].clientX,
+                    y: event.touches[0].clientY
+                };
+            }
+        }
+
+        function onTouchMove(event) {
+            if (isDragging && event.touches.length === 1) {
+                const deltaX = event.touches[0].clientX - previousMousePosition.x;
+                const deltaY = event.touches[0].clientY - previousMousePosition.y;
+
+                targetRotation.y += deltaX * 0.005;
+                targetRotation.x += deltaY * 0.005;
+                targetRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, targetRotation.x));
+
+                previousMousePosition = {
+                    x: event.touches[0].clientX,
+                    y: event.touches[0].clientY
+                };
+            }
+        }
+
+        function onTouchEnd() {
+            isDragging = false;
+        }
+
+        function toggleRotation() {
+            isAutoRotating = !isAutoRotating;
+            document.getElementById('toggleRotation').textContent = isAutoRotating ? '⏯️ Pause' : '▶️ Play';
+        }
+
+        function resetView() {
+            targetRotation = { x: 0, y: 0 };
+            cameraDistance = 2.5;
+            camera.position.z = cameraDistance;
+            selectedCountry = null;
+
+            // Reset highlights
+            countriesData.forEach(c => {
+                if (c.highlightMesh) {
+                    c.highlightMesh.material.opacity = 0;
+                }
+            });
+
+            document.getElementById('countryInfo').classList.add('hidden');
+        }
+
+        function zoomCamera(delta) {
+            cameraDistance = Math.max(1.5, Math.min(5, cameraDistance + delta));
+            camera.position.z = cameraDistance;
+        }
+
+        function addMarkerFromInput() {
+            const name = document.getElementById('markerName').value || 'Unnamed Location';
+            const lat = parseFloat(document.getElementById('markerLat').value);
+            const lng = parseFloat(document.getElementById('markerLng').value);
+
+            if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+                addMarkerToGlobe(name, lat, lng);
+                renderMarkersList();
+
+                // Clear inputs
+                document.getElementById('markerName').value = '';
+                document.getElementById('markerLat').value = '';
+                document.getElementById('markerLng').value = '';
+            } else {
+                alert('Please enter valid coordinates (Lat: -90 to 90, Lng: -180 to 180)');
+            }
+        }
+
+        function updateRotationSpeed(e) {
+            rotationSpeed = (e.target.value / 10000);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Auto rotation
+            if (isAutoRotating && !isDragging) {
+                targetRotation.y += rotationSpeed;
+            }
+
+            // Smooth rotation interpolation
+            currentRotation.x += (targetRotation.x - currentRotation.x) * 0.1;
+            currentRotation.y += (targetRotation.y - currentRotation.y) * 0.1;
+
+            globe.rotation.x = currentRotation.x;
+            globe.rotation.y = currentRotation.y;
+
+            // Animate markers
+            markers.forEach((marker, index) => {
+                marker.children.forEach(child => {
+                    if (child.material && child.material.opacity !== undefined) {
+                        child.material.opacity = 0.3 + Math.sin(Date.now() * 0.003 + index) * 0.2;
+                    }
+                });
+                marker.rotation.y += 0.01;
+            });
+
+            renderer.render(scene, camera);
+        }
+
+        // Initialize globe
+        init();
+
+        // Add some default markers
+        setTimeout(() => {
+            addMarkerToGlobe('New York', 40.7128, -74.0060, 0xFF6B6B);
+            addMarkerToGlobe('London', 51.5074, -0.1278, 0x4ECDC4);
+            addMarkerToGlobe('Tokyo', 35.6762, 139.6503, 0x95E1D3);
+            addMarkerToGlobe('Sydney', -33.8688, 151.2093, 0xF38181);
+            addMarkerToGlobe('Rio de Janeiro', -22.9068, -43.1729, 0xFCE38A);
+            renderMarkersList();
+        }, 500);
+    </script>
+</body>
+
+</html>
