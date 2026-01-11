@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Art Editor</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #1a1a2e;
+            min-height: 100vh;
+        }
+
+        .pixel-canvas {
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            background: repeating-conic-gradient(#444 0% 25%, #333 0% 50%) 50% / 8px 8px;
+        }
+
+        .grid-overlay {
+            pointer-events: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .tool-btn.active {
+            background: #6366f1 !important;
+        }
+
+        .layer-item.active {
+            background: #4f46e5 !important;
+            border-color: #818cf8 !important;
+        }
+
+        .frame-item.active {
+            border-color: #818cf8 !important;
+            background: rgba(99, 102, 241, 0.3) !important;
+        }
+
+        .color-swatch {
+            width: 28px;
+            height: 28px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.1s;
+        }
+
+        .color-swatch:hover {
+            transform: scale(1.1);
+        }
+
+        .color-swatch.active {
+            border-color: white;
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+        }
+
+        .preview-canvas {
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+
+        .scrollbar-thin::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        .scrollbar-thin::-webkit-scrollbar-track {
+            background: #2a2a4a;
+        }
+
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+            background: #4a4a6a;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+
+<body class="text-white font-sans">
+    <div class="flex h-screen">
+        <!-- Left Toolbar -->
+        <div class="w-16 bg-gray-900 flex flex-col items-center py-4 gap-2">
+            <div class="text-xs text-gray-500 mb-2">Tools</div>
+            <button id="tool-pencil"
+                class="tool-btn active w-12 h-12 rounded-lg bg-gray-800 hover:bg-gray-700 flex items-center justify-center"
+                title="Pencil (P)">
+                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                    <path
+                        d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
+                </svg>
+            </button>
+            <button id="tool-fill"
+                class="tool-btn w-12 h-12 rounded-lg bg-gray-800 hover:bg-gray-700 flex items-center justify-center"
+                title="Fill (F)">
+                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                    <path
+                        d="M19 10H5c-1.1 0-2 .9-2 2v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7c0-1.1-.9-2-2-2zm-9 7H8v-2h2v2zm0-4H8v-2h2v2zm4 4h-2v-2h2v2zm0-4h-2v-2h2v2zm4 4h-2v-2h2v2zm0-4h-2v-2h2v2zM6.41 4L5 5.41 10.59 11 12 9.59 6.41 4z" />
+                </svg>
+            </button>
+            <button id="tool-eraser"
+                class="tool-btn w-12 h-12 rounded-lg bg-gray-800 hover:bg-gray-700 flex items-center justify-center"
+                title="Eraser (E)">
+                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                    <path
+                        d="M15.14 3c-.51 0-1.02.2-1.41.59L2.59 14.73c-.78.78-.78 2.05 0 2.83L5.17 20.17c.79.78 2.05.78 2.83 0l11.03-11.03c.79-.79.79-2.05 0-2.83l-2.58-2.58C16.04 3.2 15.59 3 15.14 3zM6.59 18.76l-2.58-2.58 8.29-8.29 2.58 2.58-8.29 8.29z" />
+                </svg>
+            </button>
+            <button id="tool-picker"
+                class="tool-btn w-12 h-12 rounded-lg bg-gray-800 hover:bg-gray-700 flex items-center justify-center"
+                title="Color Picker (I)">
+                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                    <path
+                        d="M20.71 5.63l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-3.12 3.12-1.93-1.91-1.41 1.41 1.42 1.42L3 16.25V21h4.75l8.92-8.92 1.42 1.42 1.41-1.41-1.92-1.92 3.12-3.12c.4-.4.4-1.03.01-1.42zM6.92 19L5 17.08l8.06-8.06 1.92 1.92L6.92 19z" />
+                </svg>
+            </button>
+            <div class="border-t border-gray-700 w-10 my-2"></div>
+            <div class="text-xs text-gray-500 mb-2">Colors</div>
+            <div id="primary-color" class="w-10 h-10 rounded border-2 border-white cursor-pointer"
+                style="background: #ff6b6b" title="Primary Color"></div>
+            <div id="secondary-color" class="w-10 h-10 rounded border-2 border-gray-600 cursor-pointer mt-1"
+                style="background: transparent; background-image: linear-gradient(45deg, #666 25%, transparent 25%), linear-gradient(-45deg, #666 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #666 75%), linear-gradient(-45deg, transparent 75%, #666 75%); background-size: 8px 8px; background-position: 0 0, 0 4px, 4px -4px, -4px 0px;"
+                title="Secondary Color"></div>
+            <input type="color" id="color-picker" class="w-10 h-8 mt-2 opacity-0 absolute" value="#ff6b6b">
+        </div>
+
+        <!-- Main Canvas Area -->
+        <div class="flex-1 flex flex-col bg-gray-800">
+            <!-- Top bar -->
+            <div class="h-12 bg-gray-900 flex items-center px-4 gap-4">
+                <span class="text-lg font-bold text-indigo-400">Pixel Art Editor</span>
+                <div class="flex-1"></div>
+                <div class="flex items-center gap-2">
+                    <label class="text-sm text-gray-400">Grid:</label>
+                    <input type="checkbox" id="show-grid" checked class="w-4 h-4">
+                </div>
+                <div class="flex items-center gap-2">
+                    <label class="text-sm text-gray-400">Size:</label>
+                    <select id="canvas-size" class="bg-gray-700 rounded px-2 py-1 text-sm">
+                        <option value="16">16x16</option>
+                        <option value="32" selected>32x32</option>
+                        <option value="64">64x64</option>
+                    </select>
+                </div>
+                <button id="btn-export" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 rounded text-sm">Export
+                    PNG</button>
+            </div>
+
+            <!-- Canvas container -->
+            <div class="flex-1 flex items-center justify-center overflow-auto p-8">
+                <div class="relative" id="canvas-container">
+                    <canvas id="main-canvas" class="pixel-canvas cursor-crosshair"></canvas>
+                    <canvas id="grid-canvas" class="grid-overlay pixel-canvas"></canvas>
+                </div>
+            </div>
+
+            <!-- Bottom frames -->
+            <div class="h-32 bg-gray-900 border-t border-gray-700">
+                <div class="flex items-center justify-between px-4 py-2">
+                    <span class="text-sm text-gray-400">Animation Frames</span>
+                    <div class="flex gap-2">
+                        <button id="btn-add-frame" class="px-3 py-1 bg-green-600 hover:bg-green-700 rounded text-sm">+
+                            Add</button>
+                        <button id="btn-dup-frame"
+                            class="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm">Duplicate</button>
+                        <button id="btn-del-frame"
+                            class="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm">Delete</button>
+                    </div>
+                </div>
+                <div id="frames-container" class="flex gap-2 px-4 overflow-x-auto scrollbar-thin pb-2"></div>
+                <div class="flex items-center gap-4 px-4 py-2 border-t border-gray-800">
+                    <button id="btn-play"
+                        class="px-4 py-1 bg-indigo-600 hover:bg-indigo-700 rounded flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z" />
+                        </svg>
+                        Play
+                    </button>
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm text-gray-400">Speed:</span>
+                        <input type="range" id="anim-speed" min="1" max="12" value="6" class="w-24">
+                        <span id="speed-display" class="text-sm w-12">6 fps</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm text-gray-400">Onion Skin:</span>
+                        <input type="checkbox" id="onion-skin" class="w-4 h-4">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="w-72 bg-gray-900 flex flex-col">
+            <!-- Preview -->
+            <div class="p-4 border-b border-gray-700">
+                <div class="text-sm text-gray-400 mb-2">Preview</div>
+                <div class="bg-gray-800 rounded-lg p-4 flex items-center justify-center" style="min-height: 200px;">
+                    <canvas id="preview-canvas" class="preview-canvas" width="128" height="128"></canvas>
+                </div>
+            </div>
+
+            <!-- Palette -->
+            <div class="p-4 border-b border-gray-700">
+                <div class="text-sm text-gray-400 mb-2">Palette</div>
+                <div id="palette" class="flex flex-wrap gap-1 max-h-32 overflow-y-auto scrollbar-thin"></div>
+            </div>
+
+            <!-- Layers -->
+            <div class="p-4 flex-1 flex flex-col">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm text-gray-400">Layers</span>
+                    <div class="flex gap-1">
+                        <button id="btn-add-layer" class="w-6 h-6 bg-green-600 hover:bg-green-700 rounded text-xs"
+                            title="Add Layer">+</button>
+                        <button id="btn-del-layer" class="w-6 h-6 bg-red-600 hover:bg-red-700 rounded text-xs"
+                            title="Delete Layer">−</button>
+                    </div>
+                </div>
+                <div id="layers-container" class="flex-1 overflow-y-auto scrollbar-thin space-y-1"></div>
+                <div class="flex items-center gap-2 mt-2 pt-2 border-t border-gray-700">
+                    <label class="text-sm text-gray-400">Opacity:</label>
+                    <input type="range" id="layer-opacity" min="0" max="100" value="100" class="flex-1">
+                    <span id="opacity-display" class="text-sm w-10">100%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        const state = {
+            canvasSize: 32,
+            pixelSize: 16,
+            frames: [],
+            currentFrame: 0,
+            layers: [],
+            currentLayer: 0,
+            tool: 'pencil',
+            primaryColor: '#ff6b6b',
+            secondaryColor: 'transparent',
+            showGrid: true,
+            isDrawing: false,
+            isPlaying: false,
+            animSpeed: 6,
+            onionSkin: false
+        };
+
+        // Canvas elements
+        const mainCanvas = document.getElementById('main-canvas');
+        const mainCtx = mainCanvas.getContext('2d');
+        const gridCanvas = document.getElementById('grid-canvas');
+        const gridCtx = gridCanvas.getContext('2d');
+        const previewCanvas = document.getElementById('preview-canvas');
+        const previewCtx = previewCanvas.getContext('2d');
+
+        // Default palette
+        const defaultPalette = [
+            '#000000', '#1a1a2e', '#16213e', '#0f3460',
+            '#e94560', '#ff6b6b', '#ff8e72', '#feca57',
+            '#48dbfb', '#0abde3', '#10ac84', '#1dd1a1',
+            '#ffffff', '#c8d6e5', '#8395a7', '#576574',
+            '#5f27cd', '#341f97', '#8e44ad', '#e056fd',
+            '#f368e0', '#ff9ff3', '#54a0ff', '#2e86de',
+            '#ff9f43', '#ee5a24', '#c23616', '#b71540'
+        ];
+
+        // Sample pixel art - a cute character
+        const sampleArt = {
+            name: 'Sample Character',
+            frames: [
+                // Frame 1 - Standing
+                [
+                    { // Layer 1 - Body
+                        data: new Array(32 * 32).fill('transparent'),
+                        visible: true,
+                        opacity: 100,
+                        name: 'Body'
+                    },
+                    { // Layer 2 - Details
+                        data: [
+                            ...new Array(10 * 32).fill('transparent'),
+                            ...new Array(5).fill('transparent'), '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', ...new Array(5).fill('transparent'),
+                            ...new Array(4).fill('transparent'), '#ff8e72', '#ff8e72', '#ffffff', '#ffffff', '#ff8e72', '#ff8e72', '#1a1a2e', '#1a1a2e', '#ff8e72', '#ff8e72', '#ffffff', '#ffffff', '#ff8e72', '#ff8e72', ...new Array(4).fill('transparent'),
+                            ...new Array(4).fill('transparent'), '#ff8e72', '#ff8e72', '#ffffff', '#ffffff', '#ff8e72', '#ff8e72', '#1a1a2e', '#1a1a2e', '#ff8e72', '#ff8e72', '#ffffff', '#ffffff', '#ff8e72', '#ff8e72', ...new Array(4).fill('transparent'),
+                            ...new Array(4).fill('transparent'), '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', ...new Array(4).fill('transparent'),
+                            ...new Array(5).fill('transparent'), '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', ...new Array(5).fill('transparent'),
+                            ...new Array(6).fill('transparent'), '#feca57', '#feca57', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#feca57', '#feca57', ...new Array(6).fill('transparent'),
+                            ...new Array(6).fill('transparent'), '#feca57', '#feca57', '#feca57', '#feca57', '#feca57', '#feca57', '#feca57', '#feca57', ...new Array(6).fill('transparent'),
+                            ...new Array(7).fill('transparent'), '#1a1a2e', '#ffffff', '#ffffff', '#1a1a2e', '#ffffff', '#ffffff', '#1a1a2e', ...new Array(7).fill('transparent'),
+                            ...new Array(7).fill('transparent'), '#1a1a2e', '#1a1a2e', '#ffffff', '#1a1a2e', '#1a1a2e', '#ffffff', '#1a1a2e', ...new Array(7).fill('transparent'),
+                            ...new Array(10 * 32).fill('transparent')
+                        ],
+                        visible: true,
+                        opacity: 100,
+                        name: 'Details'
+                    }
+                ],
+                // Frame 2 - Blink
+                [
+                    {
+                        data: new Array(32 * 32).fill('transparent'),
+                        visible: true,
+                        opacity: 100,
+                        name: 'Body'
+                    },
+                    {
+                        data: [
+                            ...new Array(10 * 32).fill('transparent'),
+                            ...new Array(5).fill('transparent'), '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', ...new Array(5).fill('transparent'),
+                            ...new Array(4).fill('transparent'), '#ff8e72', '#ff8e72', '#ffffff', '#ffffff', '#ff8e72', '#ff8e72', '#1a1a2e', '#1a1a2e', '#ff8e72', '#ff8e72', '#ffffff', '#ffffff', '#ff8e72', '#ff8e72', ...new Array(4).fill('transparent'),
+                            ...new Array(4).fill('transparent'), '#ff8e72', '#ff8e72', '#1a1a2e', '#1a1a2e', '#ff8e72', '#ff8e72', '#1a1a2e', '#1a1a2e', '#ff8e72', '#ff8e72', '#1a1a2e', '#1a1a2e', '#ff8e72', '#ff8e72', ...new Array(4).fill('transparent'),
+                            ...new Array(4).fill('transparent'), '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', ...new Array(4).fill('transparent'),
+                            ...new Array(5).fill('transparent'), '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', ...new Array(5).fill('transparent'),
+                            ...new Array(6).fill('transparent'), '#feca57', '#feca57', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#feca57', '#feca57', ...new Array(6).fill('transparent'),
+                            ...new Array(6).fill('transparent'), '#feca57', '#feca57', '#feca57', '#feca57', '#feca57', '#feca57', '#feca57', '#feca57', ...new Array(6).fill('transparent'),
+                            ...new Array(7).fill('transparent'), '#1a1a2e', '#ffffff', '#ffffff', '#1a1a2e', '#ffffff', '#ffffff', '#1a1a2e', ...new Array(7).fill('transparent'),
+                            ...new Array(7).fill('transparent'), '#1a1a2e', '#1a1a2e', '#ffffff', '#1a1a2e', '#1a1a2e', '#ffffff', '#1a1a2e', ...new Array(7).fill('transparent'),
+                            ...new Array(10 * 32).fill('transparent')
+                        ],
+                        visible: true,
+                        opacity: 100,
+                        name: 'Details'
+                    }
+                ],
+                // Frame 3 - Wave
+                [
+                    {
+                        data: [
+                            ...new Array(10 * 32).fill('transparent'),
+                            ...new Array(11).fill('transparent'), '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72',
+                            ...new Array(10).fill('transparent'), '#ff8e72', '#ff8e72', '#ffffff', '#ffffff', '#ff8e72', '#ff8e72', '#1a1a2e', '#1a1a2e', '#ff8e72', '#ff8e72', '#ff8e72',
+                            ...new Array(10).fill('transparent'), '#ff8e72', '#ff8e72', '#ffffff', '#ffffff', '#ff8e72', '#ff8e72', '#1a1a2e', '#1a1a2e', '#ff8e72', '#ff8e72', '#ffffff',
+                            ...new Array(10).fill('transparent'), '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72',
+                            ...new Array(11).fill('transparent'), '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72',
+                            ...new Array(6).fill('transparent'), '#feca57', '#feca57', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#feca57', '#feca57', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72', '#ff8e72',
+                            ...new Array(6).fill('transparent'), '#feca57', '#feca57', '#feca57', '#feca57', '#feca57', '#feca57', '#feca57', '#feca57', '#feca57', '#feca57', '#feca57', '#feca57',
+                            ...new Array(7).fill('transparent'), '#1a1a2e', '#ffffff', '#ffffff', '#1a1a2e', '#ffffff', '#ffffff', '#1a1a2e', '#ffffff', '#ffffff',
+                            ...new Array(7).fill('transparent'), '#1a1a2e', '#1a1a2e', '#ffffff', '#1a1a2e', '#1a1a2e', '#ffffff', '#1a1a2e', '#1a1a2e', '#ffffff',
+                            ...new Array(10 * 32).fill('transparent')
+                        ],
+                        visible: true,
+                        opacity: 100,
+                        name: 'Body'
+                    },
+                    {
+                        data: new Array(32 * 32).fill('transparent'),
+                        visible: true,
+                        opacity: 100,
+                        name: 'Details'
+                    }
+                ]
+            ]
+        };
+
+        // Initialize
+        function init() {
+            setupCanvas();
+            loadSampleArt();
+            setupPalette();
+            setupEventListeners();
+            render();
+        }
+
+        function setupCanvas() {
+            const size = state.canvasSize * state.pixelSize;
+            mainCanvas.width = size;
+            mainCanvas.height = size;
+            gridCanvas.width = size;
+            gridCanvas.height = size;
+            drawGrid();
+        }
+
+        function loadSampleArt() {
+            state.frames = JSON.parse(JSON.stringify(sampleArt.frames));
+            state.currentFrame = 0;
+            state.currentLayer = state.frames[0].length - 1;
+            renderFramesList();
+            renderLayersList();
+        }
+
+        function setupPalette() {
+            const palette = document.getElementById('palette');
+            palette.innerHTML = '';
+            defaultPalette.forEach(color => {
+                const swatch = document.createElement('div');
+                swatch.className = 'color-swatch';
+                swatch.style.background = color;
+                swatch.addEventListener('click', () => setColor(color));
+                palette.appendChild(swatch);
+            });
+        }
+
+        function setColor(color) {
+            state.primaryColor = color;
+            document.getElementById('primary-color').style.background = color;
+            document.getElementById('color-picker').value = color;
+            document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+            event?.target?.classList?.add('active');
+        }
+
+        function setupEventListeners() {
+            // Tool selection
+            document.querySelectorAll('.tool-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    state.tool = btn.id.replace('tool-', '');
+                });
+            });
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if (e.target.tagName === 'INPUT') return;
+                switch (e.key.toLowerCase()) {
+                    case 'p': selectTool('pencil'); break;
+                    case 'f': selectTool('fill'); break;
+                    case 'e': selectTool('eraser'); break;
+                    case 'i': selectTool('picker'); break;
+                }
+            });
+
+            // Canvas drawing
+            mainCanvas.addEventListener('mousedown', startDrawing);
+            mainCanvas.addEventListener('mousemove', draw);
+            mainCanvas.addEventListener('mouseup', stopDrawing);
+            mainCanvas.addEventListener('mouseleave', stopDrawing);
+
+            // Color picker
+            const colorPicker = document.getElementById('color-picker');
+            document.getElementById('primary-color').addEventListener('click', () => colorPicker.click());
+            colorPicker.addEventListener('input', (e) => setColor(e.target.value));
+
+            // Grid toggle
+            document.getElementById('show-grid').addEventListener('change', (e) => {
+                state.showGrid = e.target.checked;
+                gridCanvas.style.display = state.showGrid ? 'block' : 'none';
+            });
+
+            // Canvas size
+            document.getElementById('canvas-size').addEventListener('change', (e) => {
+                if (confirm('Changing size will clear the canvas. Continue?')) {
+                    state.canvasSize = parseInt(e.target.value);
+                    setupCanvas();
+                    state.frames = [[createLayer('Layer 1')]];
+                    state.currentFrame = 0;
+                    state.currentLayer = 0;
+                    renderFramesList();
+                    renderLayersList();
+                    render();
+                }
+            });
+
+            // Frame controls
+            document.getElementById('btn-add-frame').addEventListener('click', addFrame);
+            document.getElementById('btn-dup-frame').addEventListener('click', duplicateFrame);
+            document.getElementById('btn-del-frame').addEventListener('click', deleteFrame);
+
+            // Layer controls
+            document.getElementById('btn-add-layer').addEventListener('click', addLayer);
+            document.getElementById('btn-del-layer').addEventListener('click', deleteLayer);
+
+            // Layer opacity
+            document.getElementById('layer-opacity').addEventListener('input', (e) => {
+                state.frames[state.currentFrame][state.currentLayer].opacity = parseInt(e.target.value);
+                document.getElementById('opacity-display').textContent = e.target.value + '%';
+                render();
+            });
+
+            // Animation
+            document.getElementById('btn-play').addEventListener('click', toggleAnimation);
+            document.getElementById('anim-speed').addEventListener('input', (e) => {
+                state.animSpeed = parseInt(e.target.value);
+                document.getElementById('speed-display').textContent = e.target.value + ' fps';
+            });
+
+            // Onion skin
+            document.getElementById('onion-skin').addEventListener('change', (e) => {
+                state.onionSkin = e.target.checked;
+                render();
+            });
+
+            // Export
+            document.getElementById('btn-export').addEventListener('click', exportPNG);
+        }
+
+        function selectTool(tool) {
+            state.tool = tool;
+            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('tool-' + tool)?.classList.add('active');
+        }
+
+        function createLayer(name) {
+            return {
+                data: new Array(state.canvasSize * state.canvasSize).fill('transparent'),
+                visible: true,
+                opacity: 100,
+                name: name || 'Layer ' + (state.frames[state.currentFrame]?.length + 1)
+            };
+        }
+
+        function startDrawing(e) {
+            state.isDrawing = true;
+            draw(e);
+        }
+
+        function stopDrawing() {
+            state.isDrawing = false;
+            renderFramesList();
+            renderPreview();
+        }
+
+        function draw(e) {
+            if (!state.isDrawing && e.type !== 'mousedown') return;
+
+            const rect = mainCanvas.getBoundingClientRect();
+            const x = Math.floor((e.clientX - rect.left) / state.pixelSize);
+            const y = Math.floor((e.clientY - rect.top) / state.pixelSize);
+
+            if (x < 0 || x >= state.canvasSize || y < 0 || y >= state.canvasSize) return;
+
+            const layer = state.frames[state.currentFrame][state.currentLayer];
+            const index = y * state.canvasSize + x;
+
+            switch (state.tool) {
+                case 'pencil':
+                    layer.data[index] = state.primaryColor;
+                    break;
+                case 'eraser':
+                    layer.data[index] = 'transparent';
+                    break;
+                case 'fill':
+                    floodFill(x, y, layer.data[index], state.primaryColor);
+                    break;
+                case 'picker':
+                    if (layer.data[index] && layer.data[index] !== 'transparent') {
+                        setColor(layer.data[index]);
+                    }
+                    break;
+            }
+
+            render();
+        }
+
+        function floodFill(x, y, targetColor, fillColor) {
+            if (targetColor === fillColor) return;
+
+            const layer = state.frames[state.currentFrame][state.currentLayer];
+            const stack = [[x, y]];
+            const visited = new Set();
+
+            while (stack.length > 0) {
+                const [cx, cy] = stack.pop();
+                const key = `${cx},${cy}`;
+
+                if (visited.has(key)) continue;
+                if (cx < 0 || cx >= state.canvasSize || cy < 0 || cy >= state.canvasSize) continue;
+
+                const index = cy * state.canvasSize + cx;
+                if (layer.data[index] !== targetColor) continue;
+
+                visited.add(key);
+                layer.data[index] = fillColor;
+
+                stack.push([cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]);
+            }
+        }
+
+        function drawGrid() {
+            gridCtx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
+            if (!state.showGrid) return;
+
+            gridCtx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            gridCtx.lineWidth = 1;
+
+            for (let i = 0; i <= state.canvasSize; i++) {
+                const pos = i * state.pixelSize;
+                gridCtx.beginPath();
+                gridCtx.moveTo(pos, 0);
+                gridCtx.lineTo(pos, gridCanvas.height);
+                gridCtx.stroke();
+                gridCtx.beginPath();
+                gridCtx.moveTo(0, pos);
+                gridCtx.lineTo(gridCanvas.width, pos);
+                gridCtx.stroke();
+            }
+        }
+
+        function render() {
+            mainCtx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
+
+            // Draw onion skin (previous frame)
+            if (state.onionSkin && state.currentFrame > 0) {
+                mainCtx.globalAlpha = 0.3;
+                const prevFrame = state.frames[state.currentFrame - 1];
+                prevFrame.forEach(layer => {
+                    if (layer.visible) {
+                        renderLayer(layer);
+                    }
+                });
+                mainCtx.globalAlpha = 1;
+            }
+
+            // Draw current frame layers
+            const currentFrame = state.frames[state.currentFrame];
+            currentFrame.forEach(layer => {
+                if (layer.visible) {
+                    mainCtx.globalAlpha = layer.opacity / 100;
+                    renderLayer(layer);
+                }
+            });
+            mainCtx.globalAlpha = 1;
+
+            renderPreview();
+        }
+
+        function renderLayer(layer) {
+            for (let i = 0; i < layer.data.length; i++) {
+                if (layer.data[i] && layer.data[i] !== 'transparent') {
+                    const x = (i % state.canvasSize) * state.pixelSize;
+                    const y = Math.floor(i / state.canvasSize) * state.pixelSize;
+                    mainCtx.fillStyle = layer.data[i];
+                    mainCtx.fillRect(x, y, state.pixelSize, state.pixelSize);
+                }
+            }
+        }
+
+        function renderPreview() {
+            previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+            const scale = previewCanvas.width / state.canvasSize;
+
+            const frame = state.frames[state.currentFrame];
+            frame.forEach(layer => {
+                if (layer.visible) {
+                    previewCtx.globalAlpha = layer.opacity / 100;
+                    for (let i = 0; i < layer.data.length; i++) {
+                        if (layer.data[i] && layer.data[i] !== 'transparent') {
+                            const x = (i % state.canvasSize) * scale;
+                            const y = Math.floor(i / state.canvasSize) * scale;
+                            previewCtx.fillStyle = layer.data[i];
+                            previewCtx.fillRect(x, y, scale, scale);
+                        }
+                    }
+                }
+            });
+            previewCtx.globalAlpha = 1;
+        }
+
+        function renderFramesList() {
+            const container = document.getElementById('frames-container');
+            container.innerHTML = '';
+
+            state.frames.forEach((frame, index) => {
+                const frameEl = document.createElement('div');
+                frameEl.className = `frame-item flex-shrink-0 border-2 rounded cursor-pointer ${index === state.currentFrame ? 'active border-indigo-400' : 'border-gray-600'}`;
+                frameEl.innerHTML = `
+                    <canvas class="pixel-canvas" width="64" height="64"></canvas>
+                    <div class="text-center text-xs py-1">${index + 1}</div>
+                `;
+                frameEl.addEventListener('click', () => {
+                    state.currentFrame = index;
+                    state.currentLayer = frame.length - 1;
+                    renderFramesList();
+                    renderLayersList();
+                    render();
+                });
+                container.appendChild(frameEl);
+
+                // Draw thumbnail
+                const thumb = frameEl.querySelector('canvas');
+                const ctx = thumb.getContext('2d');
+                const scale = 64 / state.canvasSize;
+                frame.forEach(layer => {
+                    if (layer.visible) {
+                        for (let i = 0; i < layer.data.length; i++) {
+                            if (layer.data[i] && layer.data[i] !== 'transparent') {
+                                const x = (i % state.canvasSize) * scale;
+                                const y = Math.floor(i / state.canvasSize) * scale;
+                                ctx.fillStyle = layer.data[i];
+                                ctx.fillRect(x, y, scale, scale);
+                            }
+                        }
+                    }
+                });
+            });
+        }
+
+        function renderLayersList() {
+            const container = document.getElementById('layers-container');
+            container.innerHTML = '';
+
+            const frame = state.frames[state.currentFrame];
+            frame.slice().reverse().forEach((layer, reverseIndex) => {
+                const index = frame.length - 1 - reverseIndex;
+                const layerEl = document.createElement('div');
+                layerEl.className = `layer-item p-2 border-2 rounded cursor-pointer flex items-center gap-2 ${index === state.currentLayer ? 'active' : 'border-gray-600 bg-gray-800'}`;
+                layerEl.innerHTML = `
+                    <button class="w-6 h-6 rounded ${layer.visible ? 'bg-indigo-600' : 'bg-gray-600'} text-xs" data-vis="${index}">
+                        ${layer.visible ? '👁' : '○'}
+                    </button>
+                    <input type="text" value="${layer.name}" class="bg-transparent flex-1 text-sm outline-none" data-name="${index}">
+                `;
+                layerEl.addEventListener('click', (e) => {
+                    if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'INPUT') {
+                        state.currentLayer = index;
+                        document.getElementById('layer-opacity').value = layer.opacity;
+                        document.getElementById('opacity-display').textContent = layer.opacity + '%';
+                        renderLayersList();
+                        render();
+                    }
+                });
+                container.appendChild(layerEl);
+            });
+
+            // Visibility toggles
+            container.querySelectorAll('button[data-vis]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const index = parseInt(btn.dataset.vis);
+                    state.frames[state.currentFrame][index].visible = !state.frames[state.currentFrame][index].visible;
+                    renderLayersList();
+                    render();
+                });
+            });
+
+            // Name editing
+            container.querySelectorAll('input[data-name]').forEach(input => {
+                input.addEventListener('change', (e) => {
+                    const index = parseInt(input.dataset.name);
+                    state.frames[state.currentFrame][index].name = input.value;
+                });
+                input.addEventListener('click', (e) => e.stopPropagation());
+            });
+        }
+
+        function addFrame() {
+            const newFrame = [createLayer('Layer 1')];
+            state.frames.push(newFrame);
+            state.currentFrame = state.frames.length - 1;
+            state.currentLayer = 0;
+            renderFramesList();
+            renderLayersList();
+            render();
+        }
+
+        function duplicateFrame() {
+            const currentFrame = JSON.parse(JSON.stringify(state.frames[state.currentFrame]));
+            state.frames.splice(state.currentFrame + 1, 0, currentFrame);
+            state.currentFrame++;
+            renderFramesList();
+            renderLayersList();
+            render();
+        }
+
+        function deleteFrame() {
+            if (state.frames.length <= 1) {
+                alert('Cannot delete the last frame');
+                return;
+            }
+            state.frames.splice(state.currentFrame, 1);
+            if (state.currentFrame >= state.frames.length) {
+                state.currentFrame = state.frames.length - 1;
+            }
+            state.currentLayer = 0;
+            renderFramesList();
+            renderLayersList();
+            render();
+        }
+
+        function addLayer() {
+            const newLayer = createLayer();
+            state.frames[state.currentFrame].push(newLayer);
+            state.currentLayer = state.frames[state.currentFrame].length - 1;
+            renderLayersList();
+            render();
+        }
+
+        function deleteLayer() {
+            if (state.frames[state.currentFrame].length <= 1) {
+                alert('Cannot delete the last layer');
+                return;
+            }
+            state.frames[state.currentFrame].splice(state.currentLayer, 1);
+            state.currentLayer = Math.min(state.currentLayer, state.frames[state.currentFrame].length - 1);
+            renderLayersList();
+            render();
+        }
+
+        let animationInterval = null;
+
+        function toggleAnimation() {
+            state.isPlaying = !state.isPlaying;
+            const btn = document.getElementById('btn-play');
+
+            if (state.isPlaying) {
+                btn.innerHTML = '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg> Stop';
+                let frameIndex = 0;
+                animationInterval = setInterval(() => {
+                    frameIndex = (frameIndex + 1) % state.frames.length;
+                    state.currentFrame = frameIndex;
+                    renderFramesList();
+                    renderPreview();
+                }, 1000 / state.animSpeed);
+            } else {
+                btn.innerHTML = '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg> Play';
+                clearInterval(animationInterval);
+            }
+        }
+
+        function exportPNG() {
+            const exportCanvas = document.createElement('canvas');
+            exportCanvas.width = state.canvasSize * 16;
+            exportCanvas.height = state.canvasSize * 16;
+            const ctx = exportCanvas.getContext('2d');
+
+            const frame = state.frames[state.currentFrame];
+            frame.forEach(layer => {
+                if (layer.visible) {
+                    ctx.globalAlpha = layer.opacity / 100;
+                    for (let i = 0; i < layer.data.length; i++) {
+                        if (layer.data[i] && layer.data[i] !== 'transparent') {
+                            const x = (i % state.canvasSize) * 16;
+                            const y = Math.floor(i / state.canvasSize) * 16;
+                            ctx.fillStyle = layer.data[i];
+                            ctx.fillRect(x, y, 16, 16);
+                        }
+                    }
+                }
+            });
+
+            const link = document.createElement('a');
+            link.download = 'pixel-art.png';
+            link.href = exportCanvas.toDataURL('image/png');
+            link.click();
+        }
+
+        // Start the app
+        init();
+    </script>
+</body>
+
+</html>
