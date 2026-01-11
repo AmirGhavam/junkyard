@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Art Editor</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        /* Custom scrollbar for panels */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1f2937;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6b7280;
+        }
+
+        /* Checkerboard pattern for transparency */
+        .checkerboard {
+            background-image:
+                linear-gradient(45deg, #2a2a2a 25%, transparent 25%),
+                linear-gradient(-45deg, #2a2a2a 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #2a2a2a 75%),
+                linear-gradient(-45deg, transparent 75%, #2a2a2a 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            background-color: #1a1a1a;
+        }
+
+        canvas {
+            image-rendering: pixelated;
+            /* Essential for pixel art */
+        }
+    </style>
+</head>
+
+<body class="bg-gray-900 text-gray-100 h-screen flex flex-col overflow-hidden font-sans">
+
+    <!-- Header -->
+    <header class="bg-gray-800 border-b border-gray-700 p-3 flex justify-between items-center z-10">
+        <div class="flex items-center gap-3">
+            <h1 class="text-xl font-bold text-indigo-400">PixelStudio</h1>
+            <span class="text-xs text-gray-500 bg-gray-900 px-2 py-1 rounded">32x32</span>
+        </div>
+        <div class="flex items-center gap-4">
+            <button id="btn-export"
+                class="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 rounded text-sm font-medium transition">Export
+                GIF/PNG</button>
+            <button id="btn-reset"
+                class="px-3 py-1 bg-red-900/50 hover:bg-red-900/80 text-red-200 rounded text-sm font-medium transition">Reset</button>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <div class="flex-1 flex overflow-hidden">
+
+        <!-- Left Sidebar: Tools & Colors -->
+        <aside class="w-16 md:w-64 bg-gray-800 border-r border-gray-700 flex flex-col z-10 shrink-0">
+            <!-- Tools -->
+            <div class="p-4 grid grid-cols-1 md:grid-cols-4 gap-2 border-b border-gray-700">
+                <button
+                    class="tool-btn bg-gray-700 p-2 rounded hover:bg-gray-600 active ring-2 ring-indigo-500 relative group"
+                    data-tool="pencil" title="Pencil (P)">
+                    <svg class="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
+                        </path>
+                    </svg>
+                </button>
+                <button class="tool-btn bg-gray-700 p-2 rounded hover:bg-gray-600 relative group" data-tool="eraser"
+                    title="Eraser (E)">
+                    <svg class="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                        </path>
+                    </svg>
+                </button>
+                <button class="tool-btn bg-gray-700 p-2 rounded hover:bg-gray-600 relative group" data-tool="fill"
+                    title="Fill Bucket (F)">
+                    <svg class="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z">
+                        </path>
+                    </svg>
+                </button>
+                <button class="tool-btn bg-gray-700 p-2 rounded hover:bg-gray-600 relative group" data-tool="eyedropper"
+                    title="Eyedropper (I)">
+                    <svg class="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M7 21a4 4 0 01-4-4c0-1.657 1.343-3 3-3s3 1.343 3 3a4 4 0 01-4 4zM21.5 5.5a2.121 2.121 0 10-3-3l-10 10a2 2 0 00-.586 1.414V17h3.086a2 2 0 001.414-.586l10-10z">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Color Palette -->
+            <div class="p-4 flex-1 flex flex-col overflow-y-auto">
+                <h3 class="text-xs font-bold text-gray-400 uppercase mb-2">Colors</h3>
+
+                <div class="flex gap-2 mb-4 items-center">
+                    <input type="color" id="color-picker"
+                        class="w-10 h-10 border-0 p-0 rounded cursor-pointer bg-transparent" value="#ffffff">
+                    <div class="flex-1 text-xs text-gray-400 font-mono" id="color-hex">#FFFFFF</div>
+                </div>
+
+                <div class="grid grid-cols-5 gap-1" id="palette-container">
+                    <!-- Palette items generated by JS -->
+                </div>
+            </div>
+        </aside>
+
+        <!-- Center: Canvas Area -->
+        <main class="flex-1 bg-gray-900 relative flex items-center justify-center p-8 overflow-auto checkerboard"
+            id="canvas-container">
+            <div class="relative shadow-2xl shadow-black">
+                <canvas id="main-canvas" width="32" height="32" class="bg-transparent cursor-crosshair"></canvas>
+                <!-- Grid Overlay (Optional, CSS based or separate canvas) -->
+                <canvas id="grid-canvas" class="absolute top-0 left-0 pointer-events-none opacity-20"></canvas>
+            </div>
+        </main>
+
+        <!-- Right Sidebar: Layers & Frames & Preview -->
+        <aside class="w-64 bg-gray-800 border-l border-gray-700 flex flex-col z-10 shrink-0">
+
+            <!-- Preview -->
+            <div class="p-4 border-b border-gray-700 bg-gray-850">
+                <h3 class="text-xs font-bold text-gray-400 uppercase mb-2 flex justify-between">
+                    <span>Preview</span>
+                    <span id="fps-display" class="text-indigo-400">12 FPS</span>
+                </h3>
+                <div class="flex flex-col items-center gap-2">
+                    <div
+                        class="w-32 h-32 bg-gray-900 checkerboard border border-gray-600 flex items-center justify-center rounded">
+                        <canvas id="preview-canvas" width="32" height="32"
+                            class="w-full h-full object-contain image-pixelated"></canvas>
+                    </div>
+                    <div class="flex gap-2 w-full justify-center">
+                        <button id="btn-play-pause" class="p-1 bg-gray-700 rounded hover:bg-gray-600">
+                            <svg id="icon-play" class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M4 4l12 6-12 6z" />
+                            </svg>
+                            <svg id="icon-pause" class="w-4 h-4 hidden" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd"
+                                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                        <input type="range" id="fps-slider" min="1" max="24" value="12" class="w-24">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Frames -->
+            <div class="flex-1 flex flex-col border-b border-gray-700 min-h-0">
+                <div class="p-2 bg-gray-750 flex justify-between items-center border-b border-gray-700">
+                    <h3 class="text-xs font-bold text-gray-400 uppercase">Frames</h3>
+                    <button id="btn-add-frame"
+                        class="text-xs bg-indigo-600 hover:bg-indigo-500 px-2 py-1 rounded text-white">+</button>
+                </div>
+                <div class="flex-1 overflow-y-auto p-2 space-y-2" id="frames-container">
+                    <!-- Frame Items -->
+                </div>
+            </div>
+
+            <!-- Layers -->
+            <div class="flex-1 flex flex-col min-h-0">
+                <div class="p-2 bg-gray-750 flex justify-between items-center border-b border-gray-700">
+                    <h3 class="text-xs font-bold text-gray-400 uppercase">Layers</h3>
+                    <button id="btn-add-layer"
+                        class="text-xs bg-indigo-600 hover:bg-indigo-500 px-2 py-1 rounded text-white">+</button>
+                </div>
+                <div class="flex-1 overflow-y-auto p-2 space-y-1" id="layers-container">
+                    <!-- Layer Items -->
+                </div>
+            </div>
+
+        </aside>
+    </div>
+
+    <script>
+        /**
+         * Pixel Art Editor Logic
+         */
+        const CANVAS_SIZE = 32;
+        const SCALE = 20; // Visual scale factor for main canvas logic (handled via CSS width/height mostly)
+
+        // Application State
+        const state = {
+            frames: [], // Array of Frame objects
+            currentFrameIndex: 0,
+            currentLayerIndex: 0,
+            currentColor: '#000000',
+            currentTool: 'pencil', // pencil, eraser, fill, eyedropper
+            isPlaying: false,
+            fps: 12,
+            isDrawing: false,
+            showGrid: true,
+            history: [],
+            lastX: null,
+            lastY: null
+        };
+
+        // DOM Elements
+        const canvas = document.getElementById('main-canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const gridCanvas = document.getElementById('grid-canvas');
+        const gridCtx = gridCanvas.getContext('2d');
+        const previewCanvas = document.getElementById('preview-canvas');
+        const previewCtx = previewCanvas.getContext('2d');
+
+        // Helper: Generate ID
+        const uid = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
+
+        // Initialization
+        function init() {
+            // Initialize Canvas Scale
+            canvas.style.width = `${CANVAS_SIZE * 16}px`; // 32 * 16 = 512px visual size
+            canvas.style.height = `${CANVAS_SIZE * 16}px`;
+            gridCanvas.width = CANVAS_SIZE * 16;
+            gridCanvas.height = CANVAS_SIZE * 16;
+            gridCanvas.style.width = `${CANVAS_SIZE * 16}px`;
+            gridCanvas.style.height = `${CANVAS_SIZE * 16}px`;
+
+            // Initialize Data
+            createSampleArt();
+
+            // Setup Listeners
+            setupEvents();
+
+            // Draw initial state
+            renderGrid();
+            updateUI();
+            renderMainCanvas();
+            startPreviewLoop();
+        }
+
+        // Data Structure Helpers
+        function createFrame() {
+            const frame = {
+                id: uid(),
+                layers: [createLayer("Layer 1")]
+            };
+            return frame;
+        }
+
+        function createLayer(name) {
+            // Layer data is a flat array of color strings (hex or rgba) or null (transparent)
+            return {
+                id: uid(),
+                name: name,
+                visible: true,
+                data: new Array(CANVAS_SIZE * CANVAS_SIZE).fill(null)
+            };
+        }
+
+        function createSampleArt() {
+            const frame1 = createFrame();
+
+            // Draw a simple smiley face on Layer 1
+            const center = Math.floor(CANVAS_SIZE / 2);
+            const radius = 10;
+
+            for (let y = 0; y < CANVAS_SIZE; y++) {
+                for (let x = 0; x < CANVAS_SIZE; x++) {
+                    const dist = Math.sqrt((x - center) ** 2 + (y - center) ** 2);
+                    const idx = y * CANVAS_SIZE + x;
+
+                    // Yellow circle
+                    if (dist < radius) {
+                        frame1.layers[0].data[idx] = '#fbbf24'; // yellow-400
+                    }
+                    // Black border
+                    if (dist >= radius - 1 && dist < radius) {
+                        frame1.layers[0].data[idx] = '#000000';
+                    }
+                }
+            }
+
+            // Eyes
+            const eyeOffset = 4;
+            frame1.layers[0].data[(center - 3) * CANVAS_SIZE + (center - eyeOffset)] = '#000000';
+            frame1.layers[0].data[(center - 3) * CANVAS_SIZE + (center + eyeOffset)] = '#000000';
+
+            // Smile
+            for (let x = center - 5; x <= center + 5; x++) {
+                const y = Math.floor(center + 4 + 0.1 * (x - center) ** 2);
+                if (y < CANVAS_SIZE) frame1.layers[0].data[y * CANVAS_SIZE + x] = '#000000';
+            }
+
+            state.frames = [frame1];
+
+            // Add a second frame for animation (blinking)
+            const frame2 = JSON.parse(JSON.stringify(frame1)); // Deep copy
+            frame2.id = uid();
+            frame2.layers.forEach(l => l.id = uid());
+
+            // Close eyes in frame 2
+            frame2.layers[0].data[(center - 3) * CANVAS_SIZE + (center - eyeOffset)] = '#fbbf24'; // Overwrite eye with skin
+            frame2.layers[0].data[(center - 3) * CANVAS_SIZE + (center + eyeOffset)] = '#fbbf24';
+            // Draw closed line
+            frame2.layers[0].data[(center - 3) * CANVAS_SIZE + (center - eyeOffset) - 1] = '#000000';
+            frame2.layers[0].data[(center - 3) * CANVAS_SIZE + (center - eyeOffset)] = '#000000';
+            frame2.layers[0].data[(center - 3) * CANVAS_SIZE + (center - eyeOffset) + 1] = '#000000';
+            frame2.layers[0].data[(center - 3) * CANVAS_SIZE + (center + eyeOffset) - 1] = '#000000';
+            frame2.layers[0].data[(center - 3) * CANVAS_SIZE + (center + eyeOffset)] = '#000000';
+            frame2.layers[0].data[(center - 3) * CANVAS_SIZE + (center + eyeOffset) + 1] = '#000000';
+
+            state.frames.push(frame2);
+        }
+
+        // Rendering
+        function renderGrid() {
+            gridCtx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
+            if (!state.showGrid) return;
+
+            gridCtx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            gridCtx.lineWidth = 1;
+
+            const cellSize = gridCanvas.width / CANVAS_SIZE;
+
+            gridCtx.beginPath();
+            for (let i = 0; i <= CANVAS_SIZE; i++) {
+                const pos = i * cellSize;
+                // Vert
+                gridCtx.moveTo(pos, 0);
+                gridCtx.lineTo(pos, gridCanvas.height);
+                // Horiz
+                gridCtx.moveTo(0, pos);
+                gridCtx.lineTo(gridCanvas.width, pos);
+            }
+            gridCtx.stroke();
+        }
+
+        function renderMainCanvas() {
+            ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+            const frame = state.frames[state.currentFrameIndex];
+            if (!frame) return;
+
+            // Render layers from bottom to top
+            // Layers array is stored top-to-bottom in UI usually, but index 0 is bottom? 
+            // Let's assume index 0 is bottom layer.
+
+            frame.layers.forEach(layer => {
+                if (!layer.visible) return;
+
+                for (let i = 0; i < layer.data.length; i++) {
+                    const color = layer.data[i];
+                    if (color) {
+                        const x = i % CANVAS_SIZE;
+                        const y = Math.floor(i / CANVAS_SIZE);
+                        ctx.fillStyle = color;
+                        ctx.fillRect(x, y, 1, 1);
+                    }
+                }
+            });
+        }
+
+        function renderPreviewFrame(frameIndex) {
+            previewCtx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+            const frame = state.frames[frameIndex];
+            if (!frame) return;
+
+            frame.layers.forEach(layer => {
+                if (!layer.visible) return;
+                for (let i = 0; i < layer.data.length; i++) {
+                    if (layer.data[i]) {
+                        const x = i % CANVAS_SIZE;
+                        const y = Math.floor(i / CANVAS_SIZE);
+                        previewCtx.fillStyle = layer.data[i];
+                        previewCtx.fillRect(x, y, 1, 1);
+                    }
+                }
+            });
+        }
+
+        // Logic: History
+        function saveHistory() {
+            if (state.history.length > 20) state.history.shift();
+            state.history.push(JSON.parse(JSON.stringify(state.frames)));
+        }
+
+        function undo() {
+            if (state.history.length === 0) return;
+            const prevFrames = state.history.pop();
+            state.frames = prevFrames;
+            if (state.currentFrameIndex >= state.frames.length) {
+                state.currentFrameIndex = 0;
+            }
+            renderMainCanvas();
+            updateUI();
+        }
+
+        // Logic: Drawing
+        function getCoordinates(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = Math.floor((e.clientX - rect.left) / (rect.width / CANVAS_SIZE));
+            const y = Math.floor((e.clientY - rect.top) / (rect.height / CANVAS_SIZE));
+            return { x, y };
+        }
+
+        function plotPixel(x, y, color) {
+            if (x < 0 || x >= CANVAS_SIZE || y < 0 || y >= CANVAS_SIZE) return;
+
+            const frame = state.frames[state.currentFrameIndex];
+            const layer = frame.layers[state.currentLayerIndex];
+            if (!layer || !layer.visible) return;
+
+            const idx = y * CANVAS_SIZE + x;
+
+            if (layer.data[idx] !== color) {
+                layer.data[idx] = color;
+                renderMainCanvas();
+            }
+        }
+
+        // Bresenham's Line Algorithm
+        function drawLine(x0, y0, x1, y1, color) {
+            const dx = Math.abs(x1 - x0);
+            const dy = Math.abs(y1 - y0);
+            const sx = (x0 < x1) ? 1 : -1;
+            const sy = (y0 < y1) ? 1 : -1;
+            let err = dx - dy;
+
+            while (true) {
+                plotPixel(x0, y0, color);
+                if (x0 === x1 && y0 === y1) break;
+                const e2 = 2 * err;
+                if (e2 > -dy) { err -= dy; x0 += sx; }
+                if (e2 < dx) { err += dx; y0 += sy; }
+            }
+        }
+
+        function fillTool(startX, startY, targetColor) {
+            saveHistory(); // Save before fill
+
+            const frame = state.frames[state.currentFrameIndex];
+            const layer = frame.layers[state.currentLayerIndex];
+            if (!layer || !layer.visible) return;
+
+            const startIdx = startY * CANVAS_SIZE + startX;
+            const sourceColor = layer.data[startIdx];
+
+            if (sourceColor === targetColor) return;
+
+            const queue = [[startX, startY]];
+            const visited = new Set();
+
+            while (queue.length > 0) {
+                const [x, y] = queue.pop();
+                const key = `${x},${y}`;
+                if (visited.has(key)) continue;
+                visited.add(key);
+
+                const idx = y * CANVAS_SIZE + x;
+                if (layer.data[idx] === sourceColor) {
+                    layer.data[idx] = targetColor;
+
+                    if (x > 0) queue.push([x - 1, y]);
+                    if (x < CANVAS_SIZE - 1) queue.push([x + 1, y]);
+                    if (y > 0) queue.push([x, y - 1]);
+                    if (y < CANVAS_SIZE - 1) queue.push([x, y + 1]);
+                }
+            }
+            renderMainCanvas();
+        }
+
+        function handlePointerDown(e) {
+            if (state.currentTool === 'pencil' || state.currentTool === 'eraser') {
+                saveHistory(); // Save before stroke
+                state.isDrawing = true;
+                const { x, y } = getCoordinates(e);
+                state.lastX = x;
+                state.lastY = y;
+
+                const color = state.currentTool === 'pencil' ? state.currentColor : null;
+                plotPixel(x, y, color);
+            } else if (state.currentTool === 'fill' || state.currentTool === 'eyedropper') {
+                state.isDrawing = true; // Just to track interaction
+            }
+        }
+
+        function handlePointerMove(e) {
+            if (!state.isDrawing) return;
+
+            if (state.currentTool === 'pencil' || state.currentTool === 'eraser') {
+                const { x, y } = getCoordinates(e);
+                const color = state.currentTool === 'pencil' ? state.currentColor : null;
+
+                // Use line algorithm if we have a previous point
+                if (state.lastX !== null && state.lastY !== null) {
+                    drawLine(state.lastX, state.lastY, x, y, color);
+                } else {
+                    plotPixel(x, y, color);
+                }
+
+                state.lastX = x;
+                state.lastY = y;
+            }
+        }
+
+        function handlePointerUp(e) {
+            if (!state.isDrawing) return;
+            state.isDrawing = false;
+            state.lastX = null;
+            state.lastY = null;
+
+            const { x, y } = getCoordinates(e);
+
+            if (state.currentTool === 'fill') {
+                fillTool(x, y, state.currentColor);
+            } else if (state.currentTool === 'eyedropper') {
+                const frame = state.frames[state.currentFrameIndex];
+                for (let i = frame.layers.length - 1; i >= 0; i--) {
+                    const layer = frame.layers[i];
+                    if (layer.visible) {
+                        const c = layer.data[y * CANVAS_SIZE + x];
+                        if (c) {
+                            setColor(c);
+                            setTool('pencil');
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // UI Updates
+        function updateUI() {
+            updateFramesList();
+            updateLayersList();
+            updatePalette();
+            updateTools();
+        }
+
+        function updateFramesList() {
+            const container = document.getElementById('frames-container');
+            container.innerHTML = '';
+
+            state.frames.forEach((frame, index) => {
+                const div = document.createElement('div');
+                div.className = `p-2 rounded cursor-pointer border flex justify-between items-center group ${index === state.currentFrameIndex ? 'bg-indigo-900 border-indigo-500' : 'bg-gray-800 border-gray-700 hover:bg-gray-700'}`;
+                div.onclick = () => {
+                    state.currentFrameIndex = index;
+                    renderMainCanvas();
+                    updateUI();
+                };
+
+                div.innerHTML = `
+            <span class="text-xs font-mono">Frame ${index + 1}</span>
+            <button class="text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100" onclick="deleteFrame(event, ${index})">&times;</button>
+        `;
+                container.appendChild(div);
+            });
+        }
+
+        function deleteFrame(e, index) {
+            e.stopPropagation();
+            if (state.frames.length <= 1) return;
+            saveHistory();
+            state.frames.splice(index, 1);
+            if (state.currentFrameIndex >= state.frames.length) {
+                state.currentFrameIndex = state.frames.length - 1;
+            }
+            renderMainCanvas();
+            updateUI();
+        }
+
+        function updateLayersList() {
+            const container = document.getElementById('layers-container');
+            container.innerHTML = '';
+
+            const frame = state.frames[state.currentFrameIndex];
+            // Show layers in reverse order so top layer is at top of list
+            [...frame.layers].reverse().forEach((layer, reversedIndex) => {
+                const actualIndex = frame.layers.length - 1 - reversedIndex;
+
+                const div = document.createElement('div');
+                div.className = `p-2 rounded cursor-pointer border flex justify-between items-center group ${actualIndex === state.currentLayerIndex ? 'bg-indigo-900 border-indigo-500' : 'bg-gray-800 border-gray-700 hover:bg-gray-700'}`;
+
+                // Prevent clicking eye from selecting layer
+                div.onclick = (e) => {
+                    state.currentLayerIndex = actualIndex;
+                    updateUI();
+                };
+
+                const eyeIcon = layer.visible
+                    ? `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>`
+                    : `<svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path></svg>`;
+
+                div.innerHTML = `
+            <div class="flex items-center gap-2">
+                <button class="hover:text-white text-gray-400" onclick="toggleLayerVis(event, ${actualIndex})">${eyeIcon}</button>
+                <span class="text-xs font-mono">${layer.name}</span>
+            </div>
+            <button class="text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100" onclick="deleteLayer(event, ${actualIndex})">&times;</button>
+        `;
+                container.appendChild(div);
+            });
+        }
+
+        function toggleLayerVis(e, index) {
+            e.stopPropagation();
+            // Toggle visibility for this layer index across ALL frames
+            const isVisible = !state.frames[0].layers[index].visible; // Get new state from first frame
+
+            state.frames.forEach(frame => {
+                if (frame.layers[index]) {
+                    frame.layers[index].visible = isVisible;
+                }
+            });
+
+            renderMainCanvas();
+            updateUI();
+        }
+
+        function deleteLayer(e, index) {
+            e.stopPropagation();
+            if (state.frames[0].layers.length <= 1) return;
+            saveHistory();
+
+            // Delete layer at index from ALL frames
+            state.frames.forEach(frame => {
+                if (index < frame.layers.length) {
+                    frame.layers.splice(index, 1);
+                }
+            });
+
+            if (state.currentLayerIndex >= state.frames[0].layers.length) {
+                state.currentLayerIndex = state.frames[0].layers.length - 1;
+            }
+            renderMainCanvas();
+            updateUI();
+        }
+
+        const PALETTE_COLORS = [
+            '#000000', '#1d2b53', '#7e2553', '#008751', '#ab5236', '#5f574f', '#c2c3c7', '#fff1e8',
+            '#ff004d', '#ffa300', '#ffec27', '#00e436', '#29adff', '#83769c', '#ff77a8', '#ffccaa'
+        ];
+
+        function updatePalette() {
+            const container = document.getElementById('palette-container');
+            container.innerHTML = '';
+
+            PALETTE_COLORS.forEach(color => {
+                const div = document.createElement('div');
+                div.className = `w-full aspect-square rounded cursor-pointer border border-transparent hover:border-white ${state.currentColor === color ? 'ring-2 ring-white z-10' : ''}`;
+                div.style.backgroundColor = color;
+                div.onclick = () => setColor(color);
+                container.appendChild(div);
+            });
+        }
+
+        function updateTools() {
+            document.querySelectorAll('.tool-btn').forEach(btn => {
+                if (btn.dataset.tool === state.currentTool) {
+                    btn.classList.add('ring-2', 'ring-indigo-500');
+                } else {
+                    btn.classList.remove('ring-2', 'ring-indigo-500');
+                }
+            });
+        }
+
+        function setColor(hex) {
+            state.currentColor = hex;
+            document.getElementById('color-picker').value = hex;
+            document.getElementById('color-hex').innerText = hex.toUpperCase();
+            updatePalette();
+        }
+
+        function setTool(tool) {
+            state.currentTool = tool;
+            updateTools();
+        }
+
+        // Event Listeners setup
+        function setupEvents() {
+            // Canvas interaction
+            canvas.addEventListener('pointerdown', handlePointerDown);
+            window.addEventListener('pointermove', handlePointerMove); // Window to handle drag outside
+            window.addEventListener('pointerup', handlePointerUp);
+
+            // Tools
+            document.querySelectorAll('.tool-btn').forEach(btn => {
+                btn.addEventListener('click', () => setTool(btn.dataset.tool));
+            });
+
+            // Color Picker
+            document.getElementById('color-picker').addEventListener('input', (e) => {
+                setColor(e.target.value);
+            });
+
+            // Frame/Layer controls
+            document.getElementById('btn-add-frame').addEventListener('click', () => {
+                saveHistory();
+                // Clone current frame
+                const currentFrame = state.frames[state.currentFrameIndex];
+                const newFrame = JSON.parse(JSON.stringify(currentFrame));
+                newFrame.id = uid();
+                // Ensure new IDs for layers to avoid reference issues, but keep data
+                newFrame.layers.forEach(l => l.id = uid());
+
+                state.frames.splice(state.currentFrameIndex + 1, 0, newFrame);
+                state.currentFrameIndex++;
+                renderMainCanvas();
+                updateUI();
+            });
+
+            document.getElementById('btn-add-layer').addEventListener('click', () => {
+                saveHistory();
+                // Add layer to ALL frames to keep structure consistent
+                const layerName = `Layer ${state.frames[0].layers.length + 1}`;
+
+                state.frames.forEach(frame => {
+                    const newLayer = createLayer(layerName);
+                    frame.layers.push(newLayer);
+                });
+
+                state.currentLayerIndex = state.frames[0].layers.length - 1;
+                renderMainCanvas();
+                updateUI();
+            });
+
+            document.getElementById('btn-export').addEventListener('click', () => {
+                // Create a temporary canvas to render the final image
+                const exportCanvas = document.createElement('canvas');
+                exportCanvas.width = CANVAS_SIZE;
+                exportCanvas.height = CANVAS_SIZE;
+                const ctx = exportCanvas.getContext('2d');
+
+                const frame = state.frames[state.currentFrameIndex];
+
+                // Render all visible layers
+                frame.layers.forEach(layer => {
+                    if (!layer.visible) return;
+                    for (let i = 0; i < layer.data.length; i++) {
+                        if (layer.data[i]) {
+                            const x = i % CANVAS_SIZE;
+                            const y = Math.floor(i / CANVAS_SIZE);
+                            ctx.fillStyle = layer.data[i];
+                            ctx.fillRect(x, y, 1, 1);
+                        }
+                    }
+                });
+
+                // Trigger download
+                const link = document.createElement('a');
+                link.download = 'pixel-art.png';
+                link.href = exportCanvas.toDataURL();
+                link.click();
+            });
+
+            // Playback
+            document.getElementById('btn-play-pause').addEventListener('click', () => {
+                state.isPlaying = !state.isPlaying;
+                document.getElementById('icon-play').classList.toggle('hidden', state.isPlaying);
+                document.getElementById('icon-pause').classList.toggle('hidden', !state.isPlaying);
+            });
+
+            document.getElementById('fps-slider').addEventListener('input', (e) => {
+                state.fps = parseInt(e.target.value);
+                document.getElementById('fps-display').innerText = `${state.fps} FPS`;
+            });
+
+            // Reset
+            document.getElementById('btn-reset').addEventListener('click', () => {
+                if (confirm("Clear all?")) {
+                    init();
+                }
+            });
+
+            // Keyboard shortcuts
+            window.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+                    e.preventDefault();
+                    undo();
+                    return;
+                }
+                if (e.key === 'p') setTool('pencil');
+                if (e.key === 'e') setTool('eraser');
+                if (e.key === 'f') setTool('fill');
+                if (e.key === 'i') setTool('eyedropper');
+            });
+        }
+
+        // Animation Loop
+        let lastTime = 0;
+        let previewFrameIndex = 0;
+
+        function startPreviewLoop() {
+            const loop = (time) => {
+                if (state.isPlaying) {
+                    const interval = 1000 / state.fps;
+                    if (time - lastTime > interval) {
+                        previewFrameIndex = (previewFrameIndex + 1) % state.frames.length;
+                        renderPreviewFrame(previewFrameIndex);
+                        lastTime = time;
+                    }
+                } else {
+                    // If paused, just show current frame or keep static? 
+                    // Usually editors show the active frame or the animation paused.
+                    // Let's show active frame when paused to reflect edits immediately
+                    renderPreviewFrame(state.currentFrameIndex);
+                }
+                requestAnimationFrame(loop);
+            };
+            requestAnimationFrame(loop);
+        }
+
+        // Start
+        init();
+
+    </script>
+</body>
+
+</html>
