@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mesmerizing Lava Lamp</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #0a0a0f 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+
+        .lamp-container {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .lamp-cap {
+            width: 120px;
+            height: 30px;
+            background: linear-gradient(180deg, #4a4a4a 0%, #2a2a2a 50%, #1a1a1a 100%);
+            border-radius: 10px 10px 0 0;
+            position: relative;
+            z-index: 10;
+            box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .lamp-glass {
+            position: relative;
+            width: 140px;
+            height: 400px;
+            background: rgba(20, 20, 30, 0.3);
+            border-radius: 70px 70px 40px 40px;
+            overflow: hidden;
+            box-shadow:
+                inset 0 0 50px rgba(0, 0, 0, 0.5),
+                0 0 30px rgba(0, 0, 0, 0.8),
+                inset 2px 0 10px rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .lamp-glass::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 10px;
+            width: 20px;
+            height: 100%;
+            background: linear-gradient(90deg, rgba(255, 255, 255, 0.1) 0%, transparent 100%);
+            border-radius: 70px;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        #lavaCanvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .ambient-glow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px;
+            height: 500px;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: -1;
+            filter: blur(60px);
+            opacity: 0.6;
+            transition: background 1s ease;
+        }
+
+        .lamp-base {
+            width: 160px;
+            height: 60px;
+            background: linear-gradient(180deg, #1a1a1a 0%, #2a2a2a 30%, #3a3a3a 50%, #2a2a2a 70%, #1a1a1a 100%);
+            border-radius: 0 0 20px 20px;
+            position: relative;
+            z-index: 10;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+        }
+
+        .lamp-base::before {
+            content: '';
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 10px;
+            background: radial-gradient(ellipse, #ff6b35 0%, #ff4500 50%, transparent 70%);
+            border-radius: 50%;
+            filter: blur(3px);
+            animation: flicker 0.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes flicker {
+            0% {
+                opacity: 0.8;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        .controls {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(30, 30, 40, 0.9);
+            padding: 20px 30px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .control-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .control-label {
+            color: #aaa;
+            font-size: 14px;
+            min-width: 100px;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 200px;
+            height: 6px;
+            border-radius: 3px;
+            background: linear-gradient(90deg, #3b82f6 0%, #ef4444 100%);
+            outline: none;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: white;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .temp-value {
+            color: #fff;
+            font-size: 14px;
+            min-width: 60px;
+            text-align: right;
+        }
+
+        .speed-slider {
+            background: linear-gradient(90deg, #22c55e 0%, #eab308 50%, #ef4444 100%) !important;
+        }
+
+        .title {
+            position: fixed;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 24px;
+            font-weight: 300;
+            letter-spacing: 8px;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+
+<body>
+    <h1 class="title">Lava Lamp</h1>
+
+    <div class="lamp-container">
+        <div class="ambient-glow" id="ambientGlow"></div>
+        <div class="lamp-cap"></div>
+        <div class="lamp-glass">
+            <canvas id="lavaCanvas"></canvas>
+        </div>
+        <div class="lamp-base"></div>
+    </div>
+
+    <div class="controls">
+        <div class="control-group">
+            <span class="control-label">🌡️ Temperature</span>
+            <input type="range" id="tempSlider" min="0" max="100" value="70">
+            <span class="temp-value" id="tempValue">Warm</span>
+        </div>
+        <div class="control-group">
+            <span class="control-label">⚡ Flow Speed</span>
+            <input type="range" id="speedSlider" min="20" max="150" value="60" class="speed-slider">
+            <span class="temp-value" id="speedValue">Normal</span>
+        </div>
+        <div class="control-group">
+            <span class="control-label">💧 Blob Count</span>
+            <input type="range" id="blobSlider" min="5" max="20" value="10">
+            <span class="temp-value" id="blobValue">10</span>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('lavaCanvas');
+        const ctx = canvas.getContext('2d');
+        const ambientGlow = document.getElementById('ambientGlow');
+
+        // High DPI canvas setup
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width * 2;
+            canvas.height = rect.height * 2;
+            ctx.scale(2, 2);
+        }
+        resizeCanvas();
+
+        // Color temperature presets
+        const colorTemperatures = {
+            cold: { primary: '#00d4ff', secondary: '#0066ff', glow: 'rgba(0, 150, 255, 0.4)' },
+            cool: { primary: '#00ff88', secondary: '#00ccaa', glow: 'rgba(0, 255, 150, 0.4)' },
+            neutral: { primary: '#ffaa00', secondary: '#ff6600', glow: 'rgba(255, 150, 0, 0.4)' },
+            warm: { primary: '#ff4444', secondary: '#ff0066', glow: 'rgba(255, 50, 100, 0.4)' },
+            hot: { primary: '#ff0000', secondary: '#ff3300', glow: 'rgba(255, 0, 50, 0.5)' }
+        };
+
+        let currentTemp = 70;
+        let flowSpeed = 60;
+        let targetBlobCount = 10;
+
+        class Blob {
+            constructor(x, y, radius) {
+                this.x = x;
+                this.y = y;
+                this.radius = radius;
+                this.baseRadius = radius;
+                this.vx = (Math.random() - 0.5) * 0.5;
+                this.vy = 0;
+                this.heat = Math.random();
+                this.wobbleOffset = Math.random() * Math.PI * 2;
+                this.wobbleSpeed = 0.02 + Math.random() * 0.02;
+                this.pulseOffset = Math.random() * Math.PI * 2;
+                this.merging = false;
+            }
+
+            update(canvasWidth, canvasHeight, deltaTime) {
+                const speedMultiplier = flowSpeed / 60;
+
+                // Wobble effect
+                this.wobbleOffset += this.wobbleSpeed * speedMultiplier;
+                this.pulseOffset += 0.03 * speedMultiplier;
+
+                // Pulse radius
+                this.radius = this.baseRadius + Math.sin(this.pulseOffset) * 3;
+
+                // Heat simulation - blobs at bottom get hotter, at top get cooler
+                const normalizedY = this.y / canvasHeight;
+                const heatSource = 1 - normalizedY; // Bottom is hot
+
+                this.heat += (heatSource - this.heat) * 0.01 * speedMultiplier;
+                this.heat = Math.max(0, Math.min(1, this.heat));
+
+                // Buoyancy based on heat
+                const buoyancy = (this.heat - 0.5) * 0.15 * speedMultiplier;
+                this.vy -= buoyancy;
+
+                // Gravity
+                this.vy += 0.02 * speedMultiplier;
+
+                // Damping
+                this.vx *= 0.98;
+                this.vy *= 0.98;
+
+                // Random movement
+                this.vx += (Math.random() - 0.5) * 0.1 * speedMultiplier;
+
+                // Update position
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Boundary collision with wobble
+                const wobbleX = Math.sin(this.wobbleOffset) * 5;
+                const effectiveRadius = this.radius + 5;
+
+                // Curved boundaries (lamp shape)
+                const centerX = canvasWidth / 2;
+                const topWidth = canvasWidth * 0.4;
+                const bottomWidth = canvasWidth * 0.35;
+                const midWidth = canvasWidth * 0.48;
+
+                let maxWidth;
+                if (normalizedY < 0.3) {
+                    maxWidth = topWidth + (midWidth - topWidth) * (normalizedY / 0.3);
+                } else if (normalizedY > 0.8) {
+                    maxWidth = midWidth - (midWidth - bottomWidth) * ((normalizedY - 0.8) / 0.2);
+                } else {
+                    maxWidth = midWidth;
+                }
+
+                const leftBound = centerX - maxWidth + effectiveRadius;
+                const rightBound = centerX + maxWidth - effectiveRadius;
+
+                if (this.x < leftBound) {
+                    this.x = leftBound;
+                    this.vx *= -0.5;
+                }
+                if (this.x > rightBound) {
+                    this.x = rightBound;
+                    this.vx *= -0.5;
+                }
+
+                // Top and bottom bounds
+                if (this.y < effectiveRadius + 20) {
+                    this.y = effectiveRadius + 20;
+                    this.vy *= -0.3;
+                    this.heat -= 0.1;
+                }
+                if (this.y > canvasHeight - effectiveRadius - 10) {
+                    this.y = canvasHeight - effectiveRadius - 10;
+                    this.vy *= -0.3;
+                    this.heat += 0.2;
+                }
+            }
+        }
+
+        let blobs = [];
+
+        function initBlobs() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            blobs = [];
+            for (let i = 0; i < targetBlobCount; i++) {
+                const radius = 15 + Math.random() * 20;
+                const x = rect.width / 2 + (Math.random() - 0.5) * 50;
+                const y = rect.height * 0.3 + Math.random() * rect.height * 0.6;
+                blobs.push(new Blob(x, y, radius));
+            }
+        }
+
+        function getColor(heat) {
+            const temp = currentTemp / 100;
+
+            // Interpolate between color temperatures
+            let colors;
+            if (temp < 0.25) {
+                colors = lerpColors(colorTemperatures.cold, colorTemperatures.cool, temp / 0.25);
+            } else if (temp < 0.5) {
+                colors = lerpColors(colorTemperatures.cool, colorTemperatures.neutral, (temp - 0.25) / 0.25);
+            } else if (temp < 0.75) {
+                colors = lerpColors(colorTemperatures.neutral, colorTemperatures.warm, (temp - 0.5) / 0.25);
+            } else {
+                colors = lerpColors(colorTemperatures.warm, colorTemperatures.hot, (temp - 0.75) / 0.25);
+            }
+
+            return colors;
+        }
+
+        function lerpColors(c1, c2, t) {
+            return {
+                primary: lerpColor(c1.primary, c2.primary, t),
+                secondary: lerpColor(c1.secondary, c2.secondary, t),
+                glow: c1.glow
+            };
+        }
+
+        function lerpColor(color1, color2, t) {
+            const c1 = hexToRgb(color1);
+            const c2 = hexToRgb(color2);
+            const r = Math.round(c1.r + (c2.r - c1.r) * t);
+            const g = Math.round(c1.g + (c2.g - c1.g) * t);
+            const b = Math.round(c1.b + (c2.b - c1.b) * t);
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : { r: 255, g: 100, b: 100 };
+        }
+
+        function drawMetaballs() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            const width = rect.width;
+            const height = rect.height;
+
+            // Clear canvas
+            ctx.clearRect(0, 0, width, height);
+
+            // Background liquid
+            const bgGradient = ctx.createLinearGradient(0, 0, 0, height);
+            bgGradient.addColorStop(0, 'rgba(20, 20, 40, 0.8)');
+            bgGradient.addColorStop(1, 'rgba(40, 20, 30, 0.9)');
+            ctx.fillStyle = bgGradient;
+            ctx.fillRect(0, 0, width, height);
+
+            // Draw each blob with glow
+            const colors = getColor(currentTemp);
+
+            blobs.forEach(blob => {
+                // Outer glow
+                const glowGradient = ctx.createRadialGradient(
+                    blob.x, blob.y, 0,
+                    blob.x, blob.y, blob.radius * 2.5
+                );
+                glowGradient.addColorStop(0, colors.primary.replace('rgb', 'rgba').replace(')', ', 0.6)'));
+                glowGradient.addColorStop(0.5, colors.secondary.replace('rgb', 'rgba').replace(')', ', 0.2)'));
+                glowGradient.addColorStop(1, 'transparent');
+
+                ctx.beginPath();
+                ctx.arc(blob.x, blob.y, blob.radius * 2.5, 0, Math.PI * 2);
+                ctx.fillStyle = glowGradient;
+                ctx.fill();
+            });
+
+            // Draw main blobs
+            blobs.forEach(blob => {
+                const blobGradient = ctx.createRadialGradient(
+                    blob.x - blob.radius * 0.3, blob.y - blob.radius * 0.3, 0,
+                    blob.x, blob.y, blob.radius
+                );
+
+                blobGradient.addColorStop(0, colors.primary);
+                blobGradient.addColorStop(0.7, colors.secondary);
+                blobGradient.addColorStop(1, colors.secondary.replace('rgb', 'rgba').replace(')', ', 0.8)'));
+
+                ctx.beginPath();
+
+                // Draw wobbly blob
+                const points = 32;
+                for (let i = 0; i <= points; i++) {
+                    const angle = (i / points) * Math.PI * 2;
+                    const wobble = Math.sin(angle * 3 + blob.wobbleOffset) * 3;
+                    const r = blob.radius + wobble;
+                    const px = blob.x + Math.cos(angle) * r;
+                    const py = blob.y + Math.sin(angle) * r;
+
+                    if (i === 0) {
+                        ctx.moveTo(px, py);
+                    } else {
+                        ctx.lineTo(px, py);
+                    }
+                }
+
+                ctx.closePath();
+                ctx.fillStyle = blobGradient;
+                ctx.fill();
+
+                // Inner highlight
+                ctx.beginPath();
+                ctx.arc(
+                    blob.x - blob.radius * 0.25,
+                    blob.y - blob.radius * 0.25,
+                    blob.radius * 0.3,
+                    0, Math.PI * 2
+                );
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.fill();
+            });
+
+            // Update ambient glow
+            ambientGlow.style.background = `radial-gradient(ellipse, ${colors.primary.replace('rgb', 'rgba').replace(')', ', 0.3)')} 0%, transparent 70%)`;
+        }
+
+        function checkMergeAndSplit() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+
+            // Check for nearby blobs and create attraction
+            for (let i = 0; i < blobs.length; i++) {
+                for (let j = i + 1; j < blobs.length; j++) {
+                    const dx = blobs[j].x - blobs[i].x;
+                    const dy = blobs[j].y - blobs[i].y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const minDist = blobs[i].radius + blobs[j].radius;
+
+                    if (dist < minDist * 1.5) {
+                        // Soft collision / attraction
+                        const force = (minDist * 1.5 - dist) * 0.01;
+                        const angle = Math.atan2(dy, dx);
+
+                        blobs[i].vx -= Math.cos(angle) * force;
+                        blobs[i].vy -= Math.sin(angle) * force;
+                        blobs[j].vx += Math.cos(angle) * force;
+                        blobs[j].vy += Math.sin(angle) * force;
+                    }
+                }
+            }
+
+            // Adjust blob count
+            while (blobs.length < targetBlobCount) {
+                const radius = 15 + Math.random() * 20;
+                const x = rect.width / 2 + (Math.random() - 0.5) * 30;
+                const y = rect.height - 30;
+                blobs.push(new Blob(x, y, radius));
+            }
+
+            while (blobs.length > targetBlobCount && blobs.length > 3) {
+                blobs.pop();
+            }
+        }
+
+        let lastTime = 0;
+
+        function animate(currentTime) {
+            const deltaTime = currentTime - lastTime;
+            lastTime = currentTime;
+
+            const rect = canvas.parentElement.getBoundingClientRect();
+
+            blobs.forEach(blob => {
+                blob.update(rect.width, rect.height, deltaTime);
+            });
+
+            checkMergeAndSplit();
+            drawMetaballs();
+
+            requestAnimationFrame(animate);
+        }
+
+        // Controls
+        const tempSlider = document.getElementById('tempSlider');
+        const speedSlider = document.getElementById('speedSlider');
+        const blobSlider = document.getElementById('blobSlider');
+        const tempValue = document.getElementById('tempValue');
+        const speedValue = document.getElementById('speedValue');
+        const blobValue = document.getElementById('blobValue');
+
+        function updateTempLabel() {
+            const temp = parseInt(tempSlider.value);
+            currentTemp = temp;
+            if (temp < 20) tempValue.textContent = 'Frozen';
+            else if (temp < 40) tempValue.textContent = 'Cool';
+            else if (temp < 60) tempValue.textContent = 'Neutral';
+            else if (temp < 80) tempValue.textContent = 'Warm';
+            else tempValue.textContent = 'Hot';
+        }
+
+        function updateSpeedLabel() {
+            const speed = parseInt(speedSlider.value);
+            flowSpeed = speed;
+            if (speed < 40) speedValue.textContent = 'Slow';
+            else if (speed < 80) speedValue.textContent = 'Normal';
+            else if (speed < 120) speedValue.textContent = 'Fast';
+            else speedValue.textContent = 'Turbo';
+        }
+
+        function updateBlobLabel() {
+            const count = parseInt(blobSlider.value);
+            targetBlobCount = count;
+            blobValue.textContent = count;
+        }
+
+        tempSlider.addEventListener('input', updateTempLabel);
+        speedSlider.addEventListener('input', updateSpeedLabel);
+        blobSlider.addEventListener('input', updateBlobLabel);
+
+        // Initialize
+        updateTempLabel();
+        updateSpeedLabel();
+        updateBlobLabel();
+        initBlobs();
+        requestAnimationFrame(animate);
+
+        // Handle resize
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            initBlobs();
+        });
+    </script>
+</body>
+
+</html>
