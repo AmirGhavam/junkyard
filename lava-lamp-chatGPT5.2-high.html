@@ -1,0 +1,923 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lava Lamp — Metaball Simulation</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        :root {
+            color-scheme: dark;
+        }
+
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #05060a;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        /* Range styling (lightweight, consistent) */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 18px;
+            background: transparent;
+        }
+
+        input[type="range"]::-webkit-slider-runnable-track {
+            height: 8px;
+            border-radius: 999px;
+            background: linear-gradient(90deg, rgba(255, 255, 255, .12), rgba(255, 255, 255, .18));
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, .85);
+            box-shadow: 0 0 0 3px rgba(0, 0, 0, .25), 0 6px 20px rgba(0, 0, 0, .35);
+            margin-top: -5px;
+        }
+
+        input[type="range"]::-moz-range-track {
+            height: 8px;
+            border-radius: 999px;
+            background: linear-gradient(90deg, rgba(255, 255, 255, .12), rgba(255, 255, 255, .18));
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 999px;
+            border: 0;
+            background: rgba(255, 255, 255, .85);
+            box-shadow: 0 0 0 3px rgba(0, 0, 0, .25), 0 6px 20px rgba(0, 0, 0, .35);
+        }
+
+        .glassNoise {
+            background-image:
+                radial-gradient(1200px 800px at 50% 30%, rgba(255, 255, 255, .08), transparent 60%),
+                radial-gradient(900px 700px at 40% 15%, rgba(120, 180, 255, .05), transparent 55%),
+                radial-gradient(900px 900px at 65% 60%, rgba(255, 120, 180, .05), transparent 58%),
+                linear-gradient(to bottom, rgba(255, 255, 255, .05), transparent 20%, transparent 80%, rgba(0, 0, 0, .55));
+            mix-blend-mode: screen;
+            opacity: .85;
+        }
+
+        .panel {
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .reduceMotionHint {
+                display: block;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="fixed inset-0">
+        <canvas id="c"></canvas>
+        <div class="pointer-events-none absolute inset-0 glassNoise"></div>
+
+        <div
+            class="pointer-events-auto panel absolute left-4 bottom-4 right-4 md:right-auto md:w-[420px] rounded-2xl border border-white/10 bg-black/30 shadow-[0_20px_80px_rgba(0,0,0,.55)]">
+            <div class="p-4">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <div class="text-white/90 font-semibold tracking-wide">Lava Lamp</div>
+                        <div class="text-xs text-white/60">Metaball blobs • convection-style heat • ambient glow</div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button id="toggleBtn"
+                            class="px-3 py-1.5 rounded-xl text-sm bg-white/10 hover:bg-white/15 text-white/90 border border-white/10">Pause</button>
+                        <button id="resetBtn"
+                            class="px-3 py-1.5 rounded-xl text-sm bg-white/10 hover:bg-white/15 text-white/90 border border-white/10">Reset</button>
+                    </div>
+                </div>
+
+                <div class="mt-4 grid grid-cols-2 gap-3">
+                    <div class="col-span-2">
+                        <div class="flex items-center justify-between">
+                            <label class="text-xs text-white/70">Color temperature</label>
+                            <div class="text-xs text-white/70"><span id="kelvinVal">2600</span>K</div>
+                        </div>
+                        <input id="kelvin" type="range" min="1500" max="9000" step="10" value="2600" />
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <label class="text-xs text-white/70">Heat</label>
+                            <div class="text-xs text-white/70"><span id="heatVal">0.70</span></div>
+                        </div>
+                        <input id="heat" type="range" min="0" max="1" step="0.01" value="0.70" />
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <label class="text-xs text-white/70">Viscosity</label>
+                            <div class="text-xs text-white/70"><span id="viscVal">0.55</span></div>
+                        </div>
+                        <input id="visc" type="range" min="0" max="1" step="0.01" value="0.55" />
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <label class="text-xs text-white/70">Glow</label>
+                            <div class="text-xs text-white/70"><span id="glowVal">18</span>px</div>
+                        </div>
+                        <input id="glow" type="range" min="0" max="40" step="1" value="18" />
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <label class="text-xs text-white/70">Blobs</label>
+                            <div class="text-xs text-white/70"><span id="countVal">14</span></div>
+                        </div>
+                        <input id="count" type="range" min="6" max="26" step="1" value="14" />
+                    </div>
+
+                    <div class="col-span-2">
+                        <div class="flex items-center justify-between">
+                            <label class="text-xs text-white/70">Tempo</label>
+                            <div class="text-xs text-white/70"><span id="tempoVal">1.00</span>x</div>
+                        </div>
+                        <input id="tempo" type="range" min="0.35" max="1.75" step="0.01" value="1.00" />
+                    </div>
+                </div>
+
+                <div class="mt-3 flex items-center justify-between">
+                    <div class="text-xs text-white/50">Tip: drag anywhere to “stir” the lamp.</div>
+                    <div class="text-xs text-white/50 tabular-nums" id="perf">— fps</div>
+                </div>
+                <div class="reduceMotionHint hidden mt-3 text-xs text-amber-200/80">Reduced motion is enabled in your
+                    OS; the simulation still runs, but you may prefer pausing.</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ---------- Utilities ----------
+        const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+        const lerp = (a, b, t) => a + (b - a) * t;
+        const smoothstep = (a, b, x) => {
+            const t = clamp((x - a) / (b - a), 0, 1);
+            return t * t * (3 - 2 * t);
+        };
+
+        // Kelvin to RGB approximation (Tanner Helland-ish, tuned for UI)
+        function kelvinToRgb(k) {
+            let temp = k / 100;
+            let r, g, b;
+            if (temp <= 66) {
+                r = 255;
+                g = 99.4708025861 * Math.log(temp) - 161.1195681661;
+                b = temp <= 19 ? 0 : (138.5177312231 * Math.log(temp - 10) - 305.0447927307);
+            } else {
+                r = 329.698727446 * Math.pow(temp - 60, -0.1332047592);
+                g = 288.1221695283 * Math.pow(temp - 60, -0.0755148492);
+                b = 255;
+            }
+            return {
+                r: clamp(r, 0, 255),
+                g: clamp(g, 0, 255),
+                b: clamp(b, 0, 255)
+            };
+        }
+
+        function mulberry32(seed) {
+            return function () {
+                let t = seed += 0x6D2B79F5;
+                t = Math.imul(t ^ (t >>> 15), t | 1);
+                t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+                return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+            }
+        }
+
+        // Smooth pseudo-noise without a full noise library
+        function flowNoise(x, y, t) {
+            // Returns a small 2D curl-ish vector
+            const s1 = Math.sin(x * 0.010 + t * 0.55) * Math.cos(y * 0.012 - t * 0.43);
+            const s2 = Math.cos(x * 0.013 - t * 0.37) * Math.sin(y * 0.009 + t * 0.61);
+            const a = (s1 + s2) * Math.PI;
+            return { x: Math.cos(a), y: Math.sin(a) };
+        }
+
+        // ---------- Canvas setup ----------
+        const canvas = document.getElementById('c');
+        const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
+
+        // Low-res field buffer to keep metaball rendering fast
+        const fieldCanvas = document.createElement('canvas');
+        const fctx = fieldCanvas.getContext('2d', { willReadFrequently: true });
+        let fieldW = 360, fieldH = 640; // updated on resize
+
+        const ui = {
+            kelvin: document.getElementById('kelvin'),
+            heat: document.getElementById('heat'),
+            visc: document.getElementById('visc'),
+            glow: document.getElementById('glow'),
+            count: document.getElementById('count'),
+            tempo: document.getElementById('tempo'),
+            kelvinVal: document.getElementById('kelvinVal'),
+            heatVal: document.getElementById('heatVal'),
+            viscVal: document.getElementById('viscVal'),
+            glowVal: document.getElementById('glowVal'),
+            countVal: document.getElementById('countVal'),
+            tempoVal: document.getElementById('tempoVal'),
+            perf: document.getElementById('perf'),
+            toggleBtn: document.getElementById('toggleBtn'),
+            resetBtn: document.getElementById('resetBtn')
+        };
+
+        function syncLabels() {
+            ui.kelvinVal.textContent = Math.round(+ui.kelvin.value);
+            ui.heatVal.textContent = (+ui.heat.value).toFixed(2);
+            ui.viscVal.textContent = (+ui.visc.value).toFixed(2);
+            ui.glowVal.textContent = Math.round(+ui.glow.value);
+            ui.countVal.textContent = Math.round(+ui.count.value);
+            ui.tempoVal.textContent = (+ui.tempo.value).toFixed(2);
+        }
+        ['input', 'change'].forEach(evt => {
+            ui.kelvin.addEventListener(evt, syncLabels);
+            ui.heat.addEventListener(evt, syncLabels);
+            ui.visc.addEventListener(evt, syncLabels);
+            ui.glow.addEventListener(evt, syncLabels);
+            ui.count.addEventListener(evt, syncLabels);
+            ui.tempo.addEventListener(evt, syncLabels);
+        });
+        syncLabels();
+
+        let DPR = 1;
+        function resize() {
+            DPR = clamp(window.devicePixelRatio || 1, 1, 2);
+            canvas.width = Math.floor(window.innerWidth * DPR);
+            canvas.height = Math.floor(window.innerHeight * DPR);
+            canvas.style.width = window.innerWidth + 'px';
+            canvas.style.height = window.innerHeight + 'px';
+
+            // Keep the field buffer portrait-ish (lava lamp shape). Scale with viewport.
+            const targetH = clamp(Math.floor(window.innerHeight * 0.86), 520, 980);
+            const targetW = Math.floor(targetH * 0.56);
+
+            fieldW = Math.floor(targetW * 0.55); // low-res buffer for fast field computation
+            fieldH = Math.floor(targetH * 0.55);
+            fieldCanvas.width = fieldW;
+            fieldCanvas.height = fieldH;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // ---------- Lamp geometry ----------
+        function lampRect() {
+            // Returns the main lamp rect in *main canvas* pixel coords
+            const W = canvas.width, H = canvas.height;
+            const h = Math.min(H * 0.90, W * 1.55);
+            const w = h * 0.56;
+            const x = (W - w) * 0.5;
+            const y = (H - h) * 0.52;
+            return { x, y, w, h };
+        }
+
+        function radiusAtY(yn) {
+            // yn: 0..1 inside lamp interior. Produces half-width in normalized units.
+            // Bottom bulge + narrow neck.
+            const belly = 0.48 + 0.32 * Math.exp(-Math.pow((yn - 0.58) / 0.28, 2));
+            const neck = 0.16 + 0.18 * Math.exp(-Math.pow((yn - 0.18) / 0.16, 2));
+            const r = Math.max(neck, belly);
+            // Slight taper near very bottom to suggest base.
+            const baseTaper = 1 - 0.10 * smoothstep(0.92, 1.0, yn);
+            return r * baseTaper;
+        }
+
+        function buildLampPath(ctx2, r) {
+            // r: lamp rectangle in main canvas coords
+            const steps = 80;
+            const cx = r.x + r.w / 2;
+            const top = r.y;
+            const bottom = r.y + r.h;
+
+            ctx2.beginPath();
+            for (let i = 0; i <= steps; i++) {
+                const t = i / steps;
+                const yn = t;
+                const half = radiusAtY(yn) * (r.w / 2);
+                const x = cx - half;
+                const y = lerp(top, bottom, t);
+                if (i === 0) ctx2.moveTo(x, y);
+                else ctx2.lineTo(x, y);
+            }
+            for (let i = steps; i >= 0; i--) {
+                const t = i / steps;
+                const yn = t;
+                const half = radiusAtY(yn) * (r.w / 2);
+                const x = cx + half;
+                const y = lerp(top, bottom, t);
+                ctx2.lineTo(x, y);
+            }
+            ctx2.closePath();
+        }
+
+        // ---------- Simulation ----------
+        class Blob {
+            constructor(rng, W, H) {
+                this.rng = rng;
+                this.r = lerp(18, 44, Math.pow(rng(), 0.65));
+                this.x = W * 0.5 + (rng() - 0.5) * W * 0.22;
+                this.y = H * lerp(0.62, 0.92, rng());
+                this.vx = (rng() - 0.5) * 22;
+                this.vy = (rng() - 0.5) * 18;
+                this.temp = lerp(0.2, 0.75, rng()); // 0=cool/dense, 1=hot/buoyant
+                this.phase = rng() * Math.PI * 2;
+                this.spin = lerp(-1, 1, rng()) * 0.6;
+            }
+        }
+
+        const sim = {
+            blobs: [],
+            seed: 1337,
+            pointer: { down: false, x: 0, y: 0, px: 0, py: 0, vx: 0, vy: 0 },
+            paused: false,
+            t: 0
+        };
+
+        function simDims() {
+            // Simulation space in field buffer pixels
+            return { W: fieldW, H: fieldH };
+        }
+
+        function ensureBlobCount(n) {
+            const { W, H } = simDims();
+            const rng = mulberry32(sim.seed);
+            // If increasing, create new blobs with a deterministic stream but offset by existing length
+            while (sim.blobs.length < n) {
+                // Advance RNG a bit based on index so resizing feels stable
+                const idx = sim.blobs.length;
+                const local = mulberry32(sim.seed + idx * 99991);
+                sim.blobs.push(new Blob(local, W, H));
+            }
+            while (sim.blobs.length > n) sim.blobs.pop();
+        }
+
+        function resetSim() {
+            sim.seed = (Date.now() & 0xffffffff) >>> 0;
+            sim.blobs = [];
+            sim.t = 0;
+            ensureBlobCount(Math.round(+ui.count.value));
+        }
+
+        // Pointer stirring
+        function toFieldCoords(clientX, clientY) {
+            const rect = canvas.getBoundingClientRect();
+            const x = (clientX - rect.left) / rect.width;
+            const y = (clientY - rect.top) / rect.height;
+
+            // Map viewport normalized coords into lamp rect, then into field space
+            const lr = lampRect();
+            const W = canvas.width, H = canvas.height;
+            const px = x * W;
+            const py = y * H;
+            const lx = clamp((px - lr.x) / lr.w, 0, 1);
+            const ly = clamp((py - lr.y) / lr.h, 0, 1);
+            return { x: lx * fieldW, y: ly * fieldH };
+        }
+
+        window.addEventListener('pointerdown', (e) => {
+            sim.pointer.down = true;
+            const p = toFieldCoords(e.clientX, e.clientY);
+            sim.pointer.x = sim.pointer.px = p.x;
+            sim.pointer.y = sim.pointer.py = p.y;
+            sim.pointer.vx = sim.pointer.vy = 0;
+        });
+        window.addEventListener('pointermove', (e) => {
+            if (!sim.pointer.down) return;
+            const p = toFieldCoords(e.clientX, e.clientY);
+            sim.pointer.px = sim.pointer.x;
+            sim.pointer.py = sim.pointer.y;
+            sim.pointer.x = p.x;
+            sim.pointer.y = p.y;
+            sim.pointer.vx = sim.pointer.x - sim.pointer.px;
+            sim.pointer.vy = sim.pointer.y - sim.pointer.py;
+        });
+        window.addEventListener('pointerup', () => { sim.pointer.down = false; });
+        window.addEventListener('pointercancel', () => { sim.pointer.down = false; });
+
+        // UI buttons
+        ui.toggleBtn.addEventListener('click', () => {
+            sim.paused = !sim.paused;
+            ui.toggleBtn.textContent = sim.paused ? 'Resume' : 'Pause';
+        });
+        ui.resetBtn.addEventListener('click', resetSim);
+
+        // Rebuild blobs when count changes
+        ui.count.addEventListener('input', () => ensureBlobCount(Math.round(+ui.count.value)));
+
+        // Initialize
+        ensureBlobCount(Math.round(+ui.count.value));
+
+        function insideLamp(x, y) {
+            // x,y in field coords
+            const W = fieldW, H = fieldH;
+            const xn = x / W;
+            const yn = y / H;
+            const cx = 0.5;
+            const half = radiusAtY(yn) * 0.5;
+            return Math.abs(xn - cx) <= half;
+        }
+
+        function projectInside(blob) {
+            // Soft boundary with normal push
+            const W = fieldW, H = fieldH;
+            const xn = blob.x / W;
+            const yn = blob.y / H;
+            const cx = 0.5;
+            const half = radiusAtY(yn) * 0.5;
+            const maxDx = (half * W) - blob.r;
+            const dx = blob.x - cx * W;
+
+            // Vertical caps
+            const top = blob.r + H * 0.03;
+            const bottom = H - blob.r - H * 0.03;
+            if (blob.y < top) {
+                blob.y = top;
+                blob.vy = Math.abs(blob.vy) * 0.3;
+                blob.temp = Math.max(blob.temp, 0.25);
+            }
+            if (blob.y > bottom) {
+                blob.y = bottom;
+                blob.vy = -Math.abs(blob.vy) * 0.25;
+                blob.temp = Math.min(blob.temp, 0.85);
+            }
+
+            if (Math.abs(dx) > maxDx) {
+                const sign = Math.sign(dx) || 1;
+                blob.x = cx * W + sign * maxDx;
+                blob.vx *= -0.35;
+                blob.vy *= 0.92;
+            }
+        }
+
+        function step(dt) {
+            const { W, H } = simDims();
+            const heat = +ui.heat.value;
+            const visc = +ui.visc.value;
+            const tempo = +ui.tempo.value;
+
+            dt *= tempo;
+            sim.t += dt;
+
+            // Convection-like gradient: bottom hot, top cool.
+            // As heat increases, gradient strengthens and response is faster.
+            const response = lerp(0.35, 1.25, heat);
+            const buoyancyStrength = lerp(55, 160, heat);
+            const gravity = 65; // downward
+
+            // Pairwise soft collisions to keep blobs distinct while still merging visually.
+            const blobs = sim.blobs;
+            for (let i = 0; i < blobs.length; i++) {
+                for (let j = i + 1; j < blobs.length; j++) {
+                    const a = blobs[i], b = blobs[j];
+                    const dx = b.x - a.x;
+                    const dy = b.y - a.y;
+                    const dist = Math.hypot(dx, dy) || 1e-6;
+                    const target = (a.r + b.r) * 0.72;
+                    if (dist < target) {
+                        const push = (target - dist) / target;
+                        const nx = dx / dist;
+                        const ny = dy / dist;
+                        const k = 140 * push;
+                        a.vx -= nx * k * dt;
+                        a.vy -= ny * k * dt;
+                        b.vx += nx * k * dt;
+                        b.vy += ny * k * dt;
+                    }
+                }
+            }
+
+            // Pointer stirring
+            if (sim.pointer.down) {
+                const px = sim.pointer.x, py = sim.pointer.y;
+                const svx = sim.pointer.vx / Math.max(dt, 1e-3);
+                const svy = sim.pointer.vy / Math.max(dt, 1e-3);
+                for (const b of blobs) {
+                    const dx = b.x - px;
+                    const dy = b.y - py;
+                    const d = Math.hypot(dx, dy);
+                    const influence = smoothstep(220, 0, d);
+                    if (influence > 0) {
+                        b.vx += svx * influence * 0.007;
+                        b.vy += svy * influence * 0.007;
+                    }
+                }
+            }
+
+            const damping = Math.exp(-lerp(1.2, 4.6, visc) * dt);
+
+            for (const b of blobs) {
+                // Local temperature field: bottom hot, top cool
+                const yn = clamp(b.y / H, 0, 1);
+                const localHot = lerp(0.10, 1.0, heat);
+                const localCool = lerp(0.06, 0.55, 1 - heat);
+                const local = lerp(localHot, localCool, smoothstep(0.05, 0.92, yn));
+
+                // Slight "heater band" near bottom
+                const heaterBoost = 0.18 * heat * smoothstep(0.92, 0.78, yn);
+                const targetTemp = clamp(local + heaterBoost, 0, 1);
+                b.temp += (targetTemp - b.temp) * (response * dt);
+
+                // Forces
+                const buoy = -buoyancyStrength * (b.temp - 0.52); // hot rises (negative y)
+                const f = flowNoise(b.x, b.y, sim.t + b.phase);
+
+                // Gentle lateral drift, plus a bit of vertical curl
+                const drift = lerp(14, 46, 1 - visc);
+                const ax = f.x * drift;
+                const ay = gravity + buoy + f.y * drift * 0.35;
+
+                // Integrate
+                b.vx = (b.vx + ax * dt) * damping;
+                b.vy = (b.vy + ay * dt) * damping;
+
+                // Mild size wobble
+                const wob = 1 + 0.03 * Math.sin(sim.t * 1.4 + b.phase);
+                b._renderR = b.r * wob;
+
+                b.x += b.vx * dt;
+                b.y += b.vy * dt;
+
+                projectInside(b);
+
+                // Tiny heat exchange between blobs when close (adds "liquid" feel)
+                // Also encourages rising clusters.
+                for (let k = 0; k < 2; k++) {
+                    const other = blobs[(Math.random() * blobs.length) | 0];
+                    if (!other || other === b) continue;
+                    const d = Math.hypot(other.x - b.x, other.y - b.y);
+                    if (d < (b.r + other.r) * 0.9) {
+                        const mix = 0.02 * dt;
+                        const t0 = b.temp;
+                        b.temp = lerp(b.temp, other.temp, mix);
+                        other.temp = lerp(other.temp, t0, mix);
+                    }
+                }
+            }
+        }
+
+        // ---------- Rendering (metaball field) ----------
+        function renderField() {
+            const W = fieldW, H = fieldH;
+            const blobs = sim.blobs;
+
+            const kelvin = +ui.kelvin.value;
+            const rgb = kelvinToRgb(kelvin);
+            const heat = +ui.heat.value;
+
+            // Blob color: temperature sets hue; heat sets saturation/brightness a bit.
+            const blob = {
+                r: rgb.r / 255,
+                g: rgb.g / 255,
+                b: rgb.b / 255
+            };
+            // A bit of artistic tuning: more heat => more vivid.
+            const vivid = lerp(0.85, 1.15, heat);
+            blob.r = clamp(blob.r * vivid, 0, 1);
+            blob.g = clamp(blob.g * vivid, 0, 1);
+            blob.b = clamp(blob.b * vivid, 0, 1);
+
+            // Liquid base: deep blue-black with slight complementary tint.
+            const liquid = {
+                r: lerp(0.03, 0.07, 1 - blob.b),
+                g: 0.03,
+                b: lerp(0.06, 0.10, blob.b)
+            };
+
+            // Field tuning
+            const threshold = lerp(1.18, 1.38, 1 - heat);
+            const edgeSoft = lerp(0.55, 0.36, heat);
+
+            const img = fctx.createImageData(W, H);
+            const data = img.data;
+
+            // Precompute blob info for faster loop
+            const bx = new Float32Array(blobs.length);
+            const by = new Float32Array(blobs.length);
+            const br = new Float32Array(blobs.length);
+            const bt = new Float32Array(blobs.length);
+            for (let i = 0; i < blobs.length; i++) {
+                bx[i] = blobs[i].x;
+                by[i] = blobs[i].y;
+                br[i] = blobs[i]._renderR || blobs[i].r;
+                bt[i] = blobs[i].temp;
+            }
+
+            // Render scalar field and map to color
+            // NOTE: Use a coarse optimization: only compute within lamp-ish bounds per scanline.
+            for (let y = 0; y < H; y++) {
+                const yn = y / H;
+                const half = radiusAtY(yn) * (W / 2);
+                const cx = W / 2;
+                const xMin = Math.floor(cx - half - 2);
+                const xMax = Math.ceil(cx + half + 2);
+
+                for (let x = 0; x < W; x++) {
+                    const idx = (y * W + x) * 4;
+
+                    // Outside the lamp interior: paint transparent/black; it will be clipped anyway.
+                    if (x < xMin || x > xMax) {
+                        data[idx] = 0;
+                        data[idx + 1] = 0;
+                        data[idx + 2] = 0;
+                        data[idx + 3] = 0;
+                        continue;
+                    }
+
+                    // Scalar field
+                    let v = 0;
+                    let warm = 0;
+                    for (let i = 0; i < bx.length; i++) {
+                        const dx = x - bx[i];
+                        const dy = y - by[i];
+                        const d2 = dx * dx + dy * dy + 1.0;
+                        const rr = br[i] * br[i];
+                        // Standard metaball field contribution
+                        v += rr / d2;
+                        warm += (rr / d2) * bt[i];
+                    }
+
+                    // Normalize warm factor near threshold area
+                    warm = v > 1e-6 ? clamp(warm / v, 0, 1) : 0;
+
+                    // Turn field into a smooth blob mask
+                    const a = smoothstep(threshold, threshold + edgeSoft, v);
+
+                    // Extra "core" brightness for a molten look
+                    const core = smoothstep(threshold + edgeSoft * 0.55, threshold + edgeSoft * 1.55, v);
+
+                    // Slight vertical shading (more luminous near middle)
+                    const shade = 0.82 + 0.18 * Math.sin((yn - 0.15) * Math.PI);
+
+                    // Temperature-ish tint: hotter blobs lean more toward the chosen kelvin color;
+                    // cooler zones drift toward a magenta/blue cast.
+                    const coolTint = { r: 0.65, g: 0.35, b: 0.95 };
+                    const tcol = {
+                        r: lerp(coolTint.r, blob.r, warm),
+                        g: lerp(coolTint.g, blob.g, warm),
+                        b: lerp(coolTint.b, blob.b, warm)
+                    };
+
+                    // Mix liquid -> blob
+                    let r = lerp(liquid.r, tcol.r, a);
+                    let g = lerp(liquid.g, tcol.g, a);
+                    let b = lerp(liquid.b, tcol.b, a);
+
+                    // Core brightness & subtle bloom base
+                    const hot = (0.10 + 0.55 * heat) * core;
+                    r = clamp(r * (1 + hot * 0.85) + hot * 0.22, 0, 1);
+                    g = clamp(g * (1 + hot * 0.60) + hot * 0.12, 0, 1);
+                    b = clamp(b * (1 + hot * 0.70) + hot * 0.18, 0, 1);
+
+                    r *= shade; g *= shade; b *= shade;
+
+                    data[idx] = Math.round(r * 255);
+                    data[idx + 1] = Math.round(g * 255);
+                    data[idx + 2] = Math.round(b * 255);
+                    data[idx + 3] = Math.round((0.12 + 0.88 * a) * 255);
+                }
+            }
+
+            fctx.putImageData(img, 0, 0);
+        }
+
+        function renderMain() {
+            const W = canvas.width, H = canvas.height;
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+            // Background
+            ctx.fillStyle = '#05060a';
+            ctx.fillRect(0, 0, W, H);
+
+            // Subtle ambient gradient
+            const g = ctx.createRadialGradient(W * 0.5, H * 0.45, 10, W * 0.5, H * 0.55, Math.max(W, H) * 0.65);
+            g.addColorStop(0, 'rgba(120,180,255,0.08)');
+            g.addColorStop(0.35, 'rgba(255,120,180,0.06)');
+            g.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = g;
+            ctx.fillRect(0, 0, W, H);
+
+            const r = lampRect();
+
+            // Lamp base stand
+            {
+                const baseY = r.y + r.h + r.h * 0.02;
+                ctx.save();
+                ctx.globalAlpha = 0.85;
+                ctx.fillStyle = 'rgba(0,0,0,0.65)';
+                ctx.beginPath();
+                const bw = r.w * 0.60;
+                const bh = r.h * 0.08;
+                const bx = r.x + (r.w - bw) / 2;
+                ctx.roundRect(bx, baseY, bw, bh, bh * 0.35);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // Clip to lamp interior
+            ctx.save();
+            buildLampPath(ctx, r);
+            ctx.clip();
+
+            // Lamp interior background liquid sheen
+            const liquidBg = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
+            liquidBg.addColorStop(0, 'rgba(255,255,255,0.02)');
+            liquidBg.addColorStop(0.35, 'rgba(255,255,255,0.01)');
+            liquidBg.addColorStop(1, 'rgba(0,0,0,0.22)');
+            ctx.fillStyle = liquidBg;
+            ctx.fillRect(r.x, r.y, r.w, r.h);
+
+            // Draw metaball field (blurred glow + crisp)
+            const glowPx = Math.round(+ui.glow.value);
+            const sx = r.x, sy = r.y, sw = r.w, sh = r.h;
+
+            // Glow pass
+            if (glowPx > 0) {
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+                ctx.filter = `blur(${glowPx * DPR}px)`;
+                ctx.globalAlpha = 0.95;
+                ctx.drawImage(fieldCanvas, sx, sy, sw, sh);
+                ctx.restore();
+
+                // Halo amplification
+                ctx.save();
+                ctx.globalCompositeOperation = 'screen';
+                ctx.filter = `blur(${Math.max(2, glowPx * 0.55) * DPR}px)`;
+                ctx.globalAlpha = 0.55;
+                ctx.drawImage(fieldCanvas, sx, sy, sw, sh);
+                ctx.restore();
+            }
+
+            // Crisp pass
+            ctx.save();
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.filter = 'none';
+            ctx.globalAlpha = 1;
+            ctx.drawImage(fieldCanvas, sx, sy, sw, sh);
+            ctx.restore();
+
+            // Interior vignette
+            ctx.save();
+            const vg = ctx.createRadialGradient(r.x + r.w / 2, r.y + r.h / 2, r.w * 0.05, r.x + r.w / 2, r.y + r.h / 2, r.w * 0.70);
+            vg.addColorStop(0, 'rgba(0,0,0,0)');
+            vg.addColorStop(0.85, 'rgba(0,0,0,0.08)');
+            vg.addColorStop(1, 'rgba(0,0,0,0.22)');
+            ctx.fillStyle = vg;
+            ctx.fillRect(r.x, r.y, r.w, r.h);
+            ctx.restore();
+
+            ctx.restore(); // end clip
+
+            // Glass outline + highlights
+            {
+                ctx.save();
+                // Outer outline
+                buildLampPath(ctx, r);
+                ctx.lineWidth = Math.max(1.2, 2.0 * DPR);
+                const outline = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
+                outline.addColorStop(0, 'rgba(255,255,255,0.18)');
+                outline.addColorStop(0.35, 'rgba(255,255,255,0.08)');
+                outline.addColorStop(1, 'rgba(255,255,255,0.12)');
+                ctx.strokeStyle = outline;
+                ctx.stroke();
+
+                // Inner highlight streaks
+                ctx.globalCompositeOperation = 'screen';
+                const hx = r.x + r.w * 0.30;
+                const hy = r.y + r.h * 0.10;
+                const hw = r.w * 0.18;
+                const hh = r.h * 0.78;
+                const hg = ctx.createLinearGradient(hx, hy, hx + hw, hy);
+                hg.addColorStop(0, 'rgba(255,255,255,0)');
+                hg.addColorStop(0.35, 'rgba(255,255,255,0.14)');
+                hg.addColorStop(1, 'rgba(255,255,255,0)');
+                ctx.fillStyle = hg;
+                ctx.beginPath();
+                ctx.roundRect(hx, hy, hw, hh, hw);
+                ctx.fill();
+
+                const hx2 = r.x + r.w * 0.62;
+                const hw2 = r.w * 0.08;
+                const hg2 = ctx.createLinearGradient(hx2, hy, hx2 + hw2, hy);
+                hg2.addColorStop(0, 'rgba(255,255,255,0)');
+                hg2.addColorStop(0.5, 'rgba(255,255,255,0.09)');
+                hg2.addColorStop(1, 'rgba(255,255,255,0)');
+                ctx.fillStyle = hg2;
+                ctx.beginPath();
+                ctx.roundRect(hx2, r.y + r.h * 0.16, hw2, r.h * 0.64, hw2);
+                ctx.fill();
+
+                ctx.restore();
+            }
+
+            // Cap (top metal)
+            {
+                const capH = r.h * 0.06;
+                const capW = r.w * 0.46;
+                const capX = r.x + (r.w - capW) / 2;
+                const capY = r.y - capH * 0.72;
+                const cg = ctx.createLinearGradient(capX, capY, capX, capY + capH);
+                cg.addColorStop(0, 'rgba(240,240,245,0.22)');
+                cg.addColorStop(0.5, 'rgba(140,150,170,0.22)');
+                cg.addColorStop(1, 'rgba(10,10,16,0.65)');
+                ctx.fillStyle = cg;
+                ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+                ctx.lineWidth = Math.max(1, DPR);
+                ctx.beginPath();
+                ctx.roundRect(capX, capY, capW, capH, capH * 0.35);
+                ctx.fill();
+                ctx.stroke();
+            }
+
+            // Ground vignette
+            ctx.save();
+            const gg = ctx.createRadialGradient(W * 0.5, H * 1.05, 10, W * 0.5, H * 1.05, Math.max(W, H) * 0.9);
+            gg.addColorStop(0, 'rgba(0,0,0,0.65)');
+            gg.addColorStop(0.55, 'rgba(0,0,0,0.20)');
+            gg.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = gg;
+            ctx.fillRect(0, 0, W, H);
+            ctx.restore();
+        }
+
+        // ---------- Main loop ----------
+        let last = performance.now();
+        let fpsS = 0, fpsN = 0, fpsLast = performance.now();
+
+        function frame(now) {
+            const dt = clamp((now - last) / 1000, 0, 0.033);
+            last = now;
+
+            if (!sim.paused) {
+                // Keep sim in sync with field buffer size
+                ensureBlobCount(Math.round(+ui.count.value));
+
+                // If field resized, reproject blobs into new dims
+                // (Simple approach: keep normalized positions)
+                // This runs only when needed by tracking dims.
+                if (sim._lastFW !== fieldW || sim._lastFH !== fieldH) {
+                    const oldW = sim._lastFW || fieldW;
+                    const oldH = sim._lastFH || fieldH;
+                    for (const b of sim.blobs) {
+                        b.x = (b.x / oldW) * fieldW;
+                        b.y = (b.y / oldH) * fieldH;
+                        b.vx *= fieldW / oldW;
+                        b.vy *= fieldH / oldH;
+                        b.r *= Math.min(fieldW / oldW, fieldH / oldH);
+                        projectInside(b);
+                    }
+                    sim._lastFW = fieldW;
+                    sim._lastFH = fieldH;
+                }
+
+                step(dt);
+                renderField();
+            }
+
+            renderMain();
+
+            // FPS display
+            fpsS += 1 / Math.max(dt, 1e-6);
+            fpsN++;
+            if (now - fpsLast > 400) {
+                const fps = fpsS / fpsN;
+                ui.perf.textContent = `${fps.toFixed(0)} fps`;
+                fpsS = 0; fpsN = 0; fpsLast = now;
+            }
+
+            requestAnimationFrame(frame);
+        }
+
+        // Auto-start
+        requestAnimationFrame((t) => {
+            last = t;
+            resetSim();
+            requestAnimationFrame(frame);
+        });
+    </script>
+</body>
+
+</html>
