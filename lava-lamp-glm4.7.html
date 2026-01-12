@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mesmerizing Lava Lamp</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Orbitron', sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .ambient-glow {
+            position: fixed;
+            width: 400px;
+            height: 400px;
+            border-radius: 50%;
+            filter: blur(100px);
+            opacity: 0.4;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .glow-1 {
+            background: #ff6b35;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation: pulse1 4s ease-in-out infinite;
+        }
+
+        .glow-2 {
+            background: #ff0075;
+            top: 45%;
+            left: 52%;
+            transform: translate(-50%, -50%);
+            animation: pulse2 5s ease-in-out infinite;
+        }
+
+        .glow-3 {
+            background: #7b2fff;
+            top: 55%;
+            left: 48%;
+            transform: translate(-50%, -50%);
+            animation: pulse3 6s ease-in-out infinite;
+        }
+
+        @keyframes pulse1 {
+
+            0%,
+            100% {
+                opacity: 0.3;
+                transform: translate(-50%, -50%) scale(1);
+            }
+
+            50% {
+                opacity: 0.5;
+                transform: translate(-50%, -50%) scale(1.2);
+            }
+        }
+
+        @keyframes pulse2 {
+
+            0%,
+            100% {
+                opacity: 0.2;
+                transform: translate(-50%, -50%) scale(1);
+            }
+
+            50% {
+                opacity: 0.4;
+                transform: translate(-50%, -50%) scale(1.3);
+            }
+        }
+
+        @keyframes pulse3 {
+
+            0%,
+            100% {
+                opacity: 0.25;
+                transform: translate(-50%, -50%) scale(1);
+            }
+
+            50% {
+                opacity: 0.45;
+                transform: translate(-50%, -50%) scale(1.15);
+            }
+        }
+
+        .lamp-container {
+            position: relative;
+            z-index: 10;
+        }
+
+        .lamp-base {
+            width: 200px;
+            height: 60px;
+            background: linear-gradient(180deg, #2a2a2a 0%, #1a1a1a 50%, #0a0a0a 100%);
+            border-radius: 10px 10px 40px 40px;
+            margin: 0 auto;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .lamp-cap {
+            width: 80px;
+            height: 30px;
+            background: linear-gradient(180deg, #1a1a1a 0%, #0a0a0a 100%);
+            margin: 0 auto;
+            border-radius: 10px 10px 0 0;
+            box-shadow: inset 0 -5px 15px rgba(0, 0, 0, 0.5);
+        }
+
+        .lamp-glass {
+            position: relative;
+            width: 200px;
+            height: 450px;
+            margin: 0 auto;
+            border-radius: 100px 100px 50px 50px;
+            overflow: hidden;
+            box-shadow:
+                inset 0 0 50px rgba(255, 255, 255, 0.1),
+                inset 0 0 100px rgba(0, 0, 0, 0.3),
+                0 0 30px rgba(0, 0, 0, 0.5),
+                0 0 60px var(--glow-color, rgba(255, 100, 50, 0.3));
+        }
+
+        .glass-shine {
+            position: absolute;
+            top: 0;
+            left: 10px;
+            width: 30px;
+            height: 100%;
+            background: linear-gradient(180deg,
+                    rgba(255, 255, 255, 0.2) 0%,
+                    rgba(255, 255, 255, 0.05) 50%,
+                    rgba(255, 255, 255, 0.1) 100%);
+            border-radius: 100px 0 0 50px;
+            pointer-events: none;
+            z-index: 20;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        .controls {
+            position: relative;
+            z-index: 10;
+            margin-top: 30px;
+            background: rgba(20, 20, 30, 0.8);
+            padding: 25px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            color: #fff;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .control-value {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+            -webkit-appearance: none;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #fff 0%, #ccc 100%);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .color-preview {
+            width: 30px;
+            height: 20px;
+            border-radius: 4px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .title {
+            position: relative;
+            z-index: 10;
+            color: #fff;
+            font-size: 28px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px rgba(255, 100, 50, 0.5);
+        }
+
+        .subtitle {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.5);
+            letter-spacing: 2px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="ambient-glow glow-1" id="glow1"></div>
+    <div class="ambient-glow glow-2" id="glow2"></div>
+    <div class="ambient-glow glow-3" id="glow3"></div>
+
+    <h1 class="title">
+        Lava Lamp
+        <span class="subtitle">Mesmerizing Simulation</span>
+    </h1>
+
+    <div class="lamp-container">
+        <div class="lamp-cap"></div>
+        <div class="lamp-glass" id="lampGlass">
+            <div class="glass-shine"></div>
+            <canvas id="lavaCanvas"></canvas>
+        </div>
+        <div class="lamp-base"></div>
+    </div>
+
+    <div class="controls">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Blob Color</span>
+                    <div class="color-preview" id="blobColorPreview"></div>
+                </div>
+                <input type="range" id="blobHue" min="0" max="360" value="25">
+            </div>
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Liquid Color</span>
+                    <div class="color-preview" id="liquidColorPreview"></div>
+                </div>
+                <input type="range" id="liquidHue" min="0" max="360" value="220">
+            </div>
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Temperature</span>
+                    <span class="control-value" id="tempValue">50°C</span>
+                </div>
+                <input type="range" id="temperature" min="10" max="100" value="50">
+            </div>
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Blob Count</span>
+                    <span class="control-value" id="blobCountValue">12</span>
+                </div>
+                <input type="range" id="blobCount" min="5" max="25" value="12">
+            </div>
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Flow Speed</span>
+                    <span class="control-value" id="speedValue">1.0x</span>
+                </div>
+                <input type="range" id="flowSpeed" min="0.2" max="2" step="0.1" value="1">
+            </div>
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Glow Intensity</span>
+                    <span class="control-value" id="glowValue">50%</span>
+                </div>
+                <input type="range" id="glowIntensity" min="0" max="100" value="50">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('lavaCanvas');
+        const ctx = canvas.getContext('2d');
+        const lampGlass = document.getElementById('lampGlass');
+
+        // Set canvas size
+        function resizeCanvas() {
+            canvas.width = 200;
+            canvas.height = 450;
+        }
+        resizeCanvas();
+
+        // Simulation parameters
+        let blobHue = 25;
+        let liquidHue = 220;
+        let temperature = 50;
+        let flowSpeed = 1;
+        let glowIntensity = 50;
+        let blobCount = 12;
+
+        // Blobs array
+        let blobs = [];
+
+        // Create a blob
+        class Blob {
+            constructor() {
+                this.reset();
+                this.y = Math.random() * canvas.height;
+            }
+
+            reset() {
+                this.x = 40 + Math.random() * 120;
+                this.y = canvas.height + 50;
+                this.radius = 15 + Math.random() * 35;
+                this.baseRadius = this.radius;
+                this.velocity = 0;
+                this.temperature = Math.random() * 50 + 50;
+                this.wobblePhase = Math.random() * Math.PI * 2;
+                this.wobbleSpeed = 0.02 + Math.random() * 0.02;
+                this.wobbleAmount = 0.1 + Math.random() * 0.1;
+                this.morphPhase = Math.random() * Math.PI * 2;
+                this.morphSpeed = 0.01 + Math.random() * 0.01;
+            }
+
+            update() {
+                // Temperature-based buoyancy
+                const tempFactor = temperature / 50;
+                const targetTemp = 30 + tempFactor * 70;
+                this.temperature += (targetTemp - this.temperature) * 0.01;
+
+                // Buoyancy force
+                const buoyancy = (this.temperature - 50) * 0.008 * flowSpeed;
+                const gravity = 0.002;
+
+                this.velocity += buoyancy - gravity;
+                this.velocity *= 0.99; // Damping
+                this.y += this.velocity;
+
+                // Horizontal wobble
+                this.wobblePhase += this.wobbleSpeed * flowSpeed;
+                this.x += Math.sin(this.wobblePhase) * 0.3 * flowSpeed;
+
+                // Morphing
+                this.morphPhase += this.morphSpeed * flowSpeed;
+                this.radius = this.baseRadius + Math.sin(this.morphPhase) * 3;
+
+                // Boundary check
+                if (this.x < 40 + this.radius) this.x = 40 + this.radius;
+                if (this.x > 160 - this.radius) this.x = 160 - this.radius;
+
+                // Reset if off screen
+                if (this.y < -this.radius * 2) {
+                    this.reset();
+                    this.y = canvas.height + this.radius;
+                }
+                if (this.y > canvas.height + this.radius * 2) {
+                    this.y = canvas.height + this.radius;
+                    this.velocity = Math.abs(this.velocity) * -0.5;
+                }
+            }
+
+            draw() {
+                const alpha = 0.7 + (this.temperature - 50) / 200;
+
+                // Create gradient for blob
+                const gradient = ctx.createRadialGradient(
+                    this.x - this.radius * 0.3,
+                    this.y - this.radius * 0.3,
+                    0,
+                    this.x,
+                    this.y,
+                    this.radius
+                );
+
+                const color = `hsla(${blobHue}, 80%, ${50 + (this.temperature - 50) * 0.3}%, ${alpha})`;
+                const highlight = `hsla(${blobHue}, 60%, 80%, ${alpha + 0.2})`;
+                const shadow = `hsla(${blobHue}, 80%, 30%, ${alpha})`;
+
+                gradient.addColorStop(0, highlight);
+                gradient.addColorStop(0.3, color);
+                gradient.addColorStop(0.7, color);
+                gradient.addColorStop(1, shadow);
+
+                // Draw blob with morphing shape
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                ctx.beginPath();
+                const points = 12;
+                for (let i = 0; i <= points; i++) {
+                    const angle = (i / points) * Math.PI * 2;
+                    const morph = Math.sin(angle * 3 + this.morphPhase) * this.wobbleAmount * this.radius;
+                    const r = this.radius + morph;
+                    const x = Math.cos(angle) * r;
+                    const y = Math.sin(angle) * r;
+
+                    if (i === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                }
+                ctx.closePath();
+
+                ctx.fillStyle = gradient;
+                ctx.fill();
+
+                // Add highlight
+                ctx.beginPath();
+                ctx.ellipse(-this.radius * 0.25, -this.radius * 0.3, this.radius * 0.3, this.radius * 0.2, -0.5, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 255, 255, ${0.3 * alpha})`;
+                ctx.fill();
+
+                ctx.restore();
+            }
+        }
+
+        // Initialize blobs
+        function initBlobs() {
+            blobs = [];
+            for (let i = 0; i < blobCount; i++) {
+                blobs.push(new Blob());
+            }
+        }
+        initBlobs();
+
+        // Draw liquid background
+        function drawLiquid() {
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            const alpha = 0.4 + (temperature / 100) * 0.2;
+            gradient.addColorStop(0, `hsla(${liquidHue}, 50%, 20%, ${alpha})`);
+            gradient.addColorStop(0.5, `hsla(${liquidHue}, 40%, 30%, ${alpha})`);
+            gradient.addColorStop(1, `hsla(${liquidHue}, 50%, 25%, ${alpha})`);
+
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Add subtle wave effect
+            const time = Date.now() * 0.001;
+            ctx.fillStyle = `hsla(${liquidHue}, 40%, 40%, 0.1)`;
+            for (let y = 0; y < canvas.height; y += 30) {
+                ctx.beginPath();
+                for (let x = 0; x <= canvas.width; x += 10) {
+                    const waveY = y + Math.sin(x * 0.02 + time + y * 0.01) * 5;
+                    if (x === 0) {
+                        ctx.moveTo(x, waveY);
+                    } else {
+                        ctx.lineTo(x, waveY);
+                    }
+                }
+                ctx.lineTo(canvas.width, y + 30);
+                ctx.lineTo(0, y + 30);
+                ctx.closePath();
+                ctx.fill();
+            }
+        }
+
+        // Update glow effect
+        function updateGlow() {
+            const blobColor = `hsla(${blobHue}, 80%, 50%, ${glowIntensity / 100})`;
+            lampGlass.style.setProperty('--glow-color', blobColor);
+
+            document.getElementById('glow1').style.background = `hsla(${blobHue}, 80%, 50%, 0.4)`;
+            document.getElementById('glow2').style.background = `hsla(${(blobHue + 30) % 360}, 80%, 50%, 0.3)`;
+            document.getElementById('glow3').style.background = `hsla(${(blobHue + 60) % 360}, 80%, 50%, 0.35)`;
+        }
+
+        // Update color previews
+        function updateColorPreviews() {
+            document.getElementById('blobColorPreview').style.background = `hsl(${blobHue}, 80%, 50%)`;
+            document.getElementById('liquidColorPreview').style.background = `hsl(${liquidHue}, 50%, 30%)`;
+        }
+
+        // Animation loop
+        function animate() {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw liquid
+            drawLiquid();
+
+            // Update and draw blobs (sorted by y for proper layering)
+            blobs.sort((a, b) => a.y - b.y);
+            blobs.forEach(blob => {
+                blob.update();
+                blob.draw();
+            });
+
+            // Add subtle overlay
+            const overlayGradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+            overlayGradient.addColorStop(0, 'rgba(0, 0, 0, 0.3)');
+            overlayGradient.addColorStop(0.2, 'rgba(0, 0, 0, 0)');
+            overlayGradient.addColorStop(0.8, 'rgba(0, 0, 0, 0)');
+            overlayGradient.addColorStop(1, 'rgba(0, 0, 0, 0.2)');
+            ctx.fillStyle = overlayGradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            requestAnimationFrame(animate);
+        }
+
+        // Event listeners
+        document.getElementById('blobHue').addEventListener('input', (e) => {
+            blobHue = parseInt(e.target.value);
+            updateColorPreviews();
+            updateGlow();
+        });
+
+        document.getElementById('liquidHue').addEventListener('input', (e) => {
+            liquidHue = parseInt(e.target.value);
+            updateColorPreviews();
+        });
+
+        document.getElementById('temperature').addEventListener('input', (e) => {
+            temperature = parseInt(e.target.value);
+            document.getElementById('tempValue').textContent = `${temperature}°C`;
+        });
+
+        document.getElementById('blobCount').addEventListener('input', (e) => {
+            blobCount = parseInt(e.target.value);
+            document.getElementById('blobCountValue').textContent = blobCount;
+            initBlobs();
+        });
+
+        document.getElementById('flowSpeed').addEventListener('input', (e) => {
+            flowSpeed = parseFloat(e.target.value);
+            document.getElementById('speedValue').textContent = `${flowSpeed.toFixed(1)}x`;
+        });
+
+        document.getElementById('glowIntensity').addEventListener('input', (e) => {
+            glowIntensity = parseInt(e.target.value);
+            document.getElementById('glowValue').textContent = `${glowIntensity}%`;
+            updateGlow();
+        });
+
+        // Initialize
+        updateColorPreviews();
+        updateGlow();
+        animate();
+    </script>
+</body>
+
+</html>
