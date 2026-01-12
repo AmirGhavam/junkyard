@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mesmerizing Lava Lamp</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        /* Custom Font */
+        @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;600&display=swap');
+
+        body {
+            font-family: 'Quicksand', sans-serif;
+            background-color: #0f172a;
+            overflow: hidden;
+        }
+
+        /* The Gooey Effect Filter */
+        .gooey-container {
+            filter: url('#goo');
+            /* Hardware acceleration hints */
+            transform: translateZ(0);
+            backface-visibility: hidden;
+        }
+
+        /* Lamp Glass Shape */
+        .lamp-glass {
+            clip-path: polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%);
+            mask-image: linear-gradient(to bottom, transparent 0%, black 10%, black 90%, transparent 100%);
+        }
+
+        /* Blob Styling */
+        .blob {
+            position: absolute;
+            border-radius: 50%;
+            background: var(--blob-color, #ff4500);
+            transition: background 0.5s ease;
+            will-change: transform;
+        }
+
+        /* Glass Reflection/Shine */
+        .shine {
+            background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0) 100%);
+        }
+
+        /* Ambient Glow */
+        .lamp-glow {
+            box-shadow: 0 0 60px 20px var(--glow-color, rgba(255, 69, 0, 0.3));
+            transition: box-shadow 0.5s ease;
+        }
+
+        /* Range Input Styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #e2e8f0;
+            cursor: pointer;
+            margin-top: -6px;
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #475569;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+
+<body
+    class="h-screen w-screen flex items-center justify-center text-slate-200 selection:bg-rose-500 selection:text-white">
+
+    <!-- Main Container -->
+    <div class="relative flex flex-col items-center gap-8 z-10">
+
+        <!-- Header -->
+        <div class="text-center space-y-1">
+            <h1 class="text-3xl font-light tracking-widest uppercase opacity-80">Lava Motion</h1>
+            <p class="text-xs text-slate-500 font-mono">FLUID DYNAMICS SIMULATION</p>
+        </div>
+
+        <!-- The Lamp -->
+        <div class="relative group">
+            <!-- Lamp Cap (Top) -->
+            <div
+                class="w-24 h-12 bg-slate-800 rounded-t-xl mx-auto translate-y-2 z-20 relative shadow-lg border-b border-slate-700">
+            </div>
+
+            <!-- Lamp Body (Glass) -->
+            <div id="lamp-body"
+                class="relative w-48 h-[500px] bg-slate-900/50 backdrop-blur-sm rounded-full overflow-hidden border border-slate-700/50 lamp-glow transition-all duration-500">
+
+                <!-- Inner Liquid Container with SVG Filter -->
+                <div id="liquid-container" class="gooey-container w-full h-full absolute top-0 left-0">
+                    <!-- Blobs injected by JS -->
+                </div>
+
+                <!-- Glass Reflections overlay -->
+                <div class="absolute inset-0 pointer-events-none opacity-30 shine w-full h-full z-10"></div>
+                <div class="absolute top-10 left-4 w-2 h-64 bg-white/5 rounded-full blur-sm"></div>
+                <div class="absolute bottom-10 right-6 w-3 h-32 bg-white/5 rounded-full blur-md"></div>
+            </div>
+
+            <!-- Lamp Base (Bottom) -->
+            <div
+                class="w-32 h-20 bg-slate-800 rounded-b-3xl mx-auto -translate-y-4 z-20 relative shadow-xl border-t border-slate-700 flex items-center justify-center">
+                <div class="w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_10px_red]"></div>
+            </div>
+        </div>
+
+        <!-- Controls Panel -->
+        <div class="bg-slate-800/80 backdrop-blur-md p-6 rounded-2xl border border-slate-700 w-80 shadow-2xl space-y-5">
+
+            <!-- Color Control -->
+            <div class="space-y-2">
+                <div class="flex justify-between text-xs uppercase tracking-wider font-semibold text-slate-400">
+                    <span>Hue</span>
+                    <span id="hue-val">15</span>
+                </div>
+                <input type="range" id="hue-control" min="0" max="360" value="15" step="1">
+                <div class="w-full h-2 rounded-full mt-1"
+                    style="background: linear-gradient(to right, red, yellow, lime, cyan, blue, magenta, red);"></div>
+            </div>
+
+            <!-- Heat/Speed Control -->
+            <div class="space-y-2">
+                <div class="flex justify-between text-xs uppercase tracking-wider font-semibold text-slate-400">
+                    <span>Heat Intensity</span>
+                    <span id="speed-val">50%</span>
+                </div>
+                <input type="range" id="speed-control" min="10" max="100" value="50">
+            </div>
+
+            <!-- Density Control -->
+            <div class="space-y-2">
+                <div class="flex justify-between text-xs uppercase tracking-wider font-semibold text-slate-400">
+                    <span>Viscosity</span>
+                    <span id="visc-val">Normal</span>
+                </div>
+                <input type="range" id="visc-control" min="1" max="5" value="3" step="0.1">
+            </div>
+
+            <div class="pt-2 border-t border-slate-700 flex justify-between items-center">
+                <button id="reset-btn"
+                    class="text-xs text-slate-400 hover:text-white transition-colors cursor-pointer underline decoration-dotted">Reset
+                    Physics</button>
+                <div class="flex gap-2">
+                    <button id="theme-cool"
+                        class="w-6 h-6 rounded-full bg-cyan-500 hover:scale-110 transition-transform cursor-pointer ring-2 ring-slate-900"
+                        title="Cool"></button>
+                    <button id="theme-warm"
+                        class="w-6 h-6 rounded-full bg-orange-500 hover:scale-110 transition-transform cursor-pointer ring-2 ring-slate-900"
+                        title="Warm"></button>
+                    <button id="theme-toxic"
+                        class="w-6 h-6 rounded-full bg-lime-500 hover:scale-110 transition-transform cursor-pointer ring-2 ring-slate-900"
+                        title="Toxic"></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SVG Filters (Hidden) -->
+    <svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="0" height="0">
+        <defs>
+            <filter id="goo">
+                <!-- Blur the source image to blend shapes -->
+                <feGaussianBlur in="SourceGraphic" stdDeviation="12" result="blur" />
+                <!-- Increase contrast heavily to sharpen the blur edges, creating the "snap" effect -->
+                <feColorMatrix in="blur" mode="matrix" values="
+                    1 0 0 0 0  
+                    0 1 0 0 0  
+                    0 0 1 0 0  
+                    0 0 0 19 -9" result="goo" />
+                <!-- Composite with original to prevent transparency issues if needed, though usually not for this effect -->
+                <feComposite in="SourceGraphic" in2="goo" operator="atop" />
+            </filter>
+        </defs>
+    </svg>
+
+    <script>
+        /**
+         * Lava Lamp Simulation Engine
+         */
+        class BlobEntity {
+            constructor(containerWidth, containerHeight, id) {
+                this.id = id;
+                this.containerWidth = containerWidth;
+                this.containerHeight = containerHeight;
+                this.element = document.createElement('div');
+                this.element.classList.add('blob');
+
+                // Physics properties
+                this.reset();
+            }
+
+            reset() {
+                // Random size between 30px and 90px
+                this.radius = Math.random() * 40 + 25;
+                this.element.style.width = `${this.radius * 2}px`;
+                this.element.style.height = `${this.radius * 2}px`;
+
+                // Start position: mostly at bottom, some random
+                this.x = Math.random() * (this.containerWidth - this.radius * 2);
+
+                // Start either at bottom (wax pool) or falling from top occasionally
+                if (Math.random() > 0.8) {
+                    this.y = Math.random() * (this.containerHeight / 2); // Top half
+                    this.temp = 0; // Cold
+                } else {
+                    this.y = this.containerHeight - this.radius * 2 - (Math.random() * 20); // Bottom
+                    this.temp = 1; // Hot
+                }
+
+                this.vx = (Math.random() - 0.5) * 0.5;
+                this.vy = 0;
+
+                // Temperature: 0 = Cold (Top), 1 = Hot (Bottom)
+                // Density affects buoyancy. Hot = less dense = rises. Cold = dense = falls.
+            }
+
+            update(dt, heatIntensity, viscosity) {
+                // 1. Heat Transfer
+                // Bottom heats up, Top cools down
+                const bottomZone = this.containerHeight * 0.8;
+                const topZone = this.containerHeight * 0.2;
+
+                // Heating rate depends on intensity slider
+                const heatRate = 0.005 * (heatIntensity / 50);
+                const coolRate = 0.003;
+
+                if (this.y + this.radius > bottomZone) {
+                    this.temp = Math.min(this.temp + heatRate, 1.2); // Can get superheated
+                } else if (this.y < topZone) {
+                    this.temp = Math.max(this.temp - coolRate, -0.2); // Can get supercooled
+                } else {
+                    // Ambient cooling in the middle
+                    this.temp -= 0.0005;
+                }
+
+                // 2. Buoyancy Force
+                // Force is proportional to (Temp - NeutralTemp)
+                // Gravity is constant downward force. 
+                // Let's simplify: Vertical Acceleration = (Temp - 0.5) * LiftFactor
+                const liftFactor = 0.02 * (heatIntensity / 50);
+                const gravity = 0.005;
+
+                // If temp > 0.5, it wants to rise (ay is negative).
+                // If temp < 0.5, it wants to sink (ay is positive).
+                // Base gravity always pulls down.
+
+                // Remap temp 0..1 to force
+                const buoyancy = (this.temp - 0.45) * liftFactor;
+
+                // Apply forces
+                this.vy -= buoyancy;
+                this.vy += gravity * 0.2; // Constant slight gravity
+
+                // 3. Drag / Viscosity
+                // Friction opposes velocity
+                const friction = 1 - (0.01 * viscosity);
+                this.vy *= friction;
+                this.vx *= friction;
+
+                // 4. Convection / Random Drift
+                // Slight horizontal noise
+                this.vx += (Math.random() - 0.5) * 0.02;
+
+                // Wall collisions (Bounce)
+                if (this.x < -this.radius / 2) {
+                    this.x = -this.radius / 2;
+                    this.vx *= -0.8;
+                } else if (this.x > this.containerWidth - this.radius * 1.5) {
+                    this.x = this.containerWidth - this.radius * 1.5;
+                    this.vx *= -0.8;
+                }
+
+                // Floor/Ceiling collisions (Soft limits)
+                if (this.y > this.containerHeight - this.radius * 1.5) {
+                    // Hitting bottom
+                    this.y = this.containerHeight - this.radius * 1.5;
+                    this.vy *= -0.2; // Lose energy
+                    this.vx *= 0.9; // Friction on floor
+                } else if (this.y < -this.radius / 2) {
+                    // Hitting top
+                    this.y = -this.radius / 2;
+                    this.vy *= -0.2;
+                }
+
+                // Apply velocity
+                this.x += this.vx * dt;
+                this.y += this.vy * dt;
+
+                // Update DOM
+                this.element.style.transform = `translate(${this.x}px, ${this.y}px)`;
+            }
+        }
+
+        /**
+         * Application Controller
+         */
+        const app = {
+            container: document.getElementById('liquid-container'),
+            blobs: [],
+            lastTime: 0,
+            params: {
+                blobCount: 12,
+                hue: 15,
+                heatIntensity: 50,
+                viscosity: 3
+            },
+
+            init() {
+                // Get dimensions
+                const rect = this.container.getBoundingClientRect();
+                this.width = rect.width;
+                this.height = rect.height;
+
+                // Create Blobs
+                for (let i = 0; i < this.params.blobCount; i++) {
+                    const blob = new BlobEntity(this.width, this.height, i);
+                    this.container.appendChild(blob.element);
+                    this.blobs.push(blob);
+                }
+
+                // Large master blob at bottom to simulate the "pool"
+                const pool = new BlobEntity(this.width, this.height, 999);
+                pool.radius = 80;
+                pool.element.style.width = '160px';
+                pool.element.style.height = '120px'; // Oblong
+                pool.x = this.width / 2 - 80;
+                pool.y = this.height - 100;
+                pool.temp = 1;
+                // Override update for pool to stay mostly at bottom
+                pool.update = function (dt) {
+                    this.temp = 1; // Always hot
+                    // Jiggle slightly
+                    this.targetX = (app.width / 2 - 80) + Math.sin(Date.now() / 1000) * 20;
+                    this.x += (this.targetX - this.x) * 0.05;
+                    this.element.style.transform = `translate(${this.x}px, ${this.y}px)`;
+                    // Pool breathes size slightly
+                    const scale = 1 + Math.sin(Date.now() / 500) * 0.05;
+                    this.element.style.transform += ` scaleY(${scale})`;
+                };
+                this.container.appendChild(pool.element);
+                this.blobs.push(pool);
+
+
+                // Listeners
+                this.setupControls();
+
+                // Start Loop
+                requestAnimationFrame(t => this.loop(t));
+
+                // Initial Style Update
+                this.updateColors();
+            },
+
+            setupControls() {
+                const hueInput = document.getElementById('hue-control');
+                const speedInput = document.getElementById('speed-control');
+                const viscInput = document.getElementById('visc-control');
+                const hueVal = document.getElementById('hue-val');
+                const speedVal = document.getElementById('speed-val');
+                const viscVal = document.getElementById('visc-val');
+
+                // Hue
+                hueInput.addEventListener('input', (e) => {
+                    this.params.hue = e.target.value;
+                    hueVal.innerText = this.params.hue;
+                    this.updateColors();
+                });
+
+                // Heat/Speed
+                speedInput.addEventListener('input', (e) => {
+                    this.params.heatIntensity = parseFloat(e.target.value);
+                    speedVal.innerText = this.params.heatIntensity + '%';
+                });
+
+                // Viscosity
+                viscInput.addEventListener('input', (e) => {
+                    this.params.viscosity = parseFloat(e.target.value);
+                    const v = this.params.viscosity;
+                    viscVal.innerText = v < 2 ? 'Thin' : (v > 4 ? 'Thick' : 'Normal');
+                });
+
+                // Reset
+                document.getElementById('reset-btn').addEventListener('click', () => {
+                    this.blobs.forEach(b => {
+                        if (b.id !== 999) b.reset();
+                    });
+                });
+
+                // Presets
+                document.getElementById('theme-cool').addEventListener('click', () => {
+                    hueInput.value = 190; hueInput.dispatchEvent(new Event('input'));
+                    speedInput.value = 30; speedInput.dispatchEvent(new Event('input'));
+                });
+                document.getElementById('theme-warm').addEventListener('click', () => {
+                    hueInput.value = 25; hueInput.dispatchEvent(new Event('input'));
+                    speedInput.value = 80; speedInput.dispatchEvent(new Event('input'));
+                });
+                document.getElementById('theme-toxic').addEventListener('click', () => {
+                    hueInput.value = 110; hueInput.dispatchEvent(new Event('input'));
+                    viscInput.value = 4.5; viscInput.dispatchEvent(new Event('input'));
+                });
+            },
+
+            updateColors() {
+                const h = this.params.hue;
+                const s = 100;
+                const l = 50;
+
+                const color = `hsl(${h}, ${s}%, ${l}%)`;
+                const glow = `hsla(${h}, ${s}%, ${l}%, 0.4)`;
+
+                document.documentElement.style.setProperty('--blob-color', color);
+                document.documentElement.style.setProperty('--glow-color', glow);
+            },
+
+            loop(timestamp) {
+                const dt = timestamp - this.lastTime;
+                // Cap dt to prevent huge jumps if tab inactive
+                const safeDt = Math.min(dt, 50);
+
+                this.blobs.forEach(blob => {
+                    blob.update(safeDt, this.params.heatIntensity, this.params.viscosity);
+                });
+
+                this.lastTime = timestamp;
+                requestAnimationFrame(t => this.loop(t));
+            }
+        };
+
+        // Boot
+        window.addEventListener('DOMContentLoaded', () => {
+            app.init();
+        });
+
+    </script>
+</body>
+
+</html>
