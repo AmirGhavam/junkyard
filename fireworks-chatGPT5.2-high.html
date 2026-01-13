@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Fireworks — Click to Launch</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            background: #000;
+        }
+
+        /* Prevent text selection while interacting */
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+    </style>
+</head>
+
+<body class="m-0 overflow-hidden text-white">
+    <canvas id="c" class="fixed inset-0 w-full h-full"></canvas>
+
+    <!-- HUD / Controls -->
+    <div class="fixed left-3 top-3 z-10 w-[min(26rem,calc(100vw-1.5rem))] select-none">
+        <div class="rounded-2xl border border-white/10 bg-black/40 backdrop-blur px-4 py-3 shadow-lg">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <h1 class="text-lg font-semibold leading-tight">Fireworks</h1>
+                    <p class="mt-1 text-xs text-white/80">Click / tap the sky to launch a rocket. Try rapid clicks.</p>
+                </div>
+                <div class="text-right">
+                    <div id="fps" class="text-xs text-white/70">—</div>
+                    <div id="counts" class="text-xs text-white/70">—</div>
+                </div>
+            </div>
+
+            <div class="mt-3 grid grid-cols-2 gap-2">
+                <button id="finaleBtn"
+                    class="rounded-xl bg-white/10 hover:bg-white/15 active:bg-white/20 border border-white/10 px-3 py-2 text-sm font-medium">
+                    Grand Finale: <span id="finaleState" class="font-semibold">OFF</span>
+                </button>
+
+                <button id="clearBtn"
+                    class="rounded-xl bg-white/10 hover:bg-white/15 active:bg-white/20 border border-white/10 px-3 py-2 text-sm font-medium">
+                    Clear
+                </button>
+
+                <div class="col-span-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+                    <div class="flex items-center justify-between gap-3">
+                        <label for="intensity" class="text-sm font-medium">Finale intensity</label>
+                        <div class="text-xs text-white/70"><span id="intensityVal">6</span>/10</div>
+                    </div>
+                    <input id="intensity" type="range" min="1" max="10" value="6" class="mt-2 w-full" />
+                </div>
+
+                <div class="col-span-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/80">
+                    <div class="flex flex-wrap gap-x-4 gap-y-1">
+                        <span><span class="text-white/60">Shortcuts:</span> <span class="font-medium">F</span>
+                            Finale</span>
+                        <span><span class="font-medium">C</span> Clear</span>
+                        <span><span class="font-medium">Shift</span> = bigger burst</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-2 text-[11px] text-white/60 leading-snug">
+                Tip: Grand Finale keeps launching automatically. Click during Finale for extra chaos.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (() => {
+            const canvas = document.getElementById('c');
+            const ctx = canvas.getContext('2d', { alpha: false });
+
+            const finaleBtn = document.getElementById('finaleBtn');
+            const finaleState = document.getElementById('finaleState');
+            const clearBtn = document.getElementById('clearBtn');
+            const intensity = document.getElementById('intensity');
+            const intensityVal = document.getElementById('intensityVal');
+            const fpsEl = document.getElementById('fps');
+            const countsEl = document.getElementById('counts');
+
+            let w = 0, h = 0, dpr = 1;
+            function resize() {
+                dpr = Math.min(2, window.devicePixelRatio || 1);
+                w = window.innerWidth;
+                h = window.innerHeight;
+                canvas.width = Math.floor(w * dpr);
+                canvas.height = Math.floor(h * dpr);
+                canvas.style.width = w + 'px';
+                canvas.style.height = h + 'px';
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                // Hard clear
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, 0, w, h);
+                ctx.globalCompositeOperation = 'lighter';
+            }
+            window.addEventListener('resize', resize, { passive: true });
+
+            const rand = (a, b) => a + Math.random() * (b - a);
+            const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+            // Simple color helper: HSL => CSS
+            const hsl = (h, s, l, a = 1) => `hsla(${(h % 360 + 360) % 360}, ${s}%, ${l}%, ${a})`;
+
+            // Physics / look constants
+            const GRAVITY = 420;     // px/s^2
+            const AIR_DRAG = 0.985;  // per frame-ish (we apply time-scaled)
+
+            // Scene
+            const rockets = [];
+            const particles = [];
+
+            class Particle {
+                constructor({ x, y, vx, vy, hue, sat = 100, lum = 60, life = 1.2, size = 2.0, gravity = GRAVITY, drag = 0.985, glow = 1.0, twinkle = 0.0 }) {
+                    this.x = x; this.y = y;
+                    this.vx = vx; this.vy = vy;
+                    this.hue = hue;
+                    this.sat = sat;
+                    this.lum = lum;
+                    this.life = life;
+                    this.maxLife = life;
+                    this.size = size;
+                    this.gravity = gravity;
+                    this.drag = drag;
+                    this.glow = glow;
+                    this.twinkle = twinkle;
+                    this.dead = false;
+                }
+                update(dt) {
+                    // Exponential-ish drag with dt
+                    const drag = Math.pow(this.drag, dt * 60);
+                    this.vx *= drag;
+                    this.vy *= drag;
+                    this.vy += this.gravity * dt;
+                    this.x += this.vx * dt;
+                    this.y += this.vy * dt;
+                    this.life -= dt;
+                    if (this.life <= 0) this.dead = true;
+                }
+                draw(ctx) {
+                    const t = clamp(this.life / this.maxLife, 0, 1);
+                    // Ease-out fade
+                    const a = (t * t) * 0.95;
+                    const flicker = this.twinkle ? (0.75 + 0.25 * Math.sin((1 - t) * 30 + (this.x + this.y) * 0.02)) : 1;
+
+                    const radius = Math.max(0.8, this.size * (0.75 + 0.8 * (1 - t)));
+                    // Soft core
+                    ctx.fillStyle = hsl(this.hue, this.sat, this.lum, a * flicker);
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, radius, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Glow halo (cheaper than gradients per particle)
+                    if (this.glow > 0) {
+                        ctx.fillStyle = hsl(this.hue, this.sat, Math.min(80, this.lum + 10), a * 0.25 * this.glow * flicker);
+                        ctx.beginPath();
+                        ctx.arc(this.x, this.y, radius * 2.2, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+            }
+
+            class Rocket {
+                constructor(x, options = {}) {
+                    this.x = x;
+                    this.y = h + rand(10, 40);
+                    this.px = this.x;
+                    this.py = this.y;
+
+                    const isFinale = !!options.finale;
+                    const boost = options.boost || 1;
+
+                    // Pick a hue family for the rocket/explosion
+                    this.hue = options.hue ?? rand(0, 360);
+
+                    const baseSpeed = isFinale ? rand(560, 760) : rand(500, 700);
+                    const angle = rand(-0.15, 0.15);
+
+                    this.vx = Math.sin(angle) * rand(40, 140);
+                    this.vy = -baseSpeed * boost;
+
+                    this.age = 0;
+                    this.fuse = isFinale ? rand(0.9, 1.35) : rand(1.0, 1.6);
+                    this.dead = false;
+
+                    this.trailRate = isFinale ? rand(120, 190) : rand(90, 150); // particles/sec
+                    this.trailAcc = 0;
+
+                    this.isFinale = isFinale;
+                    this.boost = boost;
+                }
+
+                update(dt) {
+                    this.age += dt;
+                    this.px = this.x;
+                    this.py = this.y;
+
+                    // Light drag and small gravity while rising
+                    const drag = Math.pow(0.995, dt * 60);
+                    this.vx *= drag;
+                    this.vy *= drag;
+                    this.vy += GRAVITY * 0.18 * dt;
+
+                    this.x += this.vx * dt;
+                    this.y += this.vy * dt;
+
+                    // Trail
+                    this.trailAcc += dt * this.trailRate;
+                    const steps = Math.floor(this.trailAcc);
+                    if (steps > 0) {
+                        this.trailAcc -= steps;
+                        for (let i = 0; i < steps; i++) {
+                            const t = steps === 1 ? 0.5 : i / (steps - 1);
+                            const tx = this.px + (this.x - this.px) * t + rand(-0.6, 0.6);
+                            const ty = this.py + (this.y - this.py) * t + rand(-0.6, 0.6);
+                            particles.push(new Particle({
+                                x: tx,
+                                y: ty,
+                                vx: rand(-18, 18) + this.vx * 0.06,
+                                vy: rand(-8, 8) + this.vy * 0.06,
+                                hue: this.hue + rand(-6, 6),
+                                sat: 90,
+                                lum: 70,
+                                life: rand(0.25, 0.55),
+                                size: rand(1.1, 2.0),
+                                gravity: GRAVITY * 0.05,
+                                drag: 0.88,
+                                glow: 0.8,
+                                twinkle: 0.0
+                            }));
+                        }
+                    }
+
+                    // Explode conditions
+                    const outOfTop = this.y < h * 0.12;
+                    const slowing = this.vy > -110;
+                    const fuseDone = this.age >= this.fuse;
+                    if (outOfTop || slowing || fuseDone) {
+                        this.explode();
+                        this.dead = true;
+                    }
+
+                    // Ground safety
+                    if (this.y > h + 200) this.dead = true;
+                }
+
+                explode() {
+                    const isFinale = this.isFinale;
+                    const intensityVal = Number(intensity.value);
+
+                    // Burst sizing
+                    const baseCount = isFinale ? 120 : 85;
+                    const count = Math.floor(baseCount * rand(0.85, 1.25) * (0.75 + intensityVal * 0.1) * (this.boost * 0.95));
+
+                    // Multi-color: primary + secondary accent hue
+                    const hueA = this.hue;
+                    const hueB = (this.hue + rand(40, 110)) % 360;
+
+                    // White flash core
+                    for (let i = 0; i < 14; i++) {
+                        const a = rand(0, Math.PI * 2);
+                        const s = rand(80, 240);
+                        particles.push(new Particle({
+                            x: this.x,
+                            y: this.y,
+                            vx: Math.cos(a) * s,
+                            vy: Math.sin(a) * s,
+                            hue: rand(0, 360),
+                            sat: 10,
+                            lum: 95,
+                            life: rand(0.25, 0.45),
+                            size: rand(1.6, 2.6),
+                            gravity: GRAVITY * 0.25,
+                            drag: 0.92,
+                            glow: 1.3,
+                            twinkle: 0.0
+                        }));
+                    }
+
+                    // Main burst
+                    for (let i = 0; i < count; i++) {
+                        const a = rand(0, Math.PI * 2);
+                        // Bias to outer ring for crisp bursts
+                        const ring = Math.pow(Math.random(), 0.22);
+                        const speed = rand(140, 620) * (0.55 + ring * 0.9) * (isFinale ? 1.05 : 1);
+
+                        const hue = Math.random() < 0.72 ? hueA : hueB;
+                        const life = rand(1.0, isFinale ? 1.9 : 1.7) * (0.9 + ring * 0.3);
+                        const size = rand(1.2, 2.6) * (0.85 + ring * 0.6);
+
+                        // Sparkly glitter fraction
+                        const twinkle = Math.random() < 0.35 ? 1.0 : 0.0;
+
+                        particles.push(new Particle({
+                            x: this.x,
+                            y: this.y,
+                            vx: Math.cos(a) * speed + this.vx * 0.2,
+                            vy: Math.sin(a) * speed + this.vy * 0.1,
+                            hue: hue + rand(-10, 10),
+                            sat: rand(85, 100),
+                            lum: rand(55, 70),
+                            life,
+                            size,
+                            gravity: GRAVITY * rand(0.55, 0.95),
+                            drag: rand(0.965, 0.985),
+                            glow: rand(0.9, 1.4),
+                            twinkle
+                        }));
+
+                        // Occasional micro-sparks (short-lived)
+                        if (Math.random() < (isFinale ? 0.28 : 0.18)) {
+                            const sa = a + rand(-0.25, 0.25);
+                            const ss = speed * rand(0.25, 0.45);
+                            particles.push(new Particle({
+                                x: this.x,
+                                y: this.y,
+                                vx: Math.cos(sa) * ss,
+                                vy: Math.sin(sa) * ss,
+                                hue: hue + rand(-20, 20),
+                                sat: 90,
+                                lum: 75,
+                                life: rand(0.35, 0.8),
+                                size: rand(0.9, 1.8),
+                                gravity: GRAVITY * rand(0.4, 0.8),
+                                drag: rand(0.93, 0.97),
+                                glow: 1.0,
+                                twinkle: 1.0
+                            }));
+                        }
+                    }
+
+                    // Finales sometimes do a secondary pop (delayed burst)
+                    if (isFinale && Math.random() < 0.28) {
+                        const popDelay = rand(0.10, 0.22);
+                        const popCount = Math.floor(rand(24, 60) * (0.7 + Number(intensity.value) * 0.08));
+                        const px = this.x + rand(-20, 20);
+                        const py = this.y + rand(-15, 15);
+                        schedule(popDelay, () => {
+                            for (let i = 0; i < popCount; i++) {
+                                const a = rand(0, Math.PI * 2);
+                                const s = rand(180, 520);
+                                particles.push(new Particle({
+                                    x: px,
+                                    y: py,
+                                    vx: Math.cos(a) * s,
+                                    vy: Math.sin(a) * s,
+                                    hue: (hueB + rand(-12, 12)) % 360,
+                                    sat: rand(80, 100),
+                                    lum: rand(55, 72),
+                                    life: rand(0.9, 1.5),
+                                    size: rand(1.1, 2.3),
+                                    gravity: GRAVITY * rand(0.55, 0.9),
+                                    drag: rand(0.965, 0.985),
+                                    glow: 1.2,
+                                    twinkle: Math.random() < 0.45 ? 1 : 0
+                                }));
+                            }
+                        });
+                    }
+                }
+
+                draw(ctx) {
+                    // Draw rocket streak as line
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = hsl(this.hue, 95, 70, 0.8);
+                    ctx.beginPath();
+                    ctx.moveTo(this.px, this.py);
+                    ctx.lineTo(this.x, this.y);
+                    ctx.stroke();
+
+                    // Hot head
+                    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, 1.6, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // Tiny scheduler for delayed pops
+            const timed = [];
+            function schedule(delaySec, fn) {
+                timed.push({ t: delaySec, fn });
+            }
+
+            function clearAll() {
+                rockets.length = 0;
+                particles.length = 0;
+                timed.length = 0;
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, 0, w, h);
+                ctx.globalCompositeOperation = 'lighter';
+            }
+
+            function launchRocket(x, { finale = false, boost = 1, hue = undefined } = {}) {
+                rockets.push(new Rocket(x, { finale, boost, hue }));
+            }
+
+            // Input
+            canvas.addEventListener('pointerdown', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const x = (e.clientX - rect.left);
+                const isBoost = e.shiftKey;
+                launchRocket(x, {
+                    finale: false,
+                    boost: isBoost ? 1.35 : 1.0
+                });
+            }, { passive: true });
+
+            let finale = false;
+            function setFinale(on) {
+                finale = !!on;
+                finaleState.textContent = finale ? 'ON' : 'OFF';
+                finaleState.className = finale ? 'font-semibold text-amber-200' : 'font-semibold';
+                finaleBtn.classList.toggle('bg-amber-500/15', finale);
+                finaleBtn.classList.toggle('border-amber-300/20', finale);
+            }
+
+            finaleBtn.addEventListener('click', () => setFinale(!finale));
+            clearBtn.addEventListener('click', clearAll);
+
+            intensity.addEventListener('input', () => {
+                intensityVal.textContent = intensity.value;
+            });
+
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'f' || e.key === 'F') setFinale(!finale);
+                if (e.key === 'c' || e.key === 'C') clearAll();
+            });
+
+            // Animation loop
+            let last = performance.now();
+            let fpsAcc = 0, fpsCount = 0, fpsLast = performance.now();
+
+            // Finale auto-launch
+            let autoAcc = 0;
+            let megaAcc = 0;
+
+            function tick(now) {
+                const dt = Math.min(0.033, (now - last) / 1000);
+                last = now;
+
+                // Fade the canvas for trails
+                const intensityVal = Number(intensity.value);
+                // Lower alpha => longer trails. Finale makes it slightly "smokier".
+                const fadeAlpha = finale ? (0.11 - intensityVal * 0.0025) : 0.10;
+
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.fillStyle = `rgba(0,0,0,${clamp(fadeAlpha, 0.03, 0.18)})`;
+                ctx.fillRect(0, 0, w, h);
+                ctx.globalCompositeOperation = 'lighter';
+
+                // Timed callbacks
+                for (let i = timed.length - 1; i >= 0; i--) {
+                    timed[i].t -= dt;
+                    if (timed[i].t <= 0) {
+                        const fn = timed[i].fn;
+                        timed.splice(i, 1);
+                        try { fn(); } catch (_) { }
+                    }
+                }
+
+                // Finale mode: continuous launches
+                if (finale) {
+                    // rockets per second
+                    const rate = 1.8 + intensityVal * 1.25;
+                    autoAcc += dt;
+                    const step = 1 / rate;
+                    while (autoAcc >= step) {
+                        autoAcc -= step;
+                        const burst = intensityVal >= 8 ? 2 : (intensityVal >= 5 ? 1 : 1);
+                        for (let i = 0; i < burst; i++) {
+                            const x = rand(w * 0.12, w * 0.88);
+                            const boost = rand(0.95, 1.25) * (intensityVal >= 9 ? 1.12 : 1);
+                            const hue = rand(0, 360);
+                            launchRocket(x, { finale: true, boost, hue });
+                        }
+                    }
+
+                    // Occasional mega salvo
+                    megaAcc += dt;
+                    const megaEvery = clamp(3.2 - intensityVal * 0.18, 1.4, 3.0);
+                    if (megaAcc > megaEvery) {
+                        megaAcc = 0;
+                        const salvo = Math.floor(3 + intensityVal * 0.6);
+                        const center = rand(w * 0.25, w * 0.75);
+                        for (let i = 0; i < salvo; i++) {
+                            const x = center + rand(-w * 0.18, w * 0.18);
+                            launchRocket(x, { finale: true, boost: rand(1.15, 1.55), hue: rand(0, 360) });
+                        }
+                    }
+                }
+
+                // Update & draw rockets
+                for (let i = rockets.length - 1; i >= 0; i--) {
+                    const r = rockets[i];
+                    r.update(dt);
+                    r.draw(ctx);
+                    if (r.dead) rockets.splice(i, 1);
+                }
+
+                // Update & draw particles
+                // Cap for safety (avoid runaway on slow devices)
+                const maxParticles = 6500;
+                if (particles.length > maxParticles) particles.splice(0, particles.length - maxParticles);
+
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    const p = particles[i];
+                    p.update(dt);
+                    // Cull off-screen (with margin) to keep things fast
+                    if (p.dead || p.x < -200 || p.x > w + 200 || p.y < -200 || p.y > h + 260) {
+                        particles.splice(i, 1);
+                        continue;
+                    }
+                    p.draw(ctx);
+                }
+
+                // HUD stats
+                fpsAcc += 1 / Math.max(1e-6, dt);
+                fpsCount++;
+                if (now - fpsLast > 350) {
+                    const fps = Math.round(fpsAcc / fpsCount);
+                    fpsEl.textContent = `FPS: ${fps}`;
+                    countsEl.textContent = `Rockets: ${rockets.length}  Particles: ${particles.length}`;
+                    fpsAcc = 0;
+                    fpsCount = 0;
+                    fpsLast = now;
+                }
+
+                requestAnimationFrame(tick);
+            }
+
+            // Start
+            resize();
+            intensityVal.textContent = intensity.value;
+            setFinale(false);
+
+            // A couple of starter rockets
+            schedule(0.15, () => launchRocket(w * 0.35, { finale: false, boost: 1.1 }));
+            schedule(0.35, () => launchRocket(w * 0.65, { finale: false, boost: 1.05 }));
+
+            requestAnimationFrame(tick);
+        })();
+    </script>
+</body>
+
+</html>
