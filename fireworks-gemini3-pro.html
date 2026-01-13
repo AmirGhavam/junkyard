@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fireworks Display</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+        }
+
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+
+<body class="relative h-screen w-screen bg-black">
+
+    <!-- UI Layer -->
+    <div class="absolute top-0 left-0 w-full h-full pointer-events-none flex flex-col justify-between p-6 z-10">
+        <div class="text-center text-white/80 select-none">
+            <h1 class="text-4xl font-bold tracking-wider mb-2 drop-shadow-lg">Fireworks Display</h1>
+            <p class="text-sm font-light">Click anywhere to launch &bull; Enjoy the show</p>
+        </div>
+
+        <div class="flex justify-center mb-8 pointer-events-auto">
+            <button id="finaleBtn"
+                class="bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-500 hover:to-orange-400 text-white font-bold py-3 px-8 rounded-full shadow-lg transform transition hover:scale-105 active:scale-95 border-2 border-white/20 backdrop-blur-sm cursor-pointer">
+                GRAND FINALE
+            </button>
+        </div>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const finaleBtn = document.getElementById('finaleBtn');
+
+        let width, height;
+        let fireworks = [];
+        let particles = [];
+        let isFinale = false;
+        let finaleInterval;
+
+        // Resize handling
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Utility functions
+        function random(min, max) {
+            return Math.random() * (max - min) + min;
+        }
+
+        // Color palettes
+        const palettes = [
+            ['#FF0000', '#FF7F00', '#FFFF00', '#FFFFFF'], // Fire
+            ['#00FFFF', '#0000FF', '#FF00FF', '#FFFFFF'], // Cyber
+            ['#FF00FF', '#800080', '#FFC0CB', '#FFFFFF'], // Pink
+            ['#00FF00', '#008000', '#ADFF2F', '#FFFFFF'], // Green
+            ['#FFD700', '#FFA500', '#FFFFFF', '#FFFFE0'], // Gold
+            ['#FF0000', '#FFFFFF', '#0000FF'],             // Patriot
+        ];
+
+        class Firework {
+            constructor(tx, ty, isAuto = false) {
+                this.x = isAuto ? random(width * 0.1, width * 0.9) : width / 2;
+                this.y = height;
+                this.tx = tx;
+                this.ty = ty;
+
+                // Calculate distance and velocity
+                const distToTarget = Math.sqrt(Math.pow(tx - this.x, 2) + Math.pow(ty - this.y, 2));
+                const angle = Math.atan2(ty - this.y, tx - this.x);
+
+                // Random speed variation
+                this.speed = isAuto ? random(12, 16) : random(10, 14);
+                this.vx = Math.cos(angle) * this.speed;
+                this.vy = Math.sin(angle) * this.speed;
+
+                this.distanceTraveled = 0;
+                this.distanceToTarget = distToTarget;
+                this.coordinates = [];
+                this.coordinateCount = 3;
+
+                // Trail coordinates
+                while (this.coordinateCount--) {
+                    this.coordinates.push([this.x, this.y]);
+                }
+
+                this.hue = random(0, 360);
+                this.brightness = random(50, 70);
+            }
+
+            update(index) {
+                // Update coordinates for trail
+                this.coordinates.pop();
+                this.coordinates.unshift([this.x, this.y]);
+
+                // Physics
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Calculate distance
+                const vx = this.vx;
+                const vy = this.vy;
+                const distTraveled = Math.sqrt(vx * vx + vy * vy);
+                this.distanceTraveled += distTraveled;
+
+                // Check if target reached
+                if (this.distanceTraveled >= this.distanceToTarget) {
+                    createParticles(this.tx, this.ty, this.hue);
+                    fireworks.splice(index, 1);
+                } else {
+                    // Slight gravity effect on rocket (arc)
+                    this.vy += 0.05;
+                }
+            }
+
+            draw() {
+                ctx.beginPath();
+                // Draw trail
+                ctx.moveTo(this.coordinates[this.coordinates.length - 1][0], this.coordinates[this.coordinates.length - 1][1]);
+                ctx.lineTo(this.x, this.y);
+                ctx.strokeStyle = `hsl(${this.hue}, 100%, ${this.brightness}%)`;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+        }
+
+        class Particle {
+            constructor(x, y, hue, palette = null) {
+                this.x = x;
+                this.y = y;
+                this.coordinates = [];
+                this.coordinateCount = 5;
+                while (this.coordinateCount--) {
+                    this.coordinates.push([this.x, this.y]);
+                }
+
+                // Explosion pattern
+                const angle = random(0, Math.PI * 2);
+                const speed = random(1, 10);
+
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+
+                this.friction = 0.95;
+                this.gravity = 0.15; // Slightly heavier gravity for realistic fall
+
+                if (palette) {
+                    this.color = palette[Math.floor(random(0, palette.length))];
+                    this.useHSL = false;
+                } else {
+                    this.hue = random(hue - 20, hue + 20);
+                    this.brightness = random(50, 80);
+                    this.alpha = 1;
+                    this.decay = random(0.015, 0.03);
+                    this.useHSL = true;
+                }
+
+                // For Palette based
+                this.alpha = 1;
+                this.decay = random(0.01, 0.025);
+            }
+
+            update(index) {
+                this.coordinates.pop();
+                this.coordinates.unshift([this.x, this.y]);
+
+                this.vx *= this.friction;
+                this.vy *= this.friction;
+                this.vy += this.gravity;
+
+                this.x += this.vx;
+                this.y += this.vy;
+
+                this.alpha -= this.decay;
+
+                if (this.alpha <= this.decay) {
+                    particles.splice(index, 1);
+                }
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.moveTo(this.coordinates[this.coordinates.length - 1][0], this.coordinates[this.coordinates.length - 1][1]);
+                ctx.lineTo(this.x, this.y);
+
+                if (this.useHSL) {
+                    ctx.strokeStyle = `hsla(${this.hue}, 100%, ${this.brightness}%, ${this.alpha})`;
+                } else {
+                    // Hex to RGB for alpha
+                    const hex = this.color.replace('#', '');
+                    const r = parseInt(hex.substring(0, 2), 16);
+                    const g = parseInt(hex.substring(2, 4), 16);
+                    const b = parseInt(hex.substring(4, 6), 16);
+                    ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${this.alpha})`;
+                }
+
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+            }
+        }
+
+        function createParticles(x, y, hue) {
+            const particleCount = 60;
+            // 30% chance to use a specific color palette
+            const usePalette = Math.random() > 0.7;
+            const palette = usePalette ? palettes[Math.floor(random(0, palettes.length))] : null;
+
+            for (let i = 0; i < particleCount; i++) {
+                particles.push(new Particle(x, y, hue, palette));
+            }
+        }
+
+        function loop() {
+            requestAnimationFrame(loop);
+
+            // Composite operation to create trails
+            // 'destination-out' fades existing canvas content
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'; // 0.2 alpha determines trail length
+            ctx.fillRect(0, 0, width, height);
+
+            // Reset composite operation to draw new stuff
+            ctx.globalCompositeOperation = 'lighter';
+
+            // Draw fireworks
+            let i = fireworks.length;
+            while (i--) {
+                fireworks[i].draw();
+                fireworks[i].update(i);
+            }
+
+            // Draw particles
+            let j = particles.length;
+            while (j--) {
+                particles[j].draw();
+                particles[j].update(j);
+            }
+
+            // Random automatic launches (rare if not finale)
+            if (!isFinale && Math.random() < 0.03) {
+                const x = random(width * 0.2, width * 0.8);
+                const y = random(height * 0.2, height * 0.5);
+                fireworks.push(new Firework(x, y, true));
+            }
+        }
+
+        // Mouse interaction
+        canvas.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            // Launch from bottom center to mouse click
+            fireworks.push(new Firework(e.clientX, e.clientY));
+        });
+
+        // Touch interaction
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            for (let i = 0; i < e.touches.length; i++) {
+                fireworks.push(new Firework(e.touches[i].clientX, e.touches[i].clientY));
+            }
+        }, { passive: false });
+
+        // Grand Finale Logic
+        finaleBtn.addEventListener('click', () => {
+            if (isFinale) return;
+            isFinale = true;
+            finaleBtn.textContent = "ENJOY THE SHOW!";
+            finaleBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+            let count = 0;
+            const maxLaunches = 50;
+
+            finaleInterval = setInterval(() => {
+                // Launch multiple rockets
+                for (let k = 0; k < 3; k++) {
+                    const x = random(width * 0.1, width * 0.9);
+                    const y = random(height * 0.1, height * 0.6);
+
+                    // Override start x to be random for finale messiness
+                    const fw = new Firework(x, y, true);
+                    fw.x = random(width * 0.1, width * 0.9);
+                    fireworks.push(fw);
+                }
+
+                count++;
+                if (count > maxLaunches) {
+                    clearInterval(finaleInterval);
+                    setTimeout(() => {
+                        isFinale = false;
+                        finaleBtn.textContent = "GRAND FINALE";
+                        finaleBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    }, 4000); // Wait for particles to clear
+                }
+            }, 200);
+        });
+
+        // Start loop
+        loop();
+
+    </script>
+</body>
+
+</html>
