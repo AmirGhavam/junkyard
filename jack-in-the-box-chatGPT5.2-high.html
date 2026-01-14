@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Jack-in-the-Box</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        :root {
+            --ease-pop: cubic-bezier(.16, 1.1, .2, 1);
+            --ease-snap: cubic-bezier(.2, .8, .2, 1);
+        }
+
+        /* Lid */
+        #lid {
+            transform-origin: 12% 86%;
+            transform: translateY(0px) rotate(0deg);
+            transition: transform 650ms var(--ease-snap), filter 650ms var(--ease-snap);
+            filter: drop-shadow(0 14px 18px rgba(0, 0, 0, .22));
+        }
+
+        .popped #lid {
+            transform: translateY(-10px) rotate(-120deg);
+            filter: drop-shadow(0 10px 14px rgba(0, 0, 0, .18));
+        }
+
+        /* Box rattle as tension grows */
+        @keyframes rattle {
+            0% {
+                transform: translate(0, 0) rotate(0deg)
+            }
+
+            20% {
+                transform: translate(1px, -1px) rotate(.35deg)
+            }
+
+            40% {
+                transform: translate(-1px, 1px) rotate(-.35deg)
+            }
+
+            60% {
+                transform: translate(1px, 1px) rotate(.25deg)
+            }
+
+            80% {
+                transform: translate(-1px, -1px) rotate(-.25deg)
+            }
+
+            100% {
+                transform: translate(0, 0) rotate(0deg)
+            }
+        }
+
+        .rattling {
+            animation: rattle 120ms linear infinite;
+        }
+
+        /* Spring wobble */
+        @keyframes springWobble {
+            0% {
+                transform: rotate(0deg) scaleY(1)
+            }
+
+            10% {
+                transform: rotate(2.2deg) scaleY(1.06)
+            }
+
+            20% {
+                transform: rotate(-2.4deg) scaleY(.98)
+            }
+
+            30% {
+                transform: rotate(1.7deg) scaleY(1.05)
+            }
+
+            40% {
+                transform: rotate(-1.5deg) scaleY(1.01)
+            }
+
+            55% {
+                transform: rotate(1deg) scaleY(1.03)
+            }
+
+            70% {
+                transform: rotate(-.8deg) scaleY(1.01)
+            }
+
+            85% {
+                transform: rotate(.4deg) scaleY(1.01)
+            }
+
+            100% {
+                transform: rotate(0deg) scaleY(1)
+            }
+        }
+
+        .wobble {
+            animation: springWobble 1100ms var(--ease-snap) 1;
+        }
+
+        /* Confetti */
+        @keyframes confettiFall {
+            0% {
+                transform: translate3d(0, 0, 0) rotate(0deg);
+                opacity: 0
+            }
+
+            10% {
+                opacity: 1
+            }
+
+            100% {
+                transform: translate3d(var(--dx), var(--dy), 0) rotate(var(--dr));
+                opacity: 0
+            }
+        }
+
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+            animation: confettiFall 1100ms linear forwards;
+            pointer-events: none;
+            filter: drop-shadow(0 10px 10px rgba(0, 0, 0, .15));
+        }
+
+        /* Focus visibility */
+        .focus-ring:focus-visible {
+            outline: 3px solid rgba(59, 130, 246, .9);
+            outline-offset: 3px;
+        }
+
+        /* Make pointer interactions feel good */
+        #crankHandle,
+        #crank,
+        #characterAssembly {
+            touch-action: none;
+        }
+
+        /* A subtle glossy look */
+        .gloss {
+            background-image:
+                radial-gradient(120px 50px at 30% 15%, rgba(255, 255, 255, .28), rgba(255, 255, 255, 0) 60%),
+                linear-gradient(to bottom, rgba(255, 255, 255, .15), rgba(0, 0, 0, .08));
+        }
+
+        /* Spring look */
+        .spring {
+            width: 56px;
+            height: 110px;
+            border-radius: 999px;
+            background:
+                repeating-linear-gradient(135deg,
+                    rgba(255, 255, 255, .0) 0px,
+                    rgba(255, 255, 255, .0) 7px,
+                    rgba(255, 255, 255, .35) 7px,
+                    rgba(255, 255, 255, .35) 10px),
+                linear-gradient(to right, rgba(0, 0, 0, .18), rgba(0, 0, 0, 0) 45%, rgba(0, 0, 0, .14));
+            border: 2px solid rgba(0, 0, 0, .16);
+            box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .08);
+            transform-origin: 50% 100%;
+        }
+
+        /* Crank clicky cursor */
+        #crank {
+            cursor: grab;
+        }
+
+        #crank.dragging {
+            cursor: grabbing;
+        }
+
+        /* Prevent selection */
+        .no-select {
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* Reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            #lid {
+                transition: none !important;
+            }
+
+            .rattling,
+            .wobble {
+                animation: none !important;
+            }
+        }
+    </style>
+</head>
+
+<body class="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-slate-100">
+    <main class="max-w-5xl mx-auto px-4 py-10">
+        <header class="flex flex-col gap-2">
+            <h1 class="text-3xl sm:text-4xl font-black tracking-tight">Jack-in-the-Box</h1>
+            <p class="text-slate-300 max-w-3xl">Turn the crank clockwise to build tension. When it hits the mystery
+                threshold… surprise. Push the character back down or press reset to try again.</p>
+        </header>
+
+        <section class="mt-8 grid lg:grid-cols-[1fr_420px] gap-6 items-start">
+            <div class="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-6 shadow-[0_30px_90px_rgba(0,0,0,.35)]">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_20px_rgba(52,211,153,.45)]"
+                            id="statusDot"></div>
+                        <div class="text-sm">
+                            <div class="font-semibold" id="statusText">Ready</div>
+                            <div class="text-slate-400" id="hintText">Drag the crank clockwise.</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button id="resetBtn"
+                            class="hidden focus-ring px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 text-sm font-semibold"
+                            type="button">Reset</button>
+                        <button id="muteBtn"
+                            class="focus-ring px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 text-sm"
+                            type="button" aria-pressed="false">Sound: On</button>
+                    </div>
+                </div>
+
+                <div class="mt-5 grid sm:grid-cols-[1fr_160px] gap-4 items-center">
+                    <div class="rounded-2xl bg-gradient-to-b from-white/6 to-white/3 border border-white/10 p-4">
+                        <div class="flex items-center justify-between">
+                            <div class="text-sm font-semibold">Tension</div>
+                            <div class="text-xs text-slate-400" id="thresholdHint">Mystery threshold: ???</div>
+                        </div>
+                        <div class="mt-3 h-3 rounded-full bg-white/10 overflow-hidden border border-white/10">
+                            <div id="tensionFill"
+                                class="h-full w-[0%] bg-gradient-to-r from-sky-400 via-violet-400 to-pink-400"></div>
+                        </div>
+                        <div class="mt-2 flex items-center justify-between text-xs text-slate-400">
+                            <span id="tensionPct">0%</span>
+                            <span id="turnsHint">0.0 turns</span>
+                        </div>
+
+                        <div class="mt-4 grid grid-cols-3 gap-2 text-xs">
+                            <div class="rounded-xl border border-white/10 bg-white/5 p-2">
+                                <div class="text-slate-400">Mode</div>
+                                <div class="font-semibold" id="modeText">Wind-up</div>
+                            </div>
+                            <div class="rounded-xl border border-white/10 bg-white/5 p-2">
+                                <div class="text-slate-400">Crank</div>
+                                <div class="font-semibold" id="crankDir">Clockwise</div>
+                            </div>
+                            <div class="rounded-xl border border-white/10 bg-white/5 p-2">
+                                <div class="text-slate-400">Pop</div>
+                                <div class="font-semibold" id="popState">Armed</div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 text-xs text-slate-400">
+                            Tip: You can also use <span class="text-slate-200 font-semibold">→</span> to wind and <span
+                                class="text-slate-200 font-semibold">R</span> to reset.
+                        </div>
+                    </div>
+
+                    <div class="rounded-2xl bg-gradient-to-b from-white/6 to-white/3 border border-white/10 p-4">
+                        <div class="flex items-center justify-between">
+                            <div class="text-sm font-semibold">Indicator</div>
+                            <div class="text-xs text-slate-400">Build-up</div>
+                        </div>
+                        <div class="mt-3 relative h-36 rounded-2xl bg-white/5 border border-white/10 overflow-hidden">
+                            <div class="absolute inset-0 opacity-60"
+                                style="background: repeating-linear-gradient(to top, rgba(255,255,255,.12) 0 1px, rgba(255,255,255,0) 1px 18px);">
+                            </div>
+                            <div id="gaugeFill"
+                                class="absolute bottom-0 left-0 right-0 h-[0%] bg-gradient-to-t from-emerald-400 via-amber-400 to-rose-400 opacity-80">
+                            </div>
+                            <div id="gaugeNeedle" class="absolute left-0 right-0" style="bottom:0%">
+                                <div class="mx-auto w-[80%] h-[2px] bg-white/80"></div>
+                            </div>
+                        </div>
+                        <div class="mt-2 text-xs text-slate-400" id="indicatorText">Winding…</div>
+                    </div>
+                </div>
+
+                <div class="mt-6">
+                    <div
+                        class="rounded-3xl border border-white/10 bg-gradient-to-b from-slate-900/60 to-slate-950/50 p-5 sm:p-6">
+                        <div class="flex items-center justify-center">
+                            <div id="scene" class="relative no-select w-[380px] h-[320px]">
+                                <!-- Confetti container -->
+                                <div id="fx" class="absolute inset-0 pointer-events-none"></div>
+
+                                <!-- Character + spring (positioned behind the box) -->
+                                <div id="characterAssembly" class="absolute left-1/2 top-[88px] z-[6]" aria-label="Jack"
+                                    role="img">
+                                    <div id="springWrap" class="absolute left-1/2 top-[88px] -translate-x-1/2">
+                                        <div id="spring" class="spring"></div>
+                                    </div>
+
+                                    <div id="character" class="absolute left-1/2 top-0 -translate-x-1/2">
+                                        <div class="relative">
+                                            <div
+                                                class="w-[116px] h-[116px] rounded-full bg-gradient-to-br from-rose-300 via-pink-200 to-amber-100 border border-black/10 shadow-[0_20px_50px_rgba(0,0,0,.25)]">
+                                            </div>
+                                            <div class="absolute inset-0 rounded-full gloss opacity-80"></div>
+                                            <div
+                                                class="absolute left-[30px] top-[42px] w-[18px] h-[18px] rounded-full bg-slate-900">
+                                            </div>
+                                            <div
+                                                class="absolute right-[30px] top-[42px] w-[18px] h-[18px] rounded-full bg-slate-900">
+                                            </div>
+                                            <div
+                                                class="absolute left-1/2 top-[64px] -translate-x-1/2 w-[14px] h-[10px] rounded-full bg-rose-500">
+                                            </div>
+                                            <div
+                                                class="absolute left-1/2 top-[78px] -translate-x-1/2 w-[54px] h-[20px] rounded-full border-[3px] border-slate-900/90 border-t-0">
+                                            </div>
+                                            <div
+                                                class="absolute -top-[10px] left-1/2 -translate-x-1/2 w-[140px] h-[36px] bg-gradient-to-r from-sky-400 via-violet-400 to-pink-400 rounded-full border border-black/10 shadow-[0_18px_30px_rgba(0,0,0,.18)]">
+                                            </div>
+                                        </div>
+                                        <div
+                                            class="mt-2 w-[150px] h-[30px] rounded-2xl bg-gradient-to-r from-emerald-300 via-sky-300 to-violet-300 border border-black/10 shadow-[0_16px_30px_rgba(0,0,0,.14)]">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Lid -->
+                                <div id="lid"
+                                    class="absolute left-[52px] top-[118px] w-[276px] h-[68px] rounded-2xl bg-gradient-to-b from-amber-300/95 to-amber-400/95 border border-black/10 z-[11]">
+                                    <div class="absolute inset-0 rounded-2xl gloss opacity-90"></div>
+                                    <div
+                                        class="absolute left-[14px] bottom-[10px] w-[34px] h-[16px] rounded-full bg-slate-900/20 border border-black/10">
+                                    </div>
+                                </div>
+
+                                <!-- Box body -->
+                                <div id="box" class="absolute left-[40px] top-[148px] w-[300px] h-[162px] z-[10]">
+                                    <div
+                                        class="absolute inset-0 rounded-[28px] bg-gradient-to-b from-amber-700 to-amber-800 border border-black/10 shadow-[0_40px_80px_rgba(0,0,0,.4)]">
+                                    </div>
+                                    <div class="absolute inset-0 rounded-[28px] gloss opacity-70"></div>
+                                    <div
+                                        class="absolute left-[14px] right-[14px] top-[14px] h-[26px] rounded-[18px] bg-black/10 border border-black/10">
+                                    </div>
+                                    <div
+                                        class="absolute left-[18px] right-[18px] bottom-[16px] h-[36px] rounded-[18px] bg-gradient-to-r from-sky-400/70 via-violet-400/70 to-pink-400/70 border border-black/10">
+                                    </div>
+                                </div>
+
+                                <!-- Rim (sits on top of box front) -->
+                                <div
+                                    class="absolute left-[44px] top-[140px] w-[292px] h-[26px] rounded-[22px] bg-gradient-to-b from-amber-500 to-amber-600 border border-black/10 z-[12] shadow-[0_18px_30px_rgba(0,0,0,.2)]">
+                                </div>
+
+                                <!-- Crank -->
+                                <div id="crank"
+                                    class="absolute right-[8px] top-[206px] z-[13] flex items-center justify-center w-[90px] h-[90px]"
+                                    aria-label="Crank" role="application">
+                                    <div id="crankInner" class="relative w-[86px] h-[86px]">
+                                        <div
+                                            class="absolute inset-0 rounded-full bg-gradient-to-b from-slate-200 to-slate-400 border border-black/10 shadow-[0_18px_40px_rgba(0,0,0,.35)]">
+                                        </div>
+                                        <div class="absolute inset-0 rounded-full gloss opacity-80"></div>
+                                        <div
+                                            class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[14px] h-[14px] rounded-full bg-slate-800/70">
+                                        </div>
+                                        <div id="crankHandle"
+                                            class="absolute left-1/2 top-[8px] -translate-x-1/2 w-[18px] h-[42px] rounded-full bg-gradient-to-b from-rose-400 to-rose-600 border border-black/10 shadow-[0_14px_24px_rgba(0,0,0,.22)]">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Shadow base plate -->
+                                <div
+                                    class="absolute left-[60px] top-[304px] w-[260px] h-[14px] rounded-full bg-black/30 blur-[1px]">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-5 flex flex-wrap items-center justify-between gap-3 text-sm">
+                            <div class="text-slate-300">Interaction: <span class="text-slate-100 font-semibold">Drag the
+                                    crank</span> (clockwise). After the pop, <span
+                                    class="text-slate-100 font-semibold">drag the character down</span> to latch.</div>
+                            <div class="text-slate-400" id="debugText"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <aside class="rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-6">
+                <h2 class="text-lg font-bold">Controls</h2>
+                <ul class="mt-3 space-y-2 text-sm text-slate-300">
+                    <li><span class="text-slate-100 font-semibold">Crank</span>: drag in a circle (clockwise builds
+                        tension).</li>
+                    <li><span class="text-slate-100 font-semibold">Keyboard</span>: → to wind; R to reset; M to toggle
+                        sound.</li>
+                    <li><span class="text-slate-100 font-semibold">Reset</span>: after the pop, drag the character down
+                        until it “clicks”, or press Reset.</li>
+                </ul>
+                <div class="mt-6 rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+                    <div class="text-sm font-semibold">What’s happening?</div>
+                    <p class="mt-2 text-sm text-slate-300">The crank increases a hidden spring tension. When it passes a
+                        randomized threshold, the lid flips and the character pops with a spring wobble. You can
+                        compress it back down to re-arm.</p>
+                </div>
+            </aside>
+        </section>
+
+        <footer class="mt-8 text-xs text-slate-500">Single-file demo (HTML/CSS/JS + Tailwind CDN). No external assets.
+        </footer>
+    </main>
+
+    <script>
+        // ---------- Utilities ----------
+        const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+        const lerp = (a, b, t) => a + (b - a) * t;
+        const rand = (a, b) => a + Math.random() * (b - a);
+
+        function normalizeAngleDelta(d) {
+            // Normalize to [-PI, PI]
+            const pi = Math.PI;
+            while (d > pi) d -= 2 * pi;
+            while (d < -pi) d += 2 * pi;
+            return d;
+        }
+
+        // ---------- Sound (tiny click + pop) ----------
+        const sound = {
+            enabled: true,
+            ctx: null,
+            init() {
+                if (this.ctx) return;
+                try {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                } catch (e) {
+                    this.ctx = null;
+                }
+            },
+            click(intensity = 0.12) {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+                const t = this.ctx.currentTime;
+                const o = this.ctx.createOscillator();
+                const g = this.ctx.createGain();
+                o.type = 'square';
+                o.frequency.setValueAtTime(420 + intensity * 260, t);
+                g.gain.setValueAtTime(0.0001, t);
+                g.gain.exponentialRampToValueAtTime(0.05 + intensity * 0.06, t + 0.005);
+                g.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
+                o.connect(g).connect(this.ctx.destination);
+                o.start(t);
+                o.stop(t + 0.065);
+            },
+            pop() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+                const t = this.ctx.currentTime;
+                const o = this.ctx.createOscillator();
+                const g = this.ctx.createGain();
+                o.type = 'sawtooth';
+                o.frequency.setValueAtTime(180, t);
+                o.frequency.exponentialRampToValueAtTime(520, t + 0.08);
+                g.gain.setValueAtTime(0.0001, t);
+                g.gain.exponentialRampToValueAtTime(0.12, t + 0.01);
+                g.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
+                o.connect(g).connect(this.ctx.destination);
+                o.start(t);
+                o.stop(t + 0.28);
+            },
+            latch() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+                const t = this.ctx.currentTime;
+                const o = this.ctx.createOscillator();
+                const g = this.ctx.createGain();
+                o.type = 'triangle';
+                o.frequency.setValueAtTime(260, t);
+                o.frequency.exponentialRampToValueAtTime(140, t + 0.07);
+                g.gain.setValueAtTime(0.0001, t);
+                g.gain.exponentialRampToValueAtTime(0.08, t + 0.01);
+                g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+                o.connect(g).connect(this.ctx.destination);
+                o.start(t);
+                o.stop(t + 0.13);
+            }
+        };
+
+        // ---------- Elements ----------
+        const scene = document.getElementById('scene');
+        const box = document.getElementById('box');
+        const lid = document.getElementById('lid');
+        const crank = document.getElementById('crank');
+        const crankInner = document.getElementById('crankInner');
+        const crankHandle = document.getElementById('crankHandle');
+        const characterAssembly = document.getElementById('characterAssembly');
+        const spring = document.getElementById('spring');
+        const springWrap = document.getElementById('springWrap');
+        const fx = document.getElementById('fx');
+
+        const tensionFill = document.getElementById('tensionFill');
+        const tensionPct = document.getElementById('tensionPct');
+        const turnsHint = document.getElementById('turnsHint');
+        const gaugeFill = document.getElementById('gaugeFill');
+        const gaugeNeedle = document.getElementById('gaugeNeedle');
+        const indicatorText = document.getElementById('indicatorText');
+
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const hintText = document.getElementById('hintText');
+        const popState = document.getElementById('popState');
+        const modeText = document.getElementById('modeText');
+        const debugText = document.getElementById('debugText');
+
+        const resetBtn = document.getElementById('resetBtn');
+        const muteBtn = document.getElementById('muteBtn');
+
+        // ---------- State ----------
+        const geom = {
+            restY: 210,     // characterAssembly translateY when hidden inside
+            popY: 10,       // characterAssembly translateY when fully popped
+            dragMinY: -10,
+            dragMaxY: 230
+        };
+
+        const state = {
+            tension: 0,
+            threshold: rand(0.88, 1.18),
+            popped: false,
+            crankDeg: 0,
+            turns: 0,
+            draggingCrank: false,
+            lastAngle: 0,
+            pointerId: null,
+            lastClickMark: 0,
+            charY: geom.restY,
+            draggingJack: false,
+            jackPointerId: null,
+            jackStartY: 0,
+            jackStartCharY: 0
+        };
+
+        // Position character initially
+        characterAssembly.style.transform = `translate(-50%, ${state.charY}px)`;
+
+        function setStatus(kind, text, hint) {
+            statusText.textContent = text;
+            if (hint != null) hintText.textContent = hint;
+
+            const map = {
+                ready: ['bg-emerald-400', 'shadow-[0_0_20px_rgba(52,211,153,.45)]'],
+                winding: ['bg-sky-400', 'shadow-[0_0_20px_rgba(56,189,248,.45)]'],
+                danger: ['bg-amber-400', 'shadow-[0_0_20px_rgba(251,191,36,.45)]'],
+                popped: ['bg-rose-400', 'shadow-[0_0_20px_rgba(251,113,133,.45)]'],
+            };
+            statusDot.className = `w-2.5 h-2.5 rounded-full ${map[kind][0]} ${map[kind][1]}`;
+        }
+
+        function updateUI() {
+            const t = clamp(state.tension, 0, 1.2);
+            const pct = clamp(t, 0, 1) * 100;
+            tensionFill.style.width = `${pct.toFixed(0)}%`;
+            tensionPct.textContent = `${pct.toFixed(0)}%`;
+            turnsHint.textContent = `${state.turns.toFixed(1)} turns`;
+
+            gaugeFill.style.height = `${pct.toFixed(0)}%`;
+            gaugeNeedle.style.bottom = `${pct.toFixed(0)}%`;
+
+            // Indicator messaging + rattle
+            if (!state.popped) {
+                if (t < 0.05) {
+                    indicatorText.textContent = 'Winding…';
+                    setStatus('ready', 'Ready', 'Drag the crank clockwise.');
+                    popState.textContent = 'Armed';
+                    modeText.textContent = 'Wind-up';
+                    box.classList.remove('rattling');
+                } else if (t < 0.7) {
+                    indicatorText.textContent = 'Tension rising…';
+                    setStatus('winding', 'Winding', 'Keep going (clockwise).');
+                    popState.textContent = 'Armed';
+                    modeText.textContent = 'Wind-up';
+                    box.classList.remove('rattling');
+                } else {
+                    indicatorText.textContent = 'It feels… tight.';
+                    setStatus('danger', 'High tension', 'Any turn could do it.');
+                    popState.textContent = 'Danger';
+                    modeText.textContent = 'Wind-up';
+                    box.classList.add('rattling');
+                }
+            } else {
+                indicatorText.textContent = 'Surprise! Push down to latch.';
+                setStatus('popped', 'Popped!', 'Drag the character down to reset.');
+                popState.textContent = 'Released';
+                modeText.textContent = 'Reset';
+                box.classList.remove('rattling');
+            }
+
+            crankInner.style.transform = `rotate(${state.crankDeg}deg)`;
+            debugText.textContent = '';
+        }
+
+        function setTension(next) {
+            state.tension = clamp(next, 0, 1.25);
+            updateUI();
+        }
+
+        function addTension(delta) {
+            if (state.popped) return;
+            if (delta <= 0) return;
+
+            // Convert radians of clockwise movement to tension.
+            // ~ 2.6 turns (2.6 * 2π rad) to reach ~1.0.
+            const tensionGain = delta / (Math.PI * 2) / 2.6;
+            const prev = state.tension;
+            setTension(state.tension + tensionGain);
+
+            // Click sound roughly every 1/10 turn
+            const clickMark = Math.floor(state.turns * 10);
+            if (clickMark !== state.lastClickMark) {
+                state.lastClickMark = clickMark;
+                sound.click(clamp(state.tension, 0.08, 0.4));
+            }
+
+            // Trigger pop if we cross threshold
+            if (prev < state.threshold && state.tension >= state.threshold) {
+                triggerPop();
+            }
+        }
+
+        function spawnConfetti() {
+            const colors = ['#60a5fa', '#34d399', '#fbbf24', '#fb7185', '#a78bfa', '#22d3ee'];
+            const rect = scene.getBoundingClientRect();
+            const originX = rect.width * 0.5;
+            const originY = rect.height * 0.38;
+
+            const count = 18;
+            for (let i = 0; i < count; i++) {
+                const p = document.createElement('div');
+                p.className = 'confetti';
+                p.style.left = `${originX + rand(-18, 18)}px`;
+                p.style.top = `${originY + rand(-10, 10)}px`;
+                p.style.background = colors[Math.floor(Math.random() * colors.length)];
+                p.style.setProperty('--dx', `${rand(-170, 170)}px`);
+                p.style.setProperty('--dy', `${rand(90, 200)}px`);
+                p.style.setProperty('--dr', `${rand(-540, 540)}deg`);
+                p.style.animationDuration = `${rand(850, 1300)}ms`;
+                fx.appendChild(p);
+                p.addEventListener('animationend', () => p.remove());
+            }
+        }
+
+        function animateJackTo(targetY, opts = {}) {
+            const fromY = state.charY;
+            const toY = targetY;
+            state.charY = toY;
+
+            const dur = opts.duration ?? 850;
+            const easing = opts.easing ?? 'cubic-bezier(.16, 1.1, .2, 1)';
+
+            // WAAPI animation to get springy overshoot.
+            const kf = opts.keyframes ?? [
+                { transform: `translate(-50%, ${fromY}px)` },
+                { transform: `translate(-50%, ${lerp(fromY, toY, 0.7) - 18}px)`, offset: 0.68 },
+                { transform: `translate(-50%, ${toY}px)` }
+            ];
+
+            characterAssembly.getAnimations().forEach(a => a.cancel());
+            characterAssembly.animate(kf, { duration: dur, easing, fill: 'forwards' });
+            characterAssembly.style.transform = `translate(-50%, ${toY}px)`;
+        }
+
+        function setSpringCompressionByJackY(y) {
+            // y: larger means pushed down.
+            // Map: popped (popY) => 1.0, rest (restY) => 0.55
+            const t = clamp((y - geom.popY) / (geom.restY - geom.popY), 0, 1);
+            const scaleY = lerp(1.0, 0.55, t);
+            springWrap.style.transform = `translateX(-50%) scaleY(${scaleY.toFixed(3)})`;
+        }
+
+        function triggerPop() {
+            if (state.popped) return;
+            state.popped = true;
+            scene.classList.add('popped');
+            resetBtn.classList.remove('hidden');
+
+            // Stop box rattle
+            box.classList.remove('rattling');
+
+            // Pop animation
+            sound.pop();
+            spawnConfetti();
+
+            // Lift jack and wobble spring
+            animateJackTo(geom.popY, {
+                duration: 880,
+                keyframes: [
+                    { transform: `translate(-50%, ${state.charY}px)` },
+                    { transform: `translate(-50%, ${geom.popY - 24}px)`, offset: 0.72 },
+                    { transform: `translate(-50%, ${geom.popY + 6}px)`, offset: 0.88 },
+                    { transform: `translate(-50%, ${geom.popY}px)` }
+                ]
+            });
+
+            // Spring wobble pulse
+            spring.classList.remove('wobble');
+            void spring.offsetWidth; // restart
+            spring.classList.add('wobble');
+
+            setSpringCompressionByJackY(geom.popY);
+            updateUI();
+        }
+
+        function resetToy() {
+            state.popped = false;
+            scene.classList.remove('popped');
+            resetBtn.classList.add('hidden');
+
+            // Reset crank + tension
+            state.tension = 0;
+            state.threshold = rand(0.88, 1.18);
+            state.lastClickMark = 0;
+            state.turns = 0;
+            state.crankDeg = 0;
+
+            // Put jack back in box
+            animateJackTo(geom.restY, {
+                duration: 520,
+                easing: 'cubic-bezier(.2,.8,.2,1)',
+                keyframes: [
+                    { transform: `translate(-50%, ${state.charY}px)` },
+                    { transform: `translate(-50%, ${geom.restY}px)` }
+                ]
+            });
+            setSpringCompressionByJackY(geom.restY);
+
+            // Clear any spring wobble state
+            spring.classList.remove('wobble');
+
+            sound.latch();
+            updateUI();
+        }
+
+        function angleAtPointer(ev, el) {
+            const r = el.getBoundingClientRect();
+            const cx = r.left + r.width / 2;
+            const cy = r.top + r.height / 2;
+            return Math.atan2(ev.clientY - cy, ev.clientX - cx);
+        }
+
+        // ---------- Crank interactions ----------
+        function onCrankDown(ev) {
+            if (state.popped) return;
+            state.draggingCrank = true;
+            crank.classList.add('dragging');
+            state.pointerId = ev.pointerId;
+            crank.setPointerCapture(ev.pointerId);
+            state.lastAngle = angleAtPointer(ev, crank);
+
+            // Warm up audio on first interaction
+            sound.init();
+            if (sound.ctx && sound.ctx.state === 'suspended') sound.ctx.resume().catch(() => { });
+        }
+
+        function onCrankMove(ev) {
+            if (!state.draggingCrank || ev.pointerId !== state.pointerId) return;
+            if (state.popped) return;
+            const a = angleAtPointer(ev, crank);
+            let d = normalizeAngleDelta(a - state.lastAngle);
+            state.lastAngle = a;
+
+            // We treat clockwise rotation as positive tension.
+            // atan2 increases CCW, so clockwise is negative delta.
+            const clockwise = -d;
+            if (clockwise !== 0) {
+                state.crankDeg += clockwise * (180 / Math.PI);
+                const turnsDelta = clockwise / (Math.PI * 2);
+                state.turns = Math.max(0, state.turns + turnsDelta);
+                addTension(clockwise);
+                setSpringCompressionByJackY(lerp(geom.restY, geom.popY, clamp(state.tension, 0, 1)));
+                updateUI();
+            }
+        }
+
+        function onCrankUp(ev) {
+            if (ev.pointerId !== state.pointerId) return;
+            state.draggingCrank = false;
+            crank.classList.remove('dragging');
+            state.pointerId = null;
+        }
+
+        crank.addEventListener('pointerdown', onCrankDown);
+        crank.addEventListener('pointermove', onCrankMove);
+        crank.addEventListener('pointerup', onCrankUp);
+        crank.addEventListener('pointercancel', onCrankUp);
+
+        // ---------- Jack drag-to-reset ----------
+        function onJackDown(ev) {
+            if (!state.popped) return;
+            state.draggingJack = true;
+            state.jackPointerId = ev.pointerId;
+            characterAssembly.setPointerCapture(ev.pointerId);
+            state.jackStartY = ev.clientY;
+            state.jackStartCharY = state.charY;
+
+            sound.init();
+            if (sound.ctx && sound.ctx.state === 'suspended') sound.ctx.resume().catch(() => { });
+        }
+
+        function onJackMove(ev) {
+            if (!state.draggingJack || ev.pointerId !== state.jackPointerId) return;
+            const dy = ev.clientY - state.jackStartY;
+            const y = clamp(state.jackStartCharY + dy, geom.dragMinY, geom.restY);
+            state.charY = y;
+            characterAssembly.getAnimations().forEach(a => a.cancel());
+            characterAssembly.style.transform = `translate(-50%, ${y}px)`;
+
+            setSpringCompressionByJackY(y);
+
+            // Provide a subtle latch guidance
+            const latchT = clamp((y - geom.popY) / (geom.restY - geom.popY), 0, 1);
+            if (latchT > 0.78) {
+                hintText.textContent = 'Almost there… push a bit more.';
+            } else {
+                hintText.textContent = 'Drag the character down to reset.';
+            }
+        }
+
+        function onJackUp(ev) {
+            if (ev.pointerId !== state.jackPointerId) return;
+            state.draggingJack = false;
+            state.jackPointerId = null;
+
+            // If close enough to the rest position, latch.
+            if (state.charY > geom.restY - 18) {
+                resetToy();
+                return;
+            }
+
+            // Otherwise snap back up with wobble
+            animateJackTo(geom.popY, {
+                duration: 520,
+                easing: 'cubic-bezier(.2,.8,.2,1)',
+                keyframes: [
+                    { transform: `translate(-50%, ${state.charY}px)` },
+                    { transform: `translate(-50%, ${geom.popY}px)` }
+                ]
+            });
+            setSpringCompressionByJackY(geom.popY);
+
+            spring.classList.remove('wobble');
+            void spring.offsetWidth;
+            spring.classList.add('wobble');
+        }
+
+        characterAssembly.addEventListener('pointerdown', onJackDown);
+        characterAssembly.addEventListener('pointermove', onJackMove);
+        characterAssembly.addEventListener('pointerup', onJackUp);
+        characterAssembly.addEventListener('pointercancel', onJackUp);
+
+        // ---------- Buttons ----------
+        resetBtn.addEventListener('click', resetToy);
+
+        muteBtn.addEventListener('click', () => {
+            sound.enabled = !sound.enabled;
+            muteBtn.textContent = `Sound: ${sound.enabled ? 'On' : 'Off'}`;
+            muteBtn.setAttribute('aria-pressed', String(!sound.enabled));
+            if (sound.enabled) {
+                sound.init();
+                if (sound.ctx && sound.ctx.state === 'suspended') sound.ctx.resume().catch(() => { });
+            }
+        });
+
+        // ---------- Keyboard ----------
+        window.addEventListener('keydown', (ev) => {
+            if (ev.key.toLowerCase() === 'm') {
+                muteBtn.click();
+                return;
+            }
+            if (ev.key.toLowerCase() === 'r') {
+                resetToy();
+                return;
+            }
+            if (ev.key === 'ArrowRight') {
+                if (state.popped) return;
+                // Add a small crank step
+                const clockwise = 0.22;
+                state.crankDeg += clockwise * (180 / Math.PI);
+                const turnsDelta = clockwise / (Math.PI * 2);
+                state.turns = Math.max(0, state.turns + turnsDelta);
+                addTension(clockwise);
+                setSpringCompressionByJackY(lerp(geom.restY, geom.popY, clamp(state.tension, 0, 1)));
+                updateUI();
+            }
+        });
+
+        // ---------- Boot ----------
+        function boot() {
+            updateUI();
+            setSpringCompressionByJackY(geom.restY);
+
+            // Make character clickable target after pop
+            characterAssembly.style.cursor = 'default';
+
+            // On resize, nothing critical; angle calc uses live rects.
+        }
+
+        boot();
+    </script>
+</body>
+
+</html>
