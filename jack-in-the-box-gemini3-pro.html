@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jack-in-the-Box</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        body {
+            background-color: #f0f9ff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+
+        .scene {
+            perspective: 800px;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* The Box Container */
+        .box-wrapper {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            transform-style: preserve-3d;
+            transition: transform 0.1s;
+        }
+
+        .box-body {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #ef4444 25%, #dc2626 25%, #dc2626 50%, #ef4444 50%, #ef4444 75%, #dc2626 75%, #dc2626 100%);
+            background-size: 40px 40px;
+            border: 4px solid #991b1b;
+            border-radius: 8px;
+            position: relative;
+            z-index: 20;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .star-decoration {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 80px;
+            color: #fbbf24;
+            filter: drop-shadow(2px 2px 0px #b45309);
+        }
+
+        /* The Lid */
+        .lid {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 20px;
+            background-color: #ef4444;
+            border: 4px solid #991b1b;
+            border-bottom: none;
+            transform-origin: top;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 15;
+            top: -20px;
+            /* Sit on top */
+            border-radius: 4px 4px 0 0;
+        }
+
+        .lid.open {
+            transform: rotateX(-110deg);
+        }
+
+        /* The Character */
+        .character-container {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 0;
+            z-index: 10;
+            display: flex;
+            flex-direction: column-reverse;
+            align-items: center;
+            transition: height 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .character-head {
+            font-size: 80px;
+            line-height: 1;
+            filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
+            transform: scale(0);
+            transition: transform 0.2s;
+            position: relative;
+            z-index: 12;
+        }
+
+        /* Clown hat */
+        .hat {
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 40px;
+        }
+
+        .spring {
+            width: 40px;
+            background: repeating-linear-gradient(45deg,
+                    #6b7280,
+                    #6b7280 10px,
+                    #374151 10px,
+                    #374151 20px);
+            border-left: 2px solid #1f2937;
+            border-right: 2px solid #1f2937;
+            width: 40px;
+            height: 0;
+            transition: height 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .popped .character-container {
+            height: 250px;
+        }
+
+        .popped .spring {
+            height: 100%;
+            animation: spring-boing 2s ease-in-out infinite;
+        }
+
+        .popped .character-head {
+            transform: scale(1);
+            animation: head-wobble 2s ease-in-out infinite;
+        }
+
+        /* The Crank */
+        .crank-assembly {
+            position: absolute;
+            right: -40px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 5;
+            display: flex;
+            align-items: center;
+        }
+
+        .crank-shaft {
+            width: 40px;
+            height: 12px;
+            background-color: #9ca3af;
+            border: 2px solid #4b5563;
+        }
+
+        .crank-arm {
+            width: 12px;
+            height: 80px;
+            background-color: #d1d5db;
+            border: 2px solid #4b5563;
+            border-radius: 6px;
+            position: absolute;
+            right: -2px;
+            top: -34px;
+            /* Center the arm relative to shaft */
+            transform-origin: 50% 50%;
+        }
+
+        /* Group for rotation */
+        .crank-rotator {
+            position: absolute;
+            right: 0;
+            top: 50%;
+            width: 0;
+            height: 0;
+            transform-origin: 0 0;
+            /* Pivot point at the shaft connection */
+        }
+
+        .crank-handle {
+            width: 24px;
+            height: 40px;
+            background-color: #ef4444;
+            border: 2px solid #7f1d1d;
+            border-radius: 4px;
+            position: absolute;
+            right: -8px;
+            /* Offset from arm */
+            top: -60px;
+            /* Position at end of arm */
+            cursor: pointer;
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
+            transition: background-color 0.2s;
+        }
+
+        .crank-handle:hover {
+            background-color: #ff6b6b;
+        }
+
+        .crank-handle:active {
+            background-color: #b91c1c;
+        }
+
+        /* Animations */
+        @keyframes spring-boing {
+
+            0%,
+            100% {
+                transform: scaleY(1);
+            }
+
+            50% {
+                transform: scaleY(0.9);
+            }
+        }
+
+        @keyframes head-wobble {
+
+            0%,
+            100% {
+                transform: rotate(0deg) scale(1);
+            }
+
+            25% {
+                transform: rotate(-10deg) scale(1.1);
+            }
+
+            75% {
+                transform: rotate(10deg) scale(1.1);
+            }
+        }
+
+        @keyframes box-shake {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            25% {
+                transform: rotate(2deg);
+            }
+
+            50% {
+                transform: rotate(0deg);
+            }
+
+            75% {
+                transform: rotate(-2deg);
+            }
+
+            100% {
+                transform: rotate(0deg);
+            }
+        }
+
+        @keyframes music-note-float {
+            0% {
+                opacity: 1;
+                transform: translateY(0) rotate(0deg);
+            }
+
+            100% {
+                opacity: 0;
+                transform: translateY(-100px) rotate(20deg);
+            }
+        }
+
+        .shake-mild {
+            animation: box-shake 0.3s linear;
+        }
+
+        .shake-intense {
+            animation: box-shake 0.1s linear infinite;
+        }
+
+        .music-note {
+            position: absolute;
+            font-size: 24px;
+            color: #3b82f6;
+            pointer-events: none;
+            z-index: 50;
+            animation: music-note-float 1.5s forwards;
+        }
+
+        /* Confetti */
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #f00;
+            animation: confetti-fall 3s linear forwards;
+            z-index: 100;
+        }
+
+        @keyframes confetti-fall {
+            0% {
+                transform: translateY(0) rotate(0deg);
+                opacity: 1;
+            }
+
+            100% {
+                transform: translateY(400px) rotate(720deg);
+                opacity: 0;
+            }
+        }
+
+        /* UI Elements */
+        .tension-meter {
+            width: 200px;
+            height: 10px;
+            background-color: #e5e7eb;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 40px;
+            border: 1px solid #d1d5db;
+        }
+
+        .tension-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #4ade80, #facc15, #ef4444);
+            transition: width 0.2s ease-out;
+        }
+
+        .interaction-area {
+            cursor: pointer;
+            user-select: none;
+        }
+    </style>
+</head>
+
+<body class="bg-blue-50">
+
+    <div class="fixed top-4 left-4 z-50">
+        <h1 class="text-3xl font-bold text-blue-900 drop-shadow-sm">Jack-in-the-Box</h1>
+        <p class="text-blue-700 text-sm">Crank to play!</p>
+    </div>
+
+    <div class="scene">
+
+        <!-- The Toy -->
+        <div id="box-wrapper" class="box-wrapper">
+
+            <!-- Lid -->
+            <div id="lid" class="lid"></div>
+
+            <!-- Character (Initially Inside) -->
+            <div class="character-container">
+                <div class="character-head">🤡<div class="hat">🎩</div>
+                </div>
+                <div class="spring"></div>
+            </div>
+
+            <!-- Box Body -->
+            <div id="box-body"
+                class="box-body flex items-center justify-center cursor-pointer hover:brightness-110 transition-all"
+                title="Click to wind!">
+                <div class="star-decoration">⭐</div>
+            </div>
+
+            <!-- Crank Mechanism -->
+            <div class="crank-assembly">
+                <div class="crank-shaft"></div>
+                <div id="crank-rotator" class="crank-rotator">
+                    <div class="crank-arm"></div>
+                    <!-- Handle is the interactive part -->
+                    <div id="crank-handle" class="crank-handle" title="Click to wind!"></div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Tension/Progress -->
+        <div class="flex flex-col items-center gap-2 mt-8">
+            <div class="text-slate-600 font-semibold text-sm uppercase tracking-wider">Tension</div>
+            <div class="tension-meter">
+                <div id="tension-fill" class="tension-fill"></div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="mt-8 h-12">
+            <button id="reset-btn"
+                class="hidden bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-full shadow-lg transform transition hover:scale-105 active:scale-95">
+                Put Jack Back In Box
+            </button>
+            <p id="instruction-text" class="text-slate-500 animate-pulse font-medium">Click the crank or the box to
+                wind!</p>
+        </div>
+
+    </div>
+
+    <script>
+        // State
+        const state = {
+            tension: 0,
+            threshold: 100,
+            popped: false,
+            rotation: 0
+        };
+
+        // DOM Elements
+        const boxWrapper = document.getElementById('box-wrapper');
+        const lid = document.getElementById('lid');
+        const crankHandle = document.getElementById('crank-handle');
+        const crankRotator = document.getElementById('crank-rotator');
+        const tensionFill = document.getElementById('tension-fill');
+        const resetBtn = document.getElementById('reset-btn');
+        const instructionText = document.getElementById('instruction-text');
+        const boxBody = document.getElementById('box-body');
+
+        // Audio Context (Simple Oscillator for sound)
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioContext();
+
+        function playNote(frequency, type = 'sine', duration = 0.1) {
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator.type = type;
+            oscillator.frequency.value = frequency;
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            oscillator.start();
+            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            oscillator.stop(audioCtx.currentTime + duration);
+        }
+
+        function createMusicNote() {
+            const note = document.createElement('div');
+            note.classList.add('music-note');
+            note.innerHTML = ['♪', '♫', '♬', '♩'][Math.floor(Math.random() * 4)];
+
+            // Random position near the box
+            const rect = boxWrapper.getBoundingClientRect();
+            const x = Math.random() * 100 - 50;
+            const y = Math.random() * 50 - 25;
+
+            note.style.left = `calc(50% + ${x}px)`;
+            note.style.top = `calc(50% + ${y}px)`;
+            note.style.color = ['#3b82f6', '#ec4899', '#8b5cf6', '#10b981'][Math.floor(Math.random() * 4)];
+
+            boxWrapper.appendChild(note);
+
+            setTimeout(() => {
+                note.remove();
+            }, 1500);
+        }
+
+        function createConfetti() {
+            for (let i = 0; i < 50; i++) {
+                const confetti = document.createElement('div');
+                confetti.classList.add('confetti');
+                confetti.style.left = (window.innerWidth / 2) + (Math.random() * 200 - 100) + 'px';
+                confetti.style.top = (window.innerHeight / 2) + (Math.random() * 100 - 200) + 'px';
+                confetti.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 50%)`;
+                document.body.appendChild(confetti);
+
+                setTimeout(() => confetti.remove(), 3000);
+            }
+        }
+
+        // Interaction
+        function windCrank() {
+            if (state.popped) return;
+
+            // Rotate Crank
+            state.rotation += 360; // Full spin
+            crankRotator.style.transition = "transform 0.5s ease-in-out";
+            crankRotator.style.transform = `rotate(${state.rotation}deg)`;
+
+            // Increase Tension (Random amount between 10 and 20)
+            const increase = Math.floor(Math.random() * 10) + 10;
+            state.tension += increase;
+
+            // Cap tension visually until popped
+            const displayTension = Math.min(state.tension, state.threshold);
+            tensionFill.style.width = `${(displayTension / state.threshold) * 100}%`;
+
+            // Visual & Audio Feedback
+            createMusicNote();
+
+            // Pitch goes up as tension increases
+            const baseFreq = 261.63; // Middle C
+            const semitone = Math.floor(state.tension / 10);
+            const freq = baseFreq * Math.pow(2, semitone / 12);
+            playNote(freq, 'triangle', 0.2);
+
+            // Shake the box
+            boxWrapper.classList.remove('shake-mild');
+            void boxWrapper.offsetWidth; // Trigger reflow
+            boxWrapper.classList.add('shake-mild');
+
+            // Hide instruction
+            instructionText.classList.add('opacity-0');
+
+            // Check Trigger
+            if (state.tension >= state.threshold) {
+                setTimeout(pop, 600); // Slight delay for suspense
+            }
+        }
+
+        function pop() {
+            if (state.popped) return;
+            state.popped = true;
+
+            // Open Lid
+            lid.classList.add('open');
+
+            // Show Character
+            boxWrapper.classList.add('popped');
+
+            // Intense Shake
+            boxWrapper.classList.add('shake-intense');
+            setTimeout(() => boxWrapper.classList.remove('shake-intense'), 500);
+
+            // Sound Effect
+            playNote(400, 'sawtooth', 0.1);
+            setTimeout(() => playNote(600, 'sawtooth', 0.1), 100);
+            setTimeout(() => playNote(800, 'sawtooth', 0.4), 200);
+
+            // Confetti
+            createConfetti();
+
+            // UI Update
+            resetBtn.classList.remove('hidden');
+            instructionText.classList.add('hidden');
+        }
+
+        function reset() {
+            state.tension = 0;
+            state.popped = false;
+
+            // Reset Visuals
+            tensionFill.style.width = '0%';
+            lid.classList.remove('open');
+            boxWrapper.classList.remove('popped');
+
+            resetBtn.classList.add('hidden');
+            instructionText.classList.remove('hidden');
+            instructionText.classList.remove('opacity-0');
+
+            // Play simple reset sound
+            playNote(150, 'sine', 0.3);
+        }
+
+        // Event Listeners
+        crankHandle.addEventListener('click', windCrank);
+
+        // Allow clicking the box itself to wind if not popped (easier interaction)
+        boxBody.addEventListener('click', () => {
+            if (!state.popped) windCrank();
+        });
+
+        resetBtn.addEventListener('click', reset);
+
+    </script>
+</body>
+
+</html>
