@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jack-in-the-Box</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap');
+
+        body {
+            font-family: 'Fredoka One', cursive;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .box-container {
+            perspective: 1000px;
+        }
+
+        .box {
+            position: relative;
+            width: 280px;
+            height: 280px;
+            transform-style: preserve-3d;
+        }
+
+        .box-body {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(145deg, #e63946, #c1121f);
+            border-radius: 20px;
+            box-shadow:
+                inset 0 5px 20px rgba(255, 255, 255, 0.3),
+                inset 0 -5px 20px rgba(0, 0, 0, 0.2),
+                0 20px 60px rgba(0, 0, 0, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .box-lid {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 80px;
+            background: linear-gradient(145deg, #e63946, #c1121f);
+            border-radius: 20px 20px 0 0;
+            transform-origin: bottom center;
+            transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            z-index: 10;
+            box-shadow:
+                inset 0 5px 15px rgba(255, 255, 255, 0.3),
+                0 -5px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .box-lid.open {
+            transform: rotateX(-110deg);
+        }
+
+        .lid-stripe {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 20px;
+            background: #ffd60a;
+            transform: translateY(-50%);
+        }
+
+        .box-stripe {
+            position: absolute;
+            width: 30px;
+            height: 100%;
+            background: #ffd60a;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .box-stars {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .star {
+            position: absolute;
+            color: #ffd60a;
+            font-size: 24px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Crank Styles */
+        .crank-container {
+            position: absolute;
+            right: -60px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 20;
+        }
+
+        .crank-base {
+            width: 20px;
+            height: 60px;
+            background: linear-gradient(90deg, #8b4513, #a0522d);
+            border-radius: 5px;
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .crank-handle {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: grab;
+            transition: transform 0.1s ease-out;
+        }
+
+        .crank-handle:active {
+            cursor: grabbing;
+        }
+
+        .crank-knob {
+            width: 35px;
+            height: 35px;
+            background: radial-gradient(circle at 30% 30%, #ffd60a, #e6a800);
+            border-radius: 50%;
+            position: absolute;
+            right: -25px;
+            top: 50%;
+            transform: translateY(-50%);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .crank-arm {
+            width: 40px;
+            height: 8px;
+            background: linear-gradient(180deg, #8b4513, #654321);
+            border-radius: 4px;
+        }
+
+        /* Spring Styles */
+        .spring-container {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 0;
+            overflow: visible;
+            z-index: 5;
+        }
+
+        .spring {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 40px;
+        }
+
+        .spring-coil {
+            stroke: #888;
+            stroke-width: 4;
+            fill: none;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+        }
+
+        /* Jack Character */
+        .jack {
+            position: absolute;
+            bottom: -200px;
+            left: 50%;
+            transform: translateX(-50%);
+            transition: bottom 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            z-index: 8;
+        }
+
+        .jack.popped {
+            bottom: 100px;
+            animation: wobble 0.5s ease-in-out infinite;
+        }
+
+        @keyframes wobble {
+
+            0%,
+            100% {
+                transform: translateX(-50%) rotate(-5deg);
+            }
+
+            50% {
+                transform: translateX(-50%) rotate(5deg);
+            }
+        }
+
+        .jack-head {
+            width: 100px;
+            height: 100px;
+            background: radial-gradient(circle at 30% 30%, #ffeb3b, #ffc107);
+            border-radius: 50%;
+            position: relative;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .jack-eye {
+            position: absolute;
+            width: 25px;
+            height: 30px;
+            background: white;
+            border-radius: 50%;
+            top: 30px;
+        }
+
+        .jack-eye.left {
+            left: 15px;
+        }
+
+        .jack-eye.right {
+            right: 15px;
+        }
+
+        .jack-pupil {
+            position: absolute;
+            width: 12px;
+            height: 15px;
+            background: #333;
+            border-radius: 50%;
+            top: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            transition: transform 0.2s;
+        }
+
+        .jack-mouth {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px;
+            height: 25px;
+            background: #c1121f;
+            border-radius: 0 0 50px 50px;
+            overflow: hidden;
+        }
+
+        .jack-teeth {
+            display: flex;
+            justify-content: center;
+            gap: 3px;
+            margin-top: 2px;
+        }
+
+        .tooth {
+            width: 8px;
+            height: 10px;
+            background: white;
+            border-radius: 0 0 3px 3px;
+        }
+
+        .jack-hat {
+            position: absolute;
+            top: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .hat-cone {
+            width: 0;
+            height: 0;
+            border-left: 40px solid transparent;
+            border-right: 40px solid transparent;
+            border-bottom: 50px solid #e63946;
+            position: relative;
+        }
+
+        .hat-ball {
+            width: 20px;
+            height: 20px;
+            background: radial-gradient(circle at 30% 30%, #fff, #ddd);
+            border-radius: 50%;
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        /* Tension Meter */
+        .tension-meter {
+            position: absolute;
+            top: -80px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+        }
+
+        .meter-label {
+            text-align: center;
+            color: white;
+            font-size: 14px;
+            margin-bottom: 8px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .meter-bar {
+            height: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+
+        .meter-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #4ade80, #fbbf24, #ef4444);
+            border-radius: 10px;
+            transition: width 0.1s ease-out;
+        }
+
+        .meter-marks {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+            padding: 0 10px;
+        }
+
+        .mark {
+            width: 2px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        /* Instructions */
+        .instructions {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px 25px;
+            border-radius: 30px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Reset Button */
+        .reset-btn {
+            position: absolute;
+            bottom: -60px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 30px;
+            background: linear-gradient(145deg, #4ade80, #22c55e);
+            border: none;
+            border-radius: 25px;
+            color: white;
+            font-family: 'Fredoka One', cursive;
+            font-size: 16px;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(34, 197, 94, 0.4);
+            transition: all 0.3s ease;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .reset-btn.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .reset-btn:hover {
+            transform: translateX(-50%) scale(1.05);
+            box-shadow: 0 8px 25px rgba(34, 197, 94, 0.5);
+        }
+
+        /* Confetti */
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        /* Click hint */
+        .click-hint {
+            position: absolute;
+            right: -100px;
+            top: 30%;
+            color: white;
+            font-size: 12px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 0.5;
+                transform: translateX(0);
+            }
+
+            50% {
+                opacity: 1;
+                transform: translateX(-5px);
+            }
+        }
+
+        /* Sound toggle */
+        .sound-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            font-size: 24px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s;
+        }
+
+        .sound-toggle:hover {
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+
+<body class="flex items-center justify-center">
+    <button class="sound-toggle" id="soundToggle" title="Toggle Sound">🔊</button>
+
+    <div class="box-container">
+        <!-- Tension Meter -->
+        <div class="tension-meter">
+            <div class="meter-label">🎵 Winding Tension</div>
+            <div class="meter-bar">
+                <div class="meter-fill" id="tensionFill"></div>
+            </div>
+            <div class="meter-marks">
+                <div class="mark"></div>
+                <div class="mark"></div>
+                <div class="mark"></div>
+                <div class="mark"></div>
+                <div class="mark"></div>
+            </div>
+        </div>
+
+        <!-- Jack-in-the-Box -->
+        <div class="box" id="box">
+            <!-- Box Body -->
+            <div class="box-body">
+                <div class="box-stripe"></div>
+                <div class="box-stars">
+                    <span class="star" style="top: 30%; left: 15%;">★</span>
+                    <span class="star" style="top: 60%; left: 20%;">★</span>
+                    <span class="star" style="top: 40%; right: 15%;">★</span>
+                    <span class="star" style="top: 70%; right: 20%;">★</span>
+                </div>
+
+                <!-- Spring -->
+                <div class="spring-container" id="springContainer">
+                    <svg class="spring" id="spring" viewBox="0 0 60 40">
+                        <path class="spring-coil"
+                            d="M5,40 Q15,30 30,30 Q45,30 55,40 M5,35 Q15,25 30,25 Q45,25 55,35 M5,30 Q15,20 30,20 Q45,20 55,30 M5,25 Q15,15 30,15 Q45,15 55,25 M5,20 Q15,10 30,10 Q45,10 55,20 M5,15 Q15,5 30,5 Q45,5 55,15"
+                            id="springPath" />
+                    </svg>
+                </div>
+
+                <!-- Jack -->
+                <div class="jack" id="jack">
+                    <div class="jack-hat">
+                        <div class="hat-ball"></div>
+                        <div class="hat-cone"></div>
+                    </div>
+                    <div class="jack-head">
+                        <div class="jack-eye left">
+                            <div class="jack-pupil" id="pupilLeft"></div>
+                        </div>
+                        <div class="jack-eye right">
+                            <div class="jack-pupil" id="pupilRight"></div>
+                        </div>
+                        <div class="jack-mouth">
+                            <div class="jack-teeth">
+                                <div class="tooth"></div>
+                                <div class="tooth"></div>
+                                <div class="tooth"></div>
+                                <div class="tooth"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Box Lid -->
+            <div class="box-lid" id="lid">
+                <div class="lid-stripe"></div>
+                <div class="box-stars">
+                    <span class="star" style="top: 30%; left: 20%;">★</span>
+                    <span class="star" style="top: 50%; right: 20%;">★</span>
+                </div>
+            </div>
+
+            <!-- Crank -->
+            <div class="crank-container">
+                <div class="crank-base"></div>
+                <div class="crank-handle" id="crank">
+                    <div class="crank-arm"></div>
+                    <div class="crank-knob"></div>
+                </div>
+                <div class="click-hint" id="clickHint">← Click & drag!</div>
+            </div>
+
+            <!-- Reset Button -->
+            <button class="reset-btn" id="resetBtn">🔄 Reset</button>
+        </div>
+    </div>
+
+    <div class="instructions">
+        <div class="text-purple-800 font-bold">🎪 Click and drag the crank to wind up the box!</div>
+        <div class="text-purple-600 text-sm">Watch the tension meter fill up... SURPRISE!</div>
+    </div>
+
+    <script>
+        // State
+        let tension = 0;
+        let isDragging = false;
+        let lastAngle = 0;
+        let isPopped = false;
+        let soundEnabled = true;
+        let crankRotation = 0;
+
+        // Elements
+        const crank = document.getElementById('crank');
+        const tensionFill = document.getElementById('tensionFill');
+        const lid = document.getElementById('lid');
+        const jack = document.getElementById('jack');
+        const springContainer = document.getElementById('springContainer');
+        const springPath = document.getElementById('springPath');
+        const resetBtn = document.getElementById('resetBtn');
+        const clickHint = document.getElementById('clickHint');
+        const soundToggle = document.getElementById('soundToggle');
+        const pupilLeft = document.getElementById('pupilLeft');
+        const pupilRight = document.getElementById('pupilRight');
+
+        // Audio Context
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playWindingSound() {
+            if (!soundEnabled || !audioCtx) return;
+
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            // Rising pitch as tension increases
+            const baseFreq = 200 + (tension * 5);
+            oscillator.frequency.setValueAtTime(baseFreq, audioCtx.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(baseFreq * 1.5, audioCtx.currentTime + 0.1);
+
+            oscillator.type = 'square';
+            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+
+            oscillator.start(audioCtx.currentTime);
+            oscillator.stop(audioCtx.currentTime + 0.1);
+        }
+
+        function playPopSound() {
+            if (!soundEnabled || !audioCtx) return;
+
+            // Create a springy "boing" sound
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            oscillator.frequency.setValueAtTime(400, audioCtx.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.5);
+
+            oscillator.type = 'sine';
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+
+            oscillator.start(audioCtx.currentTime);
+            oscillator.stop(audioCtx.currentTime + 0.5);
+
+            // Add some noise for the pop
+            const bufferSize = audioCtx.sampleRate * 0.2;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.1));
+            }
+
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+            const noiseGain = audioCtx.createGain();
+            noise.connect(noiseGain);
+            noiseGain.connect(audioCtx.destination);
+            noiseGain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            noise.start();
+        }
+
+        function playMusic() {
+            if (!soundEnabled || !audioCtx) return;
+
+            // Simple "Pop Goes the Weasel" melody
+            const notes = [
+                { freq: 330, duration: 0.2 },
+                { freq: 330, duration: 0.2 },
+                { freq: 330, duration: 0.2 },
+                { freq: 294, duration: 0.3 },
+                { freq: 392, duration: 0.3 },
+                { freq: 349, duration: 0.3 },
+                { freq: 330, duration: 0.2 },
+                { freq: 330, duration: 0.2 },
+                { freq: 330, duration: 0.2 },
+                { freq: 294, duration: 0.3 },
+                { freq: 392, duration: 0.3 },
+                { freq: 349, duration: 0.3 }
+            ];
+
+            let time = audioCtx.currentTime;
+            notes.forEach(note => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.frequency.setValueAtTime(note.freq, time);
+                osc.type = 'square';
+                gain.gain.setValueAtTime(0.1, time);
+                gain.gain.exponentialRampToValueAtTime(0.01, time + note.duration);
+                osc.start(time);
+                osc.stop(time + note.duration);
+                time += note.duration;
+            });
+        }
+
+        // Crank interaction
+        function getCrankAngle(e) {
+            const rect = crank.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+
+            return Math.atan2(clientY - centerY, clientX - centerX) * (180 / Math.PI);
+        }
+
+        function startDrag(e) {
+            if (isPopped) return;
+            initAudio();
+            isDragging = true;
+            lastAngle = getCrankAngle(e);
+            clickHint.style.display = 'none';
+            e.preventDefault();
+        }
+
+        function drag(e) {
+            if (!isDragging || isPopped) return;
+
+            const currentAngle = getCrankAngle(e);
+            let angleDiff = currentAngle - lastAngle;
+
+            // Normalize angle difference
+            if (angleDiff > 180) angleDiff -= 360;
+            if (angleDiff < -180) angleDiff += 360;
+
+            // Only count clockwise rotation (positive angleDiff)
+            if (angleDiff > 0) {
+                tension += angleDiff * 0.15;
+                crankRotation += angleDiff;
+                tension = Math.min(tension, 100);
+
+                // Update UI
+                tensionFill.style.width = tension + '%';
+                crank.style.transform = `translateY(-50%) rotate(${crankRotation}deg)`;
+
+                // Update spring
+                updateSpring(tension);
+
+                // Play winding sound
+                playWindingSound();
+
+                // Play music at certain intervals
+                if (Math.floor(tension) % 25 === 0 && tension > 0 && tension < 100) {
+                    playMusic();
+                }
+
+                // Check for pop
+                if (tension >= 100) {
+                    popJack();
+                }
+            }
+
+            lastAngle = currentAngle;
+            e.preventDefault();
+        }
+
+        function stopDrag() {
+            isDragging = false;
+        }
+
+        function updateSpring(tensionValue) {
+            // Compress spring as tension increases
+            const compression = tensionValue / 100;
+            const springHeight = 40 - (compression * 20);
+            springContainer.style.height = springHeight + 'px';
+
+            // Adjust spring SVG path
+            const coils = 6;
+            const amplitude = 10 - (compression * 3);
+            let path = '';
+            for (let i = 0; i <= coils; i++) {
+                const y = 40 - (i * (springHeight / coils));
+                const x1 = i % 2 === 0 ? 5 : 55;
+                const x2 = i % 2 === 0 ? 55 : 5;
+                if (i === 0) {
+                    path += `M${x1},${y} `;
+                } else {
+                    path += `Q${30},${y - (springHeight / coils) / 2} ${x2},${y} `;
+                }
+            }
+            springPath.setAttribute('d', path);
+        }
+
+        function popJack() {
+            isPopped = true;
+            isDragging = false;
+
+            // Play pop sound
+            playPopSound();
+
+            // Animate lid opening
+            lid.classList.add('open');
+
+            // Animate jack popping out
+            jack.classList.add('popped');
+
+            // Show reset button
+            resetBtn.classList.add('show');
+
+            // Create confetti
+            createConfetti();
+
+            // Make jack eyes look around
+            animateEyes();
+        }
+
+        function animateEyes() {
+            if (!isPopped) return;
+
+            const randomX = (Math.random() - 0.5) * 6;
+            const randomY = (Math.random() - 0.5) * 4;
+
+            pupilLeft.style.transform = `translateX(calc(-50% + ${randomX}px)) translateY(${randomY}px)`;
+            pupilRight.style.transform = `translateX(calc(-50% + ${randomX}px)) translateY(${randomY}px)`;
+
+            setTimeout(animateEyes, 500 + Math.random() * 1000);
+        }
+
+        function createConfetti() {
+            const colors = ['#e63946', '#ffd60a', '#4ade80', '#3b82f6', '#a855f7'];
+            const shapes = ['■', '●', '▲', '★'];
+
+            for (let i = 0; i < 50; i++) {
+                setTimeout(() => {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti';
+                    confetti.textContent = shapes[Math.floor(Math.random() * shapes.length)];
+                    confetti.style.left = Math.random() * window.innerWidth + 'px';
+                    confetti.style.top = '-20px';
+                    confetti.style.color = colors[Math.floor(Math.random() * colors.length)];
+                    confetti.style.fontSize = (10 + Math.random() * 20) + 'px';
+                    confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
+                    document.body.appendChild(confetti);
+
+                    const duration = 2000 + Math.random() * 2000;
+                    const xEnd = (Math.random() - 0.5) * 400;
+
+                    confetti.animate([
+                        { top: '-20px', opacity: 1, transform: `rotate(0deg)` },
+                        { top: window.innerHeight + 'px', opacity: 0, transform: `translateX(${xEnd}px) rotate(${720 + Math.random() * 360}deg)` }
+                    ], {
+                        duration: duration,
+                        easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+                    }).onfinish = () => confetti.remove();
+                }, i * 30);
+            }
+        }
+
+        function reset() {
+            // Reset state
+            tension = 0;
+            isPopped = false;
+            crankRotation = 0;
+
+            // Reset UI
+            tensionFill.style.width = '0%';
+            crank.style.transform = 'translateY(-50%) rotate(0deg)';
+            lid.classList.remove('open');
+            jack.classList.remove('popped');
+            resetBtn.classList.remove('show');
+            clickHint.style.display = 'block';
+
+            // Reset spring
+            updateSpring(0);
+
+            // Reset pupils
+            pupilLeft.style.transform = 'translateX(-50%)';
+            pupilRight.style.transform = 'translateX(-50%)';
+        }
+
+        // Event Listeners
+        crank.addEventListener('mousedown', startDrag);
+        crank.addEventListener('touchstart', startDrag, { passive: false });
+
+        document.addEventListener('mousemove', drag);
+        document.addEventListener('touchmove', drag, { passive: false });
+
+        document.addEventListener('mouseup', stopDrag);
+        document.addEventListener('touchend', stopDrag);
+
+        resetBtn.addEventListener('click', reset);
+
+        soundToggle.addEventListener('click', () => {
+            soundEnabled = !soundEnabled;
+            soundToggle.textContent = soundEnabled ? '🔊' : '🔇';
+        });
+
+        // Track mouse for jack eyes to follow (when popped)
+        document.addEventListener('mousemove', (e) => {
+            if (isPopped) {
+                const rect = jack.getBoundingClientRect();
+                const jackCenterX = rect.left + rect.width / 2;
+                const jackCenterY = rect.top + rect.height / 2;
+
+                const deltaX = (e.clientX - jackCenterX) / 50;
+                const deltaY = (e.clientY - jackCenterY) / 50;
+
+                const maxMove = 5;
+                const moveX = Math.max(-maxMove, Math.min(maxMove, deltaX));
+                const moveY = Math.max(-maxMove, Math.min(maxMove, deltaY));
+
+                pupilLeft.style.transform = `translateX(calc(-50% + ${moveX}px)) translateY(${moveY}px)`;
+                pupilRight.style.transform = `translateX(calc(-50% + ${moveX}px)) translateY(${moveY}px)`;
+            }
+        });
+    </script>
+</body>
+
+</html>
