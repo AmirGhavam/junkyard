@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jack-in-the-Box Toy</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap');
+
+        body {
+            font-family: 'Fredoka One', cursive;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .box-container {
+            perspective: 1000px;
+        }
+
+        .box {
+            background: linear-gradient(145deg, #e74c3c, #c0392b);
+            border: 8px solid #8B4513;
+            border-radius: 8px;
+            box-shadow:
+                inset 0 0 20px rgba(0, 0, 0, 0.3),
+                0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .box-pattern {
+            background-image:
+                repeating-linear-gradient(45deg,
+                    transparent,
+                    transparent 10px,
+                    rgba(255, 255, 255, 0.1) 10px,
+                    rgba(255, 255, 255, 0.1) 20px);
+        }
+
+        .lid {
+            background: linear-gradient(145deg, #e74c3c, #c0392b);
+            border: 8px solid #8B4513;
+            border-bottom: none;
+            transform-origin: bottom;
+            transition: transform 0.1s ease-out;
+        }
+
+        .lid.open {
+            animation: lidOpen 0.3s ease-out forwards;
+        }
+
+        @keyframes lidOpen {
+            0% {
+                transform: rotateX(0deg);
+            }
+
+            60% {
+                transform: rotateX(-120deg);
+            }
+
+            80% {
+                transform: rotateX(-110deg);
+            }
+
+            100% {
+                transform: rotateX(-115deg);
+            }
+        }
+
+        .crank-handle {
+            cursor: pointer;
+            transform-origin: center;
+            transition: transform 0.1s;
+        }
+
+        .crank-handle:hover {
+            filter: brightness(1.1);
+        }
+
+        .crank-handle.turning {
+            animation: crankTurn 0.2s linear;
+        }
+
+        @keyframes crankTurn {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(90deg);
+            }
+        }
+
+        .jack {
+            opacity: 0;
+            transform: translateY(100px) scale(0.3);
+        }
+
+        .jack.pop {
+            animation: popOut 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+        }
+
+        @keyframes popOut {
+            0% {
+                opacity: 0;
+                transform: translateY(100px) scale(0.3);
+            }
+
+            50% {
+                opacity: 1;
+                transform: translateY(-50px) scale(1.1);
+            }
+
+            70% {
+                transform: translateY(-30px) scale(0.95);
+            }
+
+            100% {
+                opacity: 1;
+                transform: translateY(-40px) scale(1);
+            }
+        }
+
+        .jack.wobble {
+            animation: wobble 0.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes wobble {
+            0% {
+                transform: translateY(-40px) rotate(-5deg);
+            }
+
+            100% {
+                transform: translateY(-35px) rotate(5deg);
+            }
+        }
+
+        .spring {
+            opacity: 0;
+        }
+
+        .spring.show {
+            opacity: 1;
+            animation: springStretch 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+        }
+
+        @keyframes springStretch {
+            0% {
+                height: 0;
+            }
+
+            100% {
+                height: 80px;
+            }
+        }
+
+        .tension-bar-fill {
+            transition: width 0.3s ease-out;
+            background: linear-gradient(90deg, #2ecc71, #f1c40f, #e74c3c);
+        }
+
+        .tension-glow {
+            animation: pulseGlow 0.5s ease-in-out infinite;
+        }
+
+        @keyframes pulseGlow {
+
+            0%,
+            100% {
+                box-shadow: 0 0 10px rgba(231, 76, 60, 0.5);
+            }
+
+            50% {
+                box-shadow: 0 0 25px rgba(231, 76, 60, 0.9);
+            }
+        }
+
+        .music-note {
+            position: absolute;
+            animation: floatNote 1s ease-out forwards;
+            opacity: 0;
+        }
+
+        @keyframes floatNote {
+            0% {
+                opacity: 1;
+                transform: translateY(0) rotate(0deg);
+            }
+
+            100% {
+                opacity: 0;
+                transform: translateY(-50px) rotate(20deg);
+            }
+        }
+
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            animation: confettiFall 2s ease-out forwards;
+        }
+
+        @keyframes confettiFall {
+            0% {
+                opacity: 1;
+                transform: translateY(0) rotate(0deg);
+            }
+
+            100% {
+                opacity: 0;
+                transform: translateY(300px) rotate(720deg);
+            }
+        }
+
+        .star {
+            position: absolute;
+            font-size: 24px;
+            animation: starBurst 0.8s ease-out forwards;
+        }
+
+        @keyframes starBurst {
+            0% {
+                opacity: 1;
+                transform: scale(0);
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1.5);
+            }
+
+            100% {
+                opacity: 0;
+                transform: scale(0);
+            }
+        }
+
+        .reset-btn {
+            transition: all 0.3s ease;
+        }
+
+        .reset-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .instruction {
+            animation: bounce 1s ease-in-out infinite;
+        }
+
+        @keyframes bounce {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+    </style>
+</head>
+
+<body class="flex flex-col items-center justify-center min-h-screen p-4">
+    <h1 class="text-4xl md:text-5xl text-white mb-2 drop-shadow-lg text-center">🎪 Jack-in-the-Box 🎪</h1>
+
+    <!-- Tension Indicator -->
+    <div class="mb-6 w-64 md:w-80">
+        <div class="flex justify-between text-white text-sm mb-1">
+            <span>Tension</span>
+            <span id="tensionPercent">0%</span>
+        </div>
+        <div class="h-6 bg-gray-800 rounded-full overflow-hidden border-4 border-yellow-600 shadow-lg" id="tensionBar">
+            <div class="tension-bar-fill h-full rounded-full" id="tensionFill" style="width: 0%"></div>
+        </div>
+        <p class="text-yellow-300 text-center mt-2 text-sm" id="tensionText">Click the crank to wind up!</p>
+    </div>
+
+    <!-- Main Box Container -->
+    <div class="box-container relative" id="boxContainer">
+        <!-- Music Notes Container -->
+        <div id="musicNotes" class="absolute inset-0 pointer-events-none"></div>
+
+        <!-- Confetti Container -->
+        <div id="confettiContainer" class="absolute inset-0 pointer-events-none overflow-visible"></div>
+
+        <!-- Jack Character -->
+        <div class="jack absolute z-20" id="jack" style="left: 50%; transform: translateX(-50%); top: -120px;">
+            <!-- Spring -->
+            <svg class="spring mx-auto" id="spring" width="30" height="80" viewBox="0 0 30 80">
+                <path d="M15 0 Q0 10 15 20 Q30 30 15 40 Q0 50 15 60 Q30 70 15 80" stroke="#f1c40f" stroke-width="4"
+                    fill="none" />
+            </svg>
+            <!-- Clown Head -->
+            <div class="relative -mt-2">
+                <!-- Hat -->
+                <div class="w-20 h-16 mx-auto relative">
+                    <div class="absolute bottom-0 w-20 h-12 bg-purple-600 rounded-t-full border-4 border-purple-800">
+                    </div>
+                    <div
+                        class="absolute -top-2 left-1/2 -translate-x-1/2 w-6 h-6 bg-yellow-400 rounded-full border-2 border-yellow-600">
+                    </div>
+                </div>
+                <!-- Face -->
+                <div
+                    class="w-24 h-24 bg-yellow-200 rounded-full border-4 border-yellow-400 mx-auto relative -mt-2 shadow-lg">
+                    <!-- Eyes -->
+                    <div class="absolute top-6 left-4 w-5 h-5 bg-white rounded-full border-2 border-gray-800">
+                        <div class="w-2 h-2 bg-black rounded-full mt-1 ml-1"></div>
+                    </div>
+                    <div class="absolute top-6 right-4 w-5 h-5 bg-white rounded-full border-2 border-gray-800">
+                        <div class="w-2 h-2 bg-black rounded-full mt-1 ml-1"></div>
+                    </div>
+                    <!-- Nose -->
+                    <div
+                        class="absolute top-12 left-1/2 -translate-x-1/2 w-6 h-6 bg-red-500 rounded-full border-2 border-red-700">
+                    </div>
+                    <!-- Mouth -->
+                    <div
+                        class="absolute bottom-4 left-1/2 -translate-x-1/2 w-12 h-6 border-b-4 border-red-500 rounded-b-full">
+                    </div>
+                    <!-- Cheeks -->
+                    <div class="absolute top-12 left-1 w-4 h-4 bg-pink-400 rounded-full opacity-60"></div>
+                    <div class="absolute top-12 right-1 w-4 h-4 bg-pink-400 rounded-full opacity-60"></div>
+                </div>
+                <!-- Collar -->
+                <div class="flex justify-center -mt-2">
+                    <div class="w-8 h-8 bg-red-500 rounded-full -mr-1 border-2 border-red-700"></div>
+                    <div class="w-8 h-8 bg-blue-500 rounded-full -mr-1 border-2 border-blue-700"></div>
+                    <div class="w-8 h-8 bg-green-500 rounded-full -mr-1 border-2 border-green-700"></div>
+                    <div class="w-8 h-8 bg-yellow-500 rounded-full border-2 border-yellow-700"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lid -->
+        <div class="lid w-48 h-12 md:w-56 md:h-14 rounded-t-lg box-pattern relative z-10" id="lid">
+            <div
+                class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-4 bg-yellow-500 rounded border-2 border-yellow-700">
+            </div>
+        </div>
+
+        <!-- Box Body -->
+        <div class="box w-48 h-40 md:w-56 md:h-48 rounded-b-lg box-pattern relative">
+            <!-- Question marks inside -->
+            <div class="absolute inset-0 flex items-center justify-center text-6xl opacity-20" id="questionMarks">
+                ❓
+            </div>
+
+            <!-- Stars decoration -->
+            <div class="absolute top-4 left-4 text-yellow-400 text-xl">⭐</div>
+            <div class="absolute top-4 right-4 text-yellow-400 text-xl">⭐</div>
+            <div class="absolute bottom-4 left-4 text-yellow-400 text-xl">⭐</div>
+            <div class="absolute bottom-4 right-4 text-yellow-400 text-xl">⭐</div>
+        </div>
+
+        <!-- Crank -->
+        <div class="absolute -right-16 md:-right-20 top-1/2 transform -translate-y-1/4" id="crankArea">
+            <!-- Crank Base -->
+            <div class="w-8 h-8 bg-gray-700 rounded-full border-4 border-gray-800 shadow-lg"></div>
+            <!-- Crank Handle -->
+            <svg class="crank-handle absolute -top-6 -left-2" id="crankHandle" width="50" height="80"
+                viewBox="0 0 50 80" onclick="turnCrank()">
+                <rect x="20" y="30" width="10" height="30" fill="#8B4513" rx="2" />
+                <circle cx="25" cy="30" r="12" fill="#c0392b" stroke="#8B4513" stroke-width="3" />
+                <circle cx="25" cy="30" r="6" fill="#e74c3c" />
+            </svg>
+        </div>
+    </div>
+
+    <!-- Instructions -->
+    <p class="instruction text-white mt-8 text-lg" id="instruction">👆 Click the crank to wind up!</p>
+
+    <!-- Reset Button -->
+    <button
+        class="reset-btn mt-6 px-8 py-3 bg-yellow-500 hover:bg-yellow-400 text-gray-800 rounded-full font-bold text-lg shadow-lg hidden"
+        id="resetBtn" onclick="resetBox()">
+        🔄 Play Again!
+    </button>
+
+    <script>
+        let tension = 0;
+        let isOpen = false;
+        let crankTurns = 0;
+        const maxTurns = 8;
+
+        const crankHandle = document.getElementById('crankHandle');
+        const tensionFill = document.getElementById('tensionFill');
+        const tensionPercent = document.getElementById('tensionPercent');
+        const tensionText = document.getElementById('tensionText');
+        const tensionBar = document.getElementById('tensionBar');
+        const lid = document.getElementById('lid');
+        const jack = document.getElementById('jack');
+        const spring = document.getElementById('spring');
+        const resetBtn = document.getElementById('resetBtn');
+        const instruction = document.getElementById('instruction');
+        const musicNotes = document.getElementById('musicNotes');
+        const confettiContainer = document.getElementById('confettiContainer');
+        const questionMarks = document.getElementById('questionMarks');
+
+        const notes = ['🎵', '🎶', '♪', '♫'];
+        const confettiColors = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6', '#e91e63'];
+
+        function turnCrank() {
+            if (isOpen) return;
+
+            crankTurns++;
+            tension = Math.min((crankTurns / maxTurns) * 100, 100);
+
+            // Animate crank
+            crankHandle.style.transform = `rotate(${crankTurns * 90}deg)`;
+
+            // Update tension bar
+            tensionFill.style.width = tension + '%';
+            tensionPercent.textContent = Math.round(tension) + '%';
+
+            // Add music note
+            createMusicNote();
+
+            // Play a click sound effect (visual feedback)
+            crankHandle.classList.add('turning');
+            setTimeout(() => crankHandle.classList.remove('turning'), 200);
+
+            // Update tension text and effects
+            if (tension < 30) {
+                tensionText.textContent = '🎵 Keep winding...';
+            } else if (tension < 60) {
+                tensionText.textContent = '🎶 Getting tense...';
+                tensionBar.classList.add('tension-glow');
+            } else if (tension < 90) {
+                tensionText.textContent = '😬 Almost there!';
+            } else {
+                tensionText.textContent = '😱 MAXIMUM TENSION!';
+            }
+
+            // Shake the box slightly as tension builds
+            if (tension > 50) {
+                const shakeIntensity = (tension - 50) / 50 * 3;
+                const boxContainer = document.getElementById('boxContainer');
+                boxContainer.style.transform = `translateX(${Math.random() * shakeIntensity - shakeIntensity / 2}px)`;
+                setTimeout(() => boxContainer.style.transform = '', 100);
+            }
+
+            // Pop when max tension reached
+            if (crankTurns >= maxTurns) {
+                setTimeout(popOpen, 300);
+            }
+        }
+
+        function createMusicNote() {
+            const note = document.createElement('div');
+            note.className = 'music-note text-2xl';
+            note.textContent = notes[Math.floor(Math.random() * notes.length)];
+            note.style.left = (Math.random() * 100) + '%';
+            note.style.top = '50%';
+            musicNotes.appendChild(note);
+
+            setTimeout(() => note.remove(), 1000);
+        }
+
+        function createConfetti() {
+            for (let i = 0; i < 30; i++) {
+                setTimeout(() => {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti';
+                    confetti.style.left = (Math.random() * 200 - 50) + 'px';
+                    confetti.style.top = '-50px';
+                    confetti.style.backgroundColor = confettiColors[Math.floor(Math.random() * confettiColors.length)];
+                    confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+                    confetti.style.animationDelay = (Math.random() * 0.5) + 's';
+                    confettiContainer.appendChild(confetti);
+
+                    setTimeout(() => confetti.remove(), 2500);
+                }, i * 30);
+            }
+        }
+
+        function createStars() {
+            const starPositions = [
+                { x: -30, y: -150 },
+                { x: 30, y: -180 },
+                { x: -50, y: -120 },
+                { x: 60, y: -140 },
+                { x: 0, y: -200 }
+            ];
+
+            starPositions.forEach((pos, i) => {
+                setTimeout(() => {
+                    const star = document.createElement('div');
+                    star.className = 'star';
+                    star.textContent = '✨';
+                    star.style.left = `calc(50% + ${pos.x}px)`;
+                    star.style.top = pos.y + 'px';
+                    confettiContainer.appendChild(star);
+
+                    setTimeout(() => star.remove(), 800);
+                }, i * 100);
+            });
+        }
+
+        function popOpen() {
+            if (isOpen) return;
+            isOpen = true;
+
+            // Open lid
+            lid.classList.add('open');
+
+            // Hide question marks
+            questionMarks.style.opacity = '0';
+
+            // Show jack
+            setTimeout(() => {
+                spring.classList.add('show');
+                jack.classList.add('pop');
+
+                // Create effects
+                createConfetti();
+                createStars();
+
+                // Start wobble after pop
+                setTimeout(() => {
+                    jack.classList.remove('pop');
+                    jack.classList.add('wobble');
+                }, 500);
+            }, 200);
+
+            // Update UI
+            tensionText.textContent = '🎉 SURPRISE! 🎉';
+            instruction.textContent = '🤡 Pop goes the weasel!';
+            instruction.classList.remove('instruction');
+            resetBtn.classList.remove('hidden');
+        }
+
+        function resetBox() {
+            isOpen = false;
+            crankTurns = 0;
+            tension = 0;
+
+            // Reset crank
+            crankHandle.style.transform = 'rotate(0deg)';
+
+            // Reset tension bar
+            tensionFill.style.width = '0%';
+            tensionPercent.textContent = '0%';
+            tensionText.textContent = 'Click the crank to wind up!';
+            tensionBar.classList.remove('tension-glow');
+
+            // Reset lid
+            lid.classList.remove('open');
+            lid.style.transform = 'rotateX(0deg)';
+
+            // Reset jack
+            jack.classList.remove('pop', 'wobble');
+            jack.style.opacity = '0';
+            jack.style.transform = 'translateX(-50%) translateY(100px) scale(0.3)';
+
+            // Reset spring
+            spring.classList.remove('show');
+            spring.style.height = '0';
+
+            // Reset question marks
+            questionMarks.style.opacity = '0.2';
+
+            // Reset UI
+            instruction.textContent = '👆 Click the crank to wind up!';
+            instruction.classList.add('instruction');
+            resetBtn.classList.add('hidden');
+
+            // Force reflow for animations to work again
+            void lid.offsetWidth;
+            void jack.offsetWidth;
+        }
+
+        // Add keyboard support
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' || e.code === 'Enter') {
+                if (isOpen) {
+                    resetBox();
+                } else {
+                    turnCrank();
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>
