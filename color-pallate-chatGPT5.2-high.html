@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Color Palette Lab</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        :root {
+            color-scheme: light;
+        }
+
+        .checker {
+            background-image:
+                linear-gradient(45deg, rgba(0, 0, 0, .06) 25%, transparent 25%),
+                linear-gradient(-45deg, rgba(0, 0, 0, .06) 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, rgba(0, 0, 0, .06) 75%),
+                linear-gradient(-45deg, transparent 75%, rgba(0, 0, 0, .06) 75%);
+            background-size: 18px 18px;
+            background-position: 0 0, 0 9px, 9px -9px, -9px 0px;
+        }
+
+        @media (prefers-reduced-motion: no-preference) {
+            .swatch {
+                transition: transform .12s ease, box-shadow .12s ease;
+            }
+
+            .swatch:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 10px 25px rgba(0, 0, 0, .08);
+            }
+        }
+    </style>
+</head>
+
+<body class="min-h-screen bg-slate-50 text-slate-900">
+    <header class="border-b bg-white/80 backdrop-blur sticky top-0 z-20">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
+            <div class="min-w-0">
+                <h1 class="text-xl sm:text-2xl font-semibold tracking-tight">Color Palette Lab</h1>
+                <p class="text-sm text-slate-600">Random generation, harmony rules, copy hex, and palette history.</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="btnGenerate"
+                    class="px-3 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800">Generate</button>
+                <button id="btnSave"
+                    class="px-3 py-2 rounded-lg bg-white border text-sm font-medium hover:bg-slate-50">Save to
+                    history</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 py-6">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- Left column: controls & history -->
+            <aside class="lg:col-span-4 space-y-6">
+                <section class="bg-white rounded-2xl border p-4">
+                    <h2 class="font-semibold">Generator</h2>
+                    <p class="text-sm text-slate-600 mt-1">Pick a harmony rule and generate palettes from a base color
+                        (or random base).</p>
+
+                    <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <label class="block">
+                            <span class="text-xs font-medium text-slate-700">Harmony rule</span>
+                            <select id="rule" class="mt-1 w-full rounded-lg border px-3 py-2 bg-white text-sm">
+                                <option value="random">Random</option>
+                                <option value="complementary">Complementary (2)</option>
+                                <option value="split-complementary">Split complementary (3)</option>
+                                <option value="analogous">Analogous</option>
+                                <option value="triadic">Triadic (3)</option>
+                                <option value="tetradic">Tetradic (4)</option>
+                                <option value="monochromatic">Monochromatic</option>
+                                <option value="shades">Shades</option>
+                                <option value="tints">Tints</option>
+                                <option value="tones">Tones</option>
+                            </select>
+                        </label>
+
+                        <label class="block">
+                            <span class="text-xs font-medium text-slate-700">Number of colors</span>
+                            <select id="count" class="mt-1 w-full rounded-lg border px-3 py-2 bg-white text-sm">
+                                <option>2</option>
+                                <option selected>5</option>
+                                <option>6</option>
+                                <option>7</option>
+                                <option>8</option>
+                            </select>
+                            <p id="countHint" class="mt-1 text-xs text-slate-500">Some harmony rules use a fixed count.
+                            </p>
+                        </label>
+
+                        <label class="block sm:col-span-2">
+                            <span class="text-xs font-medium text-slate-700">Base color</span>
+                            <div class="mt-1 flex items-center gap-2">
+                                <input id="base" type="color" value="#4F46E5"
+                                    class="h-10 w-14 rounded-lg border bg-white" />
+                                <input id="baseHex" type="text" value="#4F46E5"
+                                    class="flex-1 rounded-lg border px-3 py-2 text-sm font-mono"
+                                    placeholder="#RRGGBB" />
+                                <button id="btnRandomBase"
+                                    class="px-3 py-2 rounded-lg border bg-white text-sm hover:bg-slate-50">Randomize
+                                    base</button>
+                            </div>
+                            <div class="mt-2 flex items-center justify-between gap-3">
+                                <label class="inline-flex items-center gap-2 text-sm">
+                                    <input id="lockBase" type="checkbox" class="rounded border" />
+                                    <span class="text-slate-700">Lock base color</span>
+                                </label>
+                                <div class="text-xs text-slate-500">Tip: In <span class="font-medium">Random</span> mode
+                                    you can lock individual swatches.</div>
+                            </div>
+                        </label>
+
+                        <div class="sm:col-span-2">
+                            <span class="text-xs font-medium text-slate-700">Harmony intensity</span>
+                            <div class="mt-1 flex items-center gap-3">
+                                <input id="intensity" type="range" min="10" max="90" value="40" class="w-full" />
+                                <span id="intensityLabel"
+                                    class="w-12 text-right text-sm font-mono text-slate-700">40</span>
+                            </div>
+                            <p class="mt-1 text-xs text-slate-500">Controls hue spacing or lightness spread depending on
+                                the rule.</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <button id="btnCopyAllHex"
+                            class="px-3 py-2 rounded-lg bg-white border text-sm font-medium hover:bg-slate-50">Copy all
+                            HEX</button>
+                        <button id="btnCopyCss"
+                            class="px-3 py-2 rounded-lg bg-white border text-sm font-medium hover:bg-slate-50">Copy CSS
+                            variables</button>
+                        <button id="btnCopyJson"
+                            class="px-3 py-2 rounded-lg bg-white border text-sm font-medium hover:bg-slate-50">Copy
+                            JSON</button>
+                        <button id="btnClearLocks"
+                            class="px-3 py-2 rounded-lg bg-white border text-sm font-medium hover:bg-slate-50">Clear
+                            locks</button>
+                    </div>
+                </section>
+
+                <section class="bg-white rounded-2xl border p-4">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <h2 class="font-semibold">Palette history</h2>
+                            <p class="text-sm text-slate-600 mt-1">Stored locally in your browser.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button id="btnExportHistory"
+                                class="px-3 py-2 rounded-lg border bg-white text-sm hover:bg-slate-50">Export</button>
+                            <button id="btnClearHistory"
+                                class="px-3 py-2 rounded-lg border bg-white text-sm hover:bg-slate-50">Clear</button>
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <input id="historySearch" type="text" placeholder="Search (hex or rule)…"
+                            class="w-full rounded-lg border px-3 py-2 text-sm" />
+                    </div>
+
+                    <div id="history" class="mt-3 space-y-2 max-h-[420px] overflow-auto pr-1"></div>
+                </section>
+            </aside>
+
+            <!-- Right column: palette -->
+            <section class="lg:col-span-8">
+                <div class="bg-white rounded-2xl border overflow-hidden">
+                    <div class="p-4 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                            <h2 class="font-semibold">Current palette</h2>
+                            <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-600">
+                                <span>Rule: <span id="metaRule" class="font-medium text-slate-800">—</span></span>
+                                <span>•</span>
+                                <span>Colors: <span id="metaCount" class="font-medium text-slate-800">—</span></span>
+                                <span>•</span>
+                                <span>Base: <button id="btnCopyBase"
+                                        class="font-mono underline decoration-dotted hover:decoration-solid"
+                                        title="Copy base hex">—</button></span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button id="btnShuffle"
+                                class="px-3 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800">Shuffle</button>
+                            <button id="btnDownload"
+                                class="px-3 py-2 rounded-lg bg-white border text-sm font-medium hover:bg-slate-50">Download
+                                PNG</button>
+                        </div>
+                    </div>
+
+                    <div id="palette" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5"></div>
+
+                    <div class="p-4 border-t bg-slate-50">
+                        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                            <div class="text-sm text-slate-600">
+                                Click a swatch to copy its HEX. Use the lock icon (Random mode) to keep a color while
+                                shuffling.
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button id="btnAccessibility"
+                                    class="px-3 py-2 rounded-lg border bg-white text-sm hover:bg-slate-50">Contrast
+                                    check</button>
+                                <button id="btnHelp"
+                                    class="px-3 py-2 rounded-lg border bg-white text-sm hover:bg-slate-50">Harmony
+                                    guide</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <section class="mt-6 bg-white rounded-2xl border p-4">
+                    <h2 class="font-semibold">Details</h2>
+                    <div id="details" class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+                </section>
+            </section>
+        </div>
+    </main>
+
+    <!-- Toast -->
+    <div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 hidden">
+        <div class="rounded-full bg-slate-900 text-white px-4 py-2 text-sm shadow-lg">Copied</div>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-black/40"></div>
+        <div class="relative max-w-2xl mx-auto mt-20 bg-white rounded-2xl border shadow-xl overflow-hidden">
+            <div class="p-4 border-b flex items-center justify-between">
+                <h3 id="modalTitle" class="font-semibold">Modal</h3>
+                <button id="modalClose"
+                    class="px-3 py-1.5 rounded-lg border bg-white text-sm hover:bg-slate-50">Close</button>
+            </div>
+            <div id="modalBody" class="p-4 text-sm text-slate-700 leading-relaxed"></div>
+        </div>
+    </div>
+
+    <canvas id="dlCanvas" class="hidden"></canvas>
+
+    <script>
+        // ---------- Utilities ----------
+        const $ = (sel, el = document) => el.querySelector(sel);
+        const $$ = (sel, el = document) => Array.from(el.querySelectorAll(sel));
+
+        function clamp(n, min, max) { return Math.min(max, Math.max(min, n)); }
+        function mod(n, m) { return ((n % m) + m) % m; }
+
+        function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+        function hexToRgb(hex) {
+            const h = hex.replace('#', '').trim();
+            if (!/^([0-9a-fA-F]{6})$/.test(h)) return null;
+            return {
+                r: parseInt(h.slice(0, 2), 16),
+                g: parseInt(h.slice(2, 4), 16),
+                b: parseInt(h.slice(4, 6), 16)
+            };
+        }
+
+        function rgbToHex({ r, g, b }) {
+            const to = (v) => clamp(Math.round(v), 0, 255).toString(16).padStart(2, '0');
+            return '#' + to(r) + to(g) + to(b);
+        }
+
+        // r,g,b: 0..255; returns h(0..360), s/l (0..100)
+        function rgbToHsl({ r, g, b }) {
+            r /= 255; g /= 255; b /= 255;
+            const maxV = Math.max(r, g, b), minV = Math.min(r, g, b);
+            const d = maxV - minV;
+            let h = 0;
+            const l = (maxV + minV) / 2;
+            const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+            if (d !== 0) {
+                switch (maxV) {
+                    case r: h = ((g - b) / d) % 6; break;
+                    case g: h = (b - r) / d + 2; break;
+                    case b: h = (r - g) / d + 4; break;
+                }
+                h *= 60;
+                if (h < 0) h += 360;
+            }
+            return { h, s: s * 100, l: l * 100 };
+        }
+
+        // h: 0..360, s/l: 0..100; returns rgb 0..255
+        function hslToRgb({ h, s, l }) {
+            s /= 100; l /= 100;
+            const c = (1 - Math.abs(2 * l - 1)) * s;
+            const hh = (h / 60);
+            const x = c * (1 - Math.abs((hh % 2) - 1));
+            let r1 = 0, g1 = 0, b1 = 0;
+            if (0 <= hh && hh < 1) [r1, g1, b1] = [c, x, 0];
+            else if (1 <= hh && hh < 2) [r1, g1, b1] = [x, c, 0];
+            else if (2 <= hh && hh < 3) [r1, g1, b1] = [0, c, x];
+            else if (3 <= hh && hh < 4) [r1, g1, b1] = [0, x, c];
+            else if (4 <= hh && hh < 5) [r1, g1, b1] = [x, 0, c];
+            else if (5 <= hh && hh < 6) [r1, g1, b1] = [c, 0, x];
+            const m = l - c / 2;
+            return { r: (r1 + m) * 255, g: (g1 + m) * 255, b: (b1 + m) * 255 };
+        }
+
+        function normalizeHex(input) {
+            if (!input) return null;
+            let v = input.trim();
+            if (!v.startsWith('#')) v = '#' + v;
+            const rgb = hexToRgb(v);
+            return rgb ? rgbToHex(rgb) : null;
+        }
+
+        function randomHex() {
+            return rgbToHex({ r: randomInt(0, 255), g: randomInt(0, 255), b: randomInt(0, 255) });
+        }
+
+        function relLuminance({ r, g, b }) {
+            // https://www.w3.org/TR/WCAG21/#dfn-relative-luminance
+            const srgb = [r, g, b].map(v => {
+                v /= 255;
+                return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+            });
+            return 0.2126 * srgb[0] + 0.7152 * srgb[1] + 0.0722 * srgb[2];
+        }
+
+        function contrastRatio(hex1, hex2) {
+            const a = hexToRgb(hex1); const b = hexToRgb(hex2);
+            if (!a || !b) return null;
+            const L1 = relLuminance(a);
+            const L2 = relLuminance(b);
+            const lighter = Math.max(L1, L2), darker = Math.min(L1, L2);
+            return (lighter + 0.05) / (darker + 0.05);
+        }
+
+        function bestTextOn(hex) {
+            const crWhite = contrastRatio(hex, '#FFFFFF');
+            const crBlack = contrastRatio(hex, '#0B1220');
+            return (crWhite ?? 0) >= (crBlack ?? 0) ? '#FFFFFF' : '#0B1220';
+        }
+
+        async function copyText(text) {
+            try {
+                await navigator.clipboard.writeText(text);
+                showToast('Copied');
+            } catch (e) {
+                // fallback
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.left = '-9999px';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                ta.remove();
+                showToast('Copied');
+            }
+        }
+
+        let toastTimer = null;
+        function showToast(msg) {
+            const t = $('#toast');
+            t.classList.remove('hidden');
+            t.firstElementChild.textContent = msg;
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => t.classList.add('hidden'), 1100);
+        }
+
+        function formatTime(ts) {
+            const d = new Date(ts);
+            return d.toLocaleString([], { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+        }
+
+        // ---------- Harmony engine ----------
+        function genPalette({ rule, count, baseHex, intensity, locks }) {
+            // baseHex must be valid
+            const baseRgb = hexToRgb(baseHex);
+            const baseHsl = rgbToHsl(baseRgb);
+
+            const c = count;
+            const spread = clamp(intensity, 10, 90);
+
+            const makeFromHsl = (h, s, l) => rgbToHex(hslToRgb({ h: mod(h, 360), s: clamp(s, 0, 100), l: clamp(l, 0, 100) }));
+
+            if (rule === 'random') {
+                const out = [];
+                for (let i = 0; i < c; i++) {
+                    if (locks?.[i]) out.push(locks[i]);
+                    else out.push(randomHex());
+                }
+                return { colors: out, base: baseHex };
+            }
+
+            // Harmony-based rules: base is first color
+            const s0 = baseHsl.s;
+            const l0 = baseHsl.l;
+
+            if (rule === 'complementary') {
+                const colors = [
+                    baseHex,
+                    makeFromHsl(baseHsl.h + 180, s0, l0)
+                ];
+                return { colors, base: baseHex };
+            }
+
+            if (rule === 'split-complementary') {
+                const a = 180 - Math.round(spread / 2); // ~135..175
+                const colors = [
+                    baseHex,
+                    makeFromHsl(baseHsl.h + a, s0, l0),
+                    makeFromHsl(baseHsl.h - a, s0, l0)
+                ];
+                return { colors, base: baseHex };
+            }
+
+            if (rule === 'triadic') {
+                const colors = [
+                    baseHex,
+                    makeFromHsl(baseHsl.h + 120, s0, l0),
+                    makeFromHsl(baseHsl.h + 240, s0, l0)
+                ];
+                return { colors, base: baseHex };
+            }
+
+            if (rule === 'tetradic') {
+                // rectangle-ish: 0, 90, 180, 270 (spread slightly influences 90)
+                const q = clamp(Math.round(60 + (spread / 90) * 60), 60, 120); // 60..120
+                const colors = [
+                    baseHex,
+                    makeFromHsl(baseHsl.h + q, s0, l0),
+                    makeFromHsl(baseHsl.h + 180, s0, l0),
+                    makeFromHsl(baseHsl.h + 180 + q, s0, l0)
+                ];
+                return { colors, base: baseHex };
+            }
+
+            if (rule === 'analogous') {
+                // offsets evenly distributed across +/- spread
+                const n = c;
+                const start = -spread;
+                const step = n === 1 ? 0 : (2 * spread) / (n - 1);
+                const colors = [];
+                for (let i = 0; i < n; i++) {
+                    const off = start + step * i;
+                    colors.push(makeFromHsl(baseHsl.h + off, s0, l0));
+                }
+                // ensure base exists exactly once by replacing center element
+                const mid = Math.floor(n / 2);
+                colors[mid] = baseHex;
+                return { colors, base: baseHex };
+            }
+
+            if (rule === 'monochromatic') {
+                const n = c;
+                const colors = [];
+                // vary both saturation and lightness around base
+                const lMin = clamp(l0 - spread, 5, 95);
+                const lMax = clamp(l0 + spread, 5, 95);
+                const sMin = clamp(s0 - spread / 2, 0, 100);
+                const sMax = clamp(s0 + spread / 2, 0, 100);
+                for (let i = 0; i < n; i++) {
+                    const t = n === 1 ? 0.5 : i / (n - 1);
+                    const l = lMin + (lMax - lMin) * t;
+                    const s = sMax - (sMax - sMin) * Math.abs(0.5 - t) * 2; // more saturated near middle
+                    colors.push(makeFromHsl(baseHsl.h, s, l));
+                }
+                colors[Math.floor(n / 2)] = baseHex;
+                return { colors, base: baseHex };
+            }
+
+            if (rule === 'shades') {
+                const n = c;
+                const colors = [];
+                const lMin = clamp(l0 - spread, 2, 95);
+                const lMax = clamp(l0 + spread / 3, 2, 95);
+                for (let i = 0; i < n; i++) {
+                    const t = n === 1 ? 0.5 : i / (n - 1);
+                    const l = lMax + (lMin - lMax) * t;
+                    colors.push(makeFromHsl(baseHsl.h, s0, l));
+                }
+                colors[Math.floor(n / 2)] = baseHex;
+                return { colors, base: baseHex };
+            }
+
+            if (rule === 'tints') {
+                const n = c;
+                const colors = [];
+                const lMin = clamp(l0, 0, 95);
+                const lMax = clamp(l0 + spread, 5, 98);
+                for (let i = 0; i < n; i++) {
+                    const t = n === 1 ? 0.5 : i / (n - 1);
+                    const l = lMin + (lMax - lMin) * t;
+                    const s = clamp(s0 - t * (spread / 2), 0, 100);
+                    colors.push(makeFromHsl(baseHsl.h, s, l));
+                }
+                colors[0] = baseHex;
+                return { colors, base: baseHex };
+            }
+
+            if (rule === 'tones') {
+                const n = c;
+                const colors = [];
+                const sMin = clamp(s0 - spread, 0, 100);
+                const sMax = clamp(s0 + spread / 4, 0, 100);
+                for (let i = 0; i < n; i++) {
+                    const t = n === 1 ? 0.5 : i / (n - 1);
+                    const s = sMax + (sMin - sMax) * t;
+                    const l = clamp(l0 + (t - 0.5) * (spread / 3), 5, 95);
+                    colors.push(makeFromHsl(baseHsl.h, s, l));
+                }
+                colors[Math.floor(n / 2)] = baseHex;
+                return { colors, base: baseHex };
+            }
+
+            // fallback
+            return { colors: Array.from({ length: c }, () => randomHex()), base: baseHex };
+        }
+
+        function fixedCountForRule(rule) {
+            if (rule === 'complementary') return 2;
+            if (rule === 'split-complementary') return 3;
+            if (rule === 'triadic') return 3;
+            if (rule === 'tetradic') return 4;
+            return null;
+        }
+
+        // ---------- State ----------
+        const HISTORY_KEY = 'paletteHistoryV1';
+        const SETTINGS_KEY = 'paletteSettingsV1';
+
+        let state = {
+            rule: 'random',
+            count: 5,
+            intensity: 40,
+            base: '#4F46E5',
+            colors: [],
+            locks: {}, // index -> hex (random mode only)
+        };
+
+        // ---------- Rendering ----------
+        function renderPalette() {
+            const pal = $('#palette');
+            pal.innerHTML = '';
+
+            $('#metaRule').textContent = prettyRule(state.rule);
+            $('#metaCount').textContent = String(state.colors.length);
+            $('#btnCopyBase').textContent = state.base;
+
+            state.colors.forEach((hex, i) => {
+                const text = bestTextOn(hex);
+                const isLocked = !!state.locks[i];
+                const lockable = state.rule === 'random';
+
+                const card = document.createElement('button');
+                card.className = 'swatch group relative text-left p-4 min-h-[120px] border-b sm:border-b-0 sm:border-r last:border-r-0 xl:border-r border-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-900/20';
+                card.style.background = hex;
+                card.title = 'Click to copy HEX';
+
+                const hexEl = document.createElement('div');
+                hexEl.className = 'font-mono text-lg font-semibold';
+                hexEl.style.color = text;
+                hexEl.textContent = hex.toUpperCase();
+
+                const sub = document.createElement('div');
+                sub.className = 'mt-1 text-xs opacity-90';
+                sub.style.color = text;
+
+                const rgb = hexToRgb(hex);
+                const hsl = rgbToHsl(rgb);
+                sub.textContent = `rgb(${Math.round(rgb.r)}, ${Math.round(rgb.g)}, ${Math.round(rgb.b)}) • hsl(${Math.round(hsl.h)}, ${Math.round(hsl.s)}%, ${Math.round(hsl.l)}%)`;
+
+                const actions = document.createElement('div');
+                actions.className = 'absolute top-3 right-3 flex items-center gap-2';
+
+                const copyBtn = document.createElement('button');
+                copyBtn.type = 'button';
+                copyBtn.className = 'px-2 py-1 rounded-md text-xs font-medium border border-white/35 bg-white/15 hover:bg-white/25 backdrop-blur';
+                copyBtn.style.color = text;
+                copyBtn.textContent = 'Copy';
+                copyBtn.title = 'Copy HEX';
+                copyBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    await copyText(hex.toUpperCase());
+                });
+
+                const lockBtn = document.createElement('button');
+                lockBtn.type = 'button';
+                lockBtn.className = 'px-2 py-1 rounded-md text-xs font-medium border border-white/35 bg-white/15 hover:bg-white/25 backdrop-blur disabled:opacity-50 disabled:cursor-not-allowed';
+                lockBtn.style.color = text;
+                lockBtn.textContent = lockable ? (isLocked ? 'Locked' : 'Lock') : 'Lock';
+                lockBtn.title = lockable ? 'Lock this color for Shuffle/Generate (Random mode)' : 'Locks are available in Random mode';
+                lockBtn.disabled = !lockable;
+                lockBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (!lockable) return;
+                    if (state.locks[i]) delete state.locks[i];
+                    else state.locks[i] = hex;
+                    renderPalette();
+                });
+
+                actions.appendChild(copyBtn);
+                actions.appendChild(lockBtn);
+
+                const footer = document.createElement('div');
+                footer.className = 'mt-4 flex items-center gap-2';
+
+                const badge = document.createElement('span');
+                badge.className = 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border border-white/25 bg-white/10';
+                badge.style.color = text;
+                badge.textContent = (state.rule === 'random') ? (isLocked ? 'Locked' : 'Unlocked') : (i === 0 ? 'Base' : 'Harmony');
+
+                const index = document.createElement('span');
+                index.className = 'text-xs font-mono opacity-90';
+                index.style.color = text;
+                index.textContent = `#${i + 1}`;
+
+                footer.appendChild(badge);
+                footer.appendChild(index);
+
+                card.appendChild(actions);
+                card.appendChild(hexEl);
+                card.appendChild(sub);
+                card.appendChild(footer);
+
+                card.addEventListener('click', async () => {
+                    await copyText(hex.toUpperCase());
+                    renderDetails(i);
+                });
+
+                pal.appendChild(card);
+            });
+
+            renderDetails(0);
+        }
+
+        function renderDetails(activeIndex) {
+            const root = $('#details');
+            root.innerHTML = '';
+
+            const colors = state.colors;
+            colors.forEach((hex, i) => {
+                const text = bestTextOn(hex);
+                const rgb = hexToRgb(hex);
+                const hsl = rgbToHsl(rgb);
+                const crW = contrastRatio(hex, '#FFFFFF');
+                const crB = contrastRatio(hex, '#0B1220');
+
+                const card = document.createElement('div');
+                card.className = 'rounded-xl border overflow-hidden';
+
+                const head = document.createElement('div');
+                head.className = 'p-3 checker';
+                head.style.backgroundColor = hex;
+
+                const title = document.createElement('div');
+                title.className = 'flex items-center justify-between gap-2';
+
+                const left = document.createElement('div');
+                left.className = 'min-w-0';
+
+                const h = document.createElement('div');
+                h.className = 'font-mono text-base font-semibold';
+                h.style.color = text;
+                h.textContent = hex.toUpperCase();
+
+                const meta = document.createElement('div');
+                meta.className = 'text-xs opacity-90';
+                meta.style.color = text;
+                meta.textContent = `rgb(${Math.round(rgb.r)}, ${Math.round(rgb.g)}, ${Math.round(rgb.b)}) • hsl(${Math.round(hsl.h)}, ${Math.round(hsl.s)}%, ${Math.round(hsl.l)}%)`;
+
+                left.appendChild(h);
+                left.appendChild(meta);
+
+                const right = document.createElement('div');
+                right.className = 'flex items-center gap-2 shrink-0';
+
+                const btn1 = document.createElement('button');
+                btn1.className = 'px-2 py-1 rounded-lg text-xs font-medium border border-white/35 bg-white/15 hover:bg-white/25 backdrop-blur';
+                btn1.style.color = text;
+                btn1.textContent = 'Copy HEX';
+                btn1.addEventListener('click', () => copyText(hex.toUpperCase()));
+
+                const btn2 = document.createElement('button');
+                btn2.className = 'px-2 py-1 rounded-lg text-xs font-medium border border-white/35 bg-white/15 hover:bg-white/25 backdrop-blur';
+                btn2.style.color = text;
+                btn2.textContent = 'Copy RGB';
+                btn2.addEventListener('click', () => copyText(`rgb(${Math.round(rgb.r)}, ${Math.round(rgb.g)}, ${Math.round(rgb.b)})`));
+
+                right.appendChild(btn1);
+                right.appendChild(btn2);
+
+                title.appendChild(left);
+                title.appendChild(right);
+                head.appendChild(title);
+
+                const body = document.createElement('div');
+                body.className = 'p-3 text-sm';
+
+                const list = document.createElement('div');
+                list.className = 'grid grid-cols-1 sm:grid-cols-2 gap-2';
+
+                list.appendChild(kv('Index', `#${i + 1}`));
+                list.appendChild(kv('Role', (state.rule !== 'random' && i === 0) ? 'Base' : (state.rule !== 'random' ? 'Harmony' : (state.locks[i] ? 'Locked' : 'Random'))));
+                list.appendChild(kv('Contrast vs white', `${(crW ?? 0).toFixed(2)}:1`));
+                list.appendChild(kv('Contrast vs dark', `${(crB ?? 0).toFixed(2)}:1`));
+
+                const sample = document.createElement('div');
+                sample.className = 'mt-3 rounded-xl border p-3';
+                sample.style.background = hex;
+                sample.style.color = text;
+                sample.innerHTML = `
+          <div class="text-xs opacity-90">Sample text</div>
+          <div class="text-lg font-semibold">Aa Bb Cc 123</div>
+          <div class="text-sm opacity-95">The quick brown fox jumps over the lazy dog.</div>
+        `;
+
+                if (i === activeIndex) {
+                    card.classList.add('ring-2', 'ring-slate-900/15');
+                }
+
+                body.appendChild(list);
+                body.appendChild(sample);
+
+                card.appendChild(head);
+                card.appendChild(body);
+
+                root.appendChild(card);
+            });
+        }
+
+        function kv(k, v) {
+            const row = document.createElement('div');
+            row.className = 'rounded-lg bg-slate-50 border px-3 py-2 flex items-center justify-between gap-3';
+            const a = document.createElement('div');
+            a.className = 'text-xs font-medium text-slate-600';
+            a.textContent = k;
+            const b = document.createElement('div');
+            b.className = 'text-xs font-mono text-slate-900';
+            b.textContent = v;
+            row.appendChild(a);
+            row.appendChild(b);
+            return row;
+        }
+
+        function prettyRule(rule) {
+            const map = {
+                'random': 'Random',
+                'complementary': 'Complementary',
+                'split-complementary': 'Split complementary',
+                'analogous': 'Analogous',
+                'triadic': 'Triadic',
+                'tetradic': 'Tetradic',
+                'monochromatic': 'Monochromatic',
+                'shades': 'Shades',
+                'tints': 'Tints',
+                'tones': 'Tones'
+            };
+            return map[rule] ?? rule;
+        }
+
+        // ---------- History ----------
+        function loadHistory() {
+            try {
+                const raw = localStorage.getItem(HISTORY_KEY);
+                const arr = raw ? JSON.parse(raw) : [];
+                return Array.isArray(arr) ? arr : [];
+            } catch { return []; }
+        }
+
+        function saveHistory(arr) {
+            localStorage.setItem(HISTORY_KEY, JSON.stringify(arr.slice(0, 60)));
+        }
+
+        function addToHistory(entry) {
+            const hist = loadHistory();
+            const next = [entry, ...hist.filter(e => e.id !== entry.id)];
+            saveHistory(next);
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const root = $('#history');
+            const q = ($('#historySearch').value || '').trim().toLowerCase();
+            const hist = loadHistory();
+
+            const filtered = hist.filter(e => {
+                if (!q) return true;
+                const inRule = String(e.rule || '').toLowerCase().includes(q);
+                const inColors = (e.colors || []).some(c => String(c).toLowerCase().includes(q));
+                return inRule || inColors;
+            });
+
+            root.innerHTML = '';
+
+            if (filtered.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'text-sm text-slate-600 p-3 rounded-xl border bg-slate-50';
+                empty.textContent = hist.length ? 'No matching history items.' : 'No history yet. Generate a palette and hit “Save to history”.';
+                root.appendChild(empty);
+                return;
+            }
+
+            filtered.forEach((e) => {
+                const item = document.createElement('div');
+                item.className = 'rounded-xl border bg-white overflow-hidden';
+
+                const top = document.createElement('div');
+                top.className = 'p-3 flex items-start justify-between gap-3';
+
+                const left = document.createElement('div');
+                left.className = 'min-w-0';
+
+                const title = document.createElement('div');
+                title.className = 'text-sm font-semibold text-slate-900 truncate';
+                title.textContent = `${prettyRule(e.rule)} • ${e.colors.length} colors`;
+
+                const sub = document.createElement('div');
+                sub.className = 'text-xs text-slate-600 mt-0.5';
+                sub.textContent = `${formatTime(e.ts)} • Base ${String(e.base || '—').toUpperCase()}`;
+
+                const strip = document.createElement('div');
+                strip.className = 'mt-2 grid';
+                strip.style.gridTemplateColumns = `repeat(${Math.min(8, e.colors.length)}, minmax(0, 1fr))`;
+
+                e.colors.slice(0, 8).forEach(hex => {
+                    const d = document.createElement('div');
+                    d.className = 'h-5';
+                    d.style.background = hex;
+                    strip.appendChild(d);
+                });
+
+                left.appendChild(title);
+                left.appendChild(sub);
+                left.appendChild(strip);
+
+                const right = document.createElement('div');
+                right.className = 'flex flex-col gap-2 shrink-0';
+
+                const btnRestore = document.createElement('button');
+                btnRestore.className = 'px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-medium hover:bg-slate-800';
+                btnRestore.textContent = 'Restore';
+                btnRestore.addEventListener('click', () => {
+                    state.rule = e.rule;
+                    state.base = e.base || e.colors[0] || state.base;
+                    state.colors = e.colors.slice();
+                    state.count = e.colors.length;
+                    state.locks = {};
+                    syncControlsFromState();
+                    renderPalette();
+                    showToast('Restored');
+                });
+
+                const btnCopy = document.createElement('button');
+                btnCopy.className = 'px-3 py-1.5 rounded-lg border bg-white text-xs font-medium hover:bg-slate-50';
+                btnCopy.textContent = 'Copy HEX';
+                btnCopy.addEventListener('click', () => copyText(e.colors.map(c => c.toUpperCase()).join('\n')));
+
+                const btnDelete = document.createElement('button');
+                btnDelete.className = 'px-3 py-1.5 rounded-lg border bg-white text-xs font-medium hover:bg-slate-50';
+                btnDelete.textContent = 'Delete';
+                btnDelete.addEventListener('click', () => {
+                    const hist = loadHistory().filter(x => x.id !== e.id);
+                    saveHistory(hist);
+                    renderHistory();
+                });
+
+                right.appendChild(btnRestore);
+                right.appendChild(btnCopy);
+                right.appendChild(btnDelete);
+
+                top.appendChild(left);
+                top.appendChild(right);
+
+                item.appendChild(top);
+                root.appendChild(item);
+            });
+        }
+
+        // ---------- Settings ----------
+        function loadSettings() {
+            try {
+                const raw = localStorage.getItem(SETTINGS_KEY);
+                const s = raw ? JSON.parse(raw) : null;
+                if (!s || typeof s !== 'object') return null;
+                return s;
+            } catch { return null; }
+        }
+
+        function saveSettings() {
+            localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+                rule: state.rule,
+                count: state.count,
+                intensity: state.intensity,
+                base: state.base,
+                lockBase: $('#lockBase').checked
+            }));
+        }
+
+        // ---------- Actions ----------
+        function syncControlsFromState() {
+            $('#rule').value = state.rule;
+            $('#count').value = String(state.count);
+            $('#intensity').value = String(state.intensity);
+            $('#intensityLabel').textContent = String(state.intensity);
+            $('#base').value = state.base;
+            $('#baseHex').value = state.base;
+            enforceRuleCountUI();
+            saveSettings();
+        }
+
+        function enforceRuleCountUI() {
+            const rule = $('#rule').value;
+            const fixed = fixedCountForRule(rule);
+            const countSel = $('#count');
+            const hint = $('#countHint');
+
+            if (fixed) {
+                countSel.value = String(fixed);
+                countSel.disabled = true;
+                hint.textContent = `This rule uses a fixed count (${fixed}).`;
+                hint.classList.remove('text-slate-500');
+                hint.classList.add('text-slate-700');
+            } else {
+                countSel.disabled = false;
+                hint.textContent = 'Some harmony rules use a fixed count.';
+                hint.classList.add('text-slate-500');
+                hint.classList.remove('text-slate-700');
+            }
+        }
+
+        function applyGenerate({ shuffle = false } = {}) {
+            const rule = $('#rule').value;
+            enforceRuleCountUI();
+
+            let count = parseInt($('#count').value, 10);
+            count = Number.isFinite(count) ? clamp(count, 2, 8) : 5;
+
+            let baseHex = normalizeHex($('#baseHex').value) || $('#base').value;
+            const lockBase = $('#lockBase').checked;
+
+            if (!lockBase && (shuffle || rule !== state.rule)) {
+                // if base not locked, keep current UI; user explicitly controls base.
+            }
+
+            // If baseHex differs from the color input, sync
+            baseHex = normalizeHex(baseHex) || '#4F46E5';
+
+            const intensity = parseInt($('#intensity').value, 10);
+
+            // If rule changed away from random, clear locks
+            if (rule !== 'random') state.locks = {};
+
+            // Generate palette
+            const locks = (rule === 'random') ? state.locks : null;
+            const { colors, base } = genPalette({ rule, count, baseHex, intensity, locks });
+
+            state.rule = rule;
+            state.count = colors.length;
+            state.intensity = intensity;
+            state.base = base;
+            state.colors = colors;
+
+            // Sync base controls
+            $('#base').value = state.base;
+            $('#baseHex').value = state.base;
+
+            renderPalette();
+            saveSettings();
+        }
+
+        function saveCurrentToHistory() {
+            if (!state.colors.length) return;
+            const entry = {
+                id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + '-' + Math.random().toString(16).slice(2),
+                ts: Date.now(),
+                rule: state.rule,
+                base: state.base,
+                colors: state.colors.slice()
+            };
+            addToHistory(entry);
+            showToast('Saved');
+        }
+
+        function paletteToCssVars(colors) {
+            const lines = colors.map((c, i) => `  --color-${String(i + 1).padStart(2, '0')}: ${c.toUpperCase()};`);
+            return `:root\n{\n${lines.join('\n')}\n}`;
+        }
+
+        function downloadPng() {
+            const colors = state.colors;
+            if (!colors.length) return;
+
+            const canvas = $('#dlCanvas');
+            const ctx = canvas.getContext('2d');
+
+            const w = 1600;
+            const h = 900;
+            const pad = 80;
+            const barH = 420;
+
+            canvas.width = w;
+            canvas.height = h;
+
+            // Background
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, w, h);
+
+            // Title
+            ctx.fillStyle = '#0B1220';
+            ctx.font = '700 44px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
+            ctx.fillText('Palette', pad, 96);
+
+            ctx.font = '400 22px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
+            ctx.fillStyle = '#334155';
+            ctx.fillText(`${prettyRule(state.rule)} • ${colors.length} colors • Base ${state.base.toUpperCase()}`, pad, 132);
+
+            // Swatches
+            const n = colors.length;
+            const swW = (w - pad * 2) / n;
+            const y0 = 180;
+            for (let i = 0; i < n; i++) {
+                const x = pad + i * swW;
+                ctx.fillStyle = colors[i];
+                ctx.fillRect(x, y0, swW, barH);
+
+                // Label
+                const textColor = bestTextOn(colors[i]);
+                ctx.fillStyle = textColor;
+                ctx.font = '700 24px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+                ctx.fillText(colors[i].toUpperCase(), x + 18, y0 + barH - 26);
+            }
+
+            // List
+            ctx.fillStyle = '#0B1220';
+            ctx.font = '600 22px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial';
+            ctx.fillText('HEX', pad, y0 + barH + 70);
+
+            ctx.font = '500 22px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+            ctx.fillStyle = '#0B1220';
+            const list = colors.map(c => c.toUpperCase()).join('  ');
+            wrapText(ctx, list, pad, y0 + barH + 110, w - pad * 2, 30);
+
+            const url = canvas.toDataURL('image/png');
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `palette-${Date.now()}.png`;
+            a.click();
+        }
+
+        function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+            const words = text.split(' ');
+            let line = '';
+            for (let n = 0; n < words.length; n++) {
+                const test = line + words[n] + ' ';
+                const w = ctx.measureText(test).width;
+                if (w > maxWidth && n > 0) {
+                    ctx.fillText(line, x, y);
+                    line = words[n] + ' ';
+                    y += lineHeight;
+                } else {
+                    line = test;
+                }
+            }
+            ctx.fillText(line, x, y);
+        }
+
+        function openModal(title, html) {
+            $('#modalTitle').textContent = title;
+            $('#modalBody').innerHTML = html;
+            $('#modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            $('#modal').classList.add('hidden');
+        }
+
+        // ---------- Events ----------
+        $('#rule').addEventListener('change', () => {
+            enforceRuleCountUI();
+            // Keep base, regenerate to match rule
+            applyGenerate({ shuffle: false });
+        });
+
+        $('#count').addEventListener('change', () => applyGenerate({ shuffle: false }));
+
+        $('#intensity').addEventListener('input', (e) => {
+            $('#intensityLabel').textContent = e.target.value;
+        });
+        $('#intensity').addEventListener('change', () => applyGenerate({ shuffle: false }));
+
+        $('#base').addEventListener('input', (e) => {
+            const v = normalizeHex(e.target.value);
+            if (v) $('#baseHex').value = v;
+        });
+
+        $('#base').addEventListener('change', () => applyGenerate({ shuffle: false }));
+
+        $('#baseHex').addEventListener('input', (e) => {
+            const v = normalizeHex(e.target.value);
+            if (v) {
+                $('#base').value = v;
+            }
+        });
+
+        $('#baseHex').addEventListener('change', () => {
+            const v = normalizeHex($('#baseHex').value);
+            if (v) {
+                $('#base').value = v;
+                $('#baseHex').value = v;
+                applyGenerate({ shuffle: false });
+            } else {
+                $('#baseHex').value = state.base;
+            }
+        });
+
+        $('#btnRandomBase').addEventListener('click', () => {
+            const v = randomHex();
+            $('#base').value = v;
+            $('#baseHex').value = v;
+            applyGenerate({ shuffle: false });
+        });
+
+        $('#lockBase').addEventListener('change', saveSettings);
+
+        $('#btnGenerate').addEventListener('click', () => {
+            // Generate: if base isn't locked, randomize base for harmony rules too
+            const lockBase = $('#lockBase').checked;
+            if (!lockBase) {
+                const v = randomHex();
+                $('#base').value = v;
+                $('#baseHex').value = v;
+            }
+            // Clear locks unless random mode
+            if ($('#rule').value !== 'random') state.locks = {};
+            applyGenerate({ shuffle: true });
+        });
+
+        $('#btnShuffle').addEventListener('click', () => {
+            // shuffle means: keep base unless not locked and user wants new base? We'll keep base.
+            applyGenerate({ shuffle: true });
+        });
+
+        $('#btnSave').addEventListener('click', saveCurrentToHistory);
+
+        $('#btnCopyAllHex').addEventListener('click', () => {
+            if (!state.colors.length) return;
+            copyText(state.colors.map(c => c.toUpperCase()).join('\n'));
+        });
+
+        $('#btnCopyCss').addEventListener('click', () => {
+            if (!state.colors.length) return;
+            copyText(paletteToCssVars(state.colors));
+        });
+
+        $('#btnCopyJson').addEventListener('click', () => {
+            if (!state.colors.length) return;
+            copyText(JSON.stringify({ rule: state.rule, base: state.base.toUpperCase(), colors: state.colors.map(c => c.toUpperCase()) }, null, 2));
+        });
+
+        $('#btnClearLocks').addEventListener('click', () => {
+            state.locks = {};
+            renderPalette();
+            showToast('Locks cleared');
+        });
+
+        $('#btnCopyBase').addEventListener('click', () => copyText(state.base.toUpperCase()));
+
+        $('#historySearch').addEventListener('input', renderHistory);
+
+        $('#btnClearHistory').addEventListener('click', () => {
+            openModal('Clear history?', `
+        <p>This will remove all saved palettes from this browser.</p>
+        <div class="mt-4 flex items-center gap-2">
+          <button id="confirmClear" class="px-3 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800">Clear history</button>
+          <button id="cancelClear" class="px-3 py-2 rounded-lg border bg-white text-sm hover:bg-slate-50">Cancel</button>
+        </div>
+      `);
+            setTimeout(() => {
+                const c = $('#confirmClear');
+                const x = $('#cancelClear');
+                if (c) c.onclick = () => { localStorage.removeItem(HISTORY_KEY); renderHistory(); closeModal(); showToast('Cleared'); };
+                if (x) x.onclick = closeModal;
+            }, 0);
+        });
+
+        $('#btnExportHistory').addEventListener('click', () => {
+            const hist = loadHistory();
+            const blob = new Blob([JSON.stringify(hist, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `palette-history-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        $('#btnDownload').addEventListener('click', downloadPng);
+
+        $('#btnAccessibility').addEventListener('click', () => {
+            const rows = state.colors.map((hex, i) => {
+                const crW = contrastRatio(hex, '#FFFFFF');
+                const crB = contrastRatio(hex, '#0B1220');
+                const okSmallW = (crW ?? 0) >= 4.5;
+                const okSmallB = (crB ?? 0) >= 4.5;
+                const okLargeW = (crW ?? 0) >= 3;
+                const okLargeB = (crB ?? 0) >= 3;
+                return `
+          <div class="rounded-xl border overflow-hidden">
+            <div class="p-3" style="background:${hex}; color:${bestTextOn(hex)}">
+              <div class="font-mono font-semibold">${hex.toUpperCase()}</div>
+              <div class="text-xs opacity-90">Index #${i + 1}</div>
+            </div>
+            <div class="p-3 bg-white text-sm">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div class="rounded-lg border bg-slate-50 px-3 py-2">
+                  <div class="text-xs text-slate-600">Contrast vs white</div>
+                  <div class="font-mono text-xs text-slate-900">${(crW ?? 0).toFixed(2)}:1 • small ${okSmallW ? 'OK' : 'FAIL'} • large ${okLargeW ? 'OK' : 'FAIL'}</div>
+                </div>
+                <div class="rounded-lg border bg-slate-50 px-3 py-2">
+                  <div class="text-xs text-slate-600">Contrast vs dark</div>
+                  <div class="font-mono text-xs text-slate-900">${(crB ?? 0).toFixed(2)}:1 • small ${okSmallB ? 'OK' : 'FAIL'} • large ${okLargeB ? 'OK' : 'FAIL'}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+            }).join('');
+
+            openModal('Contrast check (WCAG)', `
+        <p class="text-slate-700">Contrast ratios use WCAG relative luminance. “Small” = normal text (4.5:1), “Large” = large text (3:1).</p>
+        <div class="mt-4 grid grid-cols-1 gap-3">${rows}</div>
+      `);
+        });
+
+        $('#btnHelp').addEventListener('click', () => {
+            openModal('Harmony guide', `
+        <div class="space-y-3">
+          <p><span class="font-semibold">Complementary</span>: base hue + 180°.</p>
+          <p><span class="font-semibold">Split complementary</span>: base with two hues around its complement (intensity controls the split angle).</p>
+          <p><span class="font-semibold">Analogous</span>: hues near the base (intensity controls the total hue range).</p>
+          <p><span class="font-semibold">Triadic</span>: base + 120° + 240°.</p>
+          <p><span class="font-semibold">Tetradic</span>: two complementary pairs (intensity influences rectangle angle).</p>
+          <p><span class="font-semibold">Monochromatic</span>: same hue, varying saturation/lightness (intensity controls spread).</p>
+          <p><span class="font-semibold">Shades/Tints/Tones</span>: same hue, mostly varying lightness (or saturation for tones).</p>
+          <hr class="my-2" />
+          <p class="text-slate-600">Tip: set a base you like, lock it, then explore rules by switching the dropdown.</p>
+        </div>
+      `);
+        });
+
+        $('#modalClose').addEventListener('click', closeModal);
+        $('#modal').addEventListener('click', (e) => {
+            if (e.target === $('#modal').firstElementChild) closeModal();
+        });
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+        });
+
+        // ---------- Init ----------
+        (function init() {
+            const settings = loadSettings();
+            if (settings) {
+                state.rule = settings.rule ?? state.rule;
+                state.count = settings.count ?? state.count;
+                state.intensity = settings.intensity ?? state.intensity;
+                state.base = normalizeHex(settings.base) ?? state.base;
+                $('#lockBase').checked = !!settings.lockBase;
+            }
+
+            $('#rule').value = state.rule;
+            $('#count').value = String(state.count);
+            $('#intensity').value = String(state.intensity);
+            $('#intensityLabel').textContent = String(state.intensity);
+            $('#base').value = state.base;
+            $('#baseHex').value = state.base;
+
+            enforceRuleCountUI();
+            applyGenerate({ shuffle: false });
+            renderHistory();
+        })();
+    </script>
+</body>
+
+</html>
