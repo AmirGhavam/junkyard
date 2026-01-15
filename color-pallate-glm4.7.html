@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Palette Generator</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .color-card {
+            transition: all 0.3s ease;
+        }
+
+        .color-card:hover {
+            transform: translateY(-4px);
+        }
+
+        .copied-toast {
+            animation: fadeInOut 2s ease-in-out;
+        }
+
+        @keyframes fadeInOut {
+
+            0%,
+            100% {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            20%,
+            80% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .history-item {
+            transition: all 0.2s ease;
+        }
+
+        .history-item:hover {
+            transform: scale(1.02);
+        }
+
+        .btn-harmony {
+            transition: all 0.2s ease;
+        }
+
+        .btn-harmony:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-harmony.active {
+            ring: 2px;
+            ring-offset: 2px;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- Header -->
+        <header class="text-center mb-10">
+            <h1 class="text-4xl md:text-5xl font-bold text-white mb-3">
+                <i class="fas fa-palette text-purple-400 mr-3"></i>
+                Color Palette Generator
+            </h1>
+            <p class="text-gray-300 text-lg">Create beautiful color harmonies instantly</p>
+        </header>
+
+        <!-- Harmony Rules -->
+        <div class="bg-white/10 backdrop-blur-lg rounded-2xl p-6 mb-8">
+            <h2 class="text-white font-semibold mb-4 text-center">Color Harmony Rules</h2>
+            <div class="flex flex-wrap justify-center gap-3">
+                <button onclick="setHarmony('random')" id="btn-random"
+                    class="btn-harmony px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-full font-medium">
+                    <i class="fas fa-random mr-2"></i>Random
+                </button>
+                <button onclick="setHarmony('monochromatic')" id="btn-monochromatic"
+                    class="btn-harmony px-5 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-full font-medium">
+                    <i class="fas fa-circle mr-2"></i>Monochromatic
+                </button>
+                <button onclick="setHarmony('analogous')" id="btn-analogous"
+                    class="btn-harmony px-5 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-full font-medium">
+                    <i class="fas fa-adjust mr-2"></i>Analogous
+                </button>
+                <button onclick="setHarmony('complementary')" id="btn-complementary"
+                    class="btn-harmony px-5 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-full font-medium">
+                    <i class="fas fa-circle-half-stroke mr-2"></i>Complementary
+                </button>
+                <button onclick="setHarmony('triadic')" id="btn-triadic"
+                    class="btn-harmony px-5 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-full font-medium">
+                    <i class="fas fa-shapes mr-2"></i>Triadic
+                </button>
+                <button onclick="setHarmony('tetradic')" id="btn-tetradic"
+                    class="btn-harmony px-5 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-full font-medium">
+                    <i class="fas fa-certificate mr-2"></i>Tetradic
+                </button>
+                <button onclick="setHarmony('split')" id="btn-split"
+                    class="btn-harmony px-5 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-full font-medium">
+                    <i class="fas fa-divide mr-2"></i>Split Complementary
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Color Palette -->
+        <div class="bg-white/10 backdrop-blur-lg rounded-2xl p-6 mb-8">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-white font-semibold text-lg">Current Palette</h2>
+                <div class="flex gap-3">
+                    <button onclick="generatePalette()"
+                        class="px-5 py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-full font-medium transition-all hover:scale-105">
+                        <i class="fas fa-sync-alt mr-2"></i>Generate
+                    </button>
+                    <button onclick="saveToHistory()"
+                        class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full font-medium transition-all hover:scale-105">
+                        <i class="fas fa-save mr-2"></i>Save
+                    </button>
+                </div>
+            </div>
+
+            <div id="palette" class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <!-- Color cards will be generated here -->
+            </div>
+        </div>
+
+        <!-- History Section -->
+        <div class="bg-white/10 backdrop-blur-lg rounded-2xl p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-white font-semibold text-lg">
+                    <i class="fas fa-history mr-2"></i>Palette History
+                </h2>
+                <button onclick="clearHistory()"
+                    class="px-4 py-2 bg-red-600/80 hover:bg-red-600 text-white rounded-full text-sm font-medium transition-all">
+                    <i class="fas fa-trash mr-2"></i>Clear All
+                </button>
+            </div>
+
+            <div id="history" class="space-y-4 max-h-96 overflow-y-auto pr-2">
+                <p id="empty-history" class="text-gray-400 text-center py-8">
+                    <i class="fas fa-palette text-4xl mb-3 block opacity-50"></i>
+                    No saved palettes yet. Generate and save some colors!
+                </p>
+            </div>
+        </div>
+
+        <!-- Toast Notification -->
+        <div id="toast" class="fixed bottom-6 right-6 hidden">
+            <div class="copied-toast bg-emerald-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3">
+                <i class="fas fa-check-circle"></i>
+                <span id="toast-message">Copied to clipboard!</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentPalette = [];
+        let currentHarmony = 'random';
+        let history = JSON.parse(localStorage.getItem('paletteHistory')) || [];
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            generatePalette();
+            renderHistory();
+        });
+
+        // Generate random HSL color
+        function randomHSL() {
+            return {
+                h: Math.floor(Math.random() * 360),
+                s: Math.floor(Math.random() * 40) + 60, // 60-100% saturation
+                l: Math.floor(Math.random() * 40) + 30  // 30-70% lightness
+            };
+        }
+
+        // Convert HSL to Hex
+        function hslToHex(h, s, l) {
+            s /= 100;
+            l /= 100;
+            const a = s * Math.min(l, 1 - l);
+            const f = n => {
+                const k = (n + h / 30) % 12;
+                const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+                return Math.round(255 * color).toString(16).padStart(2, '0');
+            };
+            return `#${f(0)}${f(8)}${f(4)}`.toUpperCase();
+        }
+
+        // Get text color based on background brightness
+        function getTextColor(hex) {
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+            return brightness > 128 ? '#1f2937' : '#ffffff';
+        }
+
+        // Generate palette based on harmony rule
+        function generatePalette() {
+            const baseColor = randomHSL();
+            currentPalette = generateHarmonyColors(baseColor, currentHarmony);
+            renderPalette();
+        }
+
+        // Generate colors based on harmony rule
+        function generateHarmonyColors(base, harmony) {
+            let colors = [];
+
+            switch (harmony) {
+                case 'monochromatic':
+                    for (let i = 0; i < 5; i++) {
+                        colors.push({
+                            h: base.h,
+                            s: base.s,
+                            l: Math.max(15, Math.min(85, base.l - 30 + i * 15))
+                        });
+                    }
+                    break;
+
+                case 'analogous':
+                    for (let i = 0; i < 5; i++) {
+                        colors.push({
+                            h: (base.h - 30 + i * 15 + 360) % 360,
+                            s: base.s,
+                            l: base.l
+                        });
+                    }
+                    break;
+
+                case 'complementary':
+                    colors.push({ h: base.h, s: base.s, l: base.l });
+                    colors.push({ h: base.h, s: base.s, l: Math.max(20, base.l - 20) });
+                    colors.push({ h: (base.h + 180) % 360, s: base.s, l: base.l });
+                    colors.push({ h: (base.h + 180) % 360, s: base.s, l: Math.max(20, base.l - 20) });
+                    colors.push({ h: (base.h + 90) % 360, s: base.s, l: Math.min(80, base.l + 20) });
+                    break;
+
+                case 'triadic':
+                    for (let i = 0; i < 3; i++) {
+                        colors.push({ h: (base.h + i * 120) % 360, s: base.s, l: base.l });
+                        if (i < 2) {
+                            colors.push({ h: (base.h + i * 120) % 360, s: base.s, l: Math.max(20, base.l - 20) });
+                        }
+                    }
+                    break;
+
+                case 'tetradic':
+                    for (let i = 0; i < 4; i++) {
+                        colors.push({ h: (base.h + i * 90) % 360, s: base.s, l: base.l });
+                        if (i < 1) {
+                            colors.push({ h: (base.h + 45) % 360, s: base.s, l: Math.min(80, base.l + 20) });
+                        }
+                    }
+                    break;
+
+                case 'split':
+                    colors.push({ h: base.h, s: base.s, l: base.l });
+                    colors.push({ h: (base.h + 150) % 360, s: base.s, l: base.l });
+                    colors.push({ h: (base.h + 210) % 360, s: base.s, l: base.l });
+                    colors.push({ h: (base.h + 180) % 360, s: base.s, l: Math.max(20, base.l - 20) });
+                    colors.push({ h: (base.h + 30) % 360, s: base.s, l: Math.min(80, base.l + 20) });
+                    break;
+
+                default: // Random
+                    for (let i = 0; i < 5; i++) {
+                        colors.push(randomHSL());
+                    }
+            }
+
+            return colors;
+        }
+
+        // Set harmony rule
+        function setHarmony(harmony) {
+            currentHarmony = harmony;
+
+            // Update button styles
+            document.querySelectorAll('.btn-harmony').forEach(btn => {
+                btn.classList.remove('bg-purple-600');
+                btn.classList.add('bg-gray-700');
+            });
+
+            const activeBtn = document.getElementById(`btn-${harmony}`);
+            activeBtn.classList.remove('bg-gray-700');
+            activeBtn.classList.add('bg-purple-600');
+
+            generatePalette();
+        }
+
+        // Render palette to DOM
+        function renderPalette() {
+            const paletteContainer = document.getElementById('palette');
+            paletteContainer.innerHTML = '';
+
+            currentPalette.forEach((color, index) => {
+                const hex = hslToHex(color.h, color.s, color.l);
+                const textColor = getTextColor(hex);
+
+                const card = document.createElement('div');
+                card.className = 'color-card rounded-xl overflow-hidden shadow-lg cursor-pointer';
+                card.style.backgroundColor = hex;
+                card.innerHTML = `
+                    <div class="h-32 md:h-40 flex items-center justify-center">
+                        <i class="fas fa-eye-dropper text-3xl opacity-30" style="color: ${textColor}"></i>
+                    </div>
+                    <div class="p-4" style="background-color: ${textColor === '#ffffff' ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.8)'}">
+                        <p class="font-bold text-lg" style="color: ${textColor}">${hex}</p>
+                        <div class="flex gap-2 mt-2">
+                            <button onclick="copyHex('${hex}')" class="flex-1 py-1.5 px-3 rounded-lg text-sm font-medium transition-all hover:scale-105" style="background-color: ${textColor}; color: ${hex}">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                            <button onclick="lockColor(${index})" class="flex-1 py-1.5 px-3 rounded-lg text-sm font-medium transition-all hover:scale-105" style="background-color: ${textColor}; color: ${hex}">
+                                <i class="fas fa-${color.locked ? 'lock' : 'unlock'}"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                paletteContainer.appendChild(card);
+            });
+        }
+
+        // Copy hex to clipboard
+        function copyHex(hex) {
+            navigator.clipboard.writeText(hex).then(() => {
+                showToast(`${hex} copied to clipboard!`);
+            });
+        }
+
+        // Lock/unlock color
+        function lockColor(index) {
+            if (currentPalette[index].locked) {
+                delete currentPalette[index].locked;
+            } else {
+                currentPalette[index].locked = true;
+            }
+            renderPalette();
+        }
+
+        // Save palette to history
+        function saveToHistory() {
+            const paletteHexes = currentPalette.map(c => hslToHex(c.h, c.s, c.l));
+            const historyItem = {
+                id: Date.now(),
+                colors: paletteHexes,
+                harmony: currentHarmony,
+                timestamp: new Date().toLocaleString()
+            };
+
+            history.unshift(historyItem);
+            if (history.length > 20) history.pop();
+
+            localStorage.setItem('paletteHistory', JSON.stringify(history));
+            renderHistory();
+            showToast('Palette saved to history!');
+        }
+
+        // Render history
+        function renderHistory() {
+            const historyContainer = document.getElementById('history');
+            const emptyMessage = document.getElementById('empty-history');
+
+            if (history.length === 0) {
+                emptyMessage.classList.remove('hidden');
+                historyContainer.innerHTML = '';
+                historyContainer.appendChild(emptyMessage);
+                return;
+            }
+
+            historyContainer.innerHTML = '';
+
+            history.forEach((item, index) => {
+                const historyItem = document.createElement('div');
+                historyItem.className = 'history-item bg-white/10 rounded-xl p-4 cursor-pointer';
+                historyItem.innerHTML = `
+                    <div class="flex justify-between items-start mb-3">
+                        <div>
+                            <span class="text-purple-400 text-sm font-medium capitalize">${item.harmony}</span>
+                            <p class="text-gray-400 text-xs">${item.timestamp}</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="loadPalette(${index})" class="p-2 bg-blue-600/80 hover:bg-blue-600 rounded-lg text-white transition-all">
+                                <i class="fas fa-upload text-sm"></i>
+                            </button>
+                            <button onclick="deleteHistoryItem(${index})" class="p-2 bg-red-600/80 hover:bg-red-600 rounded-lg text-white transition-all">
+                                <i class="fas fa-trash text-sm"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-5 gap-2" onclick="loadPalette(${index})">
+                        ${item.colors.map(color => `
+                            <div class="h-10 rounded-lg" style="background-color: ${color}"></div>
+                        `).join('')}
+                    </div>
+                `;
+
+                historyContainer.appendChild(historyItem);
+            });
+        }
+
+        // Load palette from history
+        function loadPalette(index) {
+            const item = history[index];
+            currentPalette = item.colors.map(hex => {
+                const r = parseInt(hex.slice(1, 3), 16);
+                const g = parseInt(hex.slice(3, 5), 16);
+                const b = parseInt(hex.slice(5, 7), 16);
+
+                const max = Math.max(r, g, b), min = Math.min(r, g, b);
+                let h, s, l = (max + min) / 2;
+
+                if (max === min) {
+                    h = s = 0;
+                } else {
+                    const d = max - min;
+                    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                    switch (max) {
+                        case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+                        case g: h = ((b - r) / d + 2) / 6; break;
+                        case b: h = ((r - g) / d + 4) / 6; break;
+                    }
+                }
+
+                return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+            });
+
+            setHarmony(item.harmony);
+            renderPalette();
+            showToast('Palette loaded!');
+        }
+
+        // Delete history item
+        function deleteHistoryItem(index) {
+            history.splice(index, 1);
+            localStorage.setItem('paletteHistory', JSON.stringify(history));
+            renderHistory();
+        }
+
+        // Clear all history
+        function clearHistory() {
+            if (confirm('Are you sure you want to clear all palette history?')) {
+                history = [];
+                localStorage.setItem('paletteHistory', JSON.stringify(history));
+                renderHistory();
+                showToast('History cleared!');
+            }
+        }
+
+        // Show toast notification
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toast-message');
+
+            toastMessage.textContent = message;
+            toast.classList.remove('hidden');
+
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 2000);
+        }
+    </script>
+</body>
+
+</html>
