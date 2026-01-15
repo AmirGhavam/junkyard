@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChromaGen - Color Palette Tool</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .color-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .color-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            z-index: 10;
+        }
+
+        .copy-overlay {
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .color-card:hover .copy-overlay {
+            opacity: 1;
+        }
+
+        .history-item {
+            cursor: pointer;
+            transition: transform 0.1s ease;
+        }
+
+        .history-item:active {
+            transform: scale(0.98);
+        }
+
+        /* Toast Animation */
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+            }
+
+            to {
+                opacity: 0;
+            }
+        }
+
+        .toast {
+            animation: slideIn 0.3s ease forwards;
+        }
+
+        .toast.hiding {
+            animation: fadeOut 0.3s ease forwards;
+        }
+    </style>
+</head>
+
+<body class="text-slate-800 min-h-screen flex flex-col md:h-screen">
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2"></div>
+
+    <!-- Header -->
+    <header
+        class="bg-white border-b border-slate-200 px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm z-20 shrink-0">
+        <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500"></div>
+            <h1 class="text-xl font-bold tracking-tight">ChromaGen</h1>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3">
+            <div class="relative">
+                <select id="harmony-select"
+                    class="appearance-none bg-slate-100 border border-slate-300 text-slate-700 py-2 pl-4 pr-10 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium text-sm cursor-pointer">
+                    <option value="random">Random</option>
+                    <option value="analogous">Analogous</option>
+                    <option value="monochromatic">Monochromatic</option>
+                    <option value="triadic">Triadic</option>
+                    <option value="complementary">Complementary</option>
+                    <option value="split-complementary">Split Complementary</option>
+                </select>
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
+                    <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                        <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                    </svg>
+                </div>
+            </div>
+
+            <button id="generate-btn"
+                class="bg-slate-900 hover:bg-slate-800 text-white font-medium py-2 px-6 rounded-lg shadow-sm transition-colors flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                    stroke="currentColor" class="w-5 h-5">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                </svg>
+                Generate
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Palette Display -->
+    <main class="flex-1 flex flex-col md:flex-row md:overflow-hidden">
+        <div id="palette-container" class="flex-1 flex flex-col md:flex-row w-full min-h-[500px] md:min-h-0">
+            <!-- Colors will be injected here -->
+        </div>
+    </main>
+
+    <!-- History Sidebar -->
+    <aside
+        class="bg-white border-t md:border-t-0 md:border-l border-slate-200 w-full md:w-80 flex flex-col h-64 md:h-full transition-all z-10 shrink-0">
+        <div class="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+            <h2 class="font-semibold text-slate-700">History</h2>
+            <button id="clear-history" class="text-xs text-slate-500 hover:text-red-500 underline">Clear</button>
+        </div>
+        <div id="history-list" class="flex-1 overflow-y-auto p-4 space-y-3">
+            <!-- History items here -->
+            <div class="text-center text-slate-400 text-sm py-8 italic" id="empty-history-msg">
+                Generated palettes will appear here
+            </div>
+        </div>
+    </aside>
+
+    <script>
+        // State
+        let currentPalette = [];
+        let history = [];
+
+        // DOM Elements
+        const paletteContainer = document.getElementById('palette-container');
+        const generateBtn = document.getElementById('generate-btn');
+        const harmonySelect = document.getElementById('harmony-select');
+        const historyList = document.getElementById('history-list');
+        const emptyHistoryMsg = document.getElementById('empty-history-msg');
+        const clearHistoryBtn = document.getElementById('clear-history');
+        const toastContainer = document.getElementById('toast-container');
+
+        // Initial Load
+        window.addEventListener('DOMContentLoaded', () => {
+            loadHistory();
+            generatePalette();
+        });
+
+        // Event Listeners
+        generateBtn.addEventListener('click', () => generatePalette());
+
+        // Spacebar to generate
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && e.target.tagName !== 'BUTTON' && e.target.tagName !== 'SELECT') {
+                e.preventDefault();
+                generatePalette();
+            }
+        });
+
+        clearHistoryBtn.addEventListener('click', () => {
+            history = [];
+            saveHistory();
+            renderHistory();
+        });
+
+        // Color Utilities
+        function hslToHex(h, s, l) {
+            l /= 100;
+            const a = s * Math.min(l, 1 - l) / 100;
+            const f = n => {
+                const k = (n + h / 30) % 12;
+                const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+                return Math.round(255 * color).toString(16).padStart(2, '0');
+            };
+            return `#${f(0)}${f(8)}${f(4)}`;
+        }
+
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        }
+
+        // Determine if text should be black or white based on background luminance
+        function getContrastColor(hex) {
+            const rgb = hexToRgb(hex);
+            if (!rgb) return 'black';
+            // Calculate luminance
+            const luminance = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255;
+            return luminance > 0.5 ? '#1e293b' : '#ffffff'; // dark slate or white
+        }
+
+        function generateRandomHSL() {
+            const h = Math.floor(Math.random() * 360);
+            const s = Math.floor(Math.random() * 40) + 60; // 60-100% saturation for vibrant colors
+            const l = Math.floor(Math.random() * 40) + 30; // 30-70% lightness
+            return { h, s, l };
+        }
+
+        // Core Logic
+        function generatePalette(ruleOverride = null) {
+            const rule = ruleOverride || harmonySelect.value;
+            const colors = [];
+            const baseColor = generateRandomHSL();
+
+            if (rule === 'random') {
+                for (let i = 0; i < 5; i++) {
+                    const c = generateRandomHSL();
+                    colors.push(hslToHex(c.h, c.s, c.l));
+                }
+            } else {
+                // Generate 5 variations based on the rule
+                // We define variations as objects with hueOffset, satOffset, lightOffset
+                let variations = [];
+
+                switch (rule) {
+                    case 'analogous':
+                        // Colors adjacent on the wheel
+                        variations = [
+                            { h: 0, s: 0, l: 0 },
+                            { h: 30, s: 0, l: 0 },
+                            { h: -30, s: 0, l: 0 },
+                            { h: 60, s: -5, l: 5 },
+                            { h: -60, s: -5, l: 10 }
+                        ];
+                        break;
+                    case 'monochromatic':
+                        // Same hue, different saturation/lightness
+                        variations = [
+                            { h: 0, s: 0, l: 0 },
+                            { h: 0, s: -10, l: 20 },   // Lighter
+                            { h: 0, s: -20, l: 40 },   // Very Light
+                            { h: 0, s: 10, l: -20 },   // Darker
+                            { h: 0, s: 20, l: -40 }    // Very Dark
+                        ];
+                        break;
+                    case 'triadic':
+                        // Three points 120deg apart
+                        variations = [
+                            { h: 0, s: 0, l: 0 },
+                            { h: 120, s: 0, l: 0 },
+                            { h: 240, s: 0, l: 0 },
+                            { h: 120, s: -10, l: 20 }, // Variation of 2nd
+                            { h: 240, s: -10, l: -20 } // Variation of 3rd
+                        ];
+                        break;
+                    case 'complementary':
+                        // Opposite colors
+                        variations = [
+                            { h: 0, s: 0, l: 0 },
+                            { h: 180, s: 0, l: 0 },
+                            { h: 0, s: -10, l: 30 },   // Light Base
+                            { h: 180, s: -10, l: -20 }, // Dark Complement
+                            { h: 0, s: 20, l: -30 }    // Dark Base
+                        ];
+                        break;
+                    case 'split-complementary':
+                        // Base + two adjacent to complement
+                        variations = [
+                            { h: 0, s: 0, l: 0 },
+                            { h: 150, s: 0, l: 0 },
+                            { h: 210, s: 0, l: 0 },
+                            { h: 150, s: 10, l: -20 },
+                            { h: 210, s: -10, l: 20 }
+                        ];
+                        break;
+                    default:
+                        variations = [
+                            { h: 0, s: 0, l: 0 },
+                            { h: 20, s: 0, l: 0 },
+                            { h: 40, s: 0, l: 0 },
+                            { h: 60, s: 0, l: 0 },
+                            { h: 80, s: 0, l: 0 }
+                        ];
+                }
+
+                variations.forEach(v => {
+                    let h = (baseColor.h + v.h + 360) % 360;
+                    // Clamp saturation 0-100
+                    let s = Math.max(5, Math.min(100, baseColor.s + v.s));
+                    // Clamp lightness 10-95 (avoid pure black/white usually)
+                    let l = Math.max(10, Math.min(95, baseColor.l + v.l));
+
+                    colors.push(hslToHex(h, s, l));
+                });
+            }
+
+            currentPalette = colors;
+            renderPalette();
+            addToHistory(colors);
+        }
+
+        function renderPalette() {
+            paletteContainer.innerHTML = '';
+
+            currentPalette.forEach((hex, index) => {
+                const textColor = getContrastColor(hex);
+
+                const col = document.createElement('div');
+                col.className = 'color-card group relative flex-1 min-h-[100px] flex flex-col items-center justify-center cursor-pointer';
+                col.style.backgroundColor = hex;
+
+                // Content
+                col.innerHTML = `
+                    <div class="copy-overlay absolute inset-0 bg-black/10 flex items-center justify-center backdrop-blur-[1px]">
+                        <span class="bg-white/90 text-slate-900 px-3 py-1 rounded-full text-xs font-bold shadow-sm">Click to Copy</span>
+                    </div>
+                    <div class="z-10 flex flex-col items-center gap-1 transition-transform group-hover:scale-110">
+                        <span class="text-2xl font-bold uppercase tracking-wider" style="color: ${textColor}">${hex.replace('#', '')}</span>
+                        <span class="text-xs opacity-60 uppercase" style="color: ${textColor}">HEX</span>
+                    </div>
+                `;
+
+                col.addEventListener('click', () => {
+                    copyToClipboard(hex);
+                });
+
+                paletteContainer.appendChild(col);
+            });
+        }
+
+        function addToHistory(palette) {
+            // Prevent duplicate adjacent entries
+            if (history.length > 0) {
+                const last = history[0];
+                if (JSON.stringify(last) === JSON.stringify(palette)) return;
+            }
+
+            history.unshift(palette);
+            if (history.length > 20) history.pop(); // Limit history
+
+            saveHistory();
+            renderHistory();
+        }
+
+        function renderHistory() {
+            historyList.innerHTML = '';
+
+            if (history.length === 0) {
+                historyList.appendChild(emptyHistoryMsg);
+                return;
+            }
+
+            history.forEach((palette, idx) => {
+                const item = document.createElement('div');
+                item.className = 'history-item bg-white p-2 rounded-lg border border-slate-100 shadow-sm hover:border-purple-200 hover:shadow-md';
+
+                const colorsPreview = document.createElement('div');
+                colorsPreview.className = 'flex h-8 w-full rounded-md overflow-hidden mb-2';
+
+                palette.forEach(color => {
+                    const cDiv = document.createElement('div');
+                    cDiv.style.backgroundColor = color;
+                    cDiv.className = 'flex-1 h-full';
+                    colorsPreview.appendChild(cDiv);
+                });
+
+                const actions = document.createElement('div');
+                actions.className = 'flex justify-between items-center text-xs text-slate-500';
+                actions.innerHTML = `
+                    <span>Palette #${history.length - idx}</span>
+                    <span class="font-mono text-[10px]">${palette[0]}...</span>
+                `;
+
+                item.appendChild(colorsPreview);
+                item.appendChild(actions);
+
+                item.addEventListener('click', () => {
+                    currentPalette = palette;
+                    renderPalette();
+                    // Don't add to history again when clicking history item
+                });
+
+                historyList.appendChild(item);
+            });
+        }
+
+        function saveHistory() {
+            localStorage.setItem('chromagen_history', JSON.stringify(history));
+        }
+
+        function loadHistory() {
+            const saved = localStorage.getItem('chromagen_history');
+            if (saved) {
+                try {
+                    history = JSON.parse(saved);
+                    if (history.length > 0) {
+                        currentPalette = history[0]; // Load last used
+                    }
+                    renderHistory();
+                } catch (e) {
+                    console.error('Failed to load history', e);
+                    history = [];
+                }
+            }
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast(`Copied ${text} to clipboard!`);
+            });
+        }
+
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'toast bg-slate-800 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 text-sm font-medium min-w-[200px]';
+            toast.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 text-green-400">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+                ${message}
+            `;
+
+            toastContainer.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('hiding');
+                toast.addEventListener('animationend', () => {
+                    toast.remove();
+                });
+            }, 2000);
+        }
+    </script>
+</body>
+
+</html>
