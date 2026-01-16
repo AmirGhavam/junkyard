@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Funhouse Mirror</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Creepster&display=swap');
+
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .mirror-frame {
+            position: relative;
+            padding: 30px;
+            background: linear-gradient(145deg, #8B4513, #D2691E, #8B4513, #CD853F, #8B4513);
+            border-radius: 20px;
+            box-shadow:
+                0 0 0 8px #5D3A1A,
+                0 0 0 12px #8B4513,
+                0 0 0 16px #3D2512,
+                inset 0 0 30px rgba(0, 0, 0, 0.5),
+                0 20px 60px rgba(0, 0, 0, 0.6);
+        }
+
+        .mirror-frame::before {
+            content: '';
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            bottom: 10px;
+            border: 4px solid #D4AF37;
+            border-radius: 12px;
+            pointer-events: none;
+        }
+
+        .mirror-frame::after {
+            content: '';
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            right: 5px;
+            bottom: 5px;
+            border: 2px solid #FFD700;
+            border-radius: 15px;
+            pointer-events: none;
+            opacity: 0.5;
+        }
+
+        .ornament {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: radial-gradient(circle, #FFD700, #D4AF37, #8B4513);
+            border-radius: 50%;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.4);
+        }
+
+        .ornament-tl {
+            top: -10px;
+            left: -10px;
+        }
+
+        .ornament-tr {
+            top: -10px;
+            right: -10px;
+        }
+
+        .ornament-bl {
+            bottom: -10px;
+            left: -10px;
+        }
+
+        .ornament-br {
+            bottom: -10px;
+            right: -10px;
+        }
+
+        .mirror-inner {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #111;
+        }
+
+        .mirror-shine {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg,
+                    rgba(255, 255, 255, 0.15) 0%,
+                    transparent 40%,
+                    transparent 60%,
+                    rgba(255, 255, 255, 0.05) 100%);
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .btn-mode {
+            transition: all 0.3s ease;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-mode:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .btn-mode.active {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+        }
+
+        .title {
+            font-family: 'Creepster', cursive;
+            text-shadow: 0 0 10px #ff6b6b, 0 0 20px #ff6b6b, 0 0 30px #ff6b6b;
+            animation: flicker 3s infinite alternate;
+        }
+
+        @keyframes flicker {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.8;
+            }
+
+            75% {
+                opacity: 0.95;
+            }
+        }
+
+        .slider-container input[type="range"] {
+            -webkit-appearance: none;
+            height: 8px;
+            background: linear-gradient(90deg, #4a1a7a, #ff6b6b);
+            border-radius: 4px;
+            outline: none;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #FFD700;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
+    </style>
+</head>
+
+<body class="flex flex-col items-center justify-center p-4">
+    <h1 class="title text-5xl md:text-6xl text-red-400 mb-6 text-center">🎪 Funhouse Mirror 🎪</h1>
+
+    <div class="flex flex-col lg:flex-row gap-8 items-center justify-center w-full max-w-6xl">
+        <!-- Mirror -->
+        <div class="mirror-frame">
+            <div class="ornament ornament-tl"></div>
+            <div class="ornament ornament-tr"></div>
+            <div class="ornament ornament-bl"></div>
+            <div class="ornament ornament-br"></div>
+            <div class="mirror-inner">
+                <video id="video" autoplay playsinline class="hidden"></video>
+                <canvas id="canvas" width="640" height="480"></canvas>
+                <div class="mirror-shine"></div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="bg-gray-900/80 backdrop-blur-sm p-6 rounded-2xl border-2 border-amber-600 shadow-2xl">
+            <h2 class="text-2xl font-bold text-amber-400 mb-4 text-center">🎛️ Distortion Controls</h2>
+
+            <!-- Mode Buttons -->
+            <div class="grid grid-cols-2 gap-3 mb-6">
+                <button onclick="setMode('stretch')" data-mode="stretch"
+                    class="btn-mode active bg-gradient-to-r from-purple-600 to-pink-500 text-white px-4 py-3 rounded-lg font-bold">
+                    ↕️ Stretch
+                </button>
+                <button onclick="setMode('squeeze')" data-mode="squeeze"
+                    class="btn-mode bg-gradient-to-r from-blue-600 to-cyan-500 text-white px-4 py-3 rounded-lg font-bold">
+                    ↔️ Squeeze
+                </button>
+                <button onclick="setMode('wave')" data-mode="wave"
+                    class="btn-mode bg-gradient-to-r from-green-600 to-teal-500 text-white px-4 py-3 rounded-lg font-bold">
+                    🌊 Wave
+                </button>
+                <button onclick="setMode('bulge')" data-mode="bulge"
+                    class="btn-mode bg-gradient-to-r from-orange-600 to-red-500 text-white px-4 py-3 rounded-lg font-bold">
+                    🔮 Bulge
+                </button>
+                <button onclick="setMode('swirl')" data-mode="swirl"
+                    class="btn-mode bg-gradient-to-r from-indigo-600 to-purple-500 text-white px-4 py-3 rounded-lg font-bold">
+                    🌀 Swirl
+                </button>
+                <button onclick="setMode('fisheye')" data-mode="fisheye"
+                    class="btn-mode bg-gradient-to-r from-yellow-600 to-amber-500 text-white px-4 py-3 rounded-lg font-bold">
+                    👁️ Fisheye
+                </button>
+            </div>
+
+            <!-- Sliders -->
+            <div class="slider-container space-y-4">
+                <div>
+                    <label class="text-white font-semibold block mb-2">Intensity: <span
+                            id="intensityVal">50</span>%</label>
+                    <input type="range" id="intensity" min="0" max="100" value="50" class="w-full">
+                </div>
+                <div>
+                    <label class="text-white font-semibold block mb-2">Speed: <span id="speedVal">50</span>%</label>
+                    <input type="range" id="speed" min="0" max="100" value="50" class="w-full">
+                </div>
+                <div>
+                    <label class="text-white font-semibold block mb-2">Frequency: <span id="freqVal">50</span>%</label>
+                    <input type="range" id="frequency" min="0" max="100" value="50" class="w-full">
+                </div>
+            </div>
+
+            <!-- Toggle Options -->
+            <div class="mt-6 space-y-3">
+                <label class="flex items-center gap-3 text-white cursor-pointer">
+                    <input type="checkbox" id="animateToggle" checked class="w-5 h-5 accent-amber-500">
+                    <span>🔄 Animate Distortion</span>
+                </label>
+                <label class="flex items-center gap-3 text-white cursor-pointer">
+                    <input type="checkbox" id="mirrorToggle" checked class="w-5 h-5 accent-amber-500">
+                    <span>🪞 Mirror Flip</span>
+                </label>
+            </div>
+
+            <!-- Start Button -->
+            <button id="startBtn" onclick="startCamera()"
+                class="w-full mt-6 bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-bold py-3 px-6 rounded-lg hover:from-amber-400 hover:to-yellow-300 transition-all shadow-lg">
+                📷 Start Camera
+            </button>
+        </div>
+    </div>
+
+    <p class="text-gray-400 mt-6 text-center">Click "Start Camera" and allow camera access to see yourself in the
+        funhouse mirror!</p>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        let currentMode = 'stretch';
+        let intensity = 0.5;
+        let speed = 0.5;
+        let frequency = 0.5;
+        let animate = true;
+        let mirrorFlip = true;
+        let time = 0;
+        let isRunning = false;
+
+        // Temp canvas for processing
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCanvas.width = canvas.width;
+        tempCanvas.height = canvas.height;
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.btn-mode').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.mode === mode) {
+                    btn.classList.add('active');
+                }
+            });
+        }
+
+        // Slider updates
+        document.getElementById('intensity').addEventListener('input', (e) => {
+            intensity = e.target.value / 100;
+            document.getElementById('intensityVal').textContent = e.target.value;
+        });
+
+        document.getElementById('speed').addEventListener('input', (e) => {
+            speed = e.target.value / 100;
+            document.getElementById('speedVal').textContent = e.target.value;
+        });
+
+        document.getElementById('frequency').addEventListener('input', (e) => {
+            frequency = e.target.value / 100;
+            document.getElementById('freqVal').textContent = e.target.value;
+        });
+
+        document.getElementById('animateToggle').addEventListener('change', (e) => {
+            animate = e.target.checked;
+        });
+
+        document.getElementById('mirrorToggle').addEventListener('change', (e) => {
+            mirrorFlip = e.target.checked;
+        });
+
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 640, height: 480, facingMode: 'user' }
+                });
+                video.srcObject = stream;
+                document.getElementById('startBtn').textContent = '✅ Camera Active';
+                document.getElementById('startBtn').disabled = true;
+                isRunning = true;
+                requestAnimationFrame(render);
+            } catch (err) {
+                alert('Could not access camera. Please allow camera permissions.');
+                console.error(err);
+            }
+        }
+
+        function applyDistortion(sourceData, destData, width, height) {
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const maxRadius = Math.sqrt(centerX * centerX + centerY * centerY);
+            const t = animate ? time : 0;
+
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    let srcX = x;
+                    let srcY = y;
+
+                    const dx = x - centerX;
+                    const dy = y - centerY;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const angle = Math.atan2(dy, dx);
+
+                    switch (currentMode) {
+                        case 'stretch':
+                            // Vertical stretch
+                            const stretchFactor = 1 + intensity * Math.sin((x / width) * Math.PI + t * 2);
+                            srcY = centerY + (y - centerY) / stretchFactor;
+                            break;
+
+                        case 'squeeze':
+                            // Horizontal squeeze
+                            const squeezeFactor = 1 + intensity * Math.sin((y / height) * Math.PI + t * 2);
+                            srcX = centerX + (x - centerX) / squeezeFactor;
+                            break;
+
+                        case 'wave':
+                            // Wavy distortion
+                            const waveAmp = intensity * 30;
+                            const waveFreq = (frequency + 0.1) * 10;
+                            srcX = x + Math.sin(y / waveFreq + t * 3) * waveAmp;
+                            srcY = y + Math.cos(x / waveFreq + t * 3) * waveAmp;
+                            break;
+
+                        case 'bulge':
+                            // Bulge effect
+                            const bulgeRadius = maxRadius * (0.3 + frequency * 0.5);
+                            if (dist < bulgeRadius) {
+                                const bulgeFactor = 1 - (dist / bulgeRadius);
+                                const bulgeAmount = bulgeFactor * bulgeFactor * intensity * (1 + Math.sin(t * 2) * 0.3);
+                                const newDist = dist * (1 - bulgeAmount * 0.5);
+                                srcX = centerX + Math.cos(angle) * newDist;
+                                srcY = centerY + Math.sin(angle) * newDist;
+                            }
+                            break;
+
+                        case 'swirl':
+                            // Swirl effect
+                            const swirlRadius = maxRadius * 0.8;
+                            if (dist < swirlRadius) {
+                                const swirlAmount = (1 - dist / swirlRadius) * intensity * 3 + t * 0.5;
+                                const newAngle = angle + swirlAmount;
+                                srcX = centerX + Math.cos(newAngle) * dist;
+                                srcY = centerY + Math.sin(newAngle) * dist;
+                            }
+                            break;
+
+                        case 'fisheye':
+                            // Fisheye lens effect
+                            const fishRadius = maxRadius * (0.5 + frequency * 0.5);
+                            const normDist = dist / fishRadius;
+                            if (normDist < 1) {
+                                const fishFactor = Math.pow(normDist, 1 + intensity * 2) * (1 + Math.sin(t) * 0.1);
+                                srcX = centerX + Math.cos(angle) * fishFactor * fishRadius;
+                                srcY = centerY + Math.sin(angle) * fishFactor * fishRadius;
+                            }
+                            break;
+                    }
+
+                    // Clamp source coordinates
+                    srcX = Math.max(0, Math.min(width - 1, Math.floor(srcX)));
+                    srcY = Math.max(0, Math.min(height - 1, Math.floor(srcY)));
+
+                    // Copy pixel
+                    const destIdx = (y * width + x) * 4;
+                    const srcIdx = (srcY * width + srcX) * 4;
+
+                    destData.data[destIdx] = sourceData.data[srcIdx];
+                    destData.data[destIdx + 1] = sourceData.data[srcIdx + 1];
+                    destData.data[destIdx + 2] = sourceData.data[srcIdx + 2];
+                    destData.data[destIdx + 3] = 255;
+                }
+            }
+        }
+
+        function render() {
+            if (!isRunning) return;
+
+            // Update time
+            time += speed * 0.05;
+
+            // Draw video to temp canvas (with mirror flip if enabled)
+            tempCtx.save();
+            if (mirrorFlip) {
+                tempCtx.scale(-1, 1);
+                tempCtx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+            } else {
+                tempCtx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            }
+            tempCtx.restore();
+
+            // Get image data
+            const sourceData = tempCtx.getImageData(0, 0, canvas.width, canvas.height);
+            const destData = ctx.createImageData(canvas.width, canvas.height);
+
+            // Apply distortion
+            applyDistortion(sourceData, destData, canvas.width, canvas.height);
+
+            // Draw result
+            ctx.putImageData(destData, 0, 0);
+
+            requestAnimationFrame(render);
+        }
+
+        // Draw placeholder
+        function drawPlaceholder() {
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#FFD700';
+            ctx.font = 'bold 24px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('🎪 Click "Start Camera" 🎪', canvas.width / 2, canvas.height / 2 - 20);
+            ctx.fillStyle = '#888';
+            ctx.font = '16px Arial';
+            ctx.fillText('to see your funhouse reflection!', canvas.width / 2, canvas.height / 2 + 20);
+        }
+
+        drawPlaceholder();
+    </script>
+</body>
+
+</html>
