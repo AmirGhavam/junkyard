@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Funhouse Mirror</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @keyframes shimmer {
+            0% {
+                background-position: -200% center;
+            }
+
+            100% {
+                background-position: 200% center;
+            }
+        }
+
+        .frame-gold {
+            background: linear-gradient(135deg, #bf953f, #fcf6ba, #b38728, #fbf5b7, #aa771c);
+            background-size: 400% 400%;
+            animation: shimmer 3s ease-in-out infinite;
+        }
+
+        .frame-silver {
+            background: linear-gradient(135deg, #c0c0c0, #f5f5f5, #a8a8a8, #e8e8e8, #909090);
+            background-size: 400% 400%;
+            animation: shimmer 3s ease-in-out infinite;
+        }
+
+        .frame-copper {
+            background: linear-gradient(135deg, #b87333, #da8a67, #8b4513, #e6a87d, #a0522d);
+            background-size: 400% 400%;
+            animation: shimmer 3s ease-in-out infinite;
+        }
+
+        .frame-neon {
+            background: linear-gradient(135deg, #ff00ff, #00ffff, #ff00ff, #00ffff);
+            background-size: 400% 400%;
+            animation: shimmer 2s linear infinite;
+            box-shadow: 0 0 20px #ff00ff, 0 0 40px #00ffff, inset 0 0 20px rgba(255, 255, 255, 0.5);
+        }
+
+        .frame-wood {
+            background: linear-gradient(135deg, #8B4513, #A0522D, #654321, #8B4513, #A0522D);
+            background-size: 400% 400%;
+            animation: shimmer 4s ease-in-out infinite;
+        }
+
+        .frame-rainbow {
+            background: linear-gradient(135deg, red, orange, yellow, green, blue, indigo, violet, red);
+            background-size: 400% 400%;
+            animation: shimmer 2s linear infinite;
+        }
+
+        .glass-effect {
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        #mirrorCanvas {
+            image-rendering: pixelated;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900 p-4 md:p-8">
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1
+                class="text-4xl md:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-purple-400 to-cyan-400 mb-2">
+                🪞 Funhouse Mirror
+            </h1>
+            <p class="text-gray-300 text-lg">Upload a photo or use your webcam to see the magic!</p>
+        </div>
+
+        <div class="flex flex-col lg:flex-row gap-8 items-start justify-center">
+            <!-- Mirror Container -->
+            <div class="flex-shrink-0">
+                <div id="mirrorFrame" class="frame-gold p-6 rounded-3xl shadow-2xl transition-all duration-500">
+                    <div class="bg-black/50 rounded-2xl p-2 overflow-hidden">
+                        <canvas id="mirrorCanvas" width="480" height="480" class="rounded-xl bg-gray-800"></canvas>
+                    </div>
+                </div>
+
+                <!-- Webcam Toggle -->
+                <div class="mt-4 flex justify-center gap-4">
+                    <button id="webcamBtn"
+                        class="px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-500 text-white font-bold rounded-full hover:scale-105 transition-transform shadow-lg">
+                        📷 Use Webcam
+                    </button>
+                    <label
+                        class="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold rounded-full hover:scale-105 transition-transform shadow-lg cursor-pointer">
+                        📁 Upload Photo
+                        <input type="file" id="imageUpload" accept="image/*" class="hidden">
+                    </label>
+                </div>
+
+                <!-- Hidden video for webcam -->
+                <video id="webcamVideo" class="hidden" autoplay playsinline></video>
+                <canvas id="sourceCanvas" class="hidden"></canvas>
+            </div>
+
+            <!-- Controls Panel -->
+            <div class="w-full lg:w-80 glass-effect rounded-3xl p-6 shadow-2xl border border-white/20">
+                <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                    <span>🎨</span> Controls
+                </h2>
+
+                <!-- Distortion Mode -->
+                <div class="mb-6">
+                    <label class="block text-gray-200 font-semibold mb-3">Distortion Mode</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button data-mode="stretch"
+                            class="mode-btn active px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-500 transition-colors text-sm font-medium">
+                            ↔️ Stretch
+                        </button>
+                        <button data-mode="squeeze"
+                            class="mode-btn px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm font-medium">
+                            ↕️ Squeeze
+                        </button>
+                        <button data-mode="wave"
+                            class="mode-btn px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm font-medium">
+                            🌊 Wave
+                        </button>
+                        <button data-mode="bulge"
+                            class="mode-btn px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm font-medium">
+                            🔵 Bulge
+                        </button>
+                        <button data-mode="twist"
+                            class="mode-btn px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm font-medium">
+                            🌀 Twist
+                        </button>
+                        <button data-mode="fisheye"
+                            class="mode-btn px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm font-medium">
+                            👁️ Fisheye
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Intensity Slider -->
+                <div class="mb-6">
+                    <label class="block text-gray-200 font-semibold mb-2">
+                        Intensity: <span id="intensityValue" class="text-cyan-400">50</span>%
+                    </label>
+                    <input type="range" id="intensity" min="0" max="100" value="50"
+                        class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-500">
+                </div>
+
+                <!-- Speed Slider (for morphing) -->
+                <div class="mb-6">
+                    <label class="block text-gray-200 font-semibold mb-2">
+                        Morph Speed: <span id="speedValue" class="text-cyan-400">50</span>%
+                    </label>
+                    <input type="range" id="speed" min="0" max="100" value="50"
+                        class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-pink-500">
+                </div>
+
+                <!-- Morph Toggle -->
+                <div class="mb-6">
+                    <label class="flex items-center gap-3 cursor-pointer">
+                        <input type="checkbox" id="autoMorph" class="w-5 h-5 accent-purple-500 rounded">
+                        <span class="text-gray-200 font-semibold">🔄 Auto Morph</span>
+                    </label>
+                </div>
+
+                <!-- Frame Style -->
+                <div class="mb-6">
+                    <label class="block text-gray-200 font-semibold mb-3">Frame Style</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button data-frame="frame-gold"
+                            class="frame-btn frame-gold h-10 rounded-lg hover:scale-105 transition-transform border-2 border-transparent hover:border-white"></button>
+                        <button data-frame="frame-silver"
+                            class="frame-btn frame-silver h-10 rounded-lg hover:scale-105 transition-transform border-2 border-transparent hover:border-white"></button>
+                        <button data-frame="frame-copper"
+                            class="frame-btn frame-copper h-10 rounded-lg hover:scale-105 transition-transform border-2 border-transparent hover:border-white"></button>
+                        <button data-frame="frame-neon"
+                            class="frame-btn frame-neon h-10 rounded-lg hover:scale-105 transition-transform border-2 border-transparent hover:border-white"></button>
+                        <button data-frame="frame-wood"
+                            class="frame-btn frame-wood h-10 rounded-lg hover:scale-105 transition-transform border-2 border-transparent hover:border-white"></button>
+                        <button data-frame="frame-rainbow"
+                            class="frame-btn frame-rainbow h-10 rounded-lg hover:scale-105 transition-transform border-2 border-transparent hover:border-white"></button>
+                    </div>
+                </div>
+
+                <!-- Reset Button -->
+                <button id="resetBtn"
+                    class="w-full px-6 py-3 bg-gradient-to-r from-red-500 to-orange-500 text-white font-bold rounded-full hover:scale-105 transition-transform shadow-lg">
+                    🔄 Reset All
+                </button>
+
+                <!-- Save Photo -->
+                <button id="saveBtn"
+                    class="w-full mt-3 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold rounded-full hover:scale-105 transition-transform shadow-lg">
+                    💾 Save Photo
+                </button>
+            </div>
+        </div>
+
+        <!-- Instructions -->
+        <div class="mt-8 text-center text-gray-400 text-sm">
+            <p>💡 Tip: Enable Auto Morph for a dynamic funhouse experience!</p>
+        </div>
+    </div>
+
+    <script>
+        // Canvas setup
+        const mirrorCanvas = document.getElementById('mirrorCanvas');
+        const mirrorCtx = mirrorCanvas.getContext('2d');
+        const sourceCanvas = document.getElementById('sourceCanvas');
+        const sourceCtx = sourceCanvas.getContext('2d');
+        const webcamVideo = document.getElementById('webcamVideo');
+
+        // State
+        let currentMode = 'stretch';
+        let intensity = 50;
+        let morphSpeed = 50;
+        let autoMorph = false;
+        let usingWebcam = false;
+        let animationId = null;
+        let time = 0;
+        let morphPhase = 0;
+
+        // Load default image
+        const defaultImage = new Image();
+        defaultImage.crossOrigin = 'anonymous';
+        defaultImage.src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=480&h=480&fit=crop&crop=face';
+        defaultImage.onload = () => {
+            sourceCanvas.width = 480;
+            sourceCanvas.height = 480;
+            sourceCtx.drawImage(defaultImage, 0, 0, 480, 480);
+            render();
+        };
+
+        // Mode buttons
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.mode-btn').forEach(b => {
+                    b.classList.remove('active', 'bg-purple-600');
+                    b.classList.add('bg-gray-700');
+                });
+                btn.classList.add('active', 'bg-purple-600');
+                btn.classList.remove('bg-gray-700');
+                currentMode = btn.dataset.mode;
+            });
+        });
+
+        // Frame buttons
+        document.querySelectorAll('.frame-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.frame-btn').forEach(b => b.classList.remove('border-white'));
+                btn.classList.add('border-white');
+                const frame = document.getElementById('mirrorFrame');
+                frame.className = `${btn.dataset.frame} p-6 rounded-3xl shadow-2xl transition-all duration-500`;
+            });
+        });
+
+        // Sliders
+        document.getElementById('intensity').addEventListener('input', (e) => {
+            intensity = parseInt(e.target.value);
+            document.getElementById('intensityValue').textContent = intensity;
+        });
+
+        document.getElementById('speed').addEventListener('input', (e) => {
+            morphSpeed = parseInt(e.target.value);
+            document.getElementById('speedValue').textContent = morphSpeed;
+        });
+
+        document.getElementById('autoMorph').addEventListener('change', (e) => {
+            autoMorph = e.target.checked;
+            if (autoMorph) {
+                animate();
+            } else {
+                cancelAnimationFrame(animationId);
+            }
+        });
+
+        // Webcam
+        document.getElementById('webcamBtn').addEventListener('click', async () => {
+            if (usingWebcam) {
+                usingWebcam = false;
+                webcamVideo.srcObject.getTracks().forEach(track => track.stop());
+                document.getElementById('webcamBtn').textContent = '📷 Use Webcam';
+                cancelAnimationFrame(animationId);
+                sourceCtx.drawImage(defaultImage, 0, 0, 480, 480);
+                render();
+                return;
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 480, height: 480 } });
+                webcamVideo.srcObject = stream;
+                usingWebcam = true;
+                document.getElementById('webcamBtn').textContent = '⏹️ Stop Webcam';
+                animateWebcam();
+            } catch (err) {
+                alert('Could not access webcam. Please check permissions.');
+            }
+        });
+
+        // Image upload
+        document.getElementById('imageUpload').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        usingWebcam = false;
+                        webcamVideo.srcObject?.getTracks().forEach(track => track.stop());
+                        document.getElementById('webcamBtn').textContent = '📷 Use Webcam';
+
+                        // Center crop to square
+                        const size = Math.min(img.width, img.height);
+                        const sx = (img.width - size) / 2;
+                        const sy = (img.height - size) / 2;
+
+                        sourceCanvas.width = 480;
+                        sourceCanvas.height = 480;
+                        sourceCtx.drawImage(img, sx, sy, size, size, 0, 0, 480, 480);
+                        render();
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Reset
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            currentMode = 'stretch';
+            intensity = 50;
+            morphSpeed = 50;
+            autoMorph = false;
+            time = 0;
+
+            document.getElementById('intensity').value = 50;
+            document.getElementById('intensityValue').textContent = '50';
+            document.getElementById('speed').value = 50;
+            document.getElementById('speedValue').textContent = '50';
+            document.getElementById('autoMorph').checked = false;
+
+            document.querySelectorAll('.mode-btn').forEach(b => {
+                b.classList.remove('active', 'bg-purple-600');
+                b.classList.add('bg-gray-700');
+            });
+            document.querySelector('[data-mode="stretch"]').classList.add('active', 'bg-purple-600');
+            document.querySelector('[data-mode="stretch"]').classList.remove('bg-gray-700');
+
+            cancelAnimationFrame(animationId);
+            render();
+        });
+
+        // Save photo
+        document.getElementById('saveBtn').addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.download = 'funhouse-mirror.png';
+            link.href = mirrorCanvas.toDataURL();
+            link.click();
+        });
+
+        // Distortion functions
+        function distort(x, y, width, height, mode, t, int) {
+            const cx = width / 2;
+            const cy = height / 2;
+            const dx = x - cx;
+            const dy = y - cy;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const maxDist = Math.sqrt(cx * cx + cy * cy);
+            const normDist = dist / maxDist;
+            const factor = int / 50;
+
+            let newX = x, newY = y;
+
+            switch (mode) {
+                case 'stretch':
+                    newX = cx + dx * (1 + factor * 0.5 * Math.sin(t * 0.02));
+                    break;
+
+                case 'squeeze':
+                    newY = cy + dy * (1 - factor * 0.3 + factor * 0.3 * Math.sin(t * 0.02));
+                    break;
+
+                case 'wave':
+                    const waveFreq = 5 + factor * 3;
+                    const waveAmp = 20 + factor * 30;
+                    newX = x + Math.sin(y * 0.02 * waveFreq + t * 0.03) * waveAmp;
+                    newY = y + Math.cos(x * 0.02 * waveFreq + t * 0.03) * waveAmp * 0.5;
+                    break;
+
+                case 'bulge':
+                    const bulgeStrength = factor * 50;
+                    const bulgeRadius = 150 + factor * 50;
+                    if (dist < bulgeRadius) {
+                        const bulge = Math.pow(1 - dist / bulgeRadius, 2) * bulgeStrength;
+                        newX = cx + dx * (1 + bulge / dist);
+                        newY = cy + dy * (1 + bulge / dist);
+                    }
+                    break;
+
+                case 'twist':
+                    const twistStrength = factor * Math.PI * (1 + 0.5 * Math.sin(t * 0.02));
+                    const twistFactor = Math.max(0, 1 - normDist * 1.5);
+                    const angle = twistStrength * twistFactor;
+                    newX = cx + dx * Math.cos(angle) - dy * Math.sin(angle);
+                    newY = cy + dx * Math.sin(angle) + dy * Math.cos(angle);
+                    break;
+
+                case 'fisheye':
+                    const fishStrength = 1 + factor * 0.5 + factor * 0.3 * Math.sin(t * 0.02);
+                    const r = dist;
+                    const fishR = Math.pow(r / maxDist, fishStrength) * maxDist;
+                    const fishAngle = Math.atan2(dy, dx);
+                    newX = cx + fishR * Math.cos(fishAngle);
+                    newY = cy + fishR * Math.sin(fishAngle);
+                    break;
+            }
+
+            return {
+                x: Math.max(0, Math.min(width - 1, newX)),
+                y: Math.max(0, Math.min(height - 1, newY))
+            };
+        }
+
+        function render() {
+            const width = mirrorCanvas.width;
+            const height = mirrorCanvas.height;
+            const srcData = sourceCtx.getImageData(0, 0, width, height);
+            const dstData = mirrorCtx.createImageData(width, height);
+
+            const src = srcData.data;
+            const dst = dstData.data;
+
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const pos = distort(x, y, width, height, currentMode, time + morphPhase, intensity);
+                    const srcX = Math.floor(pos.x);
+                    const srcY = Math.floor(pos.y);
+                    const srcIdx = (srcY * width + srcX) * 4;
+                    const dstIdx = (y * width + x) * 4;
+
+                    dst[dstIdx] = src[srcIdx];
+                    dst[dstIdx + 1] = src[srcIdx + 1];
+                    dst[dstIdx + 2] = src[srcIdx + 2];
+                    dst[dstIdx + 3] = 255;
+                }
+            }
+
+            mirrorCtx.putImageData(dstData, 0, 0);
+        }
+
+        function animate() {
+            if (!autoMorph && !usingWebcam) return;
+
+            time += morphSpeed / 10;
+            morphPhase = Math.sin(time * 0.01) * 100;
+
+            render();
+            animationId = requestAnimationFrame(animate);
+        }
+
+        function animateWebcam() {
+            if (!usingWebcam) return;
+
+            // Draw video frame to source canvas
+            sourceCtx.save();
+            sourceCtx.translate(480, 0);
+            sourceCtx.scale(-1, 1);
+
+            // Center crop to square
+            const size = Math.min(webcamVideo.videoWidth, webcamVideo.videoHeight);
+            const sx = (webcamVideo.videoWidth - size) / 2;
+            const sy = (webcamVideo.videoHeight - size) / 2;
+
+            sourceCtx.drawImage(webcamVideo, sx, sy, size, size, 0, 0, 480, 480);
+            sourceCtx.restore();
+
+            if (autoMorph) {
+                time += morphSpeed / 10;
+                morphPhase = Math.sin(time * 0.01) * 100;
+            }
+
+            render();
+            animationId = requestAnimationFrame(animateWebcam);
+        }
+
+        // Initial render
+        render();
+    </script>
+</body>
+
+</html>
