@@ -1,457 +1,830 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Funhouse Mirror</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Creepster&display=swap');
-
-        body {
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-            min-height: 100vh;
-            overflow: hidden;
+        :root {
+            --frame-wood-1: #6b3f1d;
+            --frame-wood-2: #8a5a2b;
+            --frame-wood-3: #4a2a12;
+            --frame-gold-1: #f7e7a7;
+            --frame-gold-2: #caa24a;
+            --frame-gold-3: #7a5a1a;
         }
 
+        /* Ornate frame */
         .mirror-frame {
             position: relative;
-            padding: 30px;
-            background: linear-gradient(145deg, #8B4513, #D2691E, #8B4513, #CD853F, #8B4513);
-            border-radius: 20px;
+            padding: 28px;
+            border-radius: 28px;
+            background:
+                radial-gradient(120% 80% at 20% 0%, rgba(255, 255, 255, .18), rgba(255, 255, 255, 0) 50%),
+                repeating-linear-gradient(45deg, rgba(0, 0, 0, .18) 0 8px, rgba(0, 0, 0, .10) 8px 16px),
+                linear-gradient(180deg, var(--frame-wood-2), var(--frame-wood-1));
             box-shadow:
-                0 0 0 8px #5D3A1A,
-                0 0 0 12px #8B4513,
-                0 0 0 16px #3D2512,
-                inset 0 0 30px rgba(0, 0, 0, 0.5),
-                0 20px 60px rgba(0, 0, 0, 0.6);
+                0 18px 60px rgba(0, 0, 0, .55),
+                inset 0 2px 0 rgba(255, 255, 255, .25),
+                inset 0 -10px 30px rgba(0, 0, 0, .45);
         }
 
         .mirror-frame::before {
-            content: '';
+            content: "";
             position: absolute;
-            top: 10px;
-            left: 10px;
-            right: 10px;
-            bottom: 10px;
-            border: 4px solid #D4AF37;
-            border-radius: 12px;
+            inset: 10px;
+            border-radius: 22px;
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, .15), rgba(255, 255, 255, 0) 35%),
+                linear-gradient(135deg, var(--frame-gold-1), var(--frame-gold-2) 45%, var(--frame-gold-3));
+            box-shadow:
+                inset 0 0 0 2px rgba(255, 255, 255, .25),
+                inset 0 0 20px rgba(0, 0, 0, .45);
             pointer-events: none;
         }
 
         .mirror-frame::after {
-            content: '';
+            content: "";
             position: absolute;
-            top: 5px;
-            left: 5px;
-            right: 5px;
-            bottom: 5px;
-            border: 2px solid #FFD700;
-            border-radius: 15px;
+            inset: 22px;
+            border-radius: 16px;
+            background:
+                radial-gradient(120% 100% at 20% 0%, rgba(255, 255, 255, .25), rgba(255, 255, 255, 0) 55%),
+                linear-gradient(180deg, rgba(0, 0, 0, .35), rgba(0, 0, 0, .1) 35%, rgba(0, 0, 0, .35));
             pointer-events: none;
-            opacity: 0.5;
+            mix-blend-mode: overlay;
+            opacity: .65;
         }
 
-        .ornament {
-            position: absolute;
-            width: 40px;
-            height: 40px;
-            background: radial-gradient(circle, #FFD700, #D4AF37, #8B4513);
-            border-radius: 50%;
-            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.4);
-        }
-
-        .ornament-tl {
-            top: -10px;
-            left: -10px;
-        }
-
-        .ornament-tr {
-            top: -10px;
-            right: -10px;
-        }
-
-        .ornament-bl {
-            bottom: -10px;
-            left: -10px;
-        }
-
-        .ornament-br {
-            bottom: -10px;
-            right: -10px;
-        }
-
-        .mirror-inner {
+        .mirror-glass {
             position: relative;
-            border-radius: 8px;
+            border-radius: 14px;
             overflow: hidden;
-            background: #111;
+            background: radial-gradient(120% 100% at 20% 0%, rgba(255, 255, 255, .10), rgba(255, 255, 255, 0) 55%),
+                radial-gradient(120% 100% at 80% 90%, rgba(120, 220, 255, .10), rgba(0, 0, 0, 0) 55%),
+                rgba(5, 10, 20, .4);
+            box-shadow:
+                inset 0 0 0 1px rgba(255, 255, 255, .10),
+                inset 0 20px 50px rgba(0, 0, 0, .35);
         }
 
-        .mirror-shine {
+        .glass-sheen {
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(135deg,
-                    rgba(255, 255, 255, 0.15) 0%,
-                    transparent 40%,
-                    transparent 60%,
-                    rgba(255, 255, 255, 0.05) 100%);
+            inset: -40% -20%;
+            background: linear-gradient(135deg, rgba(255, 255, 255, .00) 40%, rgba(255, 255, 255, .18) 50%, rgba(255, 255, 255, .00) 60%);
+            transform: rotate(12deg);
             pointer-events: none;
-            z-index: 10;
+            animation: sheen 6.5s ease-in-out infinite;
+            opacity: .65;
         }
 
-        .btn-mode {
-            transition: all 0.3s ease;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-        }
+        @keyframes sheen {
+            0% {
+                transform: translateX(-18%) rotate(12deg);
+                opacity: .25;
+            }
 
-        .btn-mode:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
-        }
+            45% {
+                opacity: .65;
+            }
 
-        .btn-mode.active {
-            transform: scale(1.05);
-            box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
-        }
-
-        .title {
-            font-family: 'Creepster', cursive;
-            text-shadow: 0 0 10px #ff6b6b, 0 0 20px #ff6b6b, 0 0 30px #ff6b6b;
-            animation: flicker 3s infinite alternate;
-        }
-
-        @keyframes flicker {
-
-            0%,
             100% {
-                opacity: 1;
-            }
-
-            50% {
-                opacity: 0.8;
-            }
-
-            75% {
-                opacity: 0.95;
+                transform: translateX(18%) rotate(12deg);
+                opacity: .25;
             }
         }
 
-        .slider-container input[type="range"] {
-            -webkit-appearance: none;
-            height: 8px;
-            background: linear-gradient(90deg, #4a1a7a, #ff6b6b);
-            border-radius: 4px;
-            outline: none;
+        /* Make canvas crisp when scaled */
+        canvas {
+            image-rendering: auto;
         }
 
-        .slider-container input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 20px;
-            height: 20px;
-            background: #FFD700;
-            border-radius: 50%;
-            cursor: pointer;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        /* Range inputs a bit nicer */
+        input[type="range"] {
+            accent-color: #f5d07a;
+        }
+
+        /* Prevent overscroll on mobile while dragging center */
+        body {
+            overscroll-behavior: none;
         }
     </style>
 </head>
 
-<body class="flex flex-col items-center justify-center p-4">
-    <h1 class="title text-5xl md:text-6xl text-red-400 mb-6 text-center">🎪 Funhouse Mirror 🎪</h1>
-
-    <div class="flex flex-col lg:flex-row gap-8 items-center justify-center w-full max-w-6xl">
-        <!-- Mirror -->
-        <div class="mirror-frame">
-            <div class="ornament ornament-tl"></div>
-            <div class="ornament ornament-tr"></div>
-            <div class="ornament ornament-bl"></div>
-            <div class="ornament ornament-br"></div>
-            <div class="mirror-inner">
-                <video id="video" autoplay playsinline class="hidden"></video>
-                <canvas id="canvas" width="640" height="480"></canvas>
-                <div class="mirror-shine"></div>
+<body class="min-h-screen bg-slate-950 text-slate-100">
+    <div class="max-w-6xl mx-auto px-4 py-6">
+        <header class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-6">
+            <div>
+                <h1 class="text-2xl sm:text-3xl font-semibold tracking-tight">Funhouse Mirror</h1>
+                <p class="text-slate-300 text-sm">Real-time distortions (stretch, squeeze, wave, bulge) + smooth
+                    morphing. Drag on the mirror to move the distortion center.</p>
             </div>
-        </div>
-
-        <!-- Controls -->
-        <div class="bg-gray-900/80 backdrop-blur-sm p-6 rounded-2xl border-2 border-amber-600 shadow-2xl">
-            <h2 class="text-2xl font-bold text-amber-400 mb-4 text-center">🎛️ Distortion Controls</h2>
-
-            <!-- Mode Buttons -->
-            <div class="grid grid-cols-2 gap-3 mb-6">
-                <button onclick="setMode('stretch')" data-mode="stretch"
-                    class="btn-mode active bg-gradient-to-r from-purple-600 to-pink-500 text-white px-4 py-3 rounded-lg font-bold">
-                    ↕️ Stretch
-                </button>
-                <button onclick="setMode('squeeze')" data-mode="squeeze"
-                    class="btn-mode bg-gradient-to-r from-blue-600 to-cyan-500 text-white px-4 py-3 rounded-lg font-bold">
-                    ↔️ Squeeze
-                </button>
-                <button onclick="setMode('wave')" data-mode="wave"
-                    class="btn-mode bg-gradient-to-r from-green-600 to-teal-500 text-white px-4 py-3 rounded-lg font-bold">
-                    🌊 Wave
-                </button>
-                <button onclick="setMode('bulge')" data-mode="bulge"
-                    class="btn-mode bg-gradient-to-r from-orange-600 to-red-500 text-white px-4 py-3 rounded-lg font-bold">
-                    🔮 Bulge
-                </button>
-                <button onclick="setMode('swirl')" data-mode="swirl"
-                    class="btn-mode bg-gradient-to-r from-indigo-600 to-purple-500 text-white px-4 py-3 rounded-lg font-bold">
-                    🌀 Swirl
-                </button>
-                <button onclick="setMode('fisheye')" data-mode="fisheye"
-                    class="btn-mode bg-gradient-to-r from-yellow-600 to-amber-500 text-white px-4 py-3 rounded-lg font-bold">
-                    👁️ Fisheye
-                </button>
+            <div class="flex items-center gap-2">
+                <span id="statusPill"
+                    class="text-xs px-2.5 py-1 rounded-full bg-slate-800 border border-slate-700">Initializing…</span>
+                <span id="fpsPill" class="text-xs px-2.5 py-1 rounded-full bg-slate-800 border border-slate-700">FPS:
+                    —</span>
             </div>
+        </header>
 
-            <!-- Sliders -->
-            <div class="slider-container space-y-4">
-                <div>
-                    <label class="text-white font-semibold block mb-2">Intensity: <span
-                            id="intensityVal">50</span>%</label>
-                    <input type="range" id="intensity" min="0" max="100" value="50" class="w-full">
+        <main class="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6">
+            <!-- Controls -->
+            <section
+                class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-[0_20px_70px_rgba(0,0,0,.35)]">
+                <div class="flex items-start justify-between gap-3">
+                    <h2 class="text-lg font-semibold">Controls</h2>
+                    <div class="flex gap-2">
+                        <button id="resetBtn"
+                            class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700">Reset</button>
+                        <button id="snapBtn"
+                            class="text-xs px-3 py-1.5 rounded-lg bg-amber-500/90 hover:bg-amber-500 text-slate-950 font-semibold">Snapshot</button>
+                    </div>
                 </div>
-                <div>
-                    <label class="text-white font-semibold block mb-2">Speed: <span id="speedVal">50</span>%</label>
-                    <input type="range" id="speed" min="0" max="100" value="50" class="w-full">
-                </div>
-                <div>
-                    <label class="text-white font-semibold block mb-2">Frequency: <span id="freqVal">50</span>%</label>
-                    <input type="range" id="frequency" min="0" max="100" value="50" class="w-full">
-                </div>
-            </div>
 
-            <!-- Toggle Options -->
-            <div class="mt-6 space-y-3">
-                <label class="flex items-center gap-3 text-white cursor-pointer">
-                    <input type="checkbox" id="animateToggle" checked class="w-5 h-5 accent-amber-500">
-                    <span>🔄 Animate Distortion</span>
-                </label>
-                <label class="flex items-center gap-3 text-white cursor-pointer">
-                    <input type="checkbox" id="mirrorToggle" checked class="w-5 h-5 accent-amber-500">
-                    <span>🪞 Mirror Flip</span>
-                </label>
-            </div>
+                <div class="mt-4 grid gap-4">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs text-slate-300">Mode</label>
+                            <select id="modeSel"
+                                class="mt-1 w-full rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-sm">
+                                <option value="bulge">Bulge</option>
+                                <option value="stretch">Stretch</option>
+                                <option value="squeeze">Squeeze</option>
+                                <option value="wave">Wave</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs text-slate-300">Resolution</label>
+                            <select id="resSel"
+                                class="mt-1 w-full rounded-lg bg-slate-950 border border-slate-800 px-3 py-2 text-sm">
+                                <option value="420x315">Low (420×315)</option>
+                                <option value="640x480" selected>Medium (640×480)</option>
+                                <option value="800x600">High (800×600)</option>
+                            </select>
+                        </div>
+                    </div>
 
-            <!-- Start Button -->
-            <button id="startBtn" onclick="startCamera()"
-                class="w-full mt-6 bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-bold py-3 px-6 rounded-lg hover:from-amber-400 hover:to-yellow-300 transition-all shadow-lg">
-                📷 Start Camera
-            </button>
-        </div>
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <label class="text-xs text-slate-300">Intensity</label>
+                            <span id="intensityVal" class="text-xs text-slate-300 tabular-nums">0.60</span>
+                        </div>
+                        <input id="intensity" type="range" min="0" max="1" step="0.01" value="0.60"
+                            class="mt-2 w-full" />
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <label class="text-xs text-slate-300">Bulge radius</label>
+                                <span id="radiusVal" class="text-xs text-slate-300 tabular-nums">0.85</span>
+                            </div>
+                            <input id="radius" type="range" min="0.25" max="1" step="0.01" value="0.85"
+                                class="mt-2 w-full" />
+                        </div>
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <label class="text-xs text-slate-300">Wave freq</label>
+                                <span id="freqVal" class="text-xs text-slate-300 tabular-nums">2.50</span>
+                            </div>
+                            <input id="waveFreq" type="range" min="0.5" max="6" step="0.01" value="2.50"
+                                class="mt-2 w-full" />
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <label class="text-xs text-slate-300">Wave speed</label>
+                                <span id="speedVal" class="text-xs text-slate-300 tabular-nums">1.20</span>
+                            </div>
+                            <input id="waveSpeed" type="range" min="0" max="3" step="0.01" value="1.20"
+                                class="mt-2 w-full" />
+                        </div>
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <label class="text-xs text-slate-300">Morph time (s)</label>
+                                <span id="morphVal" class="text-xs text-slate-300 tabular-nums">3.5</span>
+                            </div>
+                            <input id="morphDuration" type="range" min="1" max="8" step="0.1" value="3.5"
+                                class="mt-2 w-full" />
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="flex items-center gap-2 text-sm">
+                            <input id="mirrorFlip" type="checkbox" class="size-4" checked />
+                            <span class="text-slate-200">Mirror flip</span>
+                        </label>
+                        <label class="flex items-center gap-2 text-sm">
+                            <input id="bilinear" type="checkbox" class="size-4" />
+                            <span class="text-slate-200">Bilinear sampling</span>
+                        </label>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="flex items-center gap-2 text-sm">
+                            <input id="morph" type="checkbox" class="size-4" checked />
+                            <span class="text-slate-200">Auto morph</span>
+                        </label>
+                        <label class="flex items-center gap-2 text-sm">
+                            <input id="wobble" type="checkbox" class="size-4" checked />
+                            <span class="text-slate-200">Wobble intensity</span>
+                        </label>
+                    </div>
+
+                    <div class="border-t border-slate-800 pt-4 grid gap-3">
+                        <div class="flex items-center justify-between gap-3">
+                            <div>
+                                <p class="text-sm font-semibold">Source</p>
+                                <p class="text-xs text-slate-300">Use your camera or upload an image.</p>
+                            </div>
+                            <div class="flex gap-2">
+                                <button id="camBtn"
+                                    class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700">Start
+                                    camera</button>
+                                <label
+                                    class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 cursor-pointer">
+                                    Upload
+                                    <input id="fileInp" type="file" accept="image/*" class="hidden" />
+                                </label>
+                            </div>
+                        </div>
+                        <div class="text-xs text-slate-400">
+                            Tip: drag on the mirror to move the distortion center. Double-click to recenter.
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Mirror -->
+            <section class="flex flex-col gap-3">
+                <div class="mirror-frame">
+                    <div id="glass" class="mirror-glass">
+                        <canvas id="out" class="w-full h-auto block"></canvas>
+                        <div class="glass-sheen"></div>
+                        <div id="crosshair" class="pointer-events-none absolute inset-0"></div>
+                        <div class="absolute inset-0 pointer-events-none">
+                            <div class="absolute inset-0"
+                                style="background: radial-gradient(80% 80% at 50% 50%, rgba(0,0,0,0) 50%, rgba(0,0,0,.28) 100%);">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div class="text-xs text-slate-300">
+                        Center: <span id="centerVal" class="tabular-nums">(0.50, 0.50)</span>
+                        <span class="text-slate-500">•</span>
+                        Mode: <span id="modeVal" class="font-semibold">Bulge</span>
+                        <span class="text-slate-500">•</span>
+                        Morph: <span id="morphState" class="font-semibold">On</span>
+                    </div>
+                    <div class="text-xs text-slate-400">
+                        Your camera feed stays local in your browser.
+                    </div>
+                </div>
+
+                <video id="vid" playsinline autoplay muted class="hidden"></video>
+            </section>
+        </main>
     </div>
 
-    <p class="text-gray-400 mt-6 text-center">Click "Start Camera" and allow camera access to see yourself in the
-        funhouse mirror!</p>
-
     <script>
-        const video = document.getElementById('video');
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
+        const $ = (id) => document.getElementById(id);
 
-        let currentMode = 'stretch';
-        let intensity = 0.5;
-        let speed = 0.5;
-        let frequency = 0.5;
-        let animate = true;
-        let mirrorFlip = true;
-        let time = 0;
-        let isRunning = false;
+        const out = $('out');
+        const outCtx = out.getContext('2d', { willReadFrequently: true });
+        const srcCanvas = document.createElement('canvas');
+        const srcCtx = srcCanvas.getContext('2d', { willReadFrequently: true });
 
-        // Temp canvas for processing
-        const tempCanvas = document.createElement('canvas');
-        const tempCtx = tempCanvas.getContext('2d');
-        tempCanvas.width = canvas.width;
-        tempCanvas.height = canvas.height;
+        const vid = $('vid');
 
-        function setMode(mode) {
-            currentMode = mode;
-            document.querySelectorAll('.btn-mode').forEach(btn => {
-                btn.classList.remove('active');
-                if (btn.dataset.mode === mode) {
-                    btn.classList.add('active');
-                }
-            });
+        const modeSel = $('modeSel');
+        const resSel = $('resSel');
+        const intensity = $('intensity');
+        const radius = $('radius');
+        const waveFreq = $('waveFreq');
+        const waveSpeed = $('waveSpeed');
+        const morph = $('morph');
+        const wobble = $('wobble');
+        const mirrorFlip = $('mirrorFlip');
+        const bilinear = $('bilinear');
+        const morphDuration = $('morphDuration');
+
+        const statusPill = $('statusPill');
+        const fpsPill = $('fpsPill');
+        const centerVal = $('centerVal');
+        const modeVal = $('modeVal');
+        const morphState = $('morphState');
+
+        const snapBtn = $('snapBtn');
+        const resetBtn = $('resetBtn');
+        const camBtn = $('camBtn');
+        const fileInp = $('fileInp');
+
+        const intensityVal = $('intensityVal');
+        const radiusVal = $('radiusVal');
+        const freqVal = $('freqVal');
+        const speedVal = $('speedVal');
+        const morphVal = $('morphVal');
+
+        const crosshair = $('crosshair');
+
+        const state = {
+            w: 640,
+            h: 480,
+            mode: 'bulge',
+            intensity: 0.60,
+            radius: 0.85,
+            waveFreq: 2.50,
+            waveSpeed: 1.20,
+            morph: true,
+            wobble: true,
+            mirrorFlip: true,
+            bilinear: false,
+            centerX: 0.5,
+            centerY: 0.5,
+            morphDurationMs: 3500,
+            src: 'sample', // 'camera' | 'image' | 'sample'
+        };
+
+        const modes = ['bulge', 'stretch', 'squeeze', 'wave'];
+
+        let dstImageData = null;
+        let imgEl = null;
+        let videoStream = null;
+
+        // FPS meter
+        let fpsFrames = 0;
+        let fpsLastT = performance.now();
+        let fpsSmoothed = 0;
+
+        // Morphing timeline
+        let morphIndex = 0;
+        let morphSegmentStart = performance.now();
+
+        // Drag center
+        let dragging = false;
+        let dragPointerId = null;
+
+        function setStatus(text, kind = 'info') {
+            statusPill.textContent = text;
+            const base = 'text-xs px-2.5 py-1 rounded-full border';
+            const map = {
+                info: ' bg-slate-800 border-slate-700',
+                ok: ' bg-emerald-900/50 border-emerald-700/60',
+                warn: ' bg-amber-900/40 border-amber-700/60',
+                err: ' bg-rose-900/50 border-rose-700/60',
+            };
+            statusPill.className = base + (map[kind] || map.info);
         }
 
-        // Slider updates
-        document.getElementById('intensity').addEventListener('input', (e) => {
-            intensity = e.target.value / 100;
-            document.getElementById('intensityVal').textContent = e.target.value;
-        });
+        function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+        function lerp(a, b, t) { return a + (b - a) * t; }
+        function easeInOut(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
 
-        document.getElementById('speed').addEventListener('input', (e) => {
-            speed = e.target.value / 100;
-            document.getElementById('speedVal').textContent = e.target.value;
-        });
+        function resize(w, h) {
+            state.w = w; state.h = h;
+            out.width = w; out.height = h;
+            srcCanvas.width = w; srcCanvas.height = h;
+            dstImageData = outCtx.createImageData(w, h);
+        }
 
-        document.getElementById('frequency').addEventListener('input', (e) => {
-            frequency = e.target.value / 100;
-            document.getElementById('freqVal').textContent = e.target.value;
-        });
+        function updateUI() {
+            modeSel.value = state.mode;
+            intensity.value = state.intensity;
+            radius.value = state.radius;
+            waveFreq.value = state.waveFreq;
+            waveSpeed.value = state.waveSpeed;
+            morph.checked = state.morph;
+            wobble.checked = state.wobble;
+            mirrorFlip.checked = state.mirrorFlip;
+            bilinear.checked = state.bilinear;
+            morphDuration.value = (state.morphDurationMs / 1000).toFixed(1);
 
-        document.getElementById('animateToggle').addEventListener('change', (e) => {
-            animate = e.target.checked;
-        });
+            intensityVal.textContent = state.intensity.toFixed(2);
+            radiusVal.textContent = state.radius.toFixed(2);
+            freqVal.textContent = state.waveFreq.toFixed(2);
+            speedVal.textContent = state.waveSpeed.toFixed(2);
+            morphVal.textContent = (state.morphDurationMs / 1000).toFixed(1);
 
-        document.getElementById('mirrorToggle').addEventListener('change', (e) => {
-            mirrorFlip = e.target.checked;
-        });
+            centerVal.textContent = `(${state.centerX.toFixed(2)}, ${state.centerY.toFixed(2)})`;
+            modeVal.textContent = state.mode[0].toUpperCase() + state.mode.slice(1);
+            morphState.textContent = state.morph ? 'On' : 'Off';
+
+            drawCrosshair();
+        }
+
+        function drawCrosshair() {
+            const xPct = (state.centerX * 100).toFixed(2);
+            const yPct = (state.centerY * 100).toFixed(2);
+            crosshair.innerHTML = `
+        <div class="absolute" style="left:${xPct}%; top:${yPct}%; transform:translate(-50%,-50%);">
+          <div class="relative">
+            <div class="absolute -left-5 top-1/2 w-10 h-px bg-white/60"></div>
+            <div class="absolute left-1/2 -top-5 w-px h-10 bg-white/60"></div>
+            <div class="w-2.5 h-2.5 rounded-full border border-white/70 bg-white/10 shadow-[0_0_16px_rgba(255,255,255,.4)]"></div>
+          </div>
+        </div>
+      `;
+        }
+
+        function drawCover(el, ctx, w, h) {
+            const ew = el.videoWidth || el.naturalWidth || w;
+            const eh = el.videoHeight || el.naturalHeight || h;
+            if (!ew || !eh) return;
+            const scale = Math.max(w / ew, h / eh);
+            const dw = ew * scale;
+            const dh = eh * scale;
+            const dx = (w - dw) / 2;
+            const dy = (h - dh) / 2;
+            ctx.drawImage(el, dx, dy, dw, dh);
+        }
+
+        function drawSample(ctx, w, h, t) {
+            // A colorful, animated pattern for when no camera/image is available.
+            ctx.clearRect(0, 0, w, h);
+            const g = ctx.createLinearGradient(0, 0, w, h);
+            g.addColorStop(0, `hsl(${(t * 0.02) % 360}, 85%, 55%)`);
+            g.addColorStop(1, `hsl(${(t * 0.02 + 140) % 360}, 85%, 45%)`);
+            ctx.fillStyle = g;
+            ctx.fillRect(0, 0, w, h);
+
+            ctx.globalAlpha = 0.85;
+            for (let i = 0; i < 26; i++) {
+                const y = (i / 26) * h;
+                ctx.fillStyle = `hsla(${(t * 0.05 + i * 22) % 360}, 90%, 60%, 0.55)`;
+                const amp = 18 + 16 * Math.sin(t * 0.002 + i);
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                for (let x = 0; x <= w; x += 24) {
+                    const yy = y + Math.sin(x * 0.03 + t * 0.003 + i) * amp;
+                    ctx.lineTo(x, yy);
+                }
+                ctx.lineTo(w, y + 18);
+                ctx.lineTo(0, y + 18);
+                ctx.closePath();
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+
+            ctx.fillStyle = 'rgba(0,0,0,.25)';
+            ctx.fillRect(0, 0, w, 44);
+            ctx.fillStyle = 'rgba(255,255,255,.9)';
+            ctx.font = '700 18px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto';
+            ctx.fillText('No camera? Upload an image — or just enjoy the sample!', 14, 28);
+        }
+
+        function mapCoord(mode, x, y, tSec, params) {
+            const { w, h } = params;
+            const cx = params.cx;
+            const cy = params.cy;
+            const dx = x - cx;
+            const dy = y - cy;
+
+            if (mode === 'wave') {
+                const freq = params.waveFreq;
+                const spd = params.waveSpeed;
+                const amp = params.waveAmp;
+
+                const nx = x / w;
+                const ny = y / h;
+                const phase = tSec * spd * 2 * Math.PI;
+
+                const sx = x + Math.sin((ny * freq * 2 * Math.PI) + phase) * amp;
+                const sy = y + Math.sin((nx * freq * 2 * Math.PI) + phase * 0.85) * amp * 0.28;
+                return [sx, sy];
+            }
+
+            if (mode === 'bulge') {
+                const R = params.radiusPx;
+                const k = params.k;
+                const r = Math.hypot(dx, dy);
+                if (r < R) {
+                    // factor < 1 magnifies center (bulge) when sampling from source
+                    const u = 1 - (r / R);
+                    const factor = clamp(1 - k * u * u, 0.15, 3.0);
+                    return [cx + dx * factor, cy + dy * factor];
+                }
+                return [x, y];
+            }
+
+            if (mode === 'stretch' || mode === 'squeeze') {
+                // 1D pinch/bulge horizontally based on vertical distance from center
+                const k = params.k;
+                const ny = Math.abs(dy) / (h * 0.5);
+                const u = clamp(1 - ny, 0, 1);
+                const u2 = u * u;
+
+                // stretch => factor < 1 near center (magnify horizontally)
+                // squeeze => factor > 1 near center (compress horizontally)
+                const signed = (mode === 'stretch') ? -1 : 1;
+                const factor = clamp(1 + signed * k * u2, 0.2, 3.0);
+                return [cx + dx * factor, y];
+            }
+
+            return [x, y];
+        }
+
+        function sampleNearest(srcData, w, h, sx, sy) {
+            const ix = clamp(sx | 0, 0, w - 1);
+            const iy = clamp(sy | 0, 0, h - 1);
+            const si = (iy * w + ix) * 4;
+            return [srcData[si], srcData[si + 1], srcData[si + 2], srcData[si + 3]];
+        }
+
+        function sampleBilinear(srcData, w, h, sx, sy) {
+            const x0 = clamp(Math.floor(sx), 0, w - 1);
+            const y0 = clamp(Math.floor(sy), 0, h - 1);
+            const x1 = clamp(x0 + 1, 0, w - 1);
+            const y1 = clamp(y0 + 1, 0, h - 1);
+            const tx = clamp(sx - x0, 0, 1);
+            const ty = clamp(sy - y0, 0, 1);
+
+            const i00 = (y0 * w + x0) * 4;
+            const i10 = (y0 * w + x1) * 4;
+            const i01 = (y1 * w + x0) * 4;
+            const i11 = (y1 * w + x1) * 4;
+
+            const out = [0, 0, 0, 0];
+            for (let c = 0; c < 4; c++) {
+                const a = srcData[i00 + c] * (1 - tx) + srcData[i10 + c] * tx;
+                const b = srcData[i01 + c] * (1 - tx) + srcData[i11 + c] * tx;
+                out[c] = (a * (1 - ty) + b * ty) | 0;
+            }
+            return out;
+        }
+
+        function render(now) {
+            requestAnimationFrame(render);
+            const tSec = now / 1000;
+
+            // FPS
+            fpsFrames++;
+            const dt = now - fpsLastT;
+            if (dt > 350) {
+                const fps = (fpsFrames * 1000) / dt;
+                fpsSmoothed = fpsSmoothed ? (fpsSmoothed * 0.75 + fps * 0.25) : fps;
+                fpsPill.textContent = `FPS: ${fpsSmoothed.toFixed(0)}`;
+                fpsFrames = 0;
+                fpsLastT = now;
+            }
+
+            // Choose active mode(s)
+            let modeA = state.mode;
+            let modeB = state.mode;
+            let alpha = 0;
+
+            if (state.morph) {
+                const dur = Math.max(600, state.morphDurationMs);
+                const t = (now - morphSegmentStart) / dur;
+                if (t >= 1) {
+                    morphSegmentStart = now;
+                    morphIndex = (morphIndex + 1) % modes.length;
+                }
+                modeA = modes[morphIndex % modes.length];
+                modeB = modes[(morphIndex + 1) % modes.length];
+                alpha = easeInOut(clamp((now - morphSegmentStart) / dur, 0, 1));
+            }
+
+            // Draw source frame
+            srcCtx.save();
+            srcCtx.clearRect(0, 0, state.w, state.h);
+
+            if (state.src === 'camera' && vid.readyState >= 2) {
+                drawCover(vid, srcCtx, state.w, state.h);
+            } else if (state.src === 'image' && imgEl && imgEl.complete) {
+                drawCover(imgEl, srcCtx, state.w, state.h);
+            } else {
+                drawSample(srcCtx, state.w, state.h, now);
+            }
+
+            srcCtx.restore();
+
+            const srcImg = srcCtx.getImageData(0, 0, state.w, state.h);
+            const srcData = srcImg.data;
+            const dstData = dstImageData.data;
+
+            const cx = state.centerX * state.w;
+            const cy = state.centerY * state.h;
+            const maxDim = Math.max(state.w, state.h);
+
+            // Animated intensity wobble
+            const wob = state.wobble ? (0.82 + 0.18 * Math.sin(now * 0.0023)) : 1;
+            const k = clamp(state.intensity * wob, 0, 1);
+
+            const params = {
+                w: state.w,
+                h: state.h,
+                cx,
+                cy,
+                k: k,
+                radiusPx: state.radius * Math.min(state.w, state.h) * 0.5,
+                waveFreq: state.waveFreq,
+                waveSpeed: state.waveSpeed,
+                waveAmp: k * maxDim * 0.08,
+            };
+
+            const doBilinear = state.bilinear;
+            const sampler = doBilinear ? sampleBilinear : sampleNearest;
+
+            // Pixel mapping
+            // NOTE: we map from output pixel -> source pixel (inverse mapping style)
+            for (let y = 0; y < state.h; y++) {
+                const row = y * state.w;
+                for (let x = 0; x < state.w; x++) {
+                    let sxA, syA, sxB, syB;
+                    [sxA, syA] = mapCoord(modeA, x, y, tSec, params);
+                    if (alpha > 0) {
+                        [sxB, syB] = mapCoord(modeB, x, y, tSec, params);
+                        sxA = lerp(sxA, sxB, alpha);
+                        syA = lerp(syA, syB, alpha);
+                    }
+
+                    if (state.mirrorFlip) {
+                        sxA = (state.w - 1) - sxA;
+                    }
+
+                    // Clamp to edges
+                    sxA = clamp(sxA, 0, state.w - 1);
+                    syA = clamp(syA, 0, state.h - 1);
+
+                    const [r, g, b, a] = sampler(srcData, state.w, state.h, sxA, syA);
+                    const di = (row + x) * 4;
+                    dstData[di] = r;
+                    dstData[di + 1] = g;
+                    dstData[di + 2] = b;
+                    dstData[di + 3] = a;
+                }
+            }
+
+            outCtx.putImageData(dstImageData, 0, 0);
+        }
 
         async function startCamera() {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { width: 640, height: 480, facingMode: 'user' }
-                });
-                video.srcObject = stream;
-                document.getElementById('startBtn').textContent = '✅ Camera Active';
-                document.getElementById('startBtn').disabled = true;
-                isRunning = true;
-                requestAnimationFrame(render);
-            } catch (err) {
-                alert('Could not access camera. Please allow camera permissions.');
-                console.error(err);
-            }
-        }
-
-        function applyDistortion(sourceData, destData, width, height) {
-            const centerX = width / 2;
-            const centerY = height / 2;
-            const maxRadius = Math.sqrt(centerX * centerX + centerY * centerY);
-            const t = animate ? time : 0;
-
-            for (let y = 0; y < height; y++) {
-                for (let x = 0; x < width; x++) {
-                    let srcX = x;
-                    let srcY = y;
-
-                    const dx = x - centerX;
-                    const dy = y - centerY;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    const angle = Math.atan2(dy, dx);
-
-                    switch (currentMode) {
-                        case 'stretch':
-                            // Vertical stretch
-                            const stretchFactor = 1 + intensity * Math.sin((x / width) * Math.PI + t * 2);
-                            srcY = centerY + (y - centerY) / stretchFactor;
-                            break;
-
-                        case 'squeeze':
-                            // Horizontal squeeze
-                            const squeezeFactor = 1 + intensity * Math.sin((y / height) * Math.PI + t * 2);
-                            srcX = centerX + (x - centerX) / squeezeFactor;
-                            break;
-
-                        case 'wave':
-                            // Wavy distortion
-                            const waveAmp = intensity * 30;
-                            const waveFreq = (frequency + 0.1) * 10;
-                            srcX = x + Math.sin(y / waveFreq + t * 3) * waveAmp;
-                            srcY = y + Math.cos(x / waveFreq + t * 3) * waveAmp;
-                            break;
-
-                        case 'bulge':
-                            // Bulge effect
-                            const bulgeRadius = maxRadius * (0.3 + frequency * 0.5);
-                            if (dist < bulgeRadius) {
-                                const bulgeFactor = 1 - (dist / bulgeRadius);
-                                const bulgeAmount = bulgeFactor * bulgeFactor * intensity * (1 + Math.sin(t * 2) * 0.3);
-                                const newDist = dist * (1 - bulgeAmount * 0.5);
-                                srcX = centerX + Math.cos(angle) * newDist;
-                                srcY = centerY + Math.sin(angle) * newDist;
-                            }
-                            break;
-
-                        case 'swirl':
-                            // Swirl effect
-                            const swirlRadius = maxRadius * 0.8;
-                            if (dist < swirlRadius) {
-                                const swirlAmount = (1 - dist / swirlRadius) * intensity * 3 + t * 0.5;
-                                const newAngle = angle + swirlAmount;
-                                srcX = centerX + Math.cos(newAngle) * dist;
-                                srcY = centerY + Math.sin(newAngle) * dist;
-                            }
-                            break;
-
-                        case 'fisheye':
-                            // Fisheye lens effect
-                            const fishRadius = maxRadius * (0.5 + frequency * 0.5);
-                            const normDist = dist / fishRadius;
-                            if (normDist < 1) {
-                                const fishFactor = Math.pow(normDist, 1 + intensity * 2) * (1 + Math.sin(t) * 0.1);
-                                srcX = centerX + Math.cos(angle) * fishFactor * fishRadius;
-                                srcY = centerY + Math.sin(angle) * fishFactor * fishRadius;
-                            }
-                            break;
-                    }
-
-                    // Clamp source coordinates
-                    srcX = Math.max(0, Math.min(width - 1, Math.floor(srcX)));
-                    srcY = Math.max(0, Math.min(height - 1, Math.floor(srcY)));
-
-                    // Copy pixel
-                    const destIdx = (y * width + x) * 4;
-                    const srcIdx = (srcY * width + srcX) * 4;
-
-                    destData.data[destIdx] = sourceData.data[srcIdx];
-                    destData.data[destIdx + 1] = sourceData.data[srcIdx + 1];
-                    destData.data[destIdx + 2] = sourceData.data[srcIdx + 2];
-                    destData.data[destIdx + 3] = 255;
+                setStatus('Requesting camera…', 'info');
+                if (videoStream) {
+                    videoStream.getTracks().forEach(t => t.stop());
+                    videoStream = null;
                 }
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'user',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: false
+                });
+                videoStream = stream;
+                vid.srcObject = stream;
+                state.src = 'camera';
+                setStatus('Camera running', 'ok');
+            } catch (e) {
+                console.error(e);
+                state.src = 'sample';
+                setStatus('Camera blocked — using sample', 'warn');
             }
         }
 
-        function render() {
-            if (!isRunning) return;
+        function loadImageFile(file) {
+            if (!file) return;
+            const url = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = () => {
+                imgEl = img;
+                state.src = 'image';
+                setStatus('Image loaded', 'ok');
+                URL.revokeObjectURL(url);
+            };
+            img.onerror = () => {
+                setStatus('Failed to load image', 'err');
+                URL.revokeObjectURL(url);
+            };
+            img.src = url;
+        }
 
-            // Update time
-            time += speed * 0.05;
+        function downloadSnapshot() {
+            const a = document.createElement('a');
+            a.download = `funhouse-mirror-${Date.now()}.png`;
+            a.href = out.toDataURL('image/png');
+            a.click();
+        }
 
-            // Draw video to temp canvas (with mirror flip if enabled)
-            tempCtx.save();
-            if (mirrorFlip) {
-                tempCtx.scale(-1, 1);
-                tempCtx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+        function resetAll() {
+            state.mode = 'bulge';
+            state.intensity = 0.60;
+            state.radius = 0.85;
+            state.waveFreq = 2.50;
+            state.waveSpeed = 1.20;
+            state.morph = true;
+            state.wobble = true;
+            state.mirrorFlip = true;
+            state.bilinear = false;
+            state.centerX = 0.5;
+            state.centerY = 0.5;
+            state.morphDurationMs = 3500;
+            morphIndex = modes.indexOf(state.mode);
+            if (morphIndex < 0) morphIndex = 0;
+            morphSegmentStart = performance.now();
+            updateUI();
+        }
+
+        function setCenterFromEvent(ev) {
+            const rect = out.getBoundingClientRect();
+            const x = clamp((ev.clientX - rect.left) / rect.width, 0, 1);
+            const y = clamp((ev.clientY - rect.top) / rect.height, 0, 1);
+            state.centerX = x;
+            state.centerY = y;
+            updateUI();
+        }
+
+        function hookEvents() {
+            modeSel.addEventListener('change', () => {
+                state.mode = modeSel.value;
+                morphIndex = modes.indexOf(state.mode);
+                if (morphIndex < 0) morphIndex = 0;
+                morphSegmentStart = performance.now();
+                updateUI();
+            });
+
+            resSel.addEventListener('change', () => {
+                const [w, h] = resSel.value.split('x').map(n => parseInt(n, 10));
+                resize(w, h);
+                updateUI();
+                setStatus('Resolution updated', 'info');
+            });
+
+            intensity.addEventListener('input', () => { state.intensity = parseFloat(intensity.value); updateUI(); });
+            radius.addEventListener('input', () => { state.radius = parseFloat(radius.value); updateUI(); });
+            waveFreq.addEventListener('input', () => { state.waveFreq = parseFloat(waveFreq.value); updateUI(); });
+            waveSpeed.addEventListener('input', () => { state.waveSpeed = parseFloat(waveSpeed.value); updateUI(); });
+            morph.addEventListener('change', () => { state.morph = morph.checked; morphSegmentStart = performance.now(); updateUI(); });
+            wobble.addEventListener('change', () => { state.wobble = wobble.checked; updateUI(); });
+            mirrorFlip.addEventListener('change', () => { state.mirrorFlip = mirrorFlip.checked; updateUI(); });
+            bilinear.addEventListener('change', () => { state.bilinear = bilinear.checked; updateUI(); });
+            morphDuration.addEventListener('input', () => { state.morphDurationMs = parseFloat(morphDuration.value) * 1000; updateUI(); });
+
+            snapBtn.addEventListener('click', downloadSnapshot);
+            resetBtn.addEventListener('click', resetAll);
+            camBtn.addEventListener('click', startCamera);
+            fileInp.addEventListener('change', (e) => loadImageFile(e.target.files?.[0]));
+
+            // Drag to move distortion center
+            out.addEventListener('pointerdown', (ev) => {
+                dragging = true;
+                dragPointerId = ev.pointerId;
+                out.setPointerCapture(dragPointerId);
+                setCenterFromEvent(ev);
+            });
+            out.addEventListener('pointermove', (ev) => {
+                if (!dragging || ev.pointerId !== dragPointerId) return;
+                setCenterFromEvent(ev);
+            });
+            out.addEventListener('pointerup', (ev) => {
+                if (ev.pointerId !== dragPointerId) return;
+                dragging = false;
+                dragPointerId = null;
+            });
+            out.addEventListener('pointercancel', () => {
+                dragging = false;
+                dragPointerId = null;
+            });
+            out.addEventListener('dblclick', () => {
+                state.centerX = 0.5;
+                state.centerY = 0.5;
+                updateUI();
+            });
+
+            // Keyboard shortcuts
+            window.addEventListener('keydown', (e) => {
+                if (e.key.toLowerCase() === 's') downloadSnapshot();
+                if (e.key.toLowerCase() === 'm') { state.morph = !state.morph; morph.checked = state.morph; morphSegmentStart = performance.now(); updateUI(); }
+            });
+        }
+
+        function boot() {
+            const [w, h] = resSel.value.split('x').map(n => parseInt(n, 10));
+            resize(w, h);
+            resetAll();
+            hookEvents();
+
+            // Try to start camera automatically (user can also click Start camera)
+            if (navigator.mediaDevices?.getUserMedia) {
+                startCamera();
             } else {
-                tempCtx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                setStatus('No camera API — using sample', 'warn');
+                state.src = 'sample';
             }
-            tempCtx.restore();
 
-            // Get image data
-            const sourceData = tempCtx.getImageData(0, 0, canvas.width, canvas.height);
-            const destData = ctx.createImageData(canvas.width, canvas.height);
-
-            // Apply distortion
-            applyDistortion(sourceData, destData, canvas.width, canvas.height);
-
-            // Draw result
-            ctx.putImageData(destData, 0, 0);
-
+            setStatus('Ready', 'ok');
             requestAnimationFrame(render);
         }
 
-        // Draw placeholder
-        function drawPlaceholder() {
-            ctx.fillStyle = '#1a1a2e';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            ctx.fillStyle = '#FFD700';
-            ctx.font = 'bold 24px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('🎪 Click "Start Camera" 🎪', canvas.width / 2, canvas.height / 2 - 20);
-            ctx.fillStyle = '#888';
-            ctx.font = '16px Arial';
-            ctx.fillText('to see your funhouse reflection!', canvas.width / 2, canvas.height / 2 + 20);
-        }
-
-        drawPlaceholder();
+        boot();
     </script>
 </body>
 
