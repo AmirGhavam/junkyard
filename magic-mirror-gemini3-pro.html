@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Funhouse Mirror</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Creepster&family=Roboto:wght@400;700&display=swap');
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #111827;
+            background-image: radial-gradient(circle at center, #1f2937 0%, #111827 100%);
+        }
+
+        .title-font {
+            font-family: 'Creepster', cursive;
+        }
+
+        .mirror-frame {
+            box-shadow:
+                0 0 0 12px #5D4037,
+                0 0 0 16px #8D6E63,
+                0 0 0 24px #3E2723,
+                inset 0 0 30px rgba(0, 0, 0, 0.8),
+                0 20px 50px rgba(0, 0, 0, 0.7);
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            background: #000;
+            transition: transform 0.3s ease;
+        }
+
+        .mirror-frame::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border: 2px solid rgba(255, 215, 0, 0.2);
+            border-radius: 12px;
+            pointer-events: none;
+            z-index: 20;
+        }
+
+        /* Shine effect on the glass */
+        @keyframes shine-move {
+            0% {
+                transform: translateX(-100%) translateY(-100%);
+            }
+
+            100% {
+                transform: translateX(100%) translateY(100%);
+            }
+        }
+
+        .shiny-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(115deg,
+                    rgba(255, 255, 255, 0) 0%,
+                    rgba(255, 255, 255, 0) 40%,
+                    rgba(255, 255, 255, 0.1) 45%,
+                    rgba(255, 255, 255, 0.05) 50%,
+                    rgba(255, 255, 255, 0) 100%);
+            pointer-events: none;
+            z-index: 10;
+            animation: shine-move 8s infinite linear;
+        }
+
+        /* Container for overlay to crop it */
+        .overlay-container {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+            border-radius: 12px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            background: transparent;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #eab308;
+            cursor: pointer;
+            margin-top: -6px;
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #4b5563;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col items-center justify-center p-4 text-white">
+
+    <h1
+        class="text-5xl md:text-6xl title-font text-yellow-500 mb-8 tracking-wider drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] text-center">
+        Funhouse Mirror
+    </h1>
+
+    <div class="relative w-full flex flex-col items-center gap-8">
+
+        <!-- Mirror Container -->
+        <div class="mirror-frame relative w-full aspect-video max-w-3xl bg-black shadow-2xl">
+            <canvas id="glCanvas" class="w-full h-full block"></canvas>
+            <div class="overlay-container">
+                <div class="shiny-overlay"></div>
+            </div>
+
+            <!-- Loading Message -->
+            <div id="loading"
+                class="absolute inset-0 flex items-center justify-center bg-gray-900 z-30 transition-opacity duration-500">
+                <div class="text-center">
+                    <div
+                        class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-yellow-500 mb-2">
+                    </div>
+                    <p class="text-xl text-yellow-500 font-bold">Starting Camera...</p>
+                </div>
+            </div>
+
+            <!-- Error Message -->
+            <div id="errorMsg"
+                class="hidden absolute inset-0 flex items-center justify-center bg-gray-900 z-40 p-6 text-center">
+                <div>
+                    <p class="text-red-500 text-xl font-bold mb-2">Camera Access Failed</p>
+                    <p class="text-gray-400">Please enable camera permissions to see the mirror.</p>
+                </div>
+            </div>
+
+            <!-- Snapshot Flash -->
+            <div id="flash"
+                class="absolute inset-0 bg-white opacity-0 pointer-events-none z-50 transition-opacity duration-200">
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div
+            class="bg-gray-800/80 backdrop-blur-sm p-6 rounded-2xl shadow-xl w-full max-w-3xl border border-gray-700/50">
+            <div class="flex flex-col md:flex-row gap-6 items-center">
+
+                <!-- Buttons Grid -->
+                <div class="grid grid-cols-3 sm:grid-cols-4 gap-2 w-full md:w-2/3">
+                    <button onclick="setMode(0)"
+                        class="mode-btn ring-offset-2 ring-offset-gray-800 focus:ring-2 focus:ring-yellow-500 bg-gray-700 hover:bg-gray-600 py-2 px-3 rounded-lg text-sm font-medium transition active:scale-95 border border-gray-600"
+                        data-mode="0">Normal</button>
+                    <button onclick="setMode(1)"
+                        class="mode-btn ring-offset-2 ring-offset-gray-800 focus:ring-2 focus:ring-yellow-500 bg-gray-700 hover:bg-gray-600 py-2 px-3 rounded-lg text-sm font-medium transition active:scale-95 border border-gray-600"
+                        data-mode="1">Wave</button>
+                    <button onclick="setMode(2)"
+                        class="mode-btn ring-offset-2 ring-offset-gray-800 focus:ring-2 focus:ring-yellow-500 bg-gray-700 hover:bg-gray-600 py-2 px-3 rounded-lg text-sm font-medium transition active:scale-95 border border-gray-600"
+                        data-mode="2">Bulge</button>
+                    <button onclick="setMode(3)"
+                        class="mode-btn ring-offset-2 ring-offset-gray-800 focus:ring-2 focus:ring-yellow-500 bg-gray-700 hover:bg-gray-600 py-2 px-3 rounded-lg text-sm font-medium transition active:scale-95 border border-gray-600"
+                        data-mode="3">Tall</button>
+                    <button onclick="setMode(4)"
+                        class="mode-btn ring-offset-2 ring-offset-gray-800 focus:ring-2 focus:ring-yellow-500 bg-gray-700 hover:bg-gray-600 py-2 px-3 rounded-lg text-sm font-medium transition active:scale-95 border border-gray-600"
+                        data-mode="4">Wide</button>
+                    <button onclick="setMode(5)"
+                        class="mode-btn ring-offset-2 ring-offset-gray-800 focus:ring-2 focus:ring-yellow-500 bg-gray-700 hover:bg-gray-600 py-2 px-3 rounded-lg text-sm font-medium transition active:scale-95 border border-gray-600"
+                        data-mode="5">Kaleido</button>
+                    <button onclick="setMode(6)"
+                        class="mode-btn ring-offset-2 ring-offset-gray-800 focus:ring-2 focus:ring-yellow-500 bg-gray-700 hover:bg-gray-600 py-2 px-3 rounded-lg text-sm font-medium transition active:scale-95 border border-gray-600"
+                        data-mode="6">Swirl</button>
+                    <button onclick="setMode(7)"
+                        class="mode-btn ring-offset-2 ring-offset-gray-800 focus:ring-2 focus:ring-yellow-500 bg-gray-700 hover:bg-gray-600 py-2 px-3 rounded-lg text-sm font-medium transition active:scale-95 border border-gray-600"
+                        data-mode="7">Alien</button>
+                </div>
+
+                <!-- Slider & Snap -->
+                <div class="flex flex-col gap-4 w-full md:w-1/3">
+                    <div class="w-full">
+                        <div class="flex justify-between text-xs text-gray-400 mb-1">
+                            <span>Distortion</span>
+                            <span id="intensityVal">50%</span>
+                        </div>
+                        <input type="range" id="intensity" min="0" max="100" value="50" class="w-full">
+                    </div>
+
+                    <button onclick="takeSnapshot()"
+                        class="w-full bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-2 px-4 rounded-lg transition shadow-lg flex items-center justify-center gap-2 active:scale-95">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        Snap Photo
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden video element -->
+    <video id="video" autoplay playsinline class="hidden"></video>
+
+    <!-- Shader Scripts -->
+    <script id="vs" type="x-shader/x-vertex">
+        attribute vec2 a_position;
+        attribute vec2 a_texCoord;
+        varying vec2 v_texCoord;
+        void main() {
+            gl_Position = vec4(a_position, 0.0, 1.0);
+            v_texCoord = a_texCoord;
+        }
+    </script>
+
+    <script id="fs" type="x-shader/x-fragment">
+        precision mediump float;
+        uniform sampler2D u_image;
+        uniform int u_mode;
+        uniform float u_intensity;
+        uniform float u_time;
+        varying vec2 v_texCoord;
+
+        void main() {
+            vec2 uv = v_texCoord;
+            // Correct texture orientation first
+            uv.y = 1.0 - uv.y;
+            
+            // Apply Mirror flip (flip X) so user movements match reflection
+            uv.x = 1.0 - uv.x;
+
+            vec2 p = uv * 2.0 - 1.0; // -1 to 1 space for calculations
+            
+            // Intensity normalized 0.0 to 1.0
+            float k = u_intensity; 
+
+            if (u_mode == 1) { // Wave
+                float freq = 5.0 + k * 10.0;
+                float amp = 0.02 + k * 0.1;
+                uv.x += sin(uv.y * freq + u_time) * amp;
+                uv.y += cos(uv.x * freq + u_time) * amp;
+            } 
+            else if (u_mode == 2) { // Bulge / Pinch
+                // k > 0.5 bulge, k < 0.5 pinch
+                float strength = (k - 0.5) * 1.5; // -0.75 to 0.75
+                float r = length(p);
+                float a = atan(p.y, p.x);
+                // Smooth falloff
+                float effect = smoothstep(1.0, 0.0, r); 
+                r = r * (1.0 - strength * effect);
+                uv = (vec2(cos(a), sin(a)) * r) * 0.5 + 0.5;
+            } 
+            else if (u_mode == 3) { // Tall
+                float factor = 1.0 - k * 0.8; // Compress X
+                // Remap center
+                vec2 centered = uv - 0.5;
+                centered.x *= factor;
+                uv = centered + 0.5;
+            } 
+            else if (u_mode == 4) { // Wide
+                float factor = 1.0 - k * 0.8; // Compress Y
+                vec2 centered = uv - 0.5;
+                centered.y *= factor;
+                uv = centered + 0.5;
+            } 
+            else if (u_mode == 5) { // Kaleidoscope
+                float segments = 2.0 + floor(k * 8.0);
+                float r = length(p);
+                float a = atan(p.y, p.x);
+                float slice = 6.28318 / segments;
+                a = mod(a, slice);
+                a = abs(a - slice * 0.5);
+                uv = r * vec2(cos(a), sin(a));
+                // Center kaleidoscope
+                uv = uv * 0.5 + 0.5; 
+            }
+            else if (u_mode == 6) { // Swirl
+                float r = length(p);
+                float angle = atan(p.y, p.x);
+                float strength = (k - 0.5) * 10.0;
+                angle += strength * (1.0 - smoothstep(0.0, 1.0, r));
+                uv = (vec2(cos(angle), sin(angle)) * r) * 0.5 + 0.5;
+            }
+            else if (u_mode == 7) { // Alien (Symmetry)
+                // Mirror left half to right half
+                if (uv.x > 0.5) uv.x = 1.0 - uv.x;
+                // Add some vertical stretch
+                uv.y = (uv.y - 0.5) * (1.0 - k * 0.5) + 0.5;
+            }
+
+            // Vignette effect based on original screen coordinates (simulating the physical mirror glass)
+            vec4 color = texture2D(u_image, uv);
+            
+            vec2 screenCenter = vec2(0.5, 0.5);
+            float dist = distance(v_texCoord, screenCenter);
+            // 1.0 at center, fading out towards edges
+            float vignette = smoothstep(0.8, 0.35, dist);
+            
+            // Apply vignette
+            color.rgb *= vignette;
+            
+            // Slight green tint for old glass effect
+            color.g += 0.02 * vignette;
+            color.b += 0.02 * vignette;
+
+            gl_FragColor = color;
+        }
+    </script>
+
+    <script>
+        const canvas = document.getElementById('glCanvas');
+        const gl = canvas.getContext('webgl');
+        const video = document.getElementById('video');
+        const loading = document.getElementById('loading');
+        const errorMsg = document.getElementById('errorMsg');
+        const intensityInput = document.getElementById('intensity');
+        const intensityValDisplay = document.getElementById('intensityVal');
+
+        let program;
+        let texture;
+        let animationId;
+
+        // State
+        let state = {
+            mode: 0,
+            intensity: 0.5,
+            startTime: Date.now()
+        };
+
+        function resizeCanvas() {
+            // Match display size
+            const displayWidth = canvas.clientWidth;
+            const displayHeight = canvas.clientHeight;
+
+            if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
+                canvas.width = displayWidth;
+                canvas.height = displayHeight;
+                gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+            }
+        }
+
+        function createShader(gl, type, source) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                console.error(gl.getShaderInfoLog(shader));
+                gl.deleteShader(shader);
+                return null;
+            }
+            return shader;
+        }
+
+        function createProgram(gl, vsSource, fsSource) {
+            const vs = createShader(gl, gl.VERTEX_SHADER, vsSource);
+            const fs = createShader(gl, gl.FRAGMENT_SHADER, fsSource);
+            const prog = gl.createProgram();
+            gl.attachShader(prog, vs);
+            gl.attachShader(prog, fs);
+            gl.linkProgram(prog);
+            if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+                console.error(gl.getProgramInfoLog(prog));
+                return null;
+            }
+            return prog;
+        }
+
+        function initWebGL() {
+            if (!gl) {
+                console.error("WebGL not supported");
+                return;
+            }
+
+            const vsSource = document.getElementById('vs').text;
+            const fsSource = document.getElementById('fs').text;
+
+            program = createProgram(gl, vsSource, fsSource);
+            gl.useProgram(program);
+
+            // Set up geometry (full screen quad)
+            const positionBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+                -1, -1,
+                1, -1,
+                -1, 1,
+                -1, 1,
+                1, -1,
+                1, 1,
+            ]), gl.STATIC_DRAW);
+
+            const positionLocation = gl.getAttribLocation(program, "a_position");
+            gl.enableVertexAttribArray(positionLocation);
+            gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+
+            // Set up texture coordinates
+            const texCoordBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+                0, 0,
+                1, 0,
+                0, 1,
+                0, 1,
+                1, 0,
+                1, 1,
+            ]), gl.STATIC_DRAW);
+
+            const texCoordLocation = gl.getAttribLocation(program, "a_texCoord");
+            gl.enableVertexAttribArray(texCoordLocation);
+            gl.vertexAttribPointer(texCoordLocation, 2, gl.FLOAT, false, 0, 0);
+
+            // Create texture
+            texture = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+            // Placeholder pixel
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 255]));
+
+            // Texture parameters
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        }
+
+        function startCamera() {
+            navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720, facingMode: "user" } })
+                .then(stream => {
+                    video.srcObject = stream;
+                    video.onloadedmetadata = () => {
+                        loading.style.opacity = '0';
+                        setTimeout(() => loading.remove(), 500);
+                        render();
+                    };
+                })
+                .catch(err => {
+                    console.error("Error accessing camera:", err);
+                    loading.style.display = 'none';
+                    errorMsg.classList.remove('hidden');
+                });
+        }
+
+        function render() {
+            resizeCanvas();
+
+            gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+            gl.clearColor(0, 0, 0, 1);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                gl.bindTexture(gl.TEXTURE_2D, texture);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+            }
+
+            gl.useProgram(program);
+
+            // Uniforms
+            const uMode = gl.getUniformLocation(program, "u_mode");
+            const uIntensity = gl.getUniformLocation(program, "u_intensity");
+            const uTime = gl.getUniformLocation(program, "u_time");
+
+            gl.uniform1i(uMode, state.mode);
+            gl.uniform1f(uIntensity, state.intensity);
+            gl.uniform1f(uTime, (Date.now() - state.startTime) / 1000);
+
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+            animationId = requestAnimationFrame(render);
+        }
+
+        function setMode(mode) {
+            state.mode = mode;
+            // Update active button style
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                if (parseInt(btn.dataset.mode) === mode) {
+                    btn.classList.add('bg-yellow-600', 'text-white', 'ring-2', 'ring-yellow-500');
+                    btn.classList.remove('bg-gray-700');
+                } else {
+                    btn.classList.remove('bg-yellow-600', 'text-white', 'ring-2', 'ring-yellow-500');
+                    btn.classList.add('bg-gray-700');
+                }
+            });
+        }
+
+        intensityInput.addEventListener('input', (e) => {
+            state.intensity = e.target.value / 100;
+            intensityValDisplay.textContent = e.target.value + '%';
+        });
+
+        function takeSnapshot() {
+            const flash = document.getElementById('flash');
+            flash.style.opacity = '0.8';
+            setTimeout(() => flash.style.opacity = '0', 100);
+
+            // Create a temporary link to download
+            const link = document.createElement('a');
+            link.download = `funhouse_mirror_${Date.now()}.png`;
+            // Get data URL from canvas
+            // We need to render once to ensure it's up to date immediately before saving if loop is paused (it's not here)
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        // Initialize
+        initWebGL();
+        startCamera();
+        setMode(0); // Set initial mode
+
+    </script>
+</body>
+
+</html>
