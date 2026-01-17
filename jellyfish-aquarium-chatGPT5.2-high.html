@@ -1,0 +1,671 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Jellyfish Aquarium</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        :root {
+            color-scheme: dark;
+        }
+
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: radial-gradient(1200px 800px at 30% 25%, #0b2a4a 0%, #061526 45%, #020712 100%);
+        }
+
+        canvas {
+            display: block;
+        }
+
+        /* Subtle glass vignette */
+        .vignette {
+            pointer-events: none;
+            background:
+                radial-gradient(1200px 900px at 50% 40%, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 22%, rgba(0, 0, 0, 0.0) 45%),
+                radial-gradient(900px 700px at 20% 70%, rgba(36, 194, 255, 0.08) 0%, rgba(0, 0, 0, 0) 55%),
+                radial-gradient(900px 700px at 85% 25%, rgba(160, 90, 255, 0.06) 0%, rgba(0, 0, 0, 0) 55%),
+                radial-gradient(1200px 900px at 50% 50%, rgba(0, 0, 0, 0.0) 35%, rgba(0, 0, 0, 0.45) 80%, rgba(0, 0, 0, 0.75) 100%);
+            mix-blend-mode: screen;
+            opacity: .8;
+        }
+
+        .hud {
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            background: linear-gradient(180deg, rgba(10, 20, 35, 0.65), rgba(10, 20, 35, 0.25));
+            border: 1px solid rgba(255, 255, 255, 0.10);
+            box-shadow: 0 10px 35px rgba(0, 0, 0, 0.35);
+        }
+
+        /* Reduce motion support */
+        @media (prefers-reduced-motion: reduce) {
+            .motion-note {
+                display: block;
+            }
+        }
+    </style>
+</head>
+
+<body class="text-white">
+    <div class="fixed inset-0">
+        <canvas id="aquarium" class="w-full h-full"></canvas>
+        <div class="vignette absolute inset-0"></div>
+
+        <div class="absolute left-4 top-4 hud rounded-2xl px-4 py-3 max-w-[22rem]">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <div class="text-sm font-semibold tracking-wide">Jellyfish Aquarium</div>
+                    <div class="text-xs text-white/70 leading-snug">Pulsing bells • trailing tentacles • bioluminescent
+                        glow • gentle drift</div>
+                </div>
+                <button id="toggle"
+                    class="text-xs px-2 py-1 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 transition">Pause</button>
+            </div>
+            <div class="mt-2 text-[11px] text-white/60">
+                Click to add a jellyfish. Drag to stir the current.
+                <span class="motion-note hidden">(Reduced-motion enabled)</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Jellyfish Aquarium - single canvas simulation
+        const canvas = document.getElementById('aquarium');
+        const ctx = canvas.getContext('2d', { alpha: true });
+
+        const state = {
+            w: 0,
+            h: 0,
+            dpr: 1,
+            lastT: 0,
+            running: true,
+            time: 0,
+            pointer: { x: 0, y: 0, down: false, vx: 0, vy: 0, lastX: 0, lastY: 0 },
+            current: { x: 0, y: 0 },
+            reducedMotion: window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false
+        };
+
+        function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+        function lerp(a, b, t) { return a + (b - a) * t; }
+        function rand(a = 0, b = 1) { return a + Math.random() * (b - a); }
+
+        function resize() {
+            state.dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+            state.w = Math.floor(window.innerWidth);
+            state.h = Math.floor(window.innerHeight);
+            canvas.width = Math.floor(state.w * state.dpr);
+            canvas.height = Math.floor(state.h * state.dpr);
+            canvas.style.width = state.w + 'px';
+            canvas.style.height = state.h + 'px';
+            ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+        }
+        window.addEventListener('resize', resize, { passive: true });
+        resize();
+
+        // --- Ambient particles (plankton) and bubbles ---
+        class Particle {
+            constructor(kind) {
+                this.kind = kind; // 'plankton' | 'bubble'
+                this.reset(true);
+            }
+            reset(initial = false) {
+                this.x = rand(0, state.w);
+                this.y = initial ? rand(0, state.h) : (this.kind === 'bubble' ? state.h + rand(10, 120) : rand(0, state.h));
+                this.r = this.kind === 'bubble' ? rand(1.5, 6) : rand(0.6, 1.8);
+                this.a = this.kind === 'bubble' ? rand(0.08, 0.22) : rand(0.05, 0.18);
+                this.sp = this.kind === 'bubble' ? rand(14, 45) : rand(6, 18);
+                this.phase = rand(0, Math.PI * 2);
+            }
+            update(dt, t) {
+                const cx = waterCurrent(this.x, this.y, t).x;
+                const cy = waterCurrent(this.x, this.y, t).y;
+                const sway = Math.sin(t * 0.6 + this.phase) * (this.kind === 'bubble' ? 12 : 6);
+
+                if (this.kind === 'bubble') {
+                    this.y -= this.sp * dt * 0.9;
+                    this.x += (cx * 18 + sway) * dt;
+                    if (this.y < -120) this.reset(false);
+                } else {
+                    this.y += (cy * 9 + Math.sin(t * 0.7 + this.phase) * 4) * dt;
+                    this.x += (cx * 14 + sway * 0.6) * dt;
+                    // wrap
+                    if (this.x < -40) this.x = state.w + 40;
+                    if (this.x > state.w + 40) this.x = -40;
+                    if (this.y < -40) this.y = state.h + 40;
+                    if (this.y > state.h + 40) this.y = -40;
+                }
+            }
+            draw(ctx, t) {
+                if (this.kind === 'bubble') {
+                    ctx.save();
+                    ctx.globalCompositeOperation = 'screen';
+                    ctx.strokeStyle = `rgba(200,245,255,${this.a})`;
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+                    ctx.stroke();
+
+                    // highlight
+                    ctx.strokeStyle = `rgba(255,255,255,${this.a * 0.75})`;
+                    ctx.beginPath();
+                    ctx.arc(this.x - this.r * 0.25, this.y - this.r * 0.35, this.r * 0.45, -0.3, 2.0);
+                    ctx.stroke();
+                    ctx.restore();
+                } else {
+                    ctx.save();
+                    ctx.globalCompositeOperation = 'lighter';
+                    const tw = 0.5 + 0.5 * Math.sin(t * 1.8 + this.phase);
+                    ctx.fillStyle = `rgba(150,240,255,${this.a * (0.7 + tw * 0.6)})`;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+            }
+        }
+
+        const particles = [];
+        for (let i = 0; i < 220; i++) particles.push(new Particle('plankton'));
+        for (let i = 0; i < 26; i++) particles.push(new Particle('bubble'));
+
+        // --- Water current field ---
+        function waterCurrent(x, y, t) {
+            // Smooth pseudo-flow field driven by time + user interaction
+            const nx = x / Math.max(1, state.w);
+            const ny = y / Math.max(1, state.h);
+            const s = state.reducedMotion ? 0.35 : 1.0;
+
+            const baseX = Math.sin(t * 0.15 + ny * 2.2) * 0.22 + Math.sin(t * 0.07 + nx * 3.5) * 0.12;
+            const baseY = Math.cos(t * 0.12 + nx * 2.0) * 0.18 + Math.sin(t * 0.09 + ny * 3.0) * 0.10;
+
+            const px = state.current.x * 0.002;
+            const py = state.current.y * 0.002;
+
+            return { x: (baseX + px) * s, y: (baseY + py) * s };
+        }
+
+        // --- Jellyfish species presets ---
+        const speciesPresets = [
+            {
+                name: 'Moon Jelly',
+                tint: [170, 220, 255],
+                glow: [120, 210, 255],
+                bell: { r: 36, h: 30 },
+                pulseSpeed: 1.4,
+                tentacles: { count: 10, segments: 22, segLen: 8.4, curl: 1.0 },
+                frill: 0.55
+            },
+            {
+                name: 'Rose Crystal',
+                tint: [255, 175, 235],
+                glow: [255, 120, 210],
+                bell: { r: 28, h: 26 },
+                pulseSpeed: 1.9,
+                tentacles: { count: 14, segments: 18, segLen: 7.2, curl: 1.25 },
+                frill: 0.85
+            },
+            {
+                name: 'Deep Emerald',
+                tint: [120, 255, 200],
+                glow: [80, 255, 170],
+                bell: { r: 42, h: 34 },
+                pulseSpeed: 1.2,
+                tentacles: { count: 8, segments: 26, segLen: 9.2, curl: 0.9 },
+                frill: 0.35
+            },
+            {
+                name: 'Violet Drifter',
+                tint: [195, 160, 255],
+                glow: [170, 110, 255],
+                bell: { r: 32, h: 28 },
+                pulseSpeed: 1.55,
+                tentacles: { count: 12, segments: 20, segLen: 8.0, curl: 1.1 },
+                frill: 0.7
+            }
+        ];
+
+        function rgba(rgb, a) { return `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a})`; }
+
+        class Jellyfish {
+            constructor(preset, x, y, scale = 1) {
+                this.preset = preset;
+                this.x = x;
+                this.y = y;
+                this.s = scale;
+                this.vx = rand(-10, 10);
+                this.vy = rand(-6, 6);
+                this.phase = rand(0, Math.PI * 2);
+                this.turn = rand(-1, 1);
+                this.age = 0;
+
+                const { count, segments } = preset.tentacles;
+                this.tentacles = [];
+                for (let k = 0; k < count; k++) {
+                    const pts = [];
+                    for (let i = 0; i < segments; i++) pts.push({ x: x, y: y });
+                    this.tentacles.push({
+                        pts,
+                        seed: rand(0, 9999),
+                        offset: (k / (count - 1 || 1)) * 2 - 1
+                    });
+                }
+            }
+
+            update(dt, t) {
+                this.age += dt;
+
+                const p = this.preset;
+                const r = p.bell.r * this.s;
+
+                // Drift + gentle vertical bias
+                const cur = waterCurrent(this.x, this.y, t);
+                const bob = Math.sin(t * 0.35 + this.phase) * 6;
+
+                const pulse = this.pulse(t);
+                const swim = (pulse - 0.85) * 58; // upward impulse when contracting
+
+                // Motion (reduced in reduced-motion mode)
+                const motionMul = state.reducedMotion ? 0.3 : 1.0;
+                this.vx += (cur.x * 55 + Math.sin(t * 0.12 + this.phase) * 6) * dt * motionMul;
+                this.vy += (cur.y * 45 - swim + bob * 0.25) * dt * motionMul;
+
+                // Damp
+                this.vx *= Math.pow(0.985, dt * 60);
+                this.vy *= Math.pow(0.985, dt * 60);
+
+                this.x += this.vx * dt;
+                this.y += this.vy * dt;
+
+                // Keep within aquarium (wrap softly)
+                const m = 120;
+                if (this.x < -m) this.x = state.w + m;
+                if (this.x > state.w + m) this.x = -m;
+                if (this.y < -m) this.y = state.h + m;
+                if (this.y > state.h + m) this.y = -m;
+
+                // Tentacles follow
+                this.updateTentacles(dt, t);
+            }
+
+            pulse(t) {
+                const sp = this.preset.pulseSpeed;
+                const raw = Math.sin(t * sp + this.phase);
+                // Squish + ease (more time expanded, quick contract)
+                const eased = Math.sign(raw) * Math.pow(Math.abs(raw), 0.65);
+                return 0.88 + 0.16 * eased;
+            }
+
+            updateTentacles(dt, t) {
+                const p = this.preset;
+                const r = p.bell.r * this.s;
+                const baseY = this.y + r * 0.55;
+                const baseX = this.x;
+                const { count, segments, segLen, curl } = p.tentacles;
+
+                const pulse = this.pulse(t);
+                const flare = (1.0 - pulse) * 0.9; // more spread when expanded
+
+                for (let k = 0; k < this.tentacles.length; k++) {
+                    const ten = this.tentacles[k];
+                    const pts = ten.pts;
+
+                    // anchor point along bell underside
+                    const ang = ten.offset * 0.9;
+                    const ax = baseX + Math.sin(ang) * r * (0.45 + flare * 0.20);
+                    const ay = baseY + Math.cos(ang) * r * 0.02;
+
+                    // pull root toward anchor
+                    pts[0].x = lerp(pts[0].x, ax, 0.55);
+                    pts[0].y = lerp(pts[0].y, ay, 0.55);
+
+                    for (let i = 1; i < pts.length; i++) {
+                        const prev = pts[i - 1];
+                        const cur = pts[i];
+
+                        const flow = waterCurrent(cur.x, cur.y, t);
+
+                        // Add flow + a wavy curl
+                        const wmul = (i / (segments - 1));
+                        const wig = Math.sin(t * (1.2 + curl * 0.35) + ten.seed + i * (0.55 + curl * 0.1)) * (5 + 10 * wmul) * (state.reducedMotion ? 0.2 : 1);
+
+                        cur.x += (flow.x * (20 + 90 * wmul) + wig * 0.08) * dt;
+                        cur.y += (flow.y * (20 + 70 * wmul) + (12 + 22 * wmul)) * dt;
+
+                        // Distance constraint to prev
+                        const dx = cur.x - prev.x;
+                        const dy = cur.y - prev.y;
+                        const d = Math.max(0.0001, Math.hypot(dx, dy));
+                        const target = segLen * this.s;
+                        const pull = (d - target) / d;
+                        cur.x -= dx * pull * 0.55;
+                        cur.y -= dy * pull * 0.55;
+
+                        // Slight inertia / smoothing
+                        cur.x = lerp(cur.x, prev.x + dx * (target / d), 0.02);
+                        cur.y = lerp(cur.y, prev.y + dy * (target / d), 0.02);
+                    }
+                }
+            }
+
+            draw(ctx, t) {
+                const p = this.preset;
+                const r = p.bell.r * this.s;
+                const h = p.bell.h * this.s;
+                const pulse = this.pulse(t);
+
+                // Tentacles first (behind bell)
+                this.drawTentacles(ctx, t);
+
+                // Bell glow + body
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                const sx = 1.0 + (pulse - 0.9) * 0.6;
+                const sy = 1.0 - (pulse - 0.9) * 0.7;
+                ctx.scale(sx, sy);
+
+                // Outer glow
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+                ctx.shadowColor = rgba(p.glow, 0.55);
+                ctx.shadowBlur = 40 * this.s;
+                ctx.fillStyle = rgba(p.glow, 0.09);
+                this.pathBell(ctx, r, h, t);
+                ctx.fill();
+
+                // Stronger core glow
+                ctx.shadowBlur = 18 * this.s;
+                ctx.fillStyle = rgba(p.glow, 0.12);
+                this.pathBell(ctx, r * 0.88, h * 0.92, t + 0.2);
+                ctx.fill();
+                ctx.restore();
+
+                // Main bell
+                ctx.save();
+                const grad = ctx.createRadialGradient(0, -h * 0.35, r * 0.2, 0, 0, r * 1.1);
+                grad.addColorStop(0.0, rgba([255, 255, 255], 0.35));
+                grad.addColorStop(0.25, rgba(p.tint, 0.22));
+                grad.addColorStop(0.7, rgba(p.tint, 0.10));
+                grad.addColorStop(1.0, rgba([0, 0, 0], 0.0));
+
+                ctx.fillStyle = grad;
+                ctx.strokeStyle = rgba(p.tint, 0.22);
+                ctx.lineWidth = 1.2;
+
+                this.pathBell(ctx, r, h, t);
+                ctx.fill();
+                ctx.stroke();
+
+                // Inner ring / organs
+                ctx.globalCompositeOperation = 'screen';
+                ctx.strokeStyle = rgba(p.glow, 0.18);
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.ellipse(0, -h * 0.1, r * 0.34, r * 0.22, 0, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // Bioluminescent speckles
+                const specks = 10;
+                for (let i = 0; i < specks; i++) {
+                    const a = (i / specks) * Math.PI * 2 + this.phase;
+                    const rr = r * (0.12 + 0.28 * (0.5 + 0.5 * Math.sin(t * 0.6 + i)));
+                    const px = Math.cos(a) * rr * 0.55;
+                    const py = -h * 0.25 + Math.sin(a) * rr * 0.45;
+                    const tw = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * 2.0 + this.phase * 1.7 + i));
+                    ctx.fillStyle = rgba(p.glow, 0.08 * tw);
+                    ctx.beginPath();
+                    ctx.arc(px, py, (1.2 + 2.6 * tw) * this.s, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Frilly rim
+                ctx.strokeStyle = rgba(p.tint, 0.28);
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                const rimY = h * 0.26;
+                const steps = 42;
+                for (let i = 0; i <= steps; i++) {
+                    const u = i / steps;
+                    const a = (u * Math.PI) - Math.PI;
+                    const fr = (0.6 + 0.4 * Math.sin(t * 1.0 + this.phase + u * 8)) * p.frill;
+                    const x = Math.sin(a) * r * 0.92;
+                    const y = rimY + Math.cos(a) * r * 0.06 + Math.sin(u * Math.PI * 10 + t * 1.1) * (2.0 + 3.0 * fr) * this.s;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+
+                ctx.restore();
+                ctx.restore();
+            }
+
+            pathBell(ctx, r, h, t) {
+                // Bell silhouette (a soft dome with a slightly wavy lower edge)
+                const wave = (state.reducedMotion ? 0.35 : 1.0) * (0.8 + 0.6 * Math.sin(t * 1.2 + this.phase));
+                ctx.beginPath();
+                ctx.moveTo(-r, 0);
+                ctx.bezierCurveTo(-r, -h * 0.95, -r * 0.35, -h * 1.05, 0, -h);
+                ctx.bezierCurveTo(r * 0.35, -h * 1.05, r, -h * 0.95, r, 0);
+
+                // Wavy bottom edge
+                const steps = 24;
+                for (let i = 0; i <= steps; i++) {
+                    const u = i / steps;
+                    const x = r - u * (2 * r);
+                    const y = 0.12 * h + Math.sin(u * Math.PI * 3 + t * 1.8 + this.phase) * 2.5 * wave;
+                    ctx.lineTo(x, y);
+                }
+                ctx.closePath();
+            }
+
+            drawTentacles(ctx, t) {
+                const p = this.preset;
+                const r = p.bell.r * this.s;
+                const { segments } = p.tentacles;
+
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+
+                for (let k = 0; k < this.tentacles.length; k++) {
+                    const ten = this.tentacles[k];
+                    const pts = ten.pts;
+
+                    // Thickness tapers
+                    for (let pass = 0; pass < 2; pass++) {
+                        const glowPass = pass === 0;
+                        ctx.lineWidth = glowPass ? 3.2 * this.s : 1.1 * this.s;
+                        ctx.strokeStyle = glowPass ? rgba(p.glow, 0.10) : rgba(p.tint, 0.16);
+                        ctx.shadowColor = glowPass ? rgba(p.glow, 0.35) : 'transparent';
+                        ctx.shadowBlur = glowPass ? 18 * this.s : 0;
+
+                        ctx.beginPath();
+                        ctx.moveTo(pts[0].x, pts[0].y);
+                        for (let i = 1; i < pts.length; i++) {
+                            const pr = pts[i - 1];
+                            const cu = pts[i];
+                            // Quadratic smoothing
+                            const mx = (pr.x + cu.x) * 0.5;
+                            const my = (pr.y + cu.y) * 0.5;
+                            ctx.quadraticCurveTo(pr.x, pr.y, mx, my);
+                        }
+                        ctx.stroke();
+                    }
+
+                    // Small glowing nodes along the tentacle
+                    const nodes = 4;
+                    for (let j = 1; j <= nodes; j++) {
+                        const idx = Math.floor((j / (nodes + 1)) * (segments - 1));
+                        const pt = pts[idx];
+                        const tw = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(t * 2.6 + this.phase + ten.seed + j));
+                        ctx.fillStyle = rgba(p.glow, 0.05 * tw);
+                        ctx.shadowColor = rgba(p.glow, 0.25);
+                        ctx.shadowBlur = 14 * this.s;
+                        ctx.beginPath();
+                        ctx.arc(pt.x, pt.y, (1.4 + tw * 2.2) * this.s, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+
+                // Soft shadowy strands (a few longer streamers)
+                ctx.globalCompositeOperation = 'screen';
+                ctx.shadowBlur = 0;
+                ctx.strokeStyle = rgba(p.tint, 0.06);
+                ctx.lineWidth = 1;
+                const streamerCount = Math.max(2, Math.floor(this.tentacles.length / 5));
+                for (let s = 0; s < streamerCount; s++) {
+                    const ten = this.tentacles[Math.floor(rand(0, this.tentacles.length))];
+                    const pts = ten.pts;
+                    ctx.beginPath();
+                    ctx.moveTo(pts[0].x, pts[0].y);
+                    for (let i = 1; i < pts.length; i += 2) ctx.lineTo(pts[i].x, pts[i].y);
+                    ctx.stroke();
+                }
+
+                ctx.restore();
+            }
+        }
+
+        const jellies = [];
+
+        function addJellyfish(x = rand(0, state.w), y = rand(0, state.h)) {
+            const preset = speciesPresets[Math.floor(rand(0, speciesPresets.length))];
+            const sc = rand(0.75, 1.35);
+            jellies.push(new Jellyfish(preset, x, y, sc));
+            if (jellies.length > 14) jellies.shift();
+        }
+
+        // Seed initial aquarium
+        for (let i = 0; i < 8; i++) addJellyfish(rand(0, state.w), rand(0, state.h));
+
+        // Interaction: add jellyfish & stir current
+        canvas.addEventListener('pointerdown', (e) => {
+            state.pointer.down = true;
+            state.pointer.lastX = e.clientX;
+            state.pointer.lastY = e.clientY;
+            addJellyfish(e.clientX, e.clientY);
+            canvas.setPointerCapture?.(e.pointerId);
+        });
+
+        canvas.addEventListener('pointermove', (e) => {
+            const x = e.clientX, y = e.clientY;
+            state.pointer.x = x; state.pointer.y = y;
+            if (state.pointer.down) {
+                const dx = x - state.pointer.lastX;
+                const dy = y - state.pointer.lastY;
+                state.pointer.vx = dx;
+                state.pointer.vy = dy;
+                state.pointer.lastX = x;
+                state.pointer.lastY = y;
+
+                // Stir the current
+                state.current.x = clamp(state.current.x + dx * 18, -2200, 2200);
+                state.current.y = clamp(state.current.y + dy * 18, -2200, 2200);
+            }
+        }, { passive: true });
+
+        function pointerUp() {
+            state.pointer.down = false;
+        }
+        window.addEventListener('pointerup', pointerUp, { passive: true });
+        window.addEventListener('pointercancel', pointerUp, { passive: true });
+
+        const toggleBtn = document.getElementById('toggle');
+        toggleBtn.addEventListener('click', () => {
+            state.running = !state.running;
+            toggleBtn.textContent = state.running ? 'Pause' : 'Resume';
+            if (state.running) {
+                state.lastT = performance.now();
+                requestAnimationFrame(frame);
+            }
+        });
+
+        // --- Background rendering helpers ---
+        function drawBackground(ctx, t) {
+            // soft caustic rays
+            ctx.save();
+            const g = ctx.createLinearGradient(0, 0, 0, state.h);
+            g.addColorStop(0, 'rgba(80,170,255,0.10)');
+            g.addColorStop(0.5, 'rgba(80,170,255,0.04)');
+            g.addColorStop(1, 'rgba(0,0,0,0.0)');
+            ctx.fillStyle = g;
+            ctx.fillRect(0, 0, state.w, state.h);
+
+            // moving light shafts
+            ctx.globalCompositeOperation = 'screen';
+            ctx.fillStyle = 'rgba(255,255,255,0.02)';
+            const shafts = 8;
+            for (let i = 0; i < shafts; i++) {
+                const x = (i / shafts) * state.w;
+                const sway = Math.sin(t * 0.18 + i * 1.3) * 80;
+                ctx.save();
+                ctx.translate(x + sway, 0);
+                ctx.rotate(Math.sin(t * 0.07 + i) * 0.04);
+                ctx.beginPath();
+                ctx.moveTo(-40, 0);
+                ctx.lineTo(40, 0);
+                ctx.lineTo(220, state.h);
+                ctx.lineTo(-220, state.h);
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+            }
+            ctx.restore();
+        }
+
+        function frame(ts) {
+            if (!state.running) return;
+
+            if (!state.lastT) state.lastT = ts;
+            let dt = (ts - state.lastT) / 1000;
+            state.lastT = ts;
+
+            // Clamp dt to avoid jumps
+            dt = clamp(dt, 0.001, 0.033);
+
+            // Reduced motion: slow time
+            const timeMul = state.reducedMotion ? 0.35 : 1.0;
+            state.time += dt * timeMul;
+            const t = state.time;
+
+            // Decay user current slowly
+            state.current.x *= Math.pow(0.94, dt * 60);
+            state.current.y *= Math.pow(0.94, dt * 60);
+
+            // Clear
+            ctx.clearRect(0, 0, state.w, state.h);
+            drawBackground(ctx, t);
+
+            // Particles
+            for (const p of particles) { p.update(dt, t); p.draw(ctx, t); }
+
+            // Jellies (sort by y for depth-ish layering)
+            jellies.sort((a, b) => a.y - b.y);
+            for (const j of jellies) j.update(dt, t);
+            for (const j of jellies) j.draw(ctx, t);
+
+            // Foreground shimmer
+            ctx.save();
+            ctx.globalCompositeOperation = 'screen';
+            ctx.fillStyle = 'rgba(255,255,255,0.012)';
+            ctx.fillRect(0, 0, state.w, state.h);
+            ctx.restore();
+
+            requestAnimationFrame(frame);
+        }
+
+        // Auto-start
+        state.lastT = performance.now();
+        requestAnimationFrame(frame);
+    </script>
+</body>
+
+</html>
