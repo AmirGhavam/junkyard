@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bioluminescent Jellyfish Aquarium</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            background: linear-gradient(180deg,
+                    #000510 0%,
+                    #001025 20%,
+                    #002040 50%,
+                    #001530 80%,
+                    #000815 100%);
+            min-height: 100vh;
+        }
+
+        .aquarium {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        /* Light rays from above */
+        .light-rays {
+            position: absolute;
+            top: -50%;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(90deg,
+                    transparent,
+                    transparent 50px,
+                    rgba(100, 200, 255, 0.02) 50px,
+                    rgba(100, 200, 255, 0.02) 100px);
+            transform: perspective(500px) rotateX(60deg);
+            animation: rayMove 20s ease-in-out infinite;
+            pointer-events: none;
+        }
+
+        @keyframes rayMove {
+
+            0%,
+            100% {
+                transform: perspective(500px) rotateX(60deg) translateX(-20px);
+            }
+
+            50% {
+                transform: perspective(500px) rotateX(60deg) translateX(20px);
+            }
+        }
+
+        /* Particles/plankton */
+        .particle {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background: rgba(150, 220, 255, 0.6);
+            border-radius: 50%;
+            animation: float 15s infinite linear;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(100vh) translateX(0);
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 1;
+            }
+
+            90% {
+                opacity: 1;
+            }
+
+            100% {
+                transform: translateY(-10vh) translateX(50px);
+                opacity: 0;
+            }
+        }
+
+        /* Jellyfish container */
+        .jellyfish {
+            position: absolute;
+            animation: drift 20s ease-in-out infinite;
+        }
+
+        @keyframes drift {
+
+            0%,
+            100% {
+                transform: translate(0, 0) rotate(-3deg);
+            }
+
+            25% {
+                transform: translate(30px, -40px) rotate(3deg);
+            }
+
+            50% {
+                transform: translate(-20px, 20px) rotate(-2deg);
+            }
+
+            75% {
+                transform: translate(40px, 30px) rotate(4deg);
+            }
+        }
+
+        /* Bell (main body) */
+        .bell {
+            position: relative;
+            border-radius: 50% 50% 40% 40%;
+            animation: pulse 3s ease-in-out infinite;
+            filter: blur(0.5px);
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: scaleX(1) scaleY(1);
+            }
+
+            50% {
+                transform: scaleX(1.15) scaleY(0.85);
+            }
+        }
+
+        /* Inner glow */
+        .bell-inner {
+            position: absolute;
+            top: 20%;
+            left: 20%;
+            width: 60%;
+            height: 60%;
+            border-radius: 50%;
+            animation: innerGlow 3s ease-in-out infinite;
+        }
+
+        @keyframes innerGlow {
+
+            0%,
+            100% {
+                opacity: 0.6;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1.1);
+            }
+        }
+
+        /* Tentacles */
+        .tentacles {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            justify-content: center;
+            gap: 3px;
+        }
+
+        .tentacle {
+            width: 2px;
+            background: linear-gradient(to bottom, currentColor, transparent);
+            border-radius: 0 0 2px 2px;
+            animation: tentacleWave 2s ease-in-out infinite;
+            transform-origin: top center;
+        }
+
+        @keyframes tentacleWave {
+
+            0%,
+            100% {
+                transform: translateX(0) skewX(0deg);
+            }
+
+            25% {
+                transform: translateX(5px) skewX(5deg);
+            }
+
+            75% {
+                transform: translateX(-5px) skewX(-5deg);
+            }
+        }
+
+        /* Oral arms */
+        .oral-arms {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .oral-arm {
+            width: 6px;
+            border-radius: 3px;
+            animation: oralWave 3s ease-in-out infinite;
+            transform-origin: top center;
+        }
+
+        @keyframes oralWave {
+
+            0%,
+            100% {
+                transform: rotate(0deg) translateX(0);
+            }
+
+            33% {
+                transform: rotate(8deg) translateX(3px);
+            }
+
+            66% {
+                transform: rotate(-8deg) translateX(-3px);
+            }
+        }
+
+        /* Glow effect */
+        .glow {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(20px);
+            animation: glowPulse 4s ease-in-out infinite;
+            pointer-events: none;
+        }
+
+        @keyframes glowPulse {
+
+            0%,
+            100% {
+                opacity: 0.4;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.8;
+                transform: scale(1.2);
+            }
+        }
+
+        /* Species-specific styles */
+        .moon-jelly .bell {
+            background: radial-gradient(ellipse at 30% 30%,
+                    rgba(200, 230, 255, 0.9),
+                    rgba(150, 200, 255, 0.6),
+                    rgba(100, 150, 200, 0.3));
+            box-shadow: inset 0 0 30px rgba(200, 230, 255, 0.5);
+        }
+
+        .moon-jelly .bell-inner {
+            background: radial-gradient(circle,
+                    rgba(255, 255, 255, 0.3),
+                    transparent);
+        }
+
+        .moon-jelly .tentacle,
+        .moon-jelly .oral-arm {
+            background: linear-gradient(to bottom,
+                    rgba(180, 210, 255, 0.8),
+                    transparent);
+        }
+
+        .moon-jelly .glow {
+            background: rgba(150, 200, 255, 0.5);
+        }
+
+        /* Pink jelly */
+        .pink-jelly .bell {
+            background: radial-gradient(ellipse at 30% 30%,
+                    rgba(255, 150, 200, 0.9),
+                    rgba(255, 100, 180, 0.6),
+                    rgba(200, 50, 150, 0.3));
+            box-shadow: inset 0 0 30px rgba(255, 150, 200, 0.5);
+        }
+
+        .pink-jelly .bell-inner {
+            background: radial-gradient(circle,
+                    rgba(255, 200, 230, 0.5),
+                    transparent);
+        }
+
+        .pink-jelly .tentacle,
+        .pink-jelly .oral-arm {
+            background: linear-gradient(to bottom,
+                    rgba(255, 150, 200, 0.8),
+                    transparent);
+        }
+
+        .pink-jelly .glow {
+            background: rgba(255, 100, 180, 0.5);
+        }
+
+        /* Golden jelly */
+        .golden-jelly .bell {
+            background: radial-gradient(ellipse at 30% 30%,
+                    rgba(255, 220, 100, 0.9),
+                    rgba(255, 180, 50, 0.6),
+                    rgba(200, 130, 20, 0.3));
+            box-shadow: inset 0 0 30px rgba(255, 200, 100, 0.5);
+        }
+
+        .golden-jelly .bell-inner {
+            background: radial-gradient(circle,
+                    rgba(255, 240, 180, 0.5),
+                    transparent);
+        }
+
+        .golden-jelly .tentacle,
+        .golden-jelly .oral-arm {
+            background: linear-gradient(to bottom,
+                    rgba(255, 200, 100, 0.8),
+                    transparent);
+        }
+
+        .golden-jelly .glow {
+            background: rgba(255, 180, 50, 0.5);
+        }
+
+        /* Purple jelly */
+        .purple-jelly .bell {
+            background: radial-gradient(ellipse at 30% 30%,
+                    rgba(180, 100, 255, 0.9),
+                    rgba(140, 50, 200, 0.6),
+                    rgba(100, 20, 150, 0.3));
+            box-shadow: inset 0 0 30px rgba(180, 100, 255, 0.5);
+        }
+
+        .purple-jelly .bell-inner {
+            background: radial-gradient(circle,
+                    rgba(200, 150, 255, 0.5),
+                    transparent);
+        }
+
+        .purple-jelly .tentacle,
+        .purple-jelly .oral-arm {
+            background: linear-gradient(to bottom,
+                    rgba(180, 100, 255, 0.8),
+                    transparent);
+        }
+
+        .purple-jelly .glow {
+            background: rgba(140, 50, 200, 0.5);
+        }
+
+        /* Cyan jelly */
+        .cyan-jelly .bell {
+            background: radial-gradient(ellipse at 30% 30%,
+                    rgba(0, 255, 255, 0.9),
+                    rgba(0, 200, 220, 0.6),
+                    rgba(0, 150, 180, 0.3));
+            box-shadow: inset 0 0 30px rgba(0, 255, 255, 0.5);
+        }
+
+        .cyan-jelly .bell-inner {
+            background: radial-gradient(circle,
+                    rgba(150, 255, 255, 0.5),
+                    transparent);
+        }
+
+        .cyan-jelly .tentacle,
+        .cyan-jelly .oral-arm {
+            background: linear-gradient(to bottom,
+                    rgba(0, 255, 255, 0.8),
+                    transparent);
+        }
+
+        .cyan-jelly .glow {
+            background: rgba(0, 255, 255, 0.5);
+        }
+
+        /* Title overlay */
+        .title {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(150, 200, 255, 0.5);
+            font-family: 'Georgia', serif;
+            font-size: 1.2rem;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        /* Bubbles */
+        .bubble {
+            position: absolute;
+            border: 1px solid rgba(150, 200, 255, 0.3);
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%,
+                    rgba(200, 230, 255, 0.2),
+                    transparent);
+            animation: bubbleRise 8s ease-in infinite;
+        }
+
+        @keyframes bubbleRise {
+            0% {
+                transform: translateY(100vh) scale(1);
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 1;
+            }
+
+            90% {
+                opacity: 0.5;
+            }
+
+            100% {
+                transform: translateY(-10vh) scale(0.5);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="aquarium" id="aquarium">
+        <div class="light-rays"></div>
+    </div>
+    <div class="title">Bioluminescent Aquarium</div>
+
+    <script>
+        const aquarium = document.getElementById('aquarium');
+        const species = ['moon-jelly', 'pink-jelly', 'golden-jelly', 'purple-jelly', 'cyan-jelly'];
+
+        function createJellyfish(type, size, x, y, animDelay, driftDuration) {
+            const jelly = document.createElement('div');
+            jelly.className = `jellyfish ${type}`;
+            jelly.style.left = `${x}%`;
+            jelly.style.top = `${y}%`;
+            jelly.style.animationDuration = `${driftDuration}s`;
+            jelly.style.animationDelay = `${animDelay}s`;
+
+            // Glow
+            const glow = document.createElement('div');
+            glow.className = 'glow';
+            glow.style.width = `${size * 2}px`;
+            glow.style.height = `${size * 2}px`;
+            glow.style.left = `${-size / 2}px`;
+            glow.style.top = `${-size / 4}px`;
+            glow.style.animationDelay = `${animDelay}s`;
+            jelly.appendChild(glow);
+
+            // Bell
+            const bell = document.createElement('div');
+            bell.className = 'bell';
+            bell.style.width = `${size}px`;
+            bell.style.height = `${size * 0.8}px`;
+            bell.style.animationDuration = `${2.5 + Math.random()}s`;
+            bell.style.animationDelay = `${animDelay}s`;
+
+            // Inner bell glow
+            const bellInner = document.createElement('div');
+            bellInner.className = 'bell-inner';
+            bellInner.style.animationDelay = `${animDelay}s`;
+            bell.appendChild(bellInner);
+
+            jelly.appendChild(bell);
+
+            // Oral arms
+            const oralArms = document.createElement('div');
+            oralArms.className = 'oral-arms';
+            oralArms.style.top = `${size * 0.7}px`;
+
+            for (let i = 0; i < 4; i++) {
+                const arm = document.createElement('div');
+                arm.className = 'oral-arm';
+                arm.style.height = `${size * 0.6 + Math.random() * size * 0.3}px`;
+                arm.style.animationDelay = `${animDelay + i * 0.2}s`;
+                arm.style.animationDuration = `${2.5 + Math.random()}s`;
+                oralArms.appendChild(arm);
+            }
+            jelly.appendChild(oralArms);
+
+            // Tentacles
+            const tentacles = document.createElement('div');
+            tentacles.className = 'tentacles';
+            tentacles.style.top = `${size * 0.75}px`;
+
+            const tentacleCount = Math.floor(size / 8);
+            for (let i = 0; i < tentacleCount; i++) {
+                const tentacle = document.createElement('div');
+                tentacle.className = 'tentacle';
+                tentacle.style.height = `${size * 1.5 + Math.random() * size}px`;
+                tentacle.style.animationDelay = `${animDelay + i * 0.1}s`;
+                tentacle.style.animationDuration = `${1.5 + Math.random() * 1.5}s`;
+                tentacle.style.opacity = 0.6 + Math.random() * 0.4;
+                tentacles.appendChild(tentacle);
+            }
+            jelly.appendChild(tentacles);
+
+            aquarium.appendChild(jelly);
+
+            // Add slow movement
+            animateJellyfish(jelly, x, y);
+        }
+
+        function animateJellyfish(jelly, startX, startY) {
+            let x = startX;
+            let y = startY;
+            let vx = (Math.random() - 0.5) * 0.3;
+            let vy = (Math.random() - 0.5) * 0.2 - 0.1; // Slight upward bias
+
+            function update() {
+                x += vx;
+                y += vy;
+
+                // Bounce off edges
+                if (x < 5 || x > 90) vx *= -1;
+                if (y < 5 || y > 85) vy *= -1;
+
+                // Random direction changes
+                if (Math.random() < 0.01) {
+                    vx += (Math.random() - 0.5) * 0.1;
+                    vy += (Math.random() - 0.5) * 0.1;
+                }
+
+                // Clamp velocity
+                vx = Math.max(-0.4, Math.min(0.4, vx));
+                vy = Math.max(-0.3, Math.min(0.3, vy));
+
+                jelly.style.left = `${x}%`;
+                jelly.style.top = `${y}%`;
+
+                requestAnimationFrame(update);
+            }
+            update();
+        }
+
+        function createParticles() {
+            for (let i = 0; i < 50; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = `${Math.random() * 100}%`;
+                particle.style.animationDelay = `${Math.random() * 15}s`;
+                particle.style.animationDuration = `${10 + Math.random() * 10}s`;
+                particle.style.width = `${1 + Math.random() * 3}px`;
+                particle.style.height = particle.style.width;
+                particle.style.opacity = 0.3 + Math.random() * 0.5;
+                aquarium.appendChild(particle);
+            }
+        }
+
+        function createBubbles() {
+            setInterval(() => {
+                if (Math.random() < 0.3) {
+                    const bubble = document.createElement('div');
+                    bubble.className = 'bubble';
+                    const size = 5 + Math.random() * 15;
+                    bubble.style.width = `${size}px`;
+                    bubble.style.height = `${size}px`;
+                    bubble.style.left = `${Math.random() * 100}%`;
+                    bubble.style.animationDuration = `${6 + Math.random() * 6}s`;
+                    aquarium.appendChild(bubble);
+
+                    setTimeout(() => bubble.remove(), 12000);
+                }
+            }, 500);
+        }
+
+        function init() {
+            // Create jellyfish of different species and sizes
+            const jellyfishConfigs = [
+                { type: 'moon-jelly', size: 100, x: 20, y: 30 },
+                { type: 'pink-jelly', size: 80, x: 70, y: 50 },
+                { type: 'golden-jelly', size: 60, x: 40, y: 60 },
+                { type: 'purple-jelly', size: 90, x: 80, y: 25 },
+                { type: 'cyan-jelly', size: 70, x: 15, y: 70 },
+                { type: 'moon-jelly', size: 50, x: 55, y: 20 },
+                { type: 'pink-jelly', size: 120, x: 35, y: 45 },
+                { type: 'purple-jelly', size: 55, x: 85, y: 75 },
+                { type: 'cyan-jelly', size: 85, x: 50, y: 80 },
+                { type: 'golden-jelly', size: 45, x: 10, y: 40 },
+                { type: 'moon-jelly', size: 65, x: 65, y: 15 },
+                { type: 'pink-jelly', size: 75, x: 25, y: 85 },
+            ];
+
+            jellyfishConfigs.forEach((config, i) => {
+                createJellyfish(
+                    config.type,
+                    config.size,
+                    config.x,
+                    config.y,
+                    i * 0.5,
+                    15 + Math.random() * 10
+                );
+            });
+
+            createParticles();
+            createBubbles();
+        }
+
+        // Auto-start
+        init();
+    </script>
+</body>
+
+</html>
