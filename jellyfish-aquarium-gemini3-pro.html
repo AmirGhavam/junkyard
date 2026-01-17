@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bioluminescent Jellyfish Aquarium</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #020408;
+        }
+
+        canvas {
+            display: block;
+            filter: contrast(1.2) brightness(1.2);
+        }
+
+        .overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: rgba(255, 255, 255, 0.5);
+            font-family: sans-serif;
+            pointer-events: none;
+            z-index: 10;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="overlay text-sm">
+        <h1 class="text-xl font-bold text-teal-300 opacity-80 mb-1">Deep Sea Jellyfish</h1>
+        <p>Generative Aquarium</p>
+    </div>
+    <canvas id="aquarium"></canvas>
+
+    <script>
+        const canvas = document.getElementById('aquarium');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Utility functions
+        const random = (min, max) => Math.random() * (max - min) + min;
+
+        // Jellyfish Class
+        class Jellyfish {
+            constructor(x, y, species) {
+                this.x = x;
+                this.y = y;
+                this.species = species;
+
+                // Physics
+                this.vx = random(-0.5, 0.5);
+                this.vy = random(-0.5, 0.5);
+                this.angle = -Math.PI / 2; // Pointing up initially
+
+                // Appearance based on species
+                if (species === 'moon') {
+                    this.radius = random(30, 50);
+                    this.color = { r: 100, g: 200, b: 255 }; // Cyan/Blue
+                    this.tentacleCount = 12;
+                    this.tentacleLength = 15;
+                    this.tentacleSpacing = 4;
+                    this.pulsateSpeed = 0.04;
+                } else if (species === 'nettle') {
+                    this.radius = random(20, 35);
+                    this.color = { r: 255, g: 150, b: 100 }; // Orange/Pink
+                    this.tentacleCount = 6;
+                    this.tentacleLength = 30;
+                    this.tentacleSpacing = 8;
+                    this.pulsateSpeed = 0.06;
+                } else if (species === 'ghost') {
+                    this.radius = random(40, 60);
+                    this.color = { r: 200, g: 100, b: 255 }; // Purple
+                    this.tentacleCount = 20;
+                    this.tentacleLength = 20;
+                    this.tentacleSpacing = 3;
+                    this.pulsateSpeed = 0.03;
+                }
+
+                // Animation state
+                this.pulse = 0;
+
+                // Tentacles: Arrays of segments
+                // Each tentacle is an array of points {x, y}
+                this.tentacles = [];
+                for (let i = 0; i < this.tentacleCount; i++) {
+                    const segments = [];
+                    const numSegments = this.tentacleLength;
+                    for (let j = 0; j < numSegments; j++) {
+                        segments.push({ x: this.x, y: this.y + j * this.tentacleSpacing });
+                    }
+                    this.tentacles.push(segments);
+                }
+            }
+
+            update(time) {
+                // Pulsing
+                this.pulse += this.pulsateSpeed;
+                const contraction = Math.sin(this.pulse);
+
+                // Smooth rotation towards velocity
+                const targetAngle = Math.atan2(this.vy, this.vx) + Math.PI / 2;
+                // Simple lerp for angle (handling the -PI to PI wrap)
+                let diff = targetAngle - this.angle;
+                while (diff < -Math.PI) diff += Math.PI * 2;
+                while (diff > Math.PI) diff -= Math.PI * 2;
+                this.angle += diff * 0.05;
+
+                // Movement logic
+                // Add some Perlin-like noise or random drift
+                this.vx += random(-0.02, 0.02);
+                this.vy += random(-0.02, 0.02);
+
+                // Limit speed
+                const maxSpeed = 1.0; // Slower for more majestic feel
+                const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                if (speed > maxSpeed) {
+                    this.vx = (this.vx / speed) * maxSpeed;
+                    this.vy = (this.vy / speed) * maxSpeed;
+                }
+
+                // Propel logic synced with pulse
+                if (contraction < -0.5) {
+                    this.vx += Math.cos(this.angle - Math.PI / 2) * 0.03;
+                    this.vy += Math.sin(this.angle - Math.PI / 2) * 0.03;
+                }
+
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Screen wrapping with buffer
+                const buffer = 150;
+                if (this.x < -buffer) this.x = width + buffer;
+                if (this.x > width + buffer) this.x = -buffer;
+                if (this.y < -buffer) this.y = height + buffer;
+                if (this.y > height + buffer) this.y = -buffer;
+
+                // Tentacle physics
+                const baseRadius = this.radius * (1 + contraction * 0.1);
+
+                this.tentacles.forEach((tentacle, i) => {
+                    // Spread calculation
+                    const spread = Math.PI * 0.7;
+                    const startAngle = this.angle - spread / 2;
+                    const increment = spread / Math.max(1, this.tentacleCount - 1);
+                    const tentacleAngle = startAngle + i * increment;
+
+                    // Head point of the tentacle
+                    const headX = this.x + Math.cos(tentacleAngle) * (baseRadius * 0.5);
+                    const headY = this.y + Math.sin(tentacleAngle) * (baseRadius * 0.5);
+
+                    tentacle[0].x = headX;
+                    tentacle[0].y = headY;
+
+                    // Simulation loop for tail
+                    for (let j = 1; j < tentacle.length; j++) {
+                        const prev = tentacle[j - 1];
+                        const curr = tentacle[j];
+
+                        // Distance constraint
+                        const dx = prev.x - curr.x;
+                        const dy = prev.y - curr.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        const targetDist = this.tentacleSpacing;
+
+                        if (dist > 0) {
+                            // Drag towards previous
+                            const moveX = (dx - (dx / dist) * targetDist) * 0.3;
+                            const moveY = (dy - (dy / dist) * targetDist) * 0.3;
+                            curr.x += moveX;
+                            curr.y += moveY;
+                        }
+
+                        // Add organic sway using sine waves based on time and index
+                        const swayFreq = 2.0;
+                        const swayAmp = 0.05 * j; // More sway at tips
+                        curr.x += Math.sin(time * swayFreq + j * 0.2 + i) * swayAmp;
+                        curr.y += 0.5; // Slight gravity
+                    }
+                });
+            }
+
+            draw(ctx) {
+                const contraction = Math.sin(this.pulse);
+                const currentRadius = this.radius * (1 + contraction * 0.05);
+
+                // Glow
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = `rgba(${this.color.r}, ${this.color.g}, ${this.color.b}, 0.5)`;
+
+                // Draw Tentacles first
+                ctx.strokeStyle = `rgba(${this.color.r}, ${this.color.g}, ${this.color.b}, 0.3)`;
+                ctx.lineWidth = 1.5;
+                ctx.lineCap = 'round';
+
+                this.tentacles.forEach(tentacle => {
+                    ctx.beginPath();
+                    ctx.moveTo(tentacle[0].x, tentacle[0].y);
+                    // Draw curve through points
+                    for (let j = 1; j < tentacle.length - 1; j++) {
+                        const xc = (tentacle[j].x + tentacle[j + 1].x) / 2;
+                        const yc = (tentacle[j].y + tentacle[j + 1].y) / 2;
+                        ctx.quadraticCurveTo(tentacle[j].x, tentacle[j].y, xc, yc);
+                    }
+                    if (tentacle.length > 1) {
+                        const last = tentacle[tentacle.length - 1];
+                        ctx.lineTo(last.x, last.y);
+                    }
+                    ctx.stroke();
+                });
+
+                // Draw Bell
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle); // Use smoothed angle
+
+                // Bell shape
+                ctx.fillStyle = `rgba(${this.color.r}, ${this.color.g}, ${this.color.b}, 0.15)`;
+                ctx.strokeStyle = `rgba(${this.color.r}, ${this.color.g}, ${this.color.b}, 0.8)`;
+                ctx.lineWidth = 1.5;
+
+                ctx.beginPath();
+                // Semicircle top
+                ctx.arc(0, 0, currentRadius, Math.PI, 0);
+                // Bezier bottom 
+                const bottomCurveHeight = currentRadius * (0.3 + contraction * 0.2);
+                ctx.bezierCurveTo(currentRadius, bottomCurveHeight, -currentRadius, bottomCurveHeight, -currentRadius, 0);
+
+                ctx.fill();
+                ctx.stroke();
+
+                // Inner organs/detail - simple glowing core
+                ctx.fillStyle = `rgba(${this.color.r + 50}, ${this.color.g + 50}, ${this.color.b + 50}, 0.3)`;
+                ctx.beginPath();
+                ctx.ellipse(0, -currentRadius * 0.1, currentRadius * 0.5, currentRadius * 0.3, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Extra detail lines on the bell
+                ctx.strokeStyle = `rgba(255, 255, 255, 0.1)`;
+                ctx.lineWidth = 1;
+                for (let i = 1; i < 4; i++) {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, currentRadius * (1 - i * 0.2), Math.PI, 0);
+                    ctx.stroke();
+                }
+
+                ctx.restore();
+
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        // Particle system for marine snow
+        class Particle {
+            constructor() {
+                this.x = random(0, width);
+                this.y = random(0, height);
+                this.size = random(0.5, 2.5);
+                this.speedY = random(0.1, 0.5);
+                this.speedX = random(-0.2, 0.2);
+                this.opacity = random(0.1, 0.4);
+                this.offset = random(0, 100);
+            }
+            update(time) {
+                this.y += this.speedY;
+                this.x += Math.sin(time + this.offset) * 0.2 + this.speedX;
+
+                if (this.y > height) {
+                    this.y = 0;
+                    this.x = random(0, width);
+                }
+                if (this.x > width) this.x = 0;
+                if (this.x < 0) this.x = width;
+            }
+            draw(ctx) {
+                ctx.fillStyle = `rgba(200, 240, 255, ${this.opacity})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // Initialization
+        const jellyfishSchool = [];
+        const particles = [];
+
+        function init() {
+            // Create different species
+            for (let i = 0; i < 5; i++) {
+                jellyfishSchool.push(new Jellyfish(random(0, width), random(0, height), 'moon'));
+            }
+            for (let i = 0; i < 3; i++) {
+                jellyfishSchool.push(new Jellyfish(random(0, width), random(0, height), 'nettle'));
+            }
+            for (let i = 0; i < 2; i++) {
+                jellyfishSchool.push(new Jellyfish(random(0, width), random(0, height), 'ghost'));
+            }
+
+            // Create particles
+            for (let i = 0; i < 100; i++) {
+                particles.push(new Particle());
+            }
+        }
+
+        // Interaction
+        window.addEventListener('click', (e) => {
+            const speciesList = ['moon', 'nettle', 'ghost'];
+            const randomSpecies = speciesList[Math.floor(Math.random() * speciesList.length)];
+            jellyfishSchool.push(new Jellyfish(e.clientX, e.clientY, randomSpecies));
+        });
+
+        window.addEventListener('touchstart', (e) => {
+            const speciesList = ['moon', 'nettle', 'ghost'];
+            const randomSpecies = speciesList[Math.floor(Math.random() * speciesList.length)];
+            jellyfishSchool.push(new Jellyfish(e.touches[0].clientX, e.touches[0].clientY, randomSpecies));
+        });
+
+        let time = 0;
+        function animate() {
+            requestAnimationFrame(animate);
+            time += 0.01;
+
+            // Background
+            const gradient = ctx.createLinearGradient(0, 0, 0, height);
+            gradient.addColorStop(0, '#001e36'); // Deep rich blue
+            gradient.addColorStop(0.4, '#001221');
+            gradient.addColorStop(1, '#000000'); // Black bottom
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, width, height);
+
+            // Draw particles
+            particles.forEach(p => {
+                p.update(time); // Pass time for wobble
+                p.draw(ctx);
+            });
+
+            // Draw jellyfish
+            jellyfishSchool.forEach(jelly => {
+                jelly.update(time);
+                jelly.draw(ctx);
+            });
+
+            // Vignette / Light rays
+            ctx.save();
+            ctx.globalCompositeOperation = 'soft-light';
+            const radial = ctx.createRadialGradient(width / 2, 0, 0, width / 2, height / 2, height);
+            radial.addColorStop(0, 'rgba(20, 80, 100, 0.2)');
+            radial.addColorStop(1, 'rgba(0, 0, 0, 0.6)');
+            ctx.fillStyle = radial;
+            ctx.fillRect(0, 0, width, height);
+            ctx.restore();
+        }
+
+        init();
+        animate();
+    </script>
+</body>
+
+</html>
