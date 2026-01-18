@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mind Map Builder</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            background-color: #f3f4f6;
+            user-select: none;
+        }
+
+        #mindmap-container {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            cursor: grab;
+            position: relative;
+        }
+
+        #mindmap-container:active {
+            cursor: grabbing;
+        }
+
+        #canvas {
+            transform-origin: 0 0;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 0;
+            height: 0;
+            pointer-events: none;
+        }
+
+        .node {
+            position: absolute;
+            padding: 12px 20px;
+            border-radius: 8px;
+            background-color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border: 2px solid transparent;
+            /* Base border */
+            font-weight: 500;
+            color: #1f2937;
+            white-space: normal;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            pointer-events: auto;
+            z-index: 10;
+            transform: translate(-50%, -50%);
+            max-width: 220px;
+            min-width: 80px;
+            text-align: center;
+            outline: none;
+            line-height: 1.4;
+        }
+
+        .node:hover {
+            transform: translate(-50%, -50%) scale(1.02);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        .node.selected {
+            border-color: #3b82f6;
+            /* Blue border for selection */
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+        }
+
+        .node.root {
+            font-size: 1.25rem;
+            font-weight: 700;
+            padding: 16px 32px;
+            border-width: 3px;
+        }
+
+        /* SVG Lines Layer */
+        #connections {
+            position: absolute;
+            overflow: visible;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        path {
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            transition: d 0.3s ease;
+        }
+
+        /* Controls */
+        .controls-bar {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 12px;
+            background: white;
+            padding: 10px 16px;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 4px;
+            border-right: 1px solid #e5e7eb;
+            padding-right: 12px;
+        }
+
+        .control-group:last-child {
+            border-right: none;
+            padding-right: 0;
+        }
+
+        .control-btn {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            background-color: transparent;
+            border: 1px solid transparent;
+            color: #4b5563;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .control-btn:hover {
+            background-color: #f3f4f6;
+            color: #111827;
+        }
+
+        .control-btn.danger:hover {
+            background-color: #fee2e2;
+            color: #ef4444;
+        }
+
+        .control-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .help-text {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: #6b7280;
+            pointer-events: none;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="help-text">
+        Double-click node to edit text<br>
+        Click to select<br>
+        Drag to pan
+    </div>
+
+    <!-- Toolbar / Controls -->
+    <div class="controls-bar">
+        <!-- Edit Actions -->
+        <div class="control-group">
+            <button class="control-btn" id="btn-add-child" title="Add Child Node (Tab)">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+            </button>
+            <button class="control-btn danger" id="btn-delete" title="Delete Node (Del)">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+            </button>
+        </div>
+
+        <!-- View Actions -->
+        <div class="control-group">
+            <button class="control-btn" id="btn-zoom-out" title="Zoom Out">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+            </button>
+            <button class="control-btn" id="btn-center" title="Reset View">
+                <span style="font-size: 12px; font-weight: bold;">100%</span>
+            </button>
+            <button class="control-btn" id="btn-zoom-in" title="Zoom In">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <div id="mindmap-container">
+        <div id="canvas">
+            <svg id="connections"></svg>
+            <div id="nodes"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- Utilities ---
+        const generateId = () => Math.random().toString(36).substr(2, 9);
+        const colors = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#6366f1'];
+        const getRandomColor = () => colors[Math.floor(Math.random() * colors.length)];
+
+        // --- Data ---
+        let data = {
+            id: 'root',
+            text: 'Central Topic',
+            type: 'root',
+            color: '#3b82f6',
+            children: [
+                {
+                    id: '1',
+                    text: 'Idea 1',
+                    color: '#ef4444',
+                    children: [
+                        { id: '1-1', text: 'Detail A', color: '#fca5a5' },
+                        { id: '1-2', text: 'Detail B', color: '#fca5a5' }
+                    ]
+                },
+                {
+                    id: '2',
+                    text: 'Idea 2',
+                    color: '#10b981',
+                    children: []
+                },
+                {
+                    id: '3',
+                    text: 'Idea 3',
+                    color: '#f59e0b',
+                    children: []
+                }
+            ]
+        };
+
+        // --- State ---
+        let state = {
+            scale: 1,
+            panX: window.innerWidth / 2,
+            panY: window.innerHeight / 2,
+            isDragging: false,
+            lastMouseX: 0,
+            lastMouseY: 0,
+            selectedNodeId: null
+        };
+
+        // --- DOM Elements ---
+        const container = document.getElementById('mindmap-container');
+        const canvas = document.getElementById('canvas');
+        const connectionsSvg = document.getElementById('connections');
+        const nodesContainer = document.getElementById('nodes');
+
+        // Buttons
+        const btnAdd = document.getElementById('btn-add-child');
+        const btnDelete = document.getElementById('btn-delete');
+        const btnZoomIn = document.getElementById('btn-zoom-in');
+        const btnZoomOut = document.getElementById('btn-zoom-out');
+        const btnCenter = document.getElementById('btn-center');
+
+        // --- Core Logic ---
+
+        // Find node by ID helper
+        function findNode(node, id) {
+            if (node.id === id) return node;
+            if (node.children) {
+                for (let child of node.children) {
+                    const found = findNode(child, id);
+                    if (found) return found;
+                }
+            }
+            return null;
+        }
+
+        // Find parent of node helper
+        function findParent(node, id) {
+            if (!node.children) return null;
+            for (let child of node.children) {
+                if (child.id === id) return node;
+                const found = findParent(child, id);
+                if (found) return found;
+            }
+            return null;
+        }
+
+        function deleteNode(id) {
+            if (id === 'root') return; // Cannot delete root
+            const parent = findParent(data, id);
+            if (parent) {
+                parent.children = parent.children.filter(child => child.id !== id);
+                state.selectedNodeId = null;
+                updateUI();
+            }
+        }
+
+        function addChild(parentId) {
+            const parent = findNode(data, parentId);
+            if (parent) {
+                if (!parent.children) parent.children = [];
+
+                // Inherit color nuance or pick new for level 1
+                let newColor = '#9ca3af';
+                if (parentId === 'root') {
+                    newColor = getRandomColor();
+                } else {
+                    newColor = parent.color; // Simplify: keep same color as parent branch
+                }
+
+                const newId = generateId();
+                parent.children.push({
+                    id: newId,
+                    text: 'New Node',
+                    color: newColor,
+                    children: []
+                });
+
+                // Auto expand/select new node
+                state.selectedNodeId = newId;
+                updateUI();
+
+                // Auto focus logic could go here
+                setTimeout(() => {
+                    const el = document.getElementById(`node-${newId}`);
+                    if (el) {
+                        el.focus();
+                        // Select all text
+                        const range = document.createRange();
+                        range.selectNodeContents(el);
+                        const sel = window.getSelection();
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                    }
+                }, 50);
+            }
+        }
+
+        // --- Layout Logic (Horizontal Tree) ---
+        const LEVEL_WIDTH = 260;
+        const NODE_HEIGHT = 100;
+
+        function calculateTreeSize(node) {
+            if (!node.children || node.children.length === 0) {
+                node.treeHeight = NODE_HEIGHT;
+                return;
+            }
+            let totalHeight = 0;
+            node.children.forEach(child => {
+                calculateTreeSize(child);
+                totalHeight += child.treeHeight;
+            });
+            node.treeHeight = totalHeight;
+        }
+
+        function layoutTree() {
+            calculateTreeSize(data);
+
+            data.x = 0;
+            data.y = 0;
+
+            const rightChildren = [];
+            const leftChildren = [];
+
+            if (data.children) {
+                data.children.forEach((child, index) => {
+                    // Simple alternating split
+                    if (index % 2 === 0) rightChildren.push(child);
+                    else leftChildren.push(child);
+                });
+            }
+
+            layoutSide(rightChildren, 1);
+            layoutSide(leftChildren, -1);
+        }
+
+        function layoutSide(nodes, direction) {
+            if (nodes.length === 0) return;
+            let currentY = - (nodes.reduce((acc, n) => acc + n.treeHeight, 0) / 2);
+
+            nodes.forEach(node => {
+                const childY = currentY + (node.treeHeight / 2);
+                positionNode(node, LEVEL_WIDTH * direction, childY, direction);
+                currentY += node.treeHeight;
+            });
+        }
+
+        function positionNode(node, x, y, direction) {
+            node.x = x;
+            node.y = y;
+
+            if (node.children && node.children.length > 0) {
+                let startY = y - (node.treeHeight / 2);
+                node.children.forEach(child => {
+                    const childY = startY + (child.treeHeight / 2);
+                    positionNode(child, x + (LEVEL_WIDTH * direction), childY, direction);
+                    startY += child.treeHeight;
+                });
+            }
+        }
+
+        // --- Rendering ---
+        function updateUI() {
+            layoutTree();
+            render();
+            updateControls();
+        }
+
+        function render() {
+            canvas.style.transform = `translate(${state.panX}px, ${state.panY}px) scale(${state.scale})`;
+            document.querySelector('#btn-center span').innerText = `${Math.round(state.scale * 100)}%`;
+
+            nodesContainer.innerHTML = '';
+            connectionsSvg.innerHTML = '';
+
+            drawNode(data);
+        }
+
+        function drawNode(node) {
+            const el = document.createElement('div');
+            el.id = `node-${node.id}`;
+            el.className = `node ${node.id === 'root' ? 'root' : ''} ${state.selectedNodeId === node.id ? 'selected' : ''}`;
+            el.contentEditable = true; // Make editable
+            el.innerText = node.text;
+            el.style.left = `${node.x}px`;
+            el.style.top = `${node.y}px`;
+
+            // Visual style
+            if (node.id !== 'root') {
+                // Subtle border color matching the branch
+                el.style.borderLeft = `4px solid ${node.color}`;
+            } else {
+                el.style.borderColor = node.color;
+            }
+
+            // Events
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (state.selectedNodeId !== node.id) {
+                    state.selectedNodeId = node.id;
+                    updateUI();
+                }
+            });
+
+            el.addEventListener('dblclick', (e) => {
+                e.stopPropagation();
+                // Already handled by contentEditable, just ensuring selection doesn't drift
+            });
+
+            // Handle text changes
+            el.addEventListener('blur', () => {
+                node.text = el.innerText;
+                // Don't re-render immediately to avoid focus loss glitches, 
+                // but we might need to if size changed drastically. 
+                // For now, let it be.
+            });
+
+            el.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    el.blur();
+                }
+            });
+
+            // Prevent drag start on text interaction
+            el.addEventListener('mousedown', (e) => e.stopPropagation());
+
+            nodesContainer.appendChild(el);
+
+            if (node.children) {
+                node.children.forEach(child => {
+                    drawConnection(node, child);
+                    drawNode(child);
+                });
+            }
+        }
+
+        function drawConnection(parent, child) {
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            const startX = parent.x;
+            const startY = parent.y;
+            const endX = child.x;
+            const endY = child.y;
+
+            const deltaX = endX - startX;
+            // Curvature based on distance
+            const cp1x = startX + deltaX * 0.5;
+            const cp1y = startY;
+            const cp2x = endX - deltaX * 0.5;
+            const cp2y = endY;
+
+            const d = `M ${startX} ${startY} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${endX} ${endY}`;
+
+            path.setAttribute("d", d);
+            path.setAttribute("stroke", child.color || "#ccc");
+            path.setAttribute("stroke-width", "2");
+
+            connectionsSvg.appendChild(path);
+        }
+
+        function updateControls() {
+            btnAdd.disabled = !state.selectedNodeId;
+            btnDelete.disabled = !state.selectedNodeId || state.selectedNodeId === 'root';
+        }
+
+        // --- Global Events ---
+
+        // Pan
+        container.addEventListener('mousedown', (e) => {
+            if (e.target.closest('.node')) return;
+            state.selectedNodeId = null; // Deselect on background click
+            updateUI();
+
+            state.isDragging = true;
+            state.lastMouseX = e.clientX;
+            state.lastMouseY = e.clientY;
+            container.style.cursor = 'grabbing';
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!state.isDragging) return;
+            const dx = e.clientX - state.lastMouseX;
+            const dy = e.clientY - state.lastMouseY;
+            state.panX += dx;
+            state.panY += dy;
+            state.lastMouseX = e.clientX;
+            state.lastMouseY = e.clientY;
+            render();
+        });
+
+        window.addEventListener('mouseup', () => {
+            state.isDragging = false;
+            container.style.cursor = 'grab';
+        });
+
+        // Zoom
+        container.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const zoomSensitivity = 0.001;
+            const zoomFactor = Math.exp(-e.deltaY * zoomSensitivity);
+            state.scale = Math.min(Math.max(state.scale * zoomFactor, 0.1), 5);
+            render();
+        }, { passive: false });
+
+        // Keyboard Shortcuts
+        window.addEventListener('keydown', (e) => {
+            if (state.selectedNodeId) {
+                if (e.key === 'Tab') {
+                    e.preventDefault(); // Prevent focus change
+                    addChild(state.selectedNodeId);
+                }
+                if (e.key === 'Delete' || e.key === 'Backspace') {
+                    // Only delete if not editing text (focus check)
+                    const activeEl = document.activeElement;
+                    if (!activeEl.isContentEditable) {
+                        deleteNode(state.selectedNodeId);
+                    }
+                }
+            }
+        });
+
+        // Toolbar Buttons
+        btnAdd.addEventListener('click', () => state.selectedNodeId && addChild(state.selectedNodeId));
+        btnDelete.addEventListener('click', () => state.selectedNodeId && deleteNode(state.selectedNodeId));
+
+        btnZoomIn.onclick = () => { state.scale = Math.min(state.scale * 1.2, 5); render(); };
+        btnZoomOut.onclick = () => { state.scale = Math.max(state.scale / 1.2, 0.1); render(); };
+        btnCenter.onclick = () => {
+            state.panX = window.innerWidth / 2;
+            state.panY = window.innerHeight / 2;
+            state.scale = 1;
+            render();
+        };
+
+        // Resize
+        window.addEventListener('resize', () => render());
+
+        // Init
+        updateUI();
+
+    </script>
+</body>
+
+</html>
