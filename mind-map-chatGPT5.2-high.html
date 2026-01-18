@@ -1,0 +1,615 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mind Map — Pan/Zoom</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        /* Crisp SVG text and nicer dragging */
+        svg {
+            user-select: none;
+            touch-action: none;
+        }
+
+        .btn {
+            @apply inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 active:bg-slate-100;
+        }
+
+        .btn:disabled {
+            @apply opacity-50 cursor-not-allowed;
+        }
+
+        .chip {
+            @apply inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700;
+        }
+
+        .kbd {
+            @apply rounded border border-slate-300 bg-white px-1.5 py-0.5 text-[11px] font-mono text-slate-700;
+        }
+    </style>
+</head>
+
+<body class="h-screen overflow-hidden bg-slate-100">
+    <div class="flex h-full flex-col">
+        <header class="flex items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 py-3">
+            <div class="flex items-center gap-3">
+                <div class="h-9 w-9 rounded-xl bg-slate-900 text-white grid place-items-center font-semibold">MM</div>
+                <div>
+                    <h1 class="text-base font-semibold text-slate-900">Mind Map</h1>
+                    <p class="text-xs text-slate-500">Pan/zoom canvas • drag nodes • curved connection lines</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <button id="zoomOut" class="btn" title="Zoom out (−)">−</button>
+                <button id="zoomIn" class="btn" title="Zoom in (+)">+</button>
+                <button id="fit" class="btn" title="Fit to content (F)">Fit</button>
+                <button id="reset" class="btn" title="Reset view (R)">Reset</button>
+                <div class="hidden sm:flex items-center gap-2 pl-2">
+                    <span class="chip">Wheel: zoom</span>
+                    <span class="chip">Drag background: pan</span>
+                    <span class="chip">Drag node: move</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="relative flex-1">
+            <!-- Canvas -->
+            <svg id="svg" class="absolute inset-0 h-full w-full bg-gradient-to-b from-slate-50 to-slate-100">
+                <defs>
+                    <filter id="shadow" x="-40%" y="-40%" width="180%" height="180%">
+                        <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#0f172a" flood-opacity="0.18" />
+                    </filter>
+                    <linearGradient id="linkGrad" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stop-color="#94a3b8" stop-opacity="0.35" />
+                        <stop offset="100%" stop-color="#94a3b8" stop-opacity="0.8" />
+                    </linearGradient>
+                </defs>
+                <g id="viewport">
+                    <g id="links"></g>
+                    <g id="nodes"></g>
+                </g>
+            </svg>
+
+            <!-- Side panel -->
+            <aside
+                class="absolute right-3 top-3 w-[22rem] max-w-[calc(100vw-1.5rem)] rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm backdrop-blur">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <h2 class="text-sm font-semibold text-slate-900">Selected node</h2>
+                        <p class="text-xs text-slate-500">Click a node to select it. Add a child branch from here.</p>
+                    </div>
+                    <button id="togglePanel" class="btn px-2 py-1" title="Collapse panel">Hide</button>
+                </div>
+
+                <div id="panelBody" class="mt-3 space-y-3">
+                    <div class="rounded-xl border border-slate-200 bg-white p-3">
+                        <div class="flex items-center justify-between gap-2">
+                            <div>
+                                <div class="text-xs text-slate-500">Label</div>
+                                <div id="selLabel" class="font-medium text-slate-900">—</div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <div class="text-xs text-slate-500">Color</div>
+                                <div id="selColorSwatch" class="h-5 w-5 rounded border border-slate-200"></div>
+                            </div>
+                        </div>
+                        <div class="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-600">
+                            <div>Position: <span id="selPos" class="font-mono text-[11px]">—</span></div>
+                            <div>Children: <span id="selChildren" class="font-mono text-[11px]">—</span></div>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border border-slate-200 bg-white p-3">
+                        <div class="text-xs font-semibold text-slate-700">Add child</div>
+                        <div class="mt-2 grid grid-cols-1 gap-2">
+                            <input id="newLabel"
+                                class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-400"
+                                placeholder="New node label" />
+                            <div class="flex items-center justify-between gap-2">
+                                <label class="flex items-center gap-2 text-sm text-slate-700">
+                                    <span class="text-xs text-slate-500">Color</span>
+                                    <input id="newColor" type="color"
+                                        class="h-9 w-14 rounded-lg border border-slate-200 bg-white p-1"
+                                        value="#3b82f6" />
+                                </label>
+                                <button id="addChild" class="btn">Add</button>
+                            </div>
+                            <div class="text-[11px] text-slate-500">
+                                Tip: Use <span class="kbd">+</span>/<span class="kbd">−</span> to zoom, <span
+                                    class="kbd">F</span> to fit, <span class="kbd">R</span> to reset.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border border-slate-200 bg-white p-3">
+                        <div class="text-xs font-semibold text-slate-700">Sample map</div>
+                        <p class="mt-1 text-xs text-slate-500">This starts with a central topic and branching nodes.
+                            Drag nodes to reshape the layout.</p>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Collapsed panel button (shown when hidden) -->
+            <button id="showPanel" class="btn absolute right-3 top-3 hidden">Show panel</button>
+
+            <!-- Status -->
+            <div
+                class="absolute bottom-3 left-3 rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-xs text-slate-600 shadow-sm backdrop-blur">
+                <span id="status">Ready</span>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // ---------------------------
+        // Mind map model
+        // ---------------------------
+        const palette = [
+            '#0ea5e9', // sky
+            '#22c55e', // green
+            '#f97316', // orange
+            '#a855f7', // purple
+            '#ef4444', // red
+            '#14b8a6', // teal
+            '#eab308', // yellow
+            '#3b82f6', // blue
+        ];
+
+        /** @type {{id:string,label:string,x:number,y:number,color:string,parentId:string|null,w?:number,h?:number}[]} */
+        const nodes = [
+            { id: 'root', label: 'Mind Map', x: 0, y: 0, color: '#0f172a', parentId: null },
+
+            { id: 'ideas', label: 'Ideas', x: 320, y: -140, color: '#3b82f6', parentId: 'root' },
+            { id: 'ideas-1', label: 'Brainstorm', x: 610, y: -220, color: '#60a5fa', parentId: 'ideas' },
+            { id: 'ideas-2', label: 'Constraints', x: 610, y: -140, color: '#60a5fa', parentId: 'ideas' },
+            { id: 'ideas-3', label: 'Priorities', x: 610, y: -60, color: '#60a5fa', parentId: 'ideas' },
+
+            { id: 'tasks', label: 'Tasks', x: 320, y: 150, color: '#22c55e', parentId: 'root' },
+            { id: 'tasks-1', label: 'Backlog', x: 610, y: 90, color: '#4ade80', parentId: 'tasks' },
+            { id: 'tasks-2', label: 'Next actions', x: 610, y: 160, color: '#4ade80', parentId: 'tasks' },
+            { id: 'tasks-3', label: 'Done', x: 610, y: 230, color: '#4ade80', parentId: 'tasks' },
+
+            { id: 'research', label: 'Research', x: -320, y: -140, color: '#f97316', parentId: 'root' },
+            { id: 'research-1', label: 'Sources', x: -610, y: -220, color: '#fb923c', parentId: 'research' },
+            { id: 'research-2', label: 'Notes', x: -610, y: -140, color: '#fb923c', parentId: 'research' },
+            { id: 'research-3', label: 'Open questions', x: -610, y: -60, color: '#fb923c', parentId: 'research' },
+
+            { id: 'notes', label: 'Notes', x: -320, y: 150, color: '#a855f7', parentId: 'root' },
+            { id: 'notes-1', label: 'Meeting', x: -610, y: 90, color: '#c084fc', parentId: 'notes' },
+            { id: 'notes-2', label: 'Decisions', x: -610, y: 160, color: '#c084fc', parentId: 'notes' },
+            { id: 'notes-3', label: 'Follow-ups', x: -610, y: 230, color: '#c084fc', parentId: 'notes' },
+        ];
+
+        function byId(id) { return nodes.find(n => n.id === id) || null; }
+        function childrenOf(id) { return nodes.filter(n => n.parentId === id); }
+
+        // ---------------------------
+        // View state (pan/zoom)
+        // ---------------------------
+        const svg = document.getElementById('svg');
+        const viewport = document.getElementById('viewport');
+        const linksLayer = document.getElementById('links');
+        const nodesLayer = document.getElementById('nodes');
+        const statusEl = document.getElementById('status');
+
+        const state = {
+            scale: 1,
+            tx: 0,
+            ty: 0,
+            selectedId: 'root',
+            // interactions
+            panning: false,
+            panStart: { x: 0, y: 0, tx: 0, ty: 0 },
+            draggingNodeId: null,
+            dragStart: { wx: 0, wy: 0, nx: 0, ny: 0 },
+        };
+
+        const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+        function setStatus(msg) {
+            statusEl.textContent = msg;
+        }
+
+        function updateViewportTransform() {
+            viewport.setAttribute('transform', `translate(${state.tx} ${state.ty}) scale(${state.scale})`);
+            setStatus(`Zoom ${(state.scale * 100).toFixed(0)}%`);
+        }
+
+        function getSvgClientRect() {
+            return svg.getBoundingClientRect();
+        }
+
+        function screenToWorld(clientX, clientY) {
+            const r = getSvgClientRect();
+            const sx = clientX - r.left;
+            const sy = clientY - r.top;
+            return {
+                x: (sx - state.tx) / state.scale,
+                y: (sy - state.ty) / state.scale,
+            };
+        }
+
+        function worldToScreen(wx, wy) {
+            return {
+                x: wx * state.scale + state.tx,
+                y: wy * state.scale + state.ty,
+            };
+        }
+
+        // ---------------------------
+        // Rendering
+        // ---------------------------
+        function measureNode(label) {
+            // Simple sizing heuristic (SVG doesn't give layout until rendered).
+            // Good enough for a mind-map style pill.
+            const charW = 7.2;
+            const paddingX = 22;
+            const w = Math.max(88, Math.min(260, Math.round(label.length * charW + paddingX)));
+            const h = 40;
+            return { w, h };
+        }
+
+        function pathBetween(a, b) {
+            // Curved cubic bezier between node centers.
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const c1x = a.x + dx * 0.38;
+            const c1y = a.y + dy * 0.06;
+            const c2x = a.x + dx * 0.62;
+            const c2y = a.y + dy * 0.94;
+            return `M ${a.x} ${a.y} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${b.x} ${b.y}`;
+        }
+
+        function render() {
+            // Clear layers
+            linksLayer.replaceChildren();
+            nodesLayer.replaceChildren();
+
+            // Precompute node sizes
+            for (const n of nodes) {
+                const { w, h } = measureNode(n.label);
+                n.w = w;
+                n.h = h;
+            }
+
+            // Links (behind nodes)
+            for (const n of nodes) {
+                if (!n.parentId) continue;
+                const p = byId(n.parentId);
+                if (!p) continue;
+
+                const link = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                link.setAttribute('d', pathBetween(p, n));
+                link.setAttribute('fill', 'none');
+                link.setAttribute('stroke', 'url(#linkGrad)');
+                link.setAttribute('stroke-width', '3');
+                link.setAttribute('stroke-linecap', 'round');
+                link.setAttribute('opacity', '0.9');
+
+                // subtle color hint from child
+                link.setAttribute('style', `mix-blend-mode:multiply;`);
+
+                const halo = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                halo.setAttribute('d', pathBetween(p, n));
+                halo.setAttribute('fill', 'none');
+                halo.setAttribute('stroke', n.color);
+                halo.setAttribute('stroke-width', '10');
+                halo.setAttribute('stroke-linecap', 'round');
+                halo.setAttribute('opacity', '0.08');
+
+                linksLayer.appendChild(halo);
+                linksLayer.appendChild(link);
+            }
+
+            // Nodes
+            for (const n of nodes) {
+                const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                g.classList.add('node');
+                g.dataset.id = n.id;
+                g.setAttribute('transform', `translate(${n.x - n.w / 2} ${n.y - n.h / 2})`);
+                g.style.cursor = 'grab';
+
+                const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                rect.setAttribute('x', '0');
+                rect.setAttribute('y', '0');
+                rect.setAttribute('rx', '14');
+                rect.setAttribute('ry', '14');
+                rect.setAttribute('width', String(n.w));
+                rect.setAttribute('height', String(n.h));
+                rect.setAttribute('fill', 'white');
+                rect.setAttribute('filter', 'url(#shadow)');
+                rect.setAttribute('stroke', n.id === state.selectedId ? n.color : '#e2e8f0');
+                rect.setAttribute('stroke-width', n.id === state.selectedId ? '3.5' : '1.5');
+
+                // Color stripe
+                const stripe = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                stripe.setAttribute('x', '0');
+                stripe.setAttribute('y', '0');
+                stripe.setAttribute('rx', '14');
+                stripe.setAttribute('ry', '14');
+                stripe.setAttribute('width', '10');
+                stripe.setAttribute('height', String(n.h));
+                stripe.setAttribute('fill', n.color);
+                stripe.setAttribute('opacity', '0.95');
+
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', String(n.w / 2 + 4));
+                text.setAttribute('y', String(n.h / 2 + 5));
+                text.setAttribute('text-anchor', 'middle');
+                text.setAttribute('font-size', '14');
+                text.setAttribute('font-weight', n.id === 'root' ? '700' : '600');
+                text.setAttribute('fill', '#0f172a');
+                text.textContent = n.label;
+
+                const sub = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                sub.setAttribute('x', String(n.w / 2 + 4));
+                sub.setAttribute('y', String(n.h - 8));
+                sub.setAttribute('text-anchor', 'middle');
+                sub.setAttribute('font-size', '10');
+                sub.setAttribute('fill', '#64748b');
+                sub.textContent = n.id === 'root' ? 'central topic' : (n.parentId ? 'branch' : '');
+
+                g.appendChild(rect);
+                g.appendChild(stripe);
+                g.appendChild(text);
+                if (n.id === 'root') g.appendChild(sub);
+
+                // Events
+                g.addEventListener('pointerdown', (e) => {
+                    e.stopPropagation();
+                    selectNode(n.id);
+                    state.draggingNodeId = n.id;
+                    g.style.cursor = 'grabbing';
+                    const w = screenToWorld(e.clientX, e.clientY);
+                    state.dragStart.wx = w.x;
+                    state.dragStart.wy = w.y;
+                    state.dragStart.nx = n.x;
+                    state.dragStart.ny = n.y;
+                    svg.setPointerCapture(e.pointerId);
+                });
+
+                g.addEventListener('pointerup', (e) => {
+                    if (state.draggingNodeId === n.id) {
+                        state.draggingNodeId = null;
+                        g.style.cursor = 'grab';
+                    }
+                });
+
+                nodesLayer.appendChild(g);
+            }
+
+            updateSelectedPanel();
+        }
+
+        // ---------------------------
+        // Selection + panel actions
+        // ---------------------------
+        const selLabel = document.getElementById('selLabel');
+        const selPos = document.getElementById('selPos');
+        const selChildren = document.getElementById('selChildren');
+        const selColorSwatch = document.getElementById('selColorSwatch');
+
+        function selectNode(id) {
+            state.selectedId = id;
+            render();
+        }
+
+        function updateSelectedPanel() {
+            const n = byId(state.selectedId);
+            if (!n) return;
+            selLabel.textContent = n.label;
+            selPos.textContent = `${Math.round(n.x)}, ${Math.round(n.y)}`;
+            selChildren.textContent = String(childrenOf(n.id).length);
+            selColorSwatch.style.background = n.color;
+        }
+
+        function addChildNode() {
+            const parent = byId(state.selectedId);
+            if (!parent) return;
+
+            const label = (document.getElementById('newLabel').value || '').trim();
+            const color = document.getElementById('newColor').value || '#3b82f6';
+            if (!label) {
+                setStatus('Enter a label to add a child node.');
+                return;
+            }
+
+            // Place child slightly offset away from parent, depending on side.
+            const dir = parent.x >= 0 ? 1 : -1;
+            const siblingCount = childrenOf(parent.id).length;
+            const spacingY = 70;
+            const child = {
+                id: `n-${Math.random().toString(16).slice(2, 9)}`,
+                label,
+                x: parent.x + dir * 290,
+                y: parent.y + (siblingCount - 1) * spacingY,
+                color,
+                parentId: parent.id,
+            };
+
+            nodes.push(child);
+            document.getElementById('newLabel').value = '';
+            selectNode(child.id);
+            setStatus('Added node. Drag it to reposition.');
+        }
+
+        document.getElementById('addChild').addEventListener('click', addChildNode);
+        document.getElementById('newLabel').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') addChildNode();
+        });
+
+        // Panel show/hide
+        const togglePanelBtn = document.getElementById('togglePanel');
+        const panelBody = document.getElementById('panelBody');
+        const showPanelBtn = document.getElementById('showPanel');
+
+        togglePanelBtn.addEventListener('click', () => {
+            panelBody.classList.add('hidden');
+            togglePanelBtn.classList.add('hidden');
+            showPanelBtn.classList.remove('hidden');
+        });
+
+        showPanelBtn.addEventListener('click', () => {
+            panelBody.classList.remove('hidden');
+            togglePanelBtn.classList.remove('hidden');
+            showPanelBtn.classList.add('hidden');
+        });
+
+        // ---------------------------
+        // Pan/Zoom controls
+        // ---------------------------
+        function zoomAt(clientX, clientY, factor) {
+            const before = screenToWorld(clientX, clientY);
+            const newScale = clamp(state.scale * factor, 0.2, 3.5);
+            factor = newScale / state.scale;
+            state.scale = newScale;
+
+            // Keep the world point under the cursor stable.
+            const r = getSvgClientRect();
+            const sx = clientX - r.left;
+            const sy = clientY - r.top;
+            state.tx = sx - before.x * state.scale;
+            state.ty = sy - before.y * state.scale;
+
+            updateViewportTransform();
+        }
+
+        function resetView() {
+            const r = getSvgClientRect();
+            state.scale = 1;
+            state.tx = r.width / 2;
+            state.ty = r.height / 2;
+            updateViewportTransform();
+        }
+
+        function fitToContent() {
+            const r = getSvgClientRect();
+            const pad = 80;
+
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            for (const n of nodes) {
+                const w = n.w || measureNode(n.label).w;
+                const h = n.h || measureNode(n.label).h;
+                minX = Math.min(minX, n.x - w / 2);
+                maxX = Math.max(maxX, n.x + w / 2);
+                minY = Math.min(minY, n.y - h / 2);
+                maxY = Math.max(maxY, n.y + h / 2);
+            }
+            if (!isFinite(minX)) return;
+
+            const contentW = (maxX - minX) + pad * 2;
+            const contentH = (maxY - minY) + pad * 2;
+
+            const s = clamp(Math.min(r.width / contentW, r.height / contentH), 0.2, 3.5);
+            state.scale = s;
+
+            const cx = (minX + maxX) / 2;
+            const cy = (minY + maxY) / 2;
+            state.tx = r.width / 2 - cx * s;
+            state.ty = r.height / 2 - cy * s;
+
+            updateViewportTransform();
+            setStatus('Fit to content');
+        }
+
+        document.getElementById('zoomIn').addEventListener('click', () => {
+            const r = getSvgClientRect();
+            zoomAt(r.left + r.width / 2, r.top + r.height / 2, 1.15);
+        });
+        document.getElementById('zoomOut').addEventListener('click', () => {
+            const r = getSvgClientRect();
+            zoomAt(r.left + r.width / 2, r.top + r.height / 2, 1 / 1.15);
+        });
+        document.getElementById('reset').addEventListener('click', resetView);
+        document.getElementById('fit').addEventListener('click', () => {
+            render();
+            fitToContent();
+        });
+
+        svg.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const delta = e.deltaY;
+            const factor = Math.exp(-delta * 0.0012);
+            zoomAt(e.clientX, e.clientY, factor);
+        }, { passive: false });
+
+        // Pan background + drag nodes
+        svg.addEventListener('pointerdown', (e) => {
+            // Background pan
+            if (state.draggingNodeId) return;
+            state.panning = true;
+            state.panStart.x = e.clientX;
+            state.panStart.y = e.clientY;
+            state.panStart.tx = state.tx;
+            state.panStart.ty = state.ty;
+            svg.setPointerCapture(e.pointerId);
+        });
+
+        svg.addEventListener('pointermove', (e) => {
+            if (state.draggingNodeId) {
+                const id = state.draggingNodeId;
+                const n = byId(id);
+                if (!n) return;
+                const w = screenToWorld(e.clientX, e.clientY);
+                const dx = w.x - state.dragStart.wx;
+                const dy = w.y - state.dragStart.wy;
+                n.x = state.dragStart.nx + dx;
+                n.y = state.dragStart.ny + dy;
+                render();
+                return;
+            }
+
+            if (!state.panning) return;
+            const dx = e.clientX - state.panStart.x;
+            const dy = e.clientY - state.panStart.y;
+            state.tx = state.panStart.tx + dx;
+            state.ty = state.panStart.ty + dy;
+            updateViewportTransform();
+        });
+
+        svg.addEventListener('pointerup', () => {
+            state.panning = false;
+            state.draggingNodeId = null;
+        });
+
+        svg.addEventListener('pointercancel', () => {
+            state.panning = false;
+            state.draggingNodeId = null;
+        });
+
+        // Keyboard shortcuts
+        window.addEventListener('keydown', (e) => {
+            if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+            if (e.key === '+' || e.key === '=') {
+                const r = getSvgClientRect();
+                zoomAt(r.left + r.width / 2, r.top + r.height / 2, 1.15);
+            } else if (e.key === '-' || e.key === '_') {
+                const r = getSvgClientRect();
+                zoomAt(r.left + r.width / 2, r.top + r.height / 2, 1 / 1.15);
+            } else if (e.key.toLowerCase() === 'r') {
+                resetView();
+            } else if (e.key.toLowerCase() === 'f') {
+                render();
+                fitToContent();
+            }
+        });
+
+        // Resize behavior
+        window.addEventListener('resize', () => {
+            // Keep center stable on resize
+            updateViewportTransform();
+        });
+
+        // Init
+        render();
+        resetView();
+        // Slightly zoom out to show more of the sample map
+        fitToContent();
+        selectNode('root');
+    </script>
+</body>
+
+</html>
