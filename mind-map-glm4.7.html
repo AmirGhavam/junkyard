@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Mind Map</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            cursor: grab;
+        }
+
+        #canvas-container:active {
+            cursor: grabbing;
+        }
+
+        svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .node {
+            cursor: pointer;
+            transition: filter 0.2s;
+        }
+
+        .node:hover {
+            filter: brightness(1.2);
+        }
+
+        .node-text {
+            pointer-events: none;
+            user-select: none;
+        }
+
+        .connection {
+            fill: none;
+            stroke-linecap: round;
+            opacity: 0.7;
+        }
+
+        .control-panel {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+        }
+
+        .instructions {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 12px 16px;
+            font-size: 13px;
+            color: #4a5568;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+        }
+
+        .zoom-controls {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .zoom-btn {
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .zoom-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .node-info {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            min-width: 200px;
+        }
+
+        .color-option {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 3px solid transparent;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .color-option:hover {
+            transform: scale(1.15);
+        }
+
+        .color-option.selected {
+            border-color: #1a202c;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(245, 87, 108, 0.4);
+        }
+    </style>
+</head>
+
+<body>
+    <div id="canvas-container">
+        <svg id="mindmap"></svg>
+    </div>
+
+    <div class="control-panel">
+        <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoomIn()" title="Zoom In">+</button>
+            <button class="zoom-btn" onclick="zoomOut()" title="Zoom Out">−</button>
+            <button class="zoom-btn" onclick="resetView()" title="Reset View">⟲</button>
+        </div>
+        <div class="mb-3">
+            <label class="text-sm text-gray-600 font-medium">Zoom: <span id="zoom-level">100</span>%</label>
+        </div>
+        <input type="range" id="zoom-slider" min="30" max="200" value="100"
+            class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" onchange="setZoom(this.value)">
+    </div>
+
+    <div class="node-info" id="node-info" style="display: none;">
+        <h3 class="text-lg font-bold text-gray-800 mb-3">Edit Node</h3>
+        <div class="mb-3">
+            <label class="text-sm text-gray-600 block mb-1">Node Text</label>
+            <input type="text" id="node-text-input"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+        </div>
+        <div class="mb-3">
+            <label class="text-sm text-gray-600 block mb-2">Color</label>
+            <div class="flex gap-2 flex-wrap" id="color-picker"></div>
+        </div>
+        <div class="flex gap-2">
+            <button class="btn btn-primary flex-1" onclick="updateNode()">Update</button>
+            <button class="btn btn-danger" onclick="deleteNode()">Delete</button>
+        </div>
+        <div class="mt-3 pt-3 border-t">
+            <button class="btn btn-primary w-full" onclick="addChildNode()">+ Add Child Node</button>
+        </div>
+    </div>
+
+    <div class="instructions">
+        <strong class="text-gray-800">Controls:</strong> Drag to pan • Scroll to zoom • Click node to edit
+    </div>
+
+    <script>
+        // Colors for nodes
+        const colors = [
+            { fill: '#FF6B6B', stroke: '#EE5A5A', text: '#FFFFFF' },
+            { fill: '#4ECDC4', stroke: '#3DBDB5', text: '#FFFFFF' },
+            { fill: '#45B7D1', stroke: '#35A7C1', text: '#FFFFFF' },
+            { fill: '#96CEB4', stroke: '#86BEA4', text: '#FFFFFF' },
+            { fill: '#FFEAA7', stroke: '#EDD996', text: '#2D3436' },
+            { fill: '#DDA0DD', stroke: '#CD90CD', text: '#FFFFFF' },
+            { fill: '#98D8C8', stroke: '#88C8B8', text: '#FFFFFF' },
+            { fill: '#F7DC6F', stroke: '#E7CC5F', text: '#2D3436' },
+            { fill: '#BB8FCE', stroke: '#AB7FBE', text: '#FFFFFF' },
+            { fill: '#85C1E9', stroke: '#75B1D9', text: '#FFFFFF' },
+        ];
+
+        // Mind map data structure
+        let nodes = [];
+        let connections = [];
+        let nodeIdCounter = 0;
+
+        // View state
+        let scale = 1;
+        let offsetX = 0;
+        let offsetY = 0;
+        let isDragging = false;
+        let dragStart = { x: 0, y: 0 };
+        let selectedNode = null;
+        let selectedColor = colors[0];
+
+        const svg = document.getElementById('mindmap');
+        const container = document.getElementById('canvas-container');
+
+        // Initialize color picker
+        function initColorPicker() {
+            const picker = document.getElementById('color-picker');
+            colors.forEach((color, index) => {
+                const div = document.createElement('div');
+                div.className = 'color-option' + (index === 0 ? ' selected' : '');
+                div.style.background = color.fill;
+                div.onclick = () => selectColor(index);
+                picker.appendChild(div);
+            });
+        }
+
+        function selectColor(index) {
+            document.querySelectorAll('.color-option').forEach((el, i) => {
+                el.classList.toggle('selected', i === index);
+            });
+            selectedColor = colors[index];
+        }
+
+        // Create initial sample mind map
+        function createSampleMindMap() {
+            const centerX = window.innerWidth / 2;
+            const centerY = window.innerHeight / 2;
+
+            // Central node
+            const centralId = nodeIdCounter++;
+            nodes.push({
+                id: centralId,
+                text: 'Project Goals',
+                x: centerX,
+                y: centerY,
+                color: colors[0],
+                radius: 60,
+                level: 0
+            });
+
+            // First level nodes
+            const firstLevel = [
+                { text: 'Research', angle: -90, color: colors[1] },
+                { text: 'Design', angle: -30, color: colors[2] },
+                { text: 'Development', angle: 30, color: colors[3] },
+                { text: 'Testing', angle: 90, color: colors[4] },
+                { text: 'Deployment', angle: 150, color: colors[5] },
+                { text: 'Maintenance', angle: -150, color: colors[6] }
+            ];
+
+            const level1Radius = 200;
+            firstLevel.forEach(item => {
+                const id = nodeIdCounter++;
+                const x = centerX + Math.cos(item.angle * Math.PI / 180) * level1Radius;
+                const y = centerY + Math.sin(item.angle * Math.PI / 180) * level1Radius;
+                nodes.push({
+                    id,
+                    text: item.text,
+                    x,
+                    y,
+                    color: item.color,
+                    radius: 45,
+                    level: 1
+                });
+                connections.push({ from: centralId, to: id });
+
+                // Second level nodes
+                const childCount = Math.floor(Math.random() * 3) + 2;
+                const level2Radius = 140;
+                for (let i = 0; i < childCount; i++) {
+                    const childAngle = item.angle + (i - (childCount - 1) / 2) * 25;
+                    const childId = nodeIdCounter++;
+                    const childX = x + Math.cos(childAngle * Math.PI / 180) * level2Radius;
+                    const childY = y + Math.sin(childAngle * Math.PI / 180) * level2Radius;
+                    const childColor = colors[Math.floor(Math.random() * colors.length)];
+                    nodes.push({
+                        id: childId,
+                        text: `${item.text} ${i + 1}`,
+                        x: childX,
+                        y: childY,
+                        color: childColor,
+                        radius: 35,
+                        level: 2
+                    });
+                    connections.push({ from: id, to: childId });
+                }
+            });
+        }
+
+        // Render the mind map
+        function render() {
+            svg.innerHTML = '';
+
+            // Create groups for transformations
+            const mainGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            mainGroup.setAttribute('transform', `translate(${offsetX}, ${offsetY}) scale(${scale})`);
+            svg.appendChild(mainGroup);
+
+            // Draw connections
+            connections.forEach(conn => {
+                const fromNode = nodes.find(n => n.id === conn.from);
+                const toNode = nodes.find(n => n.id === conn.to);
+                if (fromNode && toNode) {
+                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+
+                    // Create curved path
+                    const dx = toNode.x - fromNode.x;
+                    const dy = toNode.y - fromNode.y;
+                    const cx1 = fromNode.x + dx * 0.5;
+                    const cy1 = fromNode.y + dy * 0.3;
+                    const cx2 = fromNode.x + dx * 0.5;
+                    const cy2 = fromNode.y + dy * 0.7;
+
+                    path.setAttribute('d', `M ${fromNode.x} ${fromNode.y} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${toNode.x} ${toNode.y}`);
+                    path.setAttribute('class', 'connection');
+                    path.setAttribute('stroke', createGradient(fromNode.color.fill, toNode.color.fill));
+                    path.setAttribute('stroke-width', '3');
+                    mainGroup.appendChild(path);
+                }
+            });
+
+            // Draw nodes
+            nodes.forEach(node => {
+                const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                group.setAttribute('class', 'node');
+                group.onclick = (e) => {
+                    e.stopPropagation();
+                    selectNode(node);
+                };
+
+                // Node circle
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', node.x);
+                circle.setAttribute('cy', node.y);
+                circle.setAttribute('r', node.radius);
+                circle.setAttribute('fill', node.color.fill);
+                circle.setAttribute('stroke', node.color.stroke);
+                circle.setAttribute('stroke-width', '3');
+                circle.setAttribute('filter', 'url(#shadow)');
+                group.appendChild(circle);
+
+                // Node text
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', node.x);
+                text.setAttribute('y', node.y);
+                text.setAttribute('text-anchor', 'middle');
+                text.setAttribute('dominant-baseline', 'middle');
+                text.setAttribute('fill', node.color.text);
+                text.setAttribute('class', 'node-text');
+                text.setAttribute('font-weight', 'bold');
+                text.setAttribute('font-size', node.level === 0 ? '16' : node.level === 1 ? '14' : '12');
+
+                // Word wrap for long text
+                const words = node.text.split(' ');
+                if (words.length > 1 && node.text.length > 15) {
+                    const mid = Math.floor(words.length / 2);
+                    text.textContent = words.slice(0, mid).join(' ');
+
+                    const text2 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    text2.setAttribute('x', node.x);
+                    text2.setAttribute('y', node.y + (node.level === 0 ? 16 : 12));
+                    text2.setAttribute('text-anchor', 'middle');
+                    text2.setAttribute('dominant-baseline', 'middle');
+                    text2.setAttribute('fill', node.color.text);
+                    text2.setAttribute('class', 'node-text');
+                    text2.setAttribute('font-weight', 'bold');
+                    text2.setAttribute('font-size', node.level === 0 ? '16' : node.level === 1 ? '14' : '12');
+                    text2.textContent = words.slice(mid).join(' ');
+                    group.appendChild(text2);
+                } else {
+                    text.textContent = node.text;
+                }
+                group.appendChild(text);
+
+                mainGroup.appendChild(group);
+            });
+
+            // Add definitions for shadow and gradients
+            const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+            defs.innerHTML = `
+                <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+                    <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000" flood-opacity="0.3"/>
+                </filter>
+            `;
+            svg.insertBefore(defs, mainGroup);
+        }
+
+        function createGradient(color1, color2) {
+            return color1;
+        }
+
+        // Select a node
+        function selectNode(node) {
+            selectedNode = node;
+            const infoPanel = document.getElementById('node-info');
+            infoPanel.style.display = 'block';
+            document.getElementById('node-text-input').value = node.text;
+
+            // Update color selection
+            const colorIndex = colors.findIndex(c => c.fill === node.color.fill);
+            selectColor(colorIndex !== -1 ? colorIndex : 0);
+        }
+
+        // Update selected node
+        function updateNode() {
+            if (!selectedNode) return;
+            selectedNode.text = document.getElementById('node-text-input').value || 'Node';
+            selectedNode.color = selectedColor;
+            render();
+        }
+
+        // Delete selected node
+        function deleteNode() {
+            if (!selectedNode) return;
+            if (selectedNode.level === 0) {
+                alert('Cannot delete the central node!');
+                return;
+            }
+
+            // Remove node and its connections
+            nodes = nodes.filter(n => n.id !== selectedNode.id);
+            connections = connections.filter(c => c.from !== selectedNode.id && c.to !== selectedNode.id);
+
+            // Also remove child nodes
+            function removeChildren(parentId) {
+                const childIds = connections.filter(c => c.from === parentId).map(c => c.to);
+                childIds.forEach(childId => {
+                    nodes = nodes.filter(n => n.id !== childId);
+                    connections = connections.filter(c => c.from !== childId && c.to !== childId);
+                    removeChildren(childId);
+                });
+            }
+            removeChildren(selectedNode.id);
+
+            selectedNode = null;
+            document.getElementById('node-info').style.display = 'none';
+            render();
+        }
+
+        // Add child node
+        function addChildNode() {
+            if (!selectedNode) return;
+
+            const newId = nodeIdCounter++;
+            const angle = Math.random() * 360;
+            const distance = 120 + selectedNode.level * 30;
+            const newX = selectedNode.x + Math.cos(angle * Math.PI / 180) * distance;
+            const newY = selectedNode.y + Math.sin(angle * Math.PI / 180) * distance;
+
+            nodes.push({
+                id: newId,
+                text: 'New Node',
+                x: newX,
+                y: newY,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                radius: Math.max(30, 45 - selectedNode.level * 5),
+                level: selectedNode.level + 1
+            });
+
+            connections.push({ from: selectedNode.id, to: newId });
+            render();
+        }
+
+        // Zoom functions
+        function zoomIn() {
+            scale = Math.min(2, scale + 0.1);
+            updateZoomDisplay();
+            render();
+        }
+
+        function zoomOut() {
+            scale = Math.max(0.3, scale - 0.1);
+            updateZoomDisplay();
+            render();
+        }
+
+        function setZoom(value) {
+            scale = value / 100;
+            updateZoomDisplay();
+            render();
+        }
+
+        function resetView() {
+            scale = 1;
+            offsetX = 0;
+            offsetY = 0;
+            updateZoomDisplay();
+            render();
+        }
+
+        function updateZoomDisplay() {
+            document.getElementById('zoom-level').textContent = Math.round(scale * 100);
+            document.getElementById('zoom-slider').value = scale * 100;
+        }
+
+        // Mouse events for panning
+        container.addEventListener('mousedown', (e) => {
+            if (e.target === container || e.target.tagName === 'svg') {
+                isDragging = true;
+                dragStart = { x: e.clientX - offsetX, y: e.clientY - offsetY };
+                document.getElementById('node-info').style.display = 'none';
+                selectedNode = null;
+            }
+        });
+
+        container.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                offsetX = e.clientX - dragStart.x;
+                offsetY = e.clientY - dragStart.y;
+                render();
+            }
+        });
+
+        container.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        container.addEventListener('mouseleave', () => {
+            isDragging = false;
+        });
+
+        // Mouse wheel for zooming
+        container.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? -0.1 : 0.1;
+            scale = Math.max(0.3, Math.min(2, scale + delta));
+            updateZoomDisplay();
+            render();
+        });
+
+        // Click outside to deselect
+        container.addEventListener('click', (e) => {
+            if (e.target === container || e.target.tagName === 'svg') {
+                document.getElementById('node-info').style.display = 'none';
+                selectedNode = null;
+            }
+        });
+
+        // Initialize
+        initColorPicker();
+        createSampleMindMap();
+        render();
+    </script>
+</body>
+
+</html>
