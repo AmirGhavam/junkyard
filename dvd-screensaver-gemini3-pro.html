@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DVD Screensaver</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+        }
+
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+
+<body class="font-mono">
+
+    <!-- UI Overlay -->
+    <div
+        class="absolute top-4 left-4 z-10 bg-gray-900/90 p-5 rounded-lg border border-gray-700 shadow-xl backdrop-blur-sm select-none w-64">
+        <h1 class="text-xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500">
+            DVD Bouncer</h1>
+
+        <div class="space-y-3 text-sm">
+            <div class="flex justify-between items-center border-b border-gray-700 pb-2">
+                <span class="text-gray-300">Corner Hits:</span>
+                <span id="corner-count" class="font-bold text-2xl text-red-500 animate-pulse">0</span>
+            </div>
+
+            <div class="flex justify-between items-center pb-2">
+                <span class="text-gray-400">Wall Hits:</span>
+                <span id="wall-count" class="font-bold text-blue-400">0</span>
+            </div>
+
+            <div class="pt-2 border-t border-gray-700">
+                <label class="flex items-center space-x-3 cursor-pointer group">
+                    <div class="relative">
+                        <input type="checkbox" id="multi-mode" class="sr-only peer">
+                        <div
+                            class="w-10 h-6 bg-gray-700 rounded-full peer peer-focus:ring-2 peer-focus:ring-blue-500 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600">
+                        </div>
+                    </div>
+                    <span class="text-gray-300 group-hover:text-white transition-colors">Multi Mode</span>
+                </label>
+            </div>
+
+            <div id="controls-extra" class="hidden pt-2 space-y-2">
+                <button id="add-logo-btn"
+                    class="w-full bg-gray-800 hover:bg-gray-700 text-white py-1 px-2 rounded border border-gray-600 transition-colors text-xs uppercase tracking-wider">
+                    Add Another
+                </button>
+                <button id="reset-btn"
+                    class="w-full bg-red-900/50 hover:bg-red-800 text-red-200 py-1 px-2 rounded border border-red-800 transition-colors text-xs uppercase tracking-wider">
+                    Reset
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification for Corner Hit -->
+    <div id="corner-notification"
+        class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-6xl font-black text-white opacity-0 pointer-events-none transition-opacity duration-500 z-50 drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]">
+        CORNER HIT!
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const cornerCountEl = document.getElementById('corner-count');
+        const wallCountEl = document.getElementById('wall-count');
+        const multiModeCheckbox = document.getElementById('multi-mode');
+        const controlsExtra = document.getElementById('controls-extra');
+        const addLogoBtn = document.getElementById('add-logo-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const cornerNotification = document.getElementById('corner-notification');
+
+        // Configuration
+        const LOGO_WIDTH = 160;
+        const LOGO_HEIGHT = 70; // Approximation for collision box
+        const SPEED = 3;
+        const COLORS = [
+            '#ff0000', '#00ff00', '#0000ff',
+            '#ffff00', '#00ffff', '#ff00ff',
+            '#ff8000', '#ffffff'
+        ];
+
+        let cornerHits = 0;
+        let wallHits = 0;
+        let logos = [];
+        let animationId;
+
+        class DvdLogo {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.width = LOGO_WIDTH;
+                this.height = LOGO_HEIGHT;
+                this.color = color || this.getRandomColor();
+
+                // Random direction
+                this.dx = (Math.random() > 0.5 ? 1 : -1) * SPEED;
+                this.dy = (Math.random() > 0.5 ? 1 : -1) * SPEED;
+            }
+
+            getRandomColor(excludeColor) {
+                let newColor;
+                do {
+                    newColor = COLORS[Math.floor(Math.random() * COLORS.length)];
+                } while (newColor === excludeColor);
+                return newColor;
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+
+                // Save context for transformations
+                ctx.save();
+                ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
+
+                // Draw DVD Text
+                ctx.font = 'bold italic 50px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.shadowColor = this.color;
+                ctx.shadowBlur = 10;
+                ctx.fillText('DVD', 0, -5);
+                ctx.shadowBlur = 0; // Reset shadow for other elements
+
+                // Draw Ellipse
+                ctx.beginPath();
+                ctx.ellipse(0, 15, 60, 12, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Draw "VIDEO" text
+                // Set color to black (background color) to simulate cutout
+                ctx.fillStyle = '#000000';
+                ctx.font = 'bold 10px Arial';
+                if (ctx.letterSpacing) ctx.letterSpacing = '2px';
+                ctx.fillText('VIDEO', 0, 15);
+
+                ctx.restore();
+            }
+
+            update() {
+                let hitX = false;
+                let hitY = false;
+
+                // Check X walls
+                if (this.x + this.dx < 0 || this.x + this.width + this.dx > canvas.width) {
+                    this.dx = -this.dx;
+                    hitX = true;
+                }
+
+                // Check Y walls
+                if (this.y + this.dy < 0 || this.y + this.height + this.dy > canvas.height) {
+                    this.dy = -this.dy;
+                    hitY = true;
+                }
+
+                if (hitX || hitY) {
+                    this.color = this.getRandomColor(this.color);
+
+                    if (hitX && hitY) {
+                        handleCornerHit();
+                    } else {
+                        wallHits++;
+                        wallCountEl.textContent = wallHits;
+                    }
+                }
+
+                this.x += this.dx;
+                this.y += this.dy;
+            }
+        }
+
+        function handleCornerHit() {
+            cornerHits++;
+            cornerCountEl.textContent = cornerHits;
+
+            // Visual flair for corner hit
+            cornerNotification.style.opacity = '1';
+            cornerNotification.style.transform = 'translate(-50%, -50%) scale(1.5)';
+            setTimeout(() => {
+                cornerNotification.style.opacity = '0';
+                cornerNotification.style.transform = 'translate(-50%, -50%) scale(1)';
+            }, 1000);
+        }
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            // Ensure logos stay within bounds after resize
+            logos.forEach(logo => {
+                if (logo.x + logo.width > canvas.width) logo.x = canvas.width - logo.width;
+                if (logo.y + logo.height > canvas.height) logo.y = canvas.height - logo.height;
+            });
+        }
+
+        function init() {
+            resize();
+            logos = [new DvdLogo(
+                Math.random() * (canvas.width - LOGO_WIDTH),
+                Math.random() * (canvas.height - LOGO_HEIGHT)
+            )];
+            animate();
+        }
+
+        function animate() {
+            // Clear canvas with slight fade for trail effect? No, classic DVD is crisp clearing.
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            logos.forEach(logo => {
+                logo.draw();
+                logo.update();
+            });
+
+            animationId = requestAnimationFrame(animate);
+        }
+
+        // Event Listeners
+        window.addEventListener('resize', resize);
+
+        multiModeCheckbox.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                controlsExtra.classList.remove('hidden');
+                // Add a few more logos immediately for fun
+                for (let i = 0; i < 4; i++) {
+                    addLogo();
+                }
+            } else {
+                controlsExtra.classList.add('hidden');
+                // Revert to single logo
+                logos = [logos[0]];
+            }
+        });
+
+        addLogoBtn.addEventListener('click', addLogo);
+
+        resetBtn.addEventListener('click', () => {
+            logos = [];
+            wallHits = 0;
+            cornerHits = 0;
+            wallCountEl.textContent = '0';
+            cornerCountEl.textContent = '0';
+
+            // If multi mode is on, keep it but reset count.
+            // Actually let's just re-init 1 logo if multi is off, or keep current count?
+            // "Reset" usually implies back to start state.
+
+            // Let's just spawn one and add more if multi is checked
+            logos.push(new DvdLogo(
+                Math.random() * (canvas.width - LOGO_WIDTH),
+                Math.random() * (canvas.height - LOGO_HEIGHT)
+            ));
+
+            if (multiModeCheckbox.checked) {
+                for (let i = 0; i < 4; i++) {
+                    addLogo();
+                }
+            }
+        });
+
+        function addLogo() {
+            logos.push(new DvdLogo(
+                Math.random() * (canvas.width - LOGO_WIDTH),
+                Math.random() * (canvas.height - LOGO_HEIGHT)
+            ));
+        }
+
+        // Start
+        init();
+
+    </script>
+</body>
+
+</html>
