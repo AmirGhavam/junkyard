@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DVD Screensaver</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+        }
+
+        .dvd-logo {
+            position: absolute;
+            transition: filter 0.1s;
+        }
+
+        .corner-flash {
+            animation: flash 0.3s ease-out;
+        }
+
+        @keyframes flash {
+            0% {
+                filter: brightness(3);
+            }
+
+            100% {
+                filter: brightness(1);
+            }
+        }
+
+        @keyframes cornerCelebration {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.5);
+            }
+        }
+
+        .celebrate {
+            animation: cornerCelebration 0.5s ease-out;
+        }
+    </style>
+</head>
+
+<body class="bg-black min-h-screen">
+    <!-- Control Panel -->
+    <div id="controls"
+        class="fixed top-4 left-4 z-50 bg-gray-900/90 backdrop-blur p-4 rounded-xl border border-gray-700 text-white space-y-3">
+        <h2 class="text-xl font-bold text-purple-400">DVD Screensaver</h2>
+
+        <div class="flex items-center gap-3">
+            <span class="text-sm text-gray-300">Corner Hits:</span>
+            <span id="cornerCount" class="text-2xl font-bold text-yellow-400">0</span>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <span class="text-sm text-gray-300">Logos:</span>
+            <span id="logoCount" class="text-lg font-semibold text-green-400">1</span>
+        </div>
+
+        <div class="flex gap-2">
+            <button id="addLogo"
+                class="px-3 py-2 bg-green-600 hover:bg-green-500 rounded-lg text-sm font-medium transition-colors">
+                + Add Logo
+            </button>
+            <button id="removeLogo"
+                class="px-3 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-sm font-medium transition-colors">
+                − Remove
+            </button>
+        </div>
+
+        <button id="toggleControls"
+            class="w-full px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-medium transition-colors">
+            Hide Controls (H)
+        </button>
+    </div>
+
+    <!-- Minimized Controls -->
+    <div id="miniControls" class="fixed top-4 left-4 z-50 hidden">
+        <button id="showControls"
+            class="bg-gray-900/70 backdrop-blur px-3 py-2 rounded-lg text-white text-sm hover:bg-gray-800 transition-colors">
+            Show (H)
+        </button>
+    </div>
+
+    <!-- Corner Hit Celebration -->
+    <div id="celebration"
+        class="fixed inset-0 pointer-events-none z-40 flex items-center justify-center opacity-0 transition-opacity duration-300">
+        <div class="text-6xl font-bold text-yellow-400 celebrate">🎉 CORNER! 🎉</div>
+    </div>
+
+    <!-- Screensaver Container -->
+    <div id="screen" class="w-screen h-screen relative"></div>
+
+    <script>
+        // Configuration
+        const LOGO_WIDTH = 150;
+        const LOGO_HEIGHT = 80;
+        const BASE_SPEED = 2;
+        const CORNER_THRESHOLD = 5;
+
+        // State
+        let logos = [];
+        let cornerHits = 0;
+        let animationId;
+
+        // Colors for the DVD logo
+        const colors = [
+            '#FF0000', '#FF7F00', '#FFFF00', '#00FF00',
+            '#0000FF', '#4B0082', '#9400D3', '#FF1493',
+            '#00FFFF', '#FF6347', '#32CD32', '#FFD700'
+        ];
+
+        // DOM Elements
+        const screen = document.getElementById('screen');
+        const cornerCountEl = document.getElementById('cornerCount');
+        const logoCountEl = document.getElementById('logoCount');
+        const controls = document.getElementById('controls');
+        const miniControls = document.getElementById('miniControls');
+        const celebration = document.getElementById('celebration');
+
+        // Create DVD Logo SVG
+        function createLogoSVG(color) {
+            return `
+                <svg viewBox="0 0 210 107" width="${LOGO_WIDTH}" height="${LOGO_HEIGHT}">
+                    <g fill="${color}">
+                        <path d="M118.895,20.346c0,0-13.743,16.922-13.04,18.001c0.975-1.079-4.934-18.186-4.934-18.186s-1.233-3.597-5.102-15.387H81.81H47.812H22.175l-2.56,11.068h19.299h4.579c12.415,0,19.995,5.132,17.878,14.225c-2.287,9.901-13.123,14.128-24.665,14.128H32.39l5.552-24.208H18.647L8.192,69.038h26.167c21.753,0,43.956-10.625,47.657-26.617c2.123-9.186-1.03-15.386-7.992-19.062c0,0,6.251-3.695,12.112-3.695c5.864,0,9.839,0.281,12.207,3.274c2.368,2.992,1.687,8.559,1.687,8.559h20.593c0,0,0.271-8.256,0.646-9.334c0.374-1.078,1.142-1.695,2.503-1.695c1.36,0,11.539,0,11.539,0l-2.608,11.762c0,0-4.478-0.17-5.599,0.281c-1.121,0.45-1.867,1.918-2.241,3.148c-0.374,1.231-5.415,24.178-5.415,24.178h19.293l7.728-29.663c0,0-0.747-3.648,2.802-3.648c3.55,0,40.332,0,40.332,0l-2.855,12.063c0,0-1.36-0.123-1.36,1.231c0,1.354-4.869,19.889-4.869,19.889s-0.561,3.217,4.494,3.217c5.055,0,14.455,0,14.455,0l7.728-35.473c0,0,1.868-8.108-10.173-8.108c-12.04,0-41.592,0-41.592,0l1.868-6.945h-23.993l-2.186,6.945c0,0-4.119,0-7.668,0C121.263,13.402,118.895,20.346,118.895,20.346z"/>
+                        <path d="M172.859,65.089c-9.771,0-13.972,5.438-15.399,11.962c-1.428,6.523,1.228,11.962,11,11.962c9.771,0,13.973-5.438,15.4-11.962C185.287,70.527,182.631,65.089,172.859,65.089z M174.859,73.089c-2.514,0-3.592,1.398-3.961,3.076c-0.367,1.679,0.316,3.076,2.83,3.076s3.592-1.397,3.961-3.076C178.056,74.487,177.373,73.089,174.859,73.089z"/>
+                        <path d="M200.355,89.013l7.401-33.317h-18.792l-7.401,33.317H200.355z"/>
+                        <path d="M95.235,65.089c-9.771,0-13.972,5.438-15.399,11.962c-1.428,6.523,1.228,11.962,11,11.962c9.771,0,13.972-5.438,15.399-11.962C107.663,70.527,105.007,65.089,95.235,65.089z M97.235,73.089c-2.514,0-3.592,1.398-3.961,3.076c-0.367,1.679,0.316,3.076,2.83,3.076s3.592-1.397,3.96-3.076C100.432,74.487,99.749,73.089,97.235,73.089z"/>
+                        <polygon points="51.629,55.696 32.837,55.696 25.435,89.013 44.228,89.013"/>
+                        <path d="M73.008,65.089c-9.771,0-18.632,5.438-20.06,11.962c-1.428,6.523,5.889,11.962,15.661,11.962c9.771,0,18.632-5.438,20.059-11.962C90.096,70.527,82.779,65.089,73.008,65.089z M72.508,73.089c-2.514,0-4.791,1.398-5.16,3.076c-0.368,1.679,1.316,3.076,3.83,3.076c2.514,0,4.792-1.397,5.16-3.076C76.705,74.487,75.022,73.089,72.508,73.089z"/>
+                    </g>
+                </svg>
+            `;
+        }
+
+        // Create a new logo object
+        function createLogo() {
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            const element = document.createElement('div');
+            element.className = 'dvd-logo';
+            element.innerHTML = createLogoSVG(color);
+            screen.appendChild(element);
+
+            // Random starting position
+            const maxX = window.innerWidth - LOGO_WIDTH;
+            const maxY = window.innerHeight - LOGO_HEIGHT;
+
+            const logo = {
+                element,
+                x: Math.random() * maxX,
+                y: Math.random() * maxY,
+                vx: (Math.random() > 0.5 ? 1 : -1) * BASE_SPEED * (0.8 + Math.random() * 0.4),
+                vy: (Math.random() > 0.5 ? 1 : -1) * BASE_SPEED * (0.8 + Math.random() * 0.4),
+                color
+            };
+
+            logos.push(logo);
+            updateLogoCount();
+            return logo;
+        }
+
+        // Remove last logo
+        function removeLogo() {
+            if (logos.length > 1) {
+                const logo = logos.pop();
+                logo.element.remove();
+                updateLogoCount();
+            }
+        }
+
+        // Update logo count display
+        function updateLogoCount() {
+            logoCountEl.textContent = logos.length;
+        }
+
+        // Change logo color
+        function changeColor(logo) {
+            let newColor;
+            do {
+                newColor = colors[Math.floor(Math.random() * colors.length)];
+            } while (newColor === logo.color);
+
+            logo.color = newColor;
+            logo.element.innerHTML = createLogoSVG(newColor);
+            logo.element.classList.add('corner-flash');
+            setTimeout(() => logo.element.classList.remove('corner-flash'), 300);
+        }
+
+        // Show corner celebration
+        function showCelebration() {
+            celebration.style.opacity = '1';
+            setTimeout(() => {
+                celebration.style.opacity = '0';
+            }, 500);
+        }
+
+        // Update corner hit count
+        function incrementCornerHits() {
+            cornerHits++;
+            cornerCountEl.textContent = cornerHits;
+            showCelebration();
+        }
+
+        // Animation loop
+        function animate() {
+            const maxX = window.innerWidth - LOGO_WIDTH;
+            const maxY = window.innerHeight - LOGO_HEIGHT;
+
+            logos.forEach(logo => {
+                // Update position
+                logo.x += logo.vx;
+                logo.y += logo.vy;
+
+                let hitX = false;
+                let hitY = false;
+
+                // Bounce off walls
+                if (logo.x <= 0) {
+                    logo.x = 0;
+                    logo.vx = Math.abs(logo.vx);
+                    hitX = true;
+                    changeColor(logo);
+                } else if (logo.x >= maxX) {
+                    logo.x = maxX;
+                    logo.vx = -Math.abs(logo.vx);
+                    hitX = true;
+                    changeColor(logo);
+                }
+
+                if (logo.y <= 0) {
+                    logo.y = 0;
+                    logo.vy = Math.abs(logo.vy);
+                    hitY = true;
+                    changeColor(logo);
+                } else if (logo.y >= maxY) {
+                    logo.y = maxY;
+                    logo.vy = -Math.abs(logo.vy);
+                    hitY = true;
+                    changeColor(logo);
+                }
+
+                // Check for corner hit
+                if (hitX && hitY) {
+                    incrementCornerHits();
+                }
+
+                // Apply position
+                logo.element.style.transform = `translate(${logo.x}px, ${logo.y}px)`;
+            });
+
+            animationId = requestAnimationFrame(animate);
+        }
+
+        // Toggle controls visibility
+        function toggleControls() {
+            const isHidden = controls.classList.contains('hidden');
+            controls.classList.toggle('hidden');
+            miniControls.classList.toggle('hidden');
+        }
+
+        // Event listeners
+        document.getElementById('addLogo').addEventListener('click', createLogo);
+        document.getElementById('removeLogo').addEventListener('click', removeLogo);
+        document.getElementById('toggleControls').addEventListener('click', toggleControls);
+        document.getElementById('showControls').addEventListener('click', toggleControls);
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'h' || e.key === 'H') {
+                toggleControls();
+            } else if (e.key === '+' || e.key === '=') {
+                createLogo();
+            } else if (e.key === '-' || e.key === '_') {
+                removeLogo();
+            }
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            const maxX = window.innerWidth - LOGO_WIDTH;
+            const maxY = window.innerHeight - LOGO_HEIGHT;
+
+            logos.forEach(logo => {
+                logo.x = Math.min(logo.x, maxX);
+                logo.y = Math.min(logo.y, maxY);
+            });
+        });
+
+        // Initialize
+        createLogo();
+        animate();
+    </script>
+</body>
+
+</html>
