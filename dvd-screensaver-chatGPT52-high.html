@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DVD Screensaver (Corner Color + Counter + Multi Logo)</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        :root {
+            color-scheme: dark;
+        }
+
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+        }
+
+        /* Make animation silky */
+        #stage {
+            background: radial-gradient(1200px 700px at 50% 40%, #0a0a0a 0%, #000 60%, #000 100%);
+        }
+
+        .dvd-logo {
+            position: absolute;
+            top: 0;
+            left: 0;
+            will-change: transform;
+            user-select: none;
+            pointer-events: none;
+            filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.65));
+        }
+
+        .dvd-logo svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* Crisp text and lines */
+        svg text {
+            paint-order: stroke;
+            stroke: rgba(0, 0, 0, 0.25);
+            stroke-width: 3px;
+        }
+
+        /* Subtle scanlines (optional) */
+        .scanlines::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background: repeating-linear-gradient(to bottom,
+                    rgba(255, 255, 255, 0.03) 0px,
+                    rgba(255, 255, 255, 0.03) 1px,
+                    rgba(0, 0, 0, 0) 2px,
+                    rgba(0, 0, 0, 0) 6px);
+            mix-blend-mode: overlay;
+            opacity: 0.18;
+        }
+
+        /* Reduce animation intensity if user prefers reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            .dvd-logo {
+                filter: none;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-black text-zinc-100">
+    <div id="stage" class="fixed inset-0 overflow-hidden scanlines"></div>
+
+    <!-- HUD / Controls -->
+    <div class="fixed top-4 left-4 right-4 flex gap-3 items-start justify-between pointer-events-none">
+        <div
+            class="pointer-events-auto w-full max-w-xl rounded-2xl border border-white/10 bg-black/50 backdrop-blur px-4 py-3 shadow-lg">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <div class="text-sm font-semibold tracking-wide">DVD Screensaver</div>
+                    <div class="text-xs text-zinc-300">Color changes only on <span class="font-semibold">corner
+                            hits</span>. Supports multi-logo mode.</div>
+                </div>
+                <div class="text-right">
+                    <div class="text-xs text-zinc-300">Corner hits</div>
+                    <div class="text-2xl font-bold tabular-nums" id="cornerHits">0</div>
+                </div>
+            </div>
+
+            <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div class="rounded-xl border border-white/10 p-3">
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs text-zinc-300" for="speed">Speed</label>
+                        <span class="text-xs tabular-nums text-zinc-200" id="speedLabel">1.00×</span>
+                    </div>
+                    <input id="speed" type="range" min="0.25" max="3" step="0.05" value="1" class="mt-2 w-full" />
+
+                    <div class="mt-3 flex items-center justify-between">
+                        <label class="text-xs text-zinc-300" for="size">Logo size</label>
+                        <span class="text-xs tabular-nums text-zinc-200" id="sizeLabel">160 px</span>
+                    </div>
+                    <input id="size" type="range" min="70" max="280" step="2" value="160" class="mt-2 w-full" />
+                </div>
+
+                <div class="rounded-xl border border-white/10 p-3">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <input id="multi" type="checkbox" class="h-4 w-4" />
+                            <label for="multi" class="text-xs text-zinc-200">Multiple logo mode</label>
+                        </div>
+                        <span class="text-xs text-zinc-400" id="logoCountLabel">1 logo</span>
+                    </div>
+
+                    <div class="mt-2">
+                        <div class="flex items-center justify-between">
+                            <label class="text-xs text-zinc-300" for="count">Logo count</label>
+                            <span class="text-xs tabular-nums text-zinc-200" id="countLabel">6</span>
+                        </div>
+                        <input id="count" type="range" min="2" max="40" step="1" value="6" class="mt-2 w-full" />
+                        <div class="mt-1 text-[11px] text-zinc-400">Enabled only when multi-mode is on.</div>
+                    </div>
+
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <button id="toggle"
+                            class="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 text-xs font-semibold">Pause</button>
+                        <button id="reset"
+                            class="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 text-xs font-semibold">Reset
+                            counter</button>
+                        <button id="randomize"
+                            class="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 text-xs font-semibold">Randomize</button>
+                        <button id="fullscreen"
+                            class="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 text-xs font-semibold">Fullscreen</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-3 flex items-center justify-between text-[11px] text-zinc-400">
+                <div>
+                    Shortcuts: <span class="text-zinc-300 font-semibold">Space</span> pause, <span
+                        class="text-zinc-300 font-semibold">R</span> reset, <span
+                        class="text-zinc-300 font-semibold">F</span> fullscreen, <span
+                        class="text-zinc-300 font-semibold">M</span> multi.
+                </div>
+                <div class="tabular-nums" id="fps">— fps</div>
+            </div>
+        </div>
+
+        <!-- Tiny corner-hit flash/toast -->
+        <div class="pointer-events-none hidden sm:block">
+            <div id="toast"
+                class="opacity-0 transition-opacity duration-150 rounded-2xl border border-white/10 bg-black/40 backdrop-blur px-3 py-2 text-xs text-zinc-200 shadow-lg">
+                Corner hit
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Utilities ---
+        const clamp = (n, a, b) => Math.min(b, Math.max(a, n));
+        const rand = (a, b) => a + Math.random() * (b - a);
+        const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+        function vividColor() {
+            // Avoid too-dark / too-light; favor classic neon-ish DVD colors.
+            const preset = [
+                "hsl(200 95% 60%)", // cyan
+                "hsl(285 90% 62%)", // purple
+                "hsl(40 95% 60%)",  // amber
+                "hsl(120 70% 55%)", // green
+                "hsl(0 90% 60%)",   // red
+                "hsl(330 90% 62%)", // magenta
+                "hsl(175 85% 55%)", // teal
+            ];
+            // Mix presets with some randomness
+            return Math.random() < 0.55 ? pick(preset) : `hsl(${Math.floor(rand(0, 360))} 92% 60%)`;
+        }
+
+        function dvdSVG() {
+            // A simple "DVD"-in-oval homage using currentColor.
+            return `
+        <svg viewBox="0 0 360 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+          <defs>
+            <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="rgba(255,255,255,0.50)"/>
+              <stop offset="0.4" stop-color="rgba(255,255,255,0.10)"/>
+              <stop offset="1" stop-color="rgba(0,0,0,0.10)"/>
+            </linearGradient>
+          </defs>
+          <ellipse cx="180" cy="90" rx="164" ry="64" fill="none" stroke="currentColor" stroke-width="14"/>
+          <ellipse cx="180" cy="90" rx="164" ry="64" fill="url(#gloss)" opacity="0.25"/>
+          <text x="180" y="112" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="92" font-weight="900" fill="currentColor" letter-spacing="2">DVD</text>
+        </svg>
+      `;
+        }
+
+        // --- App state ---
+        const stage = document.getElementById('stage');
+        const elCornerHits = document.getElementById('cornerHits');
+        const elFps = document.getElementById('fps');
+        const elToast = document.getElementById('toast');
+
+        const controls = {
+            speed: document.getElementById('speed'),
+            speedLabel: document.getElementById('speedLabel'),
+            size: document.getElementById('size'),
+            sizeLabel: document.getElementById('sizeLabel'),
+            multi: document.getElementById('multi'),
+            count: document.getElementById('count'),
+            countLabel: document.getElementById('countLabel'),
+            logoCountLabel: document.getElementById('logoCountLabel'),
+            toggle: document.getElementById('toggle'),
+            reset: document.getElementById('reset'),
+            randomize: document.getElementById('randomize'),
+            fullscreen: document.getElementById('fullscreen'),
+        };
+
+        const STORAGE_KEY = 'dvd_screensaver_settings_v1';
+
+        const state = {
+            running: true,
+            lastT: performance.now(),
+            w: window.innerWidth,
+            h: window.innerHeight,
+            speedMul: 1,
+            size: 160,
+            multi: false,
+            count: 6,
+            baseSpeed: 260, // px/s
+            cornerHits: 0,
+            logos: [],
+            toastT: 0,
+            fpsSamples: [],
+            lastFpsT: performance.now(),
+        };
+
+        function saveSettings() {
+            const payload = {
+                speedMul: state.speedMul,
+                size: state.size,
+                multi: state.multi,
+                count: state.count,
+            };
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(payload)); } catch { }
+        }
+
+        function loadSettings() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return;
+                const s = JSON.parse(raw);
+                if (typeof s.speedMul === 'number') state.speedMul = clamp(s.speedMul, 0.25, 3);
+                if (typeof s.size === 'number') state.size = clamp(s.size, 70, 280);
+                if (typeof s.multi === 'boolean') state.multi = s.multi;
+                if (typeof s.count === 'number') state.count = clamp(Math.round(s.count), 2, 40);
+            } catch { }
+        }
+
+        // --- Logo creation ---
+        function createLogo(id) {
+            const el = document.createElement('div');
+            el.className = 'dvd-logo';
+            el.innerHTML = dvdSVG();
+
+            const color = vividColor();
+            el.style.color = color;
+            el.style.width = state.size + 'px';
+            el.style.height = Math.round(state.size * 0.5) + 'px';
+
+            // Start at a random position with a safe margin.
+            const w = state.size;
+            const h = Math.round(state.size * 0.5);
+            const x = rand(0, Math.max(1, state.w - w));
+            const y = rand(0, Math.max(1, state.h - h));
+
+            // Random direction; ensure not too shallow.
+            const angle = rand(0, Math.PI * 2);
+            let vx = Math.cos(angle);
+            let vy = Math.sin(angle);
+            const minComponent = 0.35;
+            if (Math.abs(vx) < minComponent) vx = Math.sign(vx || 1) * minComponent;
+            if (Math.abs(vy) < minComponent) vy = Math.sign(vy || 1) * minComponent;
+
+            const len = Math.hypot(vx, vy);
+            vx = (vx / len) * state.baseSpeed;
+            vy = (vy / len) * state.baseSpeed;
+
+            stage.appendChild(el);
+
+            return {
+                id,
+                el,
+                x, y,
+                vx, vy,
+                w, h,
+                cornerHits: 0,
+                color,
+            };
+        }
+
+        function destroyLogos() {
+            for (const L of state.logos) L.el.remove();
+            state.logos = [];
+        }
+
+        function rebuildLogos() {
+            destroyLogos();
+            const n = state.multi ? state.count : 1;
+            for (let i = 0; i < n; i++) state.logos.push(createLogo(i));
+            updateHudCounts();
+        }
+
+        function updateLogoSizes() {
+            for (const L of state.logos) {
+                L.w = state.size;
+                L.h = Math.round(state.size * 0.5);
+                L.el.style.width = L.w + 'px';
+                L.el.style.height = L.h + 'px';
+                // Clamp position after resize
+                L.x = clamp(L.x, 0, Math.max(0, state.w - L.w));
+                L.y = clamp(L.y, 0, Math.max(0, state.h - L.h));
+            }
+        }
+
+        function updateHudCounts() {
+            const n = state.multi ? state.count : 1;
+            controls.logoCountLabel.textContent = n === 1 ? '1 logo' : `${n} logos`;
+            controls.count.disabled = !state.multi;
+            controls.count.classList.toggle('opacity-50', !state.multi);
+            controls.count.classList.toggle('cursor-not-allowed', !state.multi);
+        }
+
+        // --- Corner hits & color change ---
+        function cornerHit(logo) {
+            state.cornerHits++;
+            logo.cornerHits++;
+            elCornerHits.textContent = String(state.cornerHits);
+
+            const newColor = vividColor();
+            logo.color = newColor;
+            logo.el.style.color = newColor;
+
+            // Toast pulse
+            const now = performance.now();
+            state.toastT = now;
+            elToast.classList.remove('opacity-0');
+            elToast.classList.add('opacity-100');
+        }
+
+        // --- Animation loop ---
+        function step(t) {
+            const dt = Math.min(0.033, (t - state.lastT) / 1000); // cap to avoid huge jumps
+            state.lastT = t;
+
+            // FPS (smoothed)
+            const fps = 1 / Math.max(1e-6, dt);
+            state.fpsSamples.push(fps);
+            if (state.fpsSamples.length > 30) state.fpsSamples.shift();
+            if (t - state.lastFpsT > 250) {
+                const avg = state.fpsSamples.reduce((a, b) => a + b, 0) / state.fpsSamples.length;
+                elFps.textContent = `${Math.round(avg)} fps`;
+                state.lastFpsT = t;
+            }
+
+            // Toast decay
+            if (t - state.toastT > 140) {
+                elToast.classList.add('opacity-0');
+                elToast.classList.remove('opacity-100');
+            }
+
+            if (state.running) {
+                const W = state.w;
+                const H = state.h;
+                const mul = state.speedMul;
+
+                for (const L of state.logos) {
+                    L.x += L.vx * dt * mul;
+                    L.y += L.vy * dt * mul;
+
+                    let hitX = false;
+                    let hitY = false;
+
+                    if (L.x <= 0) {
+                        L.x = 0;
+                        L.vx = Math.abs(L.vx);
+                        hitX = true;
+                    } else if (L.x + L.w >= W) {
+                        L.x = Math.max(0, W - L.w);
+                        L.vx = -Math.abs(L.vx);
+                        hitX = true;
+                    }
+
+                    if (L.y <= 0) {
+                        L.y = 0;
+                        L.vy = Math.abs(L.vy);
+                        hitY = true;
+                    } else if (L.y + L.h >= H) {
+                        L.y = Math.max(0, H - L.h);
+                        L.vy = -Math.abs(L.vy);
+                        hitY = true;
+                    }
+
+                    // A true corner hit is when both axes collide in the same update.
+                    if (hitX && hitY) cornerHit(L);
+
+                    L.el.style.transform = `translate3d(${L.x}px, ${L.y}px, 0)`;
+                }
+            }
+
+            requestAnimationFrame(step);
+        }
+
+        // --- Controls wiring ---
+        function setRunning(on) {
+            state.running = on;
+            controls.toggle.textContent = on ? 'Pause' : 'Resume';
+        }
+
+        function resetCounter() {
+            state.cornerHits = 0;
+            elCornerHits.textContent = '0';
+        }
+
+        function randomizeAll() {
+            // Randomize colors, velocities, and positions.
+            for (const L of state.logos) {
+                L.el.style.color = vividColor();
+                L.color = L.el.style.color;
+
+                L.x = rand(0, Math.max(1, state.w - L.w));
+                L.y = rand(0, Math.max(1, state.h - L.h));
+
+                const angle = rand(0, Math.PI * 2);
+                let vx = Math.cos(angle);
+                let vy = Math.sin(angle);
+                const minComponent = 0.35;
+                if (Math.abs(vx) < minComponent) vx = Math.sign(vx || 1) * minComponent;
+                if (Math.abs(vy) < minComponent) vy = Math.sign(vy || 1) * minComponent;
+                const len = Math.hypot(vx, vy);
+                L.vx = (vx / len) * state.baseSpeed;
+                L.vy = (vy / len) * state.baseSpeed;
+            }
+        }
+
+        async function toggleFullscreen() {
+            try {
+                if (!document.fullscreenElement) {
+                    await document.documentElement.requestFullscreen();
+                } else {
+                    await document.exitFullscreen();
+                }
+            } catch { /* ignore */ }
+        }
+
+        function applyUiToState() {
+            state.speedMul = parseFloat(controls.speed.value);
+            state.size = parseInt(controls.size.value, 10);
+            state.multi = !!controls.multi.checked;
+            state.count = parseInt(controls.count.value, 10);
+
+            controls.speedLabel.textContent = `${state.speedMul.toFixed(2)}×`;
+            controls.sizeLabel.textContent = `${state.size} px`;
+            controls.countLabel.textContent = `${state.count}`;
+
+            updateHudCounts();
+            updateLogoSizes();
+
+            saveSettings();
+        }
+
+        function applyStateToUi() {
+            controls.speed.value = String(state.speedMul);
+            controls.size.value = String(state.size);
+            controls.multi.checked = state.multi;
+            controls.count.value = String(state.count);
+
+            controls.speedLabel.textContent = `${state.speedMul.toFixed(2)}×`;
+            controls.sizeLabel.textContent = `${state.size} px`;
+            controls.countLabel.textContent = `${state.count}`;
+
+            updateHudCounts();
+        }
+
+        // Events
+        controls.speed.addEventListener('input', applyUiToState);
+        controls.size.addEventListener('input', () => {
+            applyUiToState();
+            // Keep hitboxes correct mid-flight
+            for (const L of state.logos) {
+                L.x = clamp(L.x, 0, Math.max(0, state.w - L.w));
+                L.y = clamp(L.y, 0, Math.max(0, state.h - L.h));
+            }
+        });
+
+        controls.multi.addEventListener('change', () => {
+            applyUiToState();
+            rebuildLogos();
+        });
+
+        controls.count.addEventListener('input', () => {
+            applyUiToState();
+            if (state.multi) rebuildLogos();
+        });
+
+        controls.toggle.addEventListener('click', () => setRunning(!state.running));
+        controls.reset.addEventListener('click', resetCounter);
+        controls.randomize.addEventListener('click', randomizeAll);
+        controls.fullscreen.addEventListener('click', toggleFullscreen);
+
+        window.addEventListener('resize', () => {
+            state.w = window.innerWidth;
+            state.h = window.innerHeight;
+            updateLogoSizes();
+        });
+
+        // Keyboard shortcuts
+        window.addEventListener('keydown', (e) => {
+            if (e.key === ' ' || e.code === 'Space') {
+                e.preventDefault();
+                setRunning(!state.running);
+            } else if (e.key.toLowerCase() === 'r') {
+                resetCounter();
+            } else if (e.key.toLowerCase() === 'f') {
+                toggleFullscreen();
+            } else if (e.key.toLowerCase() === 'm') {
+                controls.multi.checked = !controls.multi.checked;
+                applyUiToState();
+                rebuildLogos();
+            }
+        });
+
+        // Click stage to pause/resume (but keep control panel clickable)
+        stage.addEventListener('click', () => setRunning(!state.running));
+
+        // Init
+        loadSettings();
+        applyStateToUi();
+        state.w = window.innerWidth;
+        state.h = window.innerHeight;
+        elCornerHits.textContent = String(state.cornerHits);
+        rebuildLogos();
+
+        // Pause by default if reduced motion preference.
+        try {
+            if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                setRunning(false);
+            }
+        } catch { }
+
+        requestAnimationFrame((t) => {
+            state.lastT = t;
+            requestAnimationFrame(step);
+        });
+    </script>
+</body>
+
+</html>
