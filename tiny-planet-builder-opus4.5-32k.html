@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tiny Planet Builder</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            overflow: hidden;
+            transition: background 1s ease;
+        }
+
+        .day-bg {
+            background: linear-gradient(180deg, #87CEEB 0%, #E0F6FF 50%, #FFF8E7 100%);
+        }
+
+        .night-bg {
+            background: linear-gradient(180deg, #0a0a2e 0%, #1a1a4e 50%, #2d1b4e 100%);
+        }
+
+        .planet-container {
+            perspective: 1000px;
+        }
+
+        .planet {
+            width: 320px;
+            height: 320px;
+            border-radius: 50%;
+            position: relative;
+            transform-style: preserve-3d;
+            animation: rotate 30s linear infinite;
+            box-shadow:
+                inset -30px -30px 60px rgba(0, 0, 0, 0.3),
+                inset 20px 20px 40px rgba(255, 255, 255, 0.2),
+                0 0 60px rgba(0, 0, 0, 0.2);
+            transition: all 1s ease;
+        }
+
+        .planet.day {
+            background: linear-gradient(135deg, #4ade80 0%, #22c55e 30%, #16a34a 60%, #15803d 100%);
+        }
+
+        .planet.night {
+            background: linear-gradient(135deg, #1e3a5f 0%, #0f2744 30%, #0a1929 60%, #051018 100%);
+        }
+
+        @keyframes rotate {
+            from {
+                transform: rotateY(0deg);
+            }
+
+            to {
+                transform: rotateY(360deg);
+            }
+        }
+
+        .planet-item {
+            position: absolute;
+            cursor: grab;
+            user-select: none;
+            transition: transform 0.2s;
+            z-index: 10;
+        }
+
+        .planet-item:hover {
+            transform: scale(1.2);
+        }
+
+        .planet-item.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+
+        .toolbar-item {
+            cursor: grab;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .toolbar-item:hover {
+            transform: scale(1.15) translateY(-3px);
+        }
+
+        .toolbar-item:active {
+            cursor: grabbing;
+        }
+
+        /* Stars for night mode */
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 1s ease;
+        }
+
+        .stars.visible {
+            opacity: 1;
+        }
+
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 2s ease-in-out infinite;
+        }
+
+        @keyframes twinkle {
+
+            0%,
+            100% {
+                opacity: 0.3;
+            }
+
+            50% {
+                opacity: 1;
+            }
+        }
+
+        /* Weather effects */
+        .weather-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .raindrop {
+            position: absolute;
+            width: 2px;
+            height: 20px;
+            background: linear-gradient(transparent, #87CEEB);
+            animation: rain 0.8s linear infinite;
+        }
+
+        @keyframes rain {
+            0% {
+                transform: translateY(-100vh);
+                opacity: 1;
+            }
+
+            100% {
+                transform: translateY(100vh);
+                opacity: 0.3;
+            }
+        }
+
+        .snowflake {
+            position: absolute;
+            color: white;
+            animation: snow 4s linear infinite;
+            text-shadow: 0 0 5px white;
+        }
+
+        @keyframes snow {
+            0% {
+                transform: translateY(-10vh) rotate(0deg);
+                opacity: 1;
+            }
+
+            100% {
+                transform: translateY(110vh) rotate(360deg);
+                opacity: 0.5;
+            }
+        }
+
+        .cloud-overlay {
+            position: absolute;
+            font-size: 80px;
+            opacity: 0.7;
+            animation: cloudMove 20s linear infinite;
+        }
+
+        @keyframes cloudMove {
+            0% {
+                transform: translateX(-150px);
+            }
+
+            100% {
+                transform: translateX(calc(100vw + 150px));
+            }
+        }
+
+        .sun {
+            position: fixed;
+            top: 40px;
+            right: 60px;
+            font-size: 60px;
+            animation: pulse 3s ease-in-out infinite;
+            transition: opacity 1s;
+        }
+
+        .moon {
+            position: fixed;
+            top: 40px;
+            right: 60px;
+            font-size: 50px;
+            transition: opacity 1s;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+                filter: drop-shadow(0 0 20px #ffd700);
+            }
+
+            50% {
+                transform: scale(1.1);
+                filter: drop-shadow(0 0 40px #ffd700);
+            }
+        }
+
+        .btn-active {
+            background: #3b82f6 !important;
+            color: white !important;
+        }
+
+        .delete-zone {
+            transition: all 0.3s;
+        }
+
+        .delete-zone.active {
+            background: #ef4444 !important;
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+
+<body class="day-bg flex flex-col items-center justify-center min-h-screen p-4">
+
+    <!-- Stars container -->
+    <div id="stars" class="stars"></div>
+
+    <!-- Sun/Moon -->
+    <div id="sun" class="sun">☀️</div>
+    <div id="moon" class="moon" style="opacity: 0;">🌙</div>
+
+    <!-- Weather overlay -->
+    <div id="weatherOverlay" class="weather-overlay"></div>
+
+    <!-- Title -->
+    <h1 class="text-3xl font-bold mb-4 text-gray-800 z-10 transition-colors duration-1000" id="title">🌍 Tiny Planet
+        Builder</h1>
+
+    <!-- Planet -->
+    <div class="planet-container mb-6">
+        <div id="planet" class="planet day">
+            <!-- Water patches -->
+            <div class="absolute w-16 h-12 bg-blue-400/60 rounded-full top-[40%] left-[10%] blur-sm"></div>
+            <div class="absolute w-20 h-14 bg-blue-400/60 rounded-full top-[60%] right-[15%] blur-sm"></div>
+            <div class="absolute w-12 h-10 bg-blue-400/60 rounded-full bottom-[20%] left-[40%] blur-sm"></div>
+        </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="flex flex-wrap gap-3 mb-4 z-10">
+        <!-- Day/Night Toggle -->
+        <button id="dayNightBtn" onclick="toggleDayNight()"
+            class="px-4 py-2 bg-indigo-500 text-white rounded-full font-semibold hover:bg-indigo-600 transition shadow-lg flex items-center gap-2">
+            <span id="dayNightIcon">🌙</span>
+            <span id="dayNightText">Night</span>
+        </button>
+
+        <!-- Weather buttons -->
+        <button onclick="setWeather('none')"
+            class="weather-btn px-4 py-2 bg-white/80 rounded-full font-semibold hover:bg-white transition shadow-lg btn-active"
+            data-weather="none">
+            ✨ Clear
+        </button>
+        <button onclick="setWeather('rain')"
+            class="weather-btn px-4 py-2 bg-white/80 rounded-full font-semibold hover:bg-white transition shadow-lg"
+            data-weather="rain">
+            🌧️ Rain
+        </button>
+        <button onclick="setWeather('snow')"
+            class="weather-btn px-4 py-2 bg-white/80 rounded-full font-semibold hover:bg-white transition shadow-lg"
+            data-weather="snow">
+            ❄️ Snow
+        </button>
+        <button onclick="setWeather('clouds')"
+            class="weather-btn px-4 py-2 bg-white/80 rounded-full font-semibold hover:bg-white transition shadow-lg"
+            data-weather="clouds">
+            ☁️ Cloudy
+        </button>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="bg-white/90 backdrop-blur rounded-2xl p-4 shadow-xl z-10">
+        <p class="text-sm text-gray-500 mb-3 text-center">Drag items onto the planet</p>
+        <div class="flex gap-4 items-center justify-center flex-wrap">
+            <div class="toolbar-item text-4xl" draggable="true" data-type="tree" data-emoji="🌲">🌲</div>
+            <div class="toolbar-item text-4xl" draggable="true" data-type="tree" data-emoji="🌳">🌳</div>
+            <div class="toolbar-item text-4xl" draggable="true" data-type="tree" data-emoji="🌴">🌴</div>
+            <div class="toolbar-item text-4xl" draggable="true" data-type="house" data-emoji="🏠">🏠</div>
+            <div class="toolbar-item text-4xl" draggable="true" data-type="house" data-emoji="🏡">🏡</div>
+            <div class="toolbar-item text-4xl" draggable="true" data-type="building" data-emoji="🏢">🏢</div>
+            <div class="toolbar-item text-4xl" draggable="true" data-type="cloud" data-emoji="☁️">☁️</div>
+            <div class="toolbar-item text-4xl" draggable="true" data-type="animal" data-emoji="🐄">🐄</div>
+            <div class="toolbar-item text-4xl" draggable="true" data-type="animal" data-emoji="🦊">🦊</div>
+            <div class="toolbar-item text-4xl" draggable="true" data-type="nature" data-emoji="🌸">🌸</div>
+            <div class="toolbar-item text-4xl" draggable="true" data-type="nature" data-emoji="⛰️">⛰️</div>
+
+            <div class="w-px h-10 bg-gray-300 mx-2"></div>
+
+            <div id="deleteZone"
+                class="delete-zone w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center text-2xl border-2 border-dashed border-red-300">
+                🗑️
+            </div>
+        </div>
+    </div>
+
+    <p class="text-xs text-gray-500 mt-4 z-10">Drag items on planet to reposition • Drop on 🗑️ to delete</p>
+
+    <script>
+        let isNight = false;
+        let currentWeather = 'none';
+        let placedItems = [];
+        let draggedItem = null;
+        let draggedFromPlanet = false;
+
+        const planet = document.getElementById('planet');
+        const deleteZone = document.getElementById('deleteZone');
+
+        // Initialize stars
+        function createStars() {
+            const starsContainer = document.getElementById('stars');
+            for (let i = 0; i < 100; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 60 + '%';
+                star.style.width = Math.random() * 3 + 1 + 'px';
+                star.style.height = star.style.width;
+                star.style.animationDelay = Math.random() * 2 + 's';
+                starsContainer.appendChild(star);
+            }
+        }
+        createStars();
+
+        // Day/Night toggle
+        function toggleDayNight() {
+            isNight = !isNight;
+            document.body.classList.toggle('day-bg', !isNight);
+            document.body.classList.toggle('night-bg', isNight);
+            planet.classList.toggle('day', !isNight);
+            planet.classList.toggle('night', isNight);
+            document.getElementById('stars').classList.toggle('visible', isNight);
+            document.getElementById('sun').style.opacity = isNight ? '0' : '1';
+            document.getElementById('moon').style.opacity = isNight ? '1' : '0';
+            document.getElementById('title').classList.toggle('text-gray-800', !isNight);
+            document.getElementById('title').classList.toggle('text-white', isNight);
+            document.getElementById('dayNightIcon').textContent = isNight ? '☀️' : '🌙';
+            document.getElementById('dayNightText').textContent = isNight ? 'Day' : 'Night';
+        }
+
+        // Weather system
+        function setWeather(type) {
+            currentWeather = type;
+            const overlay = document.getElementById('weatherOverlay');
+            overlay.innerHTML = '';
+
+            document.querySelectorAll('.weather-btn').forEach(btn => {
+                btn.classList.toggle('btn-active', btn.dataset.weather === type);
+            });
+
+            if (type === 'rain') {
+                for (let i = 0; i < 100; i++) {
+                    const drop = document.createElement('div');
+                    drop.className = 'raindrop';
+                    drop.style.left = Math.random() * 100 + '%';
+                    drop.style.animationDelay = Math.random() * 2 + 's';
+                    drop.style.animationDuration = (0.5 + Math.random() * 0.5) + 's';
+                    overlay.appendChild(drop);
+                }
+            } else if (type === 'snow') {
+                for (let i = 0; i < 50; i++) {
+                    const flake = document.createElement('div');
+                    flake.className = 'snowflake';
+                    flake.textContent = '❄';
+                    flake.style.left = Math.random() * 100 + '%';
+                    flake.style.fontSize = (10 + Math.random() * 20) + 'px';
+                    flake.style.animationDelay = Math.random() * 4 + 's';
+                    flake.style.animationDuration = (3 + Math.random() * 3) + 's';
+                    overlay.appendChild(flake);
+                }
+            } else if (type === 'clouds') {
+                for (let i = 0; i < 5; i++) {
+                    const cloud = document.createElement('div');
+                    cloud.className = 'cloud-overlay';
+                    cloud.textContent = '☁️';
+                    cloud.style.top = (10 + Math.random() * 30) + '%';
+                    cloud.style.animationDelay = (i * 4) + 's';
+                    cloud.style.animationDuration = (15 + Math.random() * 10) + 's';
+                    cloud.style.fontSize = (50 + Math.random() * 60) + 'px';
+                    overlay.appendChild(cloud);
+                }
+            }
+        }
+
+        // Drag and drop for toolbar items
+        document.querySelectorAll('.toolbar-item').forEach(item => {
+            item.addEventListener('dragstart', (e) => {
+                draggedItem = {
+                    emoji: item.dataset.emoji,
+                    type: item.dataset.type,
+                    isNew: true
+                };
+                e.dataTransfer.effectAllowed = 'copy';
+            });
+        });
+
+        // Planet drop zone
+        planet.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+        });
+
+        planet.addEventListener('drop', (e) => {
+            e.preventDefault();
+            if (!draggedItem) return;
+
+            const rect = planet.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            // Check if within circular planet bounds
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            const distance = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
+
+            if (distance < rect.width / 2 - 20) {
+                if (draggedItem.isNew) {
+                    addItemToPlanet(draggedItem.emoji, x, y);
+                } else if (draggedItem.element) {
+                    draggedItem.element.style.left = (x - 15) + 'px';
+                    draggedItem.element.style.top = (y - 15) + 'px';
+                    draggedItem.element.classList.remove('dragging');
+                }
+            }
+
+            draggedItem = null;
+            deleteZone.classList.remove('active');
+        });
+
+        function addItemToPlanet(emoji, x, y) {
+            const item = document.createElement('div');
+            item.className = 'planet-item text-2xl';
+            item.textContent = emoji;
+            item.style.left = (x - 15) + 'px';
+            item.style.top = (y - 15) + 'px';
+            item.draggable = true;
+
+            item.addEventListener('dragstart', (e) => {
+                draggedItem = {
+                    element: item,
+                    isNew: false
+                };
+                item.classList.add('dragging');
+                draggedFromPlanet = true;
+            });
+
+            item.addEventListener('dragend', (e) => {
+                item.classList.remove('dragging');
+                draggedFromPlanet = false;
+                deleteZone.classList.remove('active');
+            });
+
+            planet.appendChild(item);
+            placedItems.push(item);
+        }
+
+        // Delete zone
+        deleteZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            if (draggedItem && !draggedItem.isNew) {
+                deleteZone.classList.add('active');
+            }
+        });
+
+        deleteZone.addEventListener('dragleave', () => {
+            deleteZone.classList.remove('active');
+        });
+
+        deleteZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            if (draggedItem && draggedItem.element) {
+                draggedItem.element.remove();
+                placedItems = placedItems.filter(i => i !== draggedItem.element);
+            }
+            draggedItem = null;
+            deleteZone.classList.remove('active');
+        });
+
+        // Prevent default drag behavior on body
+        document.body.addEventListener('dragover', (e) => e.preventDefault());
+        document.body.addEventListener('drop', (e) => {
+            e.preventDefault();
+            if (draggedItem && draggedItem.element) {
+                draggedItem.element.classList.remove('dragging');
+            }
+            draggedItem = null;
+            deleteZone.classList.remove('active');
+        });
+
+        // Initialize with pre-built planet
+        function initPlanet() {
+            const initialItems = [
+                { emoji: '🏠', x: 100, y: 80 },
+                { emoji: '🌲', x: 60, y: 120 },
+                { emoji: '🌲', x: 140, y: 100 },
+                { emoji: '🌳', x: 200, y: 140 },
+                { emoji: '🏡', x: 180, y: 200 },
+                { emoji: '🌴', x: 240, y: 170 },
+                { emoji: '☁️', x: 80, y: 40 },
+                { emoji: '☁️', x: 220, y: 60 },
+                { emoji: '🐄', x: 130, y: 180 },
+                { emoji: '🌸', x: 90, y: 200 },
+                { emoji: '⛰️', x: 260, y: 120 },
+                { emoji: '🦊', x: 50, y: 180 },
+            ];
+
+            initialItems.forEach(item => {
+                addItemToPlanet(item.emoji, item.x, item.y);
+            });
+        }
+
+        initPlanet();
+    </script>
+</body>
+
+</html>
