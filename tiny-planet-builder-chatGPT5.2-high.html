@@ -1,0 +1,1264 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tiny Planet Builder</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        /* Crisp-ish canvas on high DPI */
+        canvas {
+            image-rendering: auto;
+        }
+
+        .no-select {
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* Subtle scanline texture */
+        .scanlines::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(to bottom,
+                    rgba(255, 255, 255, 0.03),
+                    rgba(255, 255, 255, 0.03) 1px,
+                    rgba(0, 0, 0, 0) 3px,
+                    rgba(0, 0, 0, 0) 6px);
+            opacity: .35;
+            pointer-events: none;
+            mix-blend-mode: overlay;
+        }
+
+        /* Drag ghost */
+        #ghost {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 54px;
+            height: 54px;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            opacity: 0;
+            filter: drop-shadow(0 10px 14px rgba(0, 0, 0, .4));
+            z-index: 9999;
+        }
+
+        /* Item styling */
+        .planet-item {
+            position: absolute;
+            left: 0;
+            top: 0;
+            transform-origin: 50% 100%;
+            will-change: transform, left, top, opacity;
+            pointer-events: auto;
+        }
+
+        .planet-item .badge {
+            position: absolute;
+            left: 50%;
+            top: -28px;
+            transform: translateX(-50%);
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, .9);
+            border: 1px solid rgba(148, 163, 184, .25);
+            color: rgba(226, 232, 240, .95);
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity .15s ease;
+            pointer-events: none;
+        }
+
+        .planet-item.is-selected .badge,
+        .planet-item:hover .badge {
+            opacity: 1;
+        }
+
+        .kbd {
+            border: 1px solid rgba(148, 163, 184, .35);
+            background: rgba(2, 6, 23, .6);
+            padding: 1px 6px;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+
+<body class="h-screen overflow-hidden text-slate-100 no-select">
+    <div id="app" class="h-full flex">
+        <aside class="w-[340px] shrink-0 border-r border-white/10 bg-slate-950/60 backdrop-blur-xl">
+            <div class="p-5">
+                <div class="flex items-center justify-between gap-3">
+                    <div>
+                        <h1 class="text-xl font-semibold tracking-tight">Tiny Planet Builder</h1>
+                        <p class="text-sm text-slate-300/90">Drag trees/houses/clouds onto the rotating world.</p>
+                    </div>
+                    <button id="resetBtn"
+                        class="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-sm">Reset</button>
+                </div>
+
+                <div class="mt-5 grid gap-3">
+                    <div class="rounded-xl border border-white/10 bg-white/5 p-4">
+                        <div class="flex items-center justify-between">
+                            <div class="text-sm font-medium">Time</div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs text-slate-300">Day</span>
+                                <button id="timeToggle"
+                                    class="relative w-12 h-7 rounded-full bg-emerald-500/30 border border-emerald-400/30"
+                                    aria-label="Toggle day/night">
+                                    <span id="timeKnob"
+                                        class="absolute top-0.5 left-0.5 w-6 h-6 rounded-full bg-emerald-300/90 shadow"></span>
+                                </button>
+                                <span class="text-xs text-slate-300">Night</span>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <div class="flex items-center justify-between">
+                                <label class="text-sm text-slate-200" for="speed">Rotation speed</label>
+                                <div class="text-xs text-slate-300"><span id="speedLabel">1.0</span>x</div>
+                            </div>
+                            <input id="speed" type="range" min="0" max="2.5" step="0.05" value="1" class="w-full" />
+                            <div class="mt-3 flex items-center gap-2">
+                                <button id="pauseBtn"
+                                    class="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-sm">Pause</button>
+                                <button id="recenterBtn"
+                                    class="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-sm">Recenter</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border border-white/10 bg-white/5 p-4">
+                        <div class="flex items-center justify-between">
+                            <div class="text-sm font-medium">Weather overlay</div>
+                            <div class="text-xs text-slate-300" id="weatherLabel">Clear</div>
+                        </div>
+                        <div class="mt-3 grid grid-cols-5 gap-2">
+                            <button data-weather="clear"
+                                class="weatherBtn px-2 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs">Clear</button>
+                            <button data-weather="cloudy"
+                                class="weatherBtn px-2 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs">Cloud</button>
+                            <button data-weather="rain"
+                                class="weatherBtn px-2 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs">Rain</button>
+                            <button data-weather="snow"
+                                class="weatherBtn px-2 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs">Snow</button>
+                            <button data-weather="fog"
+                                class="weatherBtn px-2 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs">Fog</button>
+                        </div>
+                        <div class="mt-3 flex items-center justify-between">
+                            <label class="text-sm text-slate-200" for="intensity">Intensity</label>
+                            <div class="text-xs text-slate-300"><span id="intensityLabel">0.65</span></div>
+                        </div>
+                        <input id="intensity" type="range" min="0" max="1" step="0.01" value="0.65" class="w-full" />
+                    </div>
+
+                    <div class="rounded-xl border border-white/10 bg-white/5 p-4">
+                        <div class="text-sm font-medium">Palette (drag onto planet)</div>
+                        <div class="mt-3 grid grid-cols-3 gap-2">
+                            <button
+                                class="paletteBtn rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 p-3 flex flex-col items-center gap-2"
+                                data-type="tree">
+                                <div class="w-12 h-12" id="iconTree"></div>
+                                <div class="text-xs text-slate-200">Tree</div>
+                            </button>
+                            <button
+                                class="paletteBtn rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 p-3 flex flex-col items-center gap-2"
+                                data-type="house">
+                                <div class="w-12 h-12" id="iconHouse"></div>
+                                <div class="text-xs text-slate-200">House</div>
+                            </button>
+                            <button
+                                class="paletteBtn rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 p-3 flex flex-col items-center gap-2"
+                                data-type="cloud">
+                                <div class="w-12 h-12" id="iconCloud"></div>
+                                <div class="text-xs text-slate-200">Cloud</div>
+                            </button>
+                        </div>
+
+                        <div class="mt-4 rounded-lg border border-white/10 bg-slate-950/40 p-3">
+                            <div class="flex items-center justify-between">
+                                <div class="text-sm font-medium">Selected</div>
+                                <button id="deleteBtn"
+                                    class="px-2 py-1 rounded-md bg-rose-500/15 hover:bg-rose-500/25 border border-rose-400/20 text-xs disabled:opacity-50"
+                                    disabled>Delete</button>
+                            </div>
+                            <div class="mt-2 text-xs text-slate-300" id="selectedInfo">None</div>
+                            <div class="mt-3 text-xs text-slate-400 leading-relaxed">
+                                Tips: drag an item to reposition. Hold <span class="kbd">Shift</span> to place nearer
+                                the equator.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-5 pb-5">
+                <div class="text-xs text-slate-400 leading-relaxed">
+                    Controls: <span class="kbd">Click</span> selects, <span class="kbd">Del</span> deletes, <span
+                        class="kbd">Space</span> toggles pause.
+                </div>
+            </div>
+        </aside>
+
+        <main id="main" class="relative flex-1 overflow-hidden">
+            <div id="bg" class="absolute inset-0"></div>
+
+            <div class="absolute inset-0 flex items-center justify-center">
+                <div id="planetFrame" class="relative scanlines">
+                    <canvas id="planet" class="rounded-full"></canvas>
+                    <canvas id="fx" class="absolute inset-0 rounded-full"></canvas>
+                    <div id="items" class="absolute inset-0"></div>
+                    <div class="absolute -bottom-10 left-1/2 -translate-x-1/2 text-xs text-slate-300/80">
+                        Drop items on the sphere • Drag to move
+                    </div>
+                </div>
+            </div>
+
+            <div
+                class="absolute top-5 right-5 rounded-xl border border-white/10 bg-slate-950/40 backdrop-blur-xl px-4 py-3">
+                <div class="text-sm font-medium">Planet stats</div>
+                <div class="mt-1 text-xs text-slate-300" id="stats">—</div>
+            </div>
+
+            <div
+                class="absolute bottom-5 left-1/2 -translate-x-1/2 rounded-xl border border-white/10 bg-slate-950/40 backdrop-blur-xl px-4 py-3 max-w-[760px] w-[min(760px,92vw)]">
+                <div class="flex items-center justify-between gap-3">
+                    <div class="text-xs text-slate-300" id="hint">Drag from the palette, then drop on the planet.</div>
+                    <button id="exportBtn"
+                        class="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-sm">Export
+                        JSON</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="ghost"></div>
+
+    <script>
+        // ---------- SVG icons (inline) ----------
+        const ICONS = {
+            tree: `
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="g1" x1="18" y1="10" x2="48" y2="44" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#A7F3D0"/>
+              <stop offset="1" stop-color="#10B981"/>
+            </linearGradient>
+            <linearGradient id="g2" x1="26" y1="36" x2="38" y2="62" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#FCD34D"/>
+              <stop offset="1" stop-color="#92400E"/>
+            </linearGradient>
+          </defs>
+          <path d="M32 6c-11 0-20 8-20 18 0 9 6 12 10 13-2 2-4 5-4 9 0 7 6 12 14 12s14-5 14-12c0-4-2-7-4-9 4-1 10-4 10-13 0-10-9-18-20-18Z" fill="url(#g1)"/>
+          <path d="M28 35h8v23a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2V35Z" fill="url(#g2)"/>
+          <path d="M18 26c5-7 23-7 28 0" stroke="rgba(255,255,255,.35)" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      `,
+            house: `
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="h1" x1="12" y1="34" x2="52" y2="60" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#FDE68A"/>
+              <stop offset="1" stop-color="#F59E0B"/>
+            </linearGradient>
+            <linearGradient id="h2" x1="16" y1="10" x2="48" y2="34" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#FCA5A5"/>
+              <stop offset="1" stop-color="#EF4444"/>
+            </linearGradient>
+          </defs>
+          <path d="M14 30 32 14l18 16v26a4 4 0 0 1-4 4H18a4 4 0 0 1-4-4V30Z" fill="url(#h1)"/>
+          <path d="M8 30 32 8l24 22" stroke="url(#h2)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M26 60V42a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18" fill="rgba(15,23,42,.25)"/>
+          <path d="M20 38h10v10H20V38Z" fill="rgba(255,255,255,.55)"/>
+          <path d="M20 38h10v10H20V38Z" stroke="rgba(15,23,42,.25)"/>
+        </svg>
+      `,
+            cloud: `
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="c1" x1="12" y1="20" x2="52" y2="46" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#F8FAFC"/>
+              <stop offset="1" stop-color="#CBD5E1"/>
+            </linearGradient>
+          </defs>
+          <path d="M24 48h24c8 0 14-5 14-12s-6-12-14-12c-1 0-3 0-4 .4C41 18 36 14 30 14c-8 0-14 6-14 14v.7C10 30 6 35 6 40c0 5 4 8 10 8h8Z" fill="url(#c1)"/>
+          <path d="M18 36c4-5 22-5 26 0" stroke="rgba(255,255,255,.5)" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      `
+        };
+
+        const $ = (sel, root = document) => root.querySelector(sel);
+        const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+        // Inject icons into palette
+        $('#iconTree').innerHTML = ICONS.tree;
+        $('#iconHouse').innerHTML = ICONS.house;
+        $('#iconCloud').innerHTML = ICONS.cloud;
+
+        // ---------- State ----------
+        const state = {
+            isNight: false,
+            weather: 'clear', // clear|cloudy|rain|snow|fog
+            intensity: 0.65,
+            paused: false,
+            speed: 1.0,
+            rotation: 0,
+            rotationTarget: 0,
+            lastT: performance.now(),
+            // Procedural land blobs on sphere
+            land: [],
+            // Placeable items on sphere
+            items: [],
+            selectedId: null,
+            // Drag
+            drag: {
+                active: false,
+                fromPalette: false,
+                type: null,
+                id: null,
+                pointerId: null,
+                shiftEquator: false,
+            },
+            // Weather particles
+            rain: [],
+            snow: [],
+            fogPhase: 0,
+            // Rendering
+            cx: 0, cy: 0, r: 220,
+            dpr: Math.min(2, window.devicePixelRatio || 1),
+            seed: Math.random() * 1e9,
+        };
+
+        const planetCanvas = $('#planet');
+        const fxCanvas = $('#fx');
+        const itemsLayer = $('#items');
+        const planetFrame = $('#planetFrame');
+        const ghost = $('#ghost');
+
+        const ctx = planetCanvas.getContext('2d');
+        const fx = fxCanvas.getContext('2d');
+
+        // ---------- Utilities ----------
+        function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+        function lerp(a, b, t) { return a + (b - a) * t; }
+        function smoothstep(edge0, edge1, x) {
+            const t = clamp((x - edge0) / (edge1 - edge0), 0, 1);
+            return t * t * (3 - 2 * t);
+        }
+
+        // Deterministic-ish random from seed
+        function rand() {
+            // xorshift32
+            let x = (state.seed | 0) || 123456789;
+            x ^= x << 13;
+            x ^= x >>> 17;
+            x ^= x << 5;
+            state.seed = x >>> 0;
+            return (state.seed % 1e9) / 1e9;
+        }
+
+        function uid() {
+            return 'i_' + Math.random().toString(16).slice(2) + '_' + Date.now().toString(16);
+        }
+
+        function setBackground() {
+            const bg = $('#bg');
+            if (state.isNight) {
+                bg.style.background = `radial-gradient(1200px 800px at 50% 35%, rgba(59,130,246,.18), rgba(2,6,23,1) 55%, rgba(2,6,23,1))`;
+            } else {
+                bg.style.background = `radial-gradient(1000px 700px at 50% 30%, rgba(56,189,248,.28), rgba(15,23,42,1) 58%, rgba(2,6,23,1))`;
+            }
+        }
+
+        // Convert item type to default properties
+        function defaultItem(type) {
+            const base = {
+                id: uid(),
+                type,
+                theta: (rand() * Math.PI * 2),
+                phi: (rand() * 0.7 - 0.35),
+                alt: 0,
+                label: type,
+            };
+            if (type === 'cloud') {
+                base.alt = 0.12 + rand() * 0.12;
+                base.phi = rand() * 0.9 - 0.45;
+                base.label = 'cloud';
+            }
+            if (type === 'house') base.label = 'house';
+            if (type === 'tree') base.label = 'tree';
+            return base;
+        }
+
+        function itemSurfaceOffset(type) {
+            // push outward so the icon sits on the surface
+            if (type === 'cloud') return 0.16;
+            if (type === 'house') return 0.08;
+            return 0.09; // tree
+        }
+
+        function itemBaseScale(type) {
+            if (type === 'house') return 0.95;
+            if (type === 'cloud') return 1.15;
+            return 1.0;
+        }
+
+        // 3D helpers: sphere point from spherical coordinates (theta=longitude, phi=latitude)
+        function spherePoint(theta, phi) {
+            const cp = Math.cos(phi);
+            return {
+                x: cp * Math.sin(theta),
+                y: Math.sin(phi),
+                z: cp * Math.cos(theta)
+            };
+        }
+
+        // Project 3D point to screen (orthographic)
+        function project(p, radius) {
+            return {
+                sx: state.cx + p.x * radius,
+                sy: state.cy - p.y * radius,
+                z: p.z * radius
+            };
+        }
+
+        function screenToSphere(sx, sy) {
+            const x = (sx - state.cx) / state.r;
+            const y = -(sy - state.cy) / state.r;
+            const d2 = x * x + y * y;
+            if (d2 > 1) return null;
+            const z = Math.sqrt(Math.max(0, 1 - d2));
+            // Visible hemisphere point
+            const thetaDisp = Math.atan2(x, z);
+            const phi = Math.asin(y);
+            // Convert display theta to world theta by subtracting rotation
+            const theta = thetaDisp - state.rotation;
+            return { theta, phi };
+        }
+
+        function isPointInPlanet(sx, sy) {
+            const dx = sx - state.cx;
+            const dy = sy - state.cy;
+            return dx * dx + dy * dy <= state.r * state.r;
+        }
+
+        // ---------- Initialize planet content ----------
+        function buildLand() {
+            state.land = [];
+            // blob clusters
+            const blobs = 48;
+            for (let i = 0; i < blobs; i++) {
+                const theta = rand() * Math.PI * 2;
+                const phi = (rand() * 1.25 - 0.625);
+                const size = 0.06 + rand() * 0.12;
+                state.land.push({ theta, phi, size });
+            }
+            // a few "continents" as larger blobs
+            for (let i = 0; i < 8; i++) {
+                const theta = rand() * Math.PI * 2;
+                const phi = (rand() * 0.9 - 0.45);
+                const size = 0.16 + rand() * 0.16;
+                state.land.push({ theta, phi, size });
+            }
+        }
+
+        function buildDefaultPlanet() {
+            state.seed = (Math.random() * 1e9) >>> 0;
+            buildLand();
+            state.items = [];
+            // Start with a built planet
+            const presets = [
+                { type: 'tree', theta: 0.35, phi: 0.15 },
+                { type: 'tree', theta: 0.65, phi: -0.05 },
+                { type: 'tree', theta: 1.05, phi: 0.08 },
+                { type: 'house', theta: 0.92, phi: -0.12 },
+                { type: 'house', theta: 1.30, phi: 0.02 },
+                { type: 'tree', theta: 1.58, phi: 0.12 },
+                { type: 'cloud', theta: 0.15, phi: 0.35, alt: 0.22 },
+                { type: 'cloud', theta: 1.00, phi: 0.28, alt: 0.18 },
+                { type: 'cloud', theta: 2.10, phi: -0.10, alt: 0.24 },
+            ];
+            presets.forEach(p => {
+                const it = defaultItem(p.type);
+                it.theta = p.theta;
+                it.phi = p.phi;
+                if (p.alt != null) it.alt = p.alt;
+                state.items.push(it);
+            });
+            state.weather = 'clear';
+            state.intensity = 0.65;
+            $('#intensity').value = state.intensity;
+            $('#intensityLabel').textContent = state.intensity.toFixed(2);
+            $('#weatherLabel').textContent = 'Clear';
+            state.isNight = false;
+            syncTimeToggle();
+            setBackground();
+            state.selectedId = null;
+            syncSelectionUI();
+            rebuildItemElements();
+            seedWeatherParticles();
+        }
+
+        // ---------- DOM item elements ----------
+        function rebuildItemElements() {
+            itemsLayer.innerHTML = '';
+            for (const it of state.items) {
+                const el = document.createElement('div');
+                el.className = 'planet-item';
+                el.dataset.id = it.id;
+                el.dataset.type = it.type;
+                el.innerHTML = `
+          <div class="badge">${it.label}</div>
+          <div class="w-[56px] h-[56px]">${ICONS[it.type]}</div>
+        `;
+                el.style.width = '56px';
+                el.style.height = '56px';
+                el.style.filter = (it.type === 'cloud')
+                    ? 'drop-shadow(0 10px 12px rgba(0,0,0,.30))'
+                    : 'drop-shadow(0 12px 14px rgba(0,0,0,.35))';
+                el.addEventListener('pointerdown', onItemPointerDown);
+                itemsLayer.appendChild(el);
+            }
+            syncSelectionUI();
+        }
+
+        function getItemById(id) {
+            return state.items.find(x => x.id === id) || null;
+        }
+
+        function setSelected(id) {
+            state.selectedId = id;
+            syncSelectionUI();
+        }
+
+        function syncSelectionUI() {
+            const info = $('#selectedInfo');
+            const del = $('#deleteBtn');
+            const has = !!state.selectedId;
+            del.disabled = !has;
+            if (!has) {
+                info.textContent = 'None';
+            } else {
+                const it = getItemById(state.selectedId);
+                info.textContent = it ? `${it.type} • θ ${it.theta.toFixed(2)} • φ ${it.phi.toFixed(2)}` : 'None';
+            }
+            for (const el of $$('.planet-item', itemsLayer)) {
+                el.classList.toggle('is-selected', el.dataset.id === state.selectedId);
+            }
+        }
+
+        // ---------- Resizing ----------
+        function resize() {
+            const max = Math.min(window.innerWidth - 340, window.innerHeight);
+            const size = clamp(max * 0.78, 320, 620);
+            planetFrame.style.width = size + 'px';
+            planetFrame.style.height = size + 'px';
+
+            const dpr = state.dpr;
+            planetCanvas.width = Math.floor(size * dpr);
+            planetCanvas.height = Math.floor(size * dpr);
+            planetCanvas.style.width = size + 'px';
+            planetCanvas.style.height = size + 'px';
+
+            fxCanvas.width = Math.floor(size * dpr);
+            fxCanvas.height = Math.floor(size * dpr);
+            fxCanvas.style.width = size + 'px';
+            fxCanvas.style.height = size + 'px';
+
+            state.cx = (planetCanvas.width / dpr) / 2;
+            state.cy = (planetCanvas.height / dpr) / 2;
+            state.r = (planetCanvas.width / dpr) * 0.44;
+
+            // Ensure items layer matches frame
+            itemsLayer.style.width = size + 'px';
+            itemsLayer.style.height = size + 'px';
+
+            seedWeatherParticles();
+        }
+
+        window.addEventListener('resize', resize);
+
+        // ---------- Weather particles ----------
+        function seedWeatherParticles() {
+            state.rain = [];
+            state.snow = [];
+            const countRain = Math.floor(220 * state.intensity + 30);
+            const countSnow = Math.floor(140 * state.intensity + 20);
+            for (let i = 0; i < countRain; i++) {
+                state.rain.push({
+                    x: rand() * 2 - 1,
+                    y: rand() * 2 - 1,
+                    v: 0.9 + rand() * 1.8,
+                    w: 0.007 + rand() * 0.02
+                });
+            }
+            for (let i = 0; i < countSnow; i++) {
+                state.snow.push({
+                    x: rand() * 2 - 1,
+                    y: rand() * 2 - 1,
+                    v: 0.10 + rand() * 0.45,
+                    r: 0.004 + rand() * 0.012,
+                    drift: (rand() * 2 - 1) * 0.10
+                });
+            }
+        }
+
+        // ---------- Rendering: planet ----------
+        function drawPlanet() {
+            const dpr = state.dpr;
+            const w = planetCanvas.width / dpr;
+            const h = planetCanvas.height / dpr;
+
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            ctx.clearRect(0, 0, w, h);
+
+            // Space vignette behind planet (inside canvas)
+            const bg = ctx.createRadialGradient(state.cx, state.cy, state.r * 0.1, state.cx, state.cy, state.r * 1.25);
+            if (state.isNight) {
+                bg.addColorStop(0, 'rgba(59,130,246,.08)');
+                bg.addColorStop(0.55, 'rgba(2,6,23,0)');
+                bg.addColorStop(1, 'rgba(2,6,23,0)');
+            } else {
+                bg.addColorStop(0, 'rgba(56,189,248,.12)');
+                bg.addColorStop(0.55, 'rgba(15,23,42,0)');
+                bg.addColorStop(1, 'rgba(2,6,23,0)');
+            }
+            ctx.fillStyle = bg;
+            ctx.fillRect(0, 0, w, h);
+
+            // Planet base (ocean)
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(state.cx, state.cy, state.r, 0, Math.PI * 2);
+            ctx.clip();
+
+            const ocean = ctx.createRadialGradient(state.cx - state.r * 0.35, state.cy - state.r * 0.35, state.r * 0.2, state.cx, state.cy, state.r * 1.2);
+            if (state.isNight) {
+                ocean.addColorStop(0, 'rgba(34,211,238,.28)');
+                ocean.addColorStop(0.55, 'rgba(2,132,199,.22)');
+                ocean.addColorStop(1, 'rgba(2,6,23,.25)');
+            } else {
+                ocean.addColorStop(0, 'rgba(125,211,252,.55)');
+                ocean.addColorStop(0.55, 'rgba(14,165,233,.55)');
+                ocean.addColorStop(1, 'rgba(2,132,199,.45)');
+            }
+            ctx.fillStyle = ocean;
+            ctx.fillRect(state.cx - state.r, state.cy - state.r, state.r * 2, state.r * 2);
+
+            // Subtle waves
+            ctx.globalAlpha = state.isNight ? 0.10 : 0.12;
+            ctx.strokeStyle = 'rgba(255,255,255,.65)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < 16; i++) {
+                const yy = state.cy - state.r + (i / 15) * (state.r * 2);
+                ctx.beginPath();
+                const amp = (0.008 + i * 0.0006) * state.r;
+                for (let x = state.cx - state.r; x <= state.cx + state.r; x += 10) {
+                    const t = (x - (state.cx - state.r)) / (state.r * 2);
+                    const y = yy + Math.sin((t * 8 + i * 0.9 + state.rotation * 1.2)) * amp;
+                    ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            }
+            ctx.globalAlpha = 1;
+
+            // Land blobs projected and rotated
+            const landColor = state.isNight ? 'rgba(34,197,94,.22)' : 'rgba(34,197,94,.62)';
+            const shoreColor = state.isNight ? 'rgba(253,224,71,.10)' : 'rgba(253,224,71,.30)';
+
+            // Draw shore first (slightly bigger), then land
+            for (const pass of ['shore', 'land']) {
+                ctx.fillStyle = pass === 'shore' ? shoreColor : landColor;
+                for (const b of state.land) {
+                    const p = spherePoint(b.theta + state.rotation, b.phi);
+                    if (p.z <= -0.02) continue;
+                    const proj = project(p, state.r);
+                    // size is scaled based on depth and latitude
+                    const depth = (p.z + 1) / 2;
+                    const s = b.size * state.r * (0.55 + depth * 0.70);
+                    const r0 = pass === 'shore' ? s * 1.08 : s;
+                    ctx.beginPath();
+                    ctx.ellipse(proj.sx, proj.sy, r0 * (1.0 - Math.abs(p.x) * 0.10), r0 * (1.0 - Math.abs(p.y) * 0.06), (b.theta + state.rotation) * 0.2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // Night city lights (speckles on land)
+            if (state.isNight) {
+                ctx.globalAlpha = 0.75;
+                ctx.fillStyle = 'rgba(251,191,36,.35)';
+                for (let i = 0; i < 220; i++) {
+                    const b = state.land[(i * 7) % state.land.length];
+                    const theta = b.theta + (rand() * 0.2 - 0.1);
+                    const phi = b.phi + (rand() * 0.2 - 0.1);
+                    const p = spherePoint(theta + state.rotation, phi);
+                    if (p.z <= 0.05) continue;
+                    const proj = project(p, state.r);
+                    const size = 0.8 + rand() * 1.2;
+                    ctx.fillRect(proj.sx, proj.sy, size, size);
+                }
+                ctx.globalAlpha = 1;
+            }
+
+            // Lighting/shading
+            const light = state.isNight ? { x: 0.65, y: 0.15 } : { x: -0.65, y: -0.15 };
+
+            // Highlight
+            ctx.globalCompositeOperation = 'screen';
+            const hi = ctx.createRadialGradient(
+                state.cx + light.x * state.r * 0.75,
+                state.cy + light.y * state.r * 0.75,
+                state.r * 0.12,
+                state.cx + light.x * state.r * 0.15,
+                state.cy + light.y * state.r * 0.15,
+                state.r * 1.25
+            );
+            hi.addColorStop(0, state.isNight ? 'rgba(148,163,184,.08)' : 'rgba(255,255,255,.26)');
+            hi.addColorStop(0.45, state.isNight ? 'rgba(148,163,184,.03)' : 'rgba(255,255,255,.10)');
+            hi.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = hi;
+            ctx.fillRect(state.cx - state.r, state.cy - state.r, state.r * 2, state.r * 2);
+
+            // Shadow
+            ctx.globalCompositeOperation = 'multiply';
+            const sh = ctx.createRadialGradient(
+                state.cx - light.x * state.r * 0.6,
+                state.cy - light.y * state.r * 0.6,
+                state.r * 0.2,
+                state.cx - light.x * state.r * 0.1,
+                state.cy - light.y * state.r * 0.1,
+                state.r * 1.35
+            );
+            sh.addColorStop(0, state.isNight ? 'rgba(2,6,23,.45)' : 'rgba(2,6,23,.22)');
+            sh.addColorStop(0.55, state.isNight ? 'rgba(2,6,23,.70)' : 'rgba(2,6,23,.40)');
+            sh.addColorStop(1, 'rgba(2,6,23,.88)');
+            ctx.fillStyle = sh;
+            ctx.fillRect(state.cx - state.r, state.cy - state.r, state.r * 2, state.r * 2);
+
+            ctx.globalCompositeOperation = 'source-over';
+
+            // Atmosphere
+            const atm = ctx.createRadialGradient(state.cx, state.cy, state.r * 0.96, state.cx, state.cy, state.r * 1.20);
+            if (state.isNight) {
+                atm.addColorStop(0, 'rgba(59,130,246,.05)');
+                atm.addColorStop(0.6, 'rgba(59,130,246,.08)');
+                atm.addColorStop(1, 'rgba(59,130,246,.00)');
+            } else {
+                atm.addColorStop(0, 'rgba(125,211,252,.08)');
+                atm.addColorStop(0.6, 'rgba(56,189,248,.14)');
+                atm.addColorStop(1, 'rgba(56,189,248,.00)');
+            }
+            ctx.fillStyle = atm;
+            ctx.beginPath();
+            ctx.arc(state.cx, state.cy, state.r * 1.18, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Soft inner edge
+            ctx.strokeStyle = state.isNight ? 'rgba(148,163,184,.18)' : 'rgba(255,255,255,.18)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(state.cx, state.cy, state.r, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.restore();
+
+            // Stars drawn outside planet (on main background via CSS); add a few tiny stars here too
+            if (state.isNight) {
+                ctx.save();
+                ctx.globalAlpha = 0.8;
+                for (let i = 0; i < 30; i++) {
+                    const a = rand() * Math.PI * 2;
+                    const rr = state.r * 1.35 + rand() * state.r * 0.6;
+                    const x = state.cx + Math.cos(a) * rr;
+                    const y = state.cy + Math.sin(a) * rr;
+                    const s = 1 + rand() * 1.5;
+                    ctx.fillStyle = `rgba(226,232,240,${0.25 + rand() * 0.35})`;
+                    ctx.fillRect(x, y, s, s);
+                }
+                ctx.restore();
+            }
+        }
+
+        // ---------- Rendering: weather overlay canvas ----------
+        function drawWeather(dt) {
+            const dpr = state.dpr;
+            const w = fxCanvas.width / dpr;
+            const h = fxCanvas.height / dpr;
+
+            fx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            fx.clearRect(0, 0, w, h);
+
+            // Clip to planet
+            fx.save();
+            fx.beginPath();
+            fx.arc(state.cx, state.cy, state.r, 0, Math.PI * 2);
+            fx.clip();
+
+            const I = state.intensity;
+
+            if (state.weather === 'cloudy') {
+                // big soft moving cloud bands
+                fx.globalAlpha = 0.35 * I + 0.05;
+                for (let i = 0; i < 6; i++) {
+                    const yy = state.cy - state.r + (i / 5) * (state.r * 2);
+                    const offset = Math.sin((state.rotation * 0.9 + i * 0.8) + performance.now() * 0.0002) * state.r * 0.25;
+                    const g = fx.createLinearGradient(state.cx - state.r, yy, state.cx + state.r, yy);
+                    g.addColorStop(0, 'rgba(248,250,252,0)');
+                    g.addColorStop(0.35, 'rgba(248,250,252,.35)');
+                    g.addColorStop(0.65, 'rgba(226,232,240,.28)');
+                    g.addColorStop(1, 'rgba(248,250,252,0)');
+                    fx.fillStyle = g;
+                    fx.beginPath();
+                    fx.ellipse(state.cx + offset, yy, state.r * 0.95, state.r * 0.16, 0, 0, Math.PI * 2);
+                    fx.fill();
+                }
+                fx.globalAlpha = 1;
+            }
+
+            if (state.weather === 'fog') {
+                state.fogPhase += dt * (0.25 + 0.8 * I);
+                const phase = state.fogPhase;
+                fx.globalAlpha = 0.55 * I;
+                for (let i = 0; i < 7; i++) {
+                    const t = i / 6;
+                    const yy = lerp(state.cy - state.r * 0.85, state.cy + state.r * 0.85, t);
+                    const wobble = Math.sin(phase * 0.8 + i * 1.3) * state.r * 0.18;
+                    const alpha = 0.14 + (1 - Math.abs(t - 0.5) * 1.8) * 0.10;
+                    const g = fx.createLinearGradient(state.cx - state.r, yy, state.cx + state.r, yy);
+                    g.addColorStop(0, `rgba(248,250,252,0)`);
+                    g.addColorStop(0.35, `rgba(248,250,252,${alpha})`);
+                    g.addColorStop(0.65, `rgba(226,232,240,${alpha * 0.9})`);
+                    g.addColorStop(1, `rgba(248,250,252,0)`);
+                    fx.fillStyle = g;
+                    fx.beginPath();
+                    fx.ellipse(state.cx + wobble, yy, state.r * 1.1, state.r * (0.10 + 0.02 * Math.sin(phase + i)), 0, 0, Math.PI * 2);
+                    fx.fill();
+                }
+                fx.globalAlpha = 1;
+            }
+
+            if (state.weather === 'rain') {
+                const wind = Math.sin(performance.now() * 0.0003) * 0.35;
+                fx.globalAlpha = 0.62 * I + 0.1;
+                fx.strokeStyle = state.isNight ? 'rgba(148,163,184,.55)' : 'rgba(226,232,240,.8)';
+                fx.lineWidth = 1;
+                fx.lineCap = 'round';
+                for (const d of state.rain) {
+                    d.y += dt * d.v * (0.9 + I);
+                    d.x += dt * (wind * d.w);
+                    if (d.y > 1.2) { d.y = -1.2; d.x = rand() * 2 - 1; }
+                    if (d.x < -1.3) d.x = 1.3;
+                    if (d.x > 1.3) d.x = -1.3;
+
+                    // Map normalized coords to planet box
+                    const sx = state.cx + d.x * state.r;
+                    const sy = state.cy + d.y * state.r;
+
+                    // Slight curvature illusion based on x
+                    const len = (10 + 18 * I) * (0.6 + 0.4 * Math.abs(d.x));
+                    fx.beginPath();
+                    fx.moveTo(sx, sy);
+                    fx.lineTo(sx + (6 + 10 * I) * wind, sy + len);
+                    fx.stroke();
+                }
+                fx.globalAlpha = 1;
+
+                // Darken a bit
+                fx.globalAlpha = 0.18 * I;
+                fx.fillStyle = 'rgba(2,6,23,1)';
+                fx.fillRect(state.cx - state.r, state.cy - state.r, state.r * 2, state.r * 2);
+                fx.globalAlpha = 1;
+            }
+
+            if (state.weather === 'snow') {
+                const wind = Math.sin(performance.now() * 0.0002) * 0.18;
+                fx.globalAlpha = 0.75 * I + 0.05;
+                for (const s of state.snow) {
+                    s.y += dt * s.v * (0.9 + I);
+                    s.x += dt * (wind + s.drift) * 0.25;
+                    if (s.y > 1.2) { s.y = -1.2; s.x = rand() * 2 - 1; }
+                    if (s.x < -1.3) s.x = 1.3;
+                    if (s.x > 1.3) s.x = -1.3;
+
+                    const sx = state.cx + s.x * state.r;
+                    const sy = state.cy + s.y * state.r;
+                    const rr = (s.r * state.r) * (0.7 + 0.7 * I);
+                    fx.fillStyle = state.isNight ? 'rgba(226,232,240,.85)' : 'rgba(255,255,255,.92)';
+                    fx.beginPath();
+                    fx.arc(sx, sy, rr, 0, Math.PI * 2);
+                    fx.fill();
+                }
+                fx.globalAlpha = 1;
+            }
+
+            // Storm flashes (rain + cloudy)
+            if (state.weather === 'rain' && I > 0.55) {
+                const p = (Math.sin(performance.now() * 0.004) + 1) / 2;
+                const flash = smoothstep(0.92, 1, p) * (I - 0.55) * 0.6;
+                if (flash > 0) {
+                    fx.globalAlpha = flash;
+                    fx.fillStyle = 'rgba(255,255,255,1)';
+                    fx.fillRect(state.cx - state.r, state.cy - state.r, state.r * 2, state.r * 2);
+                    fx.globalAlpha = 1;
+                }
+            }
+
+            fx.restore();
+
+            // Weather label already in sidebar; add subtle outer glow cue
+            if (state.weather !== 'clear') {
+                fx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                fx.globalAlpha = 0.22 * I;
+                fx.strokeStyle = state.isNight ? 'rgba(148,163,184,.55)' : 'rgba(226,232,240,.65)';
+                fx.lineWidth = 10;
+                fx.beginPath();
+                fx.arc(state.cx, state.cy, state.r * 1.02, 0, Math.PI * 2);
+                fx.stroke();
+                fx.globalAlpha = 1;
+            }
+        }
+
+        // ---------- Rendering: update DOM items positions ----------
+        function updateItemsLayer() {
+            const els = $$('.planet-item', itemsLayer);
+            // Compute positions and z-order
+            const projected = [];
+            for (const it of state.items) {
+                const thetaD = it.theta + state.rotation;
+                const p = spherePoint(thetaD, it.phi);
+                const radius = state.r * (1 + it.alt);
+                const proj = project(p, radius);
+                projected.push({ it, p, proj });
+            }
+            // Sort by depth (z) to draw farther behind first
+            projected.sort((a, b) => a.proj.z - b.proj.z);
+
+            // Apply to DOM in z-order: set zIndex and transforms
+            for (const entry of projected) {
+                const { it, p, proj } = entry;
+                const el = itemsLayer.querySelector(`.planet-item[data-id="${it.id}"]`);
+                if (!el) continue;
+
+                const visible = p.z > -0.03 || it.type === 'cloud';
+                el.style.opacity = visible ? '1' : '0';
+                el.style.pointerEvents = visible ? 'auto' : 'none';
+
+                // Scale with depth
+                const depth = clamp((p.z + 1) / 2, 0, 1);
+                const base = itemBaseScale(it.type);
+                let scale = base * (0.55 + depth * 0.85);
+                if (it.type === 'cloud') scale *= 0.92 + Math.sin((it.theta * 4 + performance.now() * 0.0015)) * 0.03;
+
+                // Anchor: trees/houses sit on surface; clouds centered
+                const anchor = (it.type === 'cloud') ? 'translate(-50%, -50%)' : 'translate(-50%, -100%)';
+
+                // Push outward along normal to sit on surface visually
+                const out = itemSurfaceOffset(it.type) * state.r;
+                const ox = p.x * out;
+                const oy = -p.y * out;
+
+                el.style.left = (proj.sx + ox) + 'px';
+                el.style.top = (proj.sy + oy) + 'px';
+                el.style.zIndex = String(1000 + Math.floor(proj.z));
+
+                // Slight tilt for depth illusion
+                const tilt = (it.type === 'cloud') ? 0 : (p.x * -10);
+                el.style.transform = `${anchor} rotate(${tilt}deg) scale(${scale})`;
+
+                // Night dimming
+                if (state.isNight && it.type !== 'cloud') {
+                    el.style.filter = 'drop-shadow(0 12px 14px rgba(0,0,0,.45)) saturate(.8) brightness(.85)';
+                } else {
+                    el.style.filter = (it.type === 'cloud')
+                        ? 'drop-shadow(0 10px 12px rgba(0,0,0,.30))'
+                        : 'drop-shadow(0 12px 14px rgba(0,0,0,.35))';
+                }
+            }
+        }
+
+        // ---------- Interaction: palette drag ----------
+        function showGhost(type, x, y) {
+            ghost.style.opacity = '1';
+            ghost.style.left = x + 'px';
+            ghost.style.top = y + 'px';
+            ghost.innerHTML = `<div class="w-[54px] h-[54px]">${ICONS[type]}</div>`;
+        }
+        function hideGhost() {
+            ghost.style.opacity = '0';
+            ghost.innerHTML = '';
+        }
+
+        function beginDragFromPalette(type, ev) {
+            state.drag.active = true;
+            state.drag.fromPalette = true;
+            state.drag.type = type;
+            state.drag.id = null;
+            state.drag.pointerId = ev.pointerId;
+            state.drag.shiftEquator = ev.shiftKey;
+            showGhost(type, ev.clientX, ev.clientY);
+            $('#hint').textContent = 'Drop on the planet to place. Drag on the planet to preview position.';
+            (ev.target).setPointerCapture?.(ev.pointerId);
+        }
+
+        function beginDragExistingItem(id, ev) {
+            const it = getItemById(id);
+            if (!it) return;
+            setSelected(id);
+            state.drag.active = true;
+            state.drag.fromPalette = false;
+            state.drag.type = it.type;
+            state.drag.id = id;
+            state.drag.pointerId = ev.pointerId;
+            state.drag.shiftEquator = ev.shiftKey;
+            showGhost(it.type, ev.clientX, ev.clientY);
+            $('#hint').textContent = 'Dragging item… release to drop it on the planet.';
+            (ev.target).setPointerCapture?.(ev.pointerId);
+        }
+
+        function updateDrag(ev) {
+            if (!state.drag.active) return;
+            showGhost(state.drag.type, ev.clientX, ev.clientY);
+            // If pointer is over planet, update item preview for existing item
+            const rect = planetFrame.getBoundingClientRect();
+            const sx = ev.clientX - rect.left;
+            const sy = ev.clientY - rect.top;
+            if (isPointInPlanet(sx, sy)) {
+                const sp = screenToSphere(sx, sy);
+                if (sp) {
+                    const it = state.drag.fromPalette ? null : getItemById(state.drag.id);
+                    const phi = state.drag.shiftEquator ? clamp(sp.phi, -0.28, 0.28) : sp.phi;
+                    if (it) {
+                        it.theta = sp.theta;
+                        it.phi = phi;
+                        syncSelectionUI();
+                    }
+                }
+            }
+        }
+
+        function endDrag(ev) {
+            if (!state.drag.active) return;
+
+            const rect = planetFrame.getBoundingClientRect();
+            const sx = ev.clientX - rect.left;
+            const sy = ev.clientY - rect.top;
+
+            let placed = false;
+            if (isPointInPlanet(sx, sy)) {
+                const sp = screenToSphere(sx, sy);
+                if (sp) {
+                    const phi = state.drag.shiftEquator ? clamp(sp.phi, -0.28, 0.28) : sp.phi;
+                    if (state.drag.fromPalette) {
+                        const it = defaultItem(state.drag.type);
+                        it.theta = sp.theta;
+                        it.phi = phi;
+                        state.items.push(it);
+                        rebuildItemElements();
+                        setSelected(it.id);
+                        placed = true;
+                    } else {
+                        // Already moved during drag; just ensure it ends on planet
+                        placed = true;
+                    }
+                }
+            }
+
+            hideGhost();
+            state.drag.active = false;
+            state.drag.fromPalette = false;
+            state.drag.type = null;
+            state.drag.id = null;
+            state.drag.pointerId = null;
+            state.drag.shiftEquator = false;
+
+            $('#hint').textContent = placed ? 'Placed. Add more from the palette!' : 'Drop on the planet to place (try again).';
+        }
+
+        // ---------- Item pointer down ----------
+        function onItemPointerDown(ev) {
+            ev.stopPropagation();
+            const id = ev.currentTarget.dataset.id;
+            beginDragExistingItem(id, ev);
+        }
+
+        // Clicking empty space clears selection
+        planetFrame.addEventListener('pointerdown', (ev) => {
+            // If user starts dragging from empty planet, do nothing besides clear selection
+            if (ev.target.closest('.planet-item')) return;
+            setSelected(null);
+        });
+
+        // Palette listeners
+        $$('.paletteBtn').forEach(btn => {
+            btn.addEventListener('pointerdown', (ev) => {
+                const type = btn.dataset.type;
+                beginDragFromPalette(type, ev);
+            });
+        });
+
+        window.addEventListener('pointermove', updateDrag, { passive: true });
+        window.addEventListener('pointerup', endDrag);
+        window.addEventListener('pointercancel', endDrag);
+
+        // ---------- Controls ----------
+        function syncTimeToggle() {
+            const knob = $('#timeKnob');
+            const toggle = $('#timeToggle');
+            if (state.isNight) {
+                toggle.className = 'relative w-12 h-7 rounded-full bg-indigo-500/25 border border-indigo-400/30';
+                knob.className = 'absolute top-0.5 left-0.5 w-6 h-6 rounded-full bg-indigo-200/90 shadow';
+                knob.style.transform = 'translateX(20px)';
+            } else {
+                toggle.className = 'relative w-12 h-7 rounded-full bg-emerald-500/30 border border-emerald-400/30';
+                knob.className = 'absolute top-0.5 left-0.5 w-6 h-6 rounded-full bg-emerald-300/90 shadow';
+                knob.style.transform = 'translateX(0px)';
+            }
+        }
+
+        $('#timeToggle').addEventListener('click', () => {
+            state.isNight = !state.isNight;
+            syncTimeToggle();
+            setBackground();
+        });
+
+        $('#speed').addEventListener('input', (e) => {
+            state.speed = parseFloat(e.target.value);
+            $('#speedLabel').textContent = state.speed.toFixed(2);
+        });
+
+        $('#pauseBtn').addEventListener('click', () => {
+            state.paused = !state.paused;
+            $('#pauseBtn').textContent = state.paused ? 'Play' : 'Pause';
+        });
+
+        $('#recenterBtn').addEventListener('click', () => {
+            // Smoothly bring rotation back to 0
+            state.rotationTarget = 0;
+        });
+
+        $$('.weatherBtn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                state.weather = btn.dataset.weather;
+                $('#weatherLabel').textContent = btn.textContent.trim();
+            });
+        });
+
+        $('#intensity').addEventListener('input', (e) => {
+            state.intensity = parseFloat(e.target.value);
+            $('#intensityLabel').textContent = state.intensity.toFixed(2);
+            seedWeatherParticles();
+        });
+
+        $('#deleteBtn').addEventListener('click', () => {
+            if (!state.selectedId) return;
+            const id = state.selectedId;
+            state.items = state.items.filter(x => x.id !== id);
+            state.selectedId = null;
+            rebuildItemElements();
+            syncSelectionUI();
+        });
+
+        $('#resetBtn').addEventListener('click', () => {
+            buildDefaultPlanet();
+        });
+
+        $('#exportBtn').addEventListener('click', async () => {
+            const payload = {
+                isNight: state.isNight,
+                weather: state.weather,
+                intensity: state.intensity,
+                rotation: state.rotation,
+                land: state.land,
+                items: state.items
+            };
+            const text = JSON.stringify(payload, null, 2);
+            try {
+                await navigator.clipboard.writeText(text);
+                $('#hint').textContent = 'Export copied to clipboard.';
+            } catch {
+                // fallback prompt
+                const w = window.open('', '_blank');
+                if (w) {
+                    w.document.write(`<pre>${text.replaceAll('<', '&lt;')}</pre>`);
+                    w.document.title = 'Tiny Planet JSON Export';
+                }
+            }
+        });
+
+        // Keyboard shortcuts
+        window.addEventListener('keydown', (e) => {
+            if (e.key === ' ') {
+                e.preventDefault();
+                state.paused = !state.paused;
+                $('#pauseBtn').textContent = state.paused ? 'Play' : 'Pause';
+            }
+            if ((e.key === 'Delete' || e.key === 'Backspace') && state.selectedId) {
+                $('#deleteBtn').click();
+            }
+        });
+
+        // ---------- Main loop ----------
+        function tick(t) {
+            const dt = Math.min(0.05, (t - state.lastT) / 1000);
+            state.lastT = t;
+
+            if (!state.paused) {
+                const base = 0.55; // radians/sec base
+                state.rotation += dt * base * state.speed;
+            }
+
+            // Smooth recentering if requested
+            if (state.rotationTarget != null) {
+                // choose shortest wrap
+                const cur = state.rotation;
+                let diff = (state.rotationTarget - cur);
+                diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+                state.rotation += diff * Math.min(1, dt * 2.2);
+                if (Math.abs(diff) < 0.005) {
+                    state.rotation = state.rotationTarget;
+                    state.rotationTarget = null;
+                }
+            }
+
+            drawPlanet();
+            drawWeather(dt);
+            updateItemsLayer();
+
+            // Stats
+            const counts = state.items.reduce((acc, it) => (acc[it.type] = (acc[it.type] || 0) + 1, acc), {});
+            const parts = ['tree', 'house', 'cloud'].map(k => `${k}: ${counts[k] || 0}`).join(' • ');
+            $('#stats').textContent = `${parts} • weather: ${state.weather}${state.isNight ? ' • night' : ' • day'}`;
+
+            requestAnimationFrame(tick);
+        }
+
+        // ---------- Hook pointer events for selection and drag updates ----------
+        // When dragging from palette, hovering over planet should preview via ghost only; placement occurs on pointerup.
+        // Existing item drag updates item in updateDrag().
+
+        // Also allow dropping by tapping on planet while dragging from palette
+        planetFrame.addEventListener('pointermove', (ev) => {
+            // just to keep hint responsive
+            if (!state.drag.active) return;
+            const rect = planetFrame.getBoundingClientRect();
+            const sx = ev.clientX - rect.left;
+            const sy = ev.clientY - rect.top;
+            if (isPointInPlanet(sx, sy)) {
+                $('#hint').textContent = 'Release to drop on the planet surface.';
+            } else {
+                $('#hint').textContent = 'Move onto the planet to drop.';
+            }
+        }, { passive: true });
+
+        // ---------- Start ----------
+        setBackground();
+        resize();
+        buildDefaultPlanet();
+        requestAnimationFrame((t) => { state.lastT = t; tick(t); });
+    </script>
+</body>
+
+</html>
