@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Periodic Table</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e1e1e;
+            color: white;
+        }
+
+        .periodic-table {
+            display: grid;
+            grid-template-columns: repeat(18, 1fr);
+            gap: 4px;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            overflow-x: auto;
+        }
+
+        .element {
+            aspect-ratio: 1 / 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s, opacity 0.3s;
+            position: relative;
+            font-size: 0.7rem;
+            user-select: none;
+        }
+
+        .element:hover {
+            transform: scale(1.1);
+            z-index: 10;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            border-color: white;
+        }
+
+        .element .number {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            font-size: 0.6rem;
+            opacity: 0.7;
+        }
+
+        .element .symbol {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .element .name {
+            font-size: 0.55rem;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 95%;
+        }
+
+        /* Categories Colors */
+        .cat-diatomic-nonmetal {
+            background-color: #3d3d3d;
+            color: #a1ffce;
+            border-color: #a1ffce;
+        }
+
+        .cat-noble-gas {
+            background-color: #2e1a47;
+            color: #e6b8ff;
+            border-color: #e6b8ff;
+        }
+
+        .cat-alkali-metal {
+            background-color: #4a1d1d;
+            color: #ff9e9e;
+            border-color: #ff9e9e;
+        }
+
+        .cat-alkaline-earth-metal {
+            background-color: #4a3b1d;
+            color: #ffe69e;
+            border-color: #ffe69e;
+        }
+
+        .cat-metalloid {
+            background-color: #1d4a3b;
+            color: #9effd6;
+            border-color: #9effd6;
+        }
+
+        .cat-polyatomic-nonmetal {
+            background-color: #1d3b4a;
+            color: #9ec1ff;
+            border-color: #9ec1ff;
+        }
+
+        .cat-post-transition-metal {
+            background-color: #1d4a1d;
+            color: #9eff9e;
+            border-color: #9eff9e;
+        }
+
+        .cat-transition-metal {
+            background-color: #4a1d3b;
+            color: #ff9ec1;
+            border-color: #ff9ec1;
+        }
+
+        .cat-lanthanide {
+            background-color: #2b1d4a;
+            color: #bd9eff;
+            border-color: #bd9eff;
+        }
+
+        .cat-actinide {
+            background-color: #4a1d2b;
+            color: #ff9eb6;
+            border-color: #ff9eb6;
+        }
+
+        .cat-unknown {
+            background-color: #333;
+            color: #ccc;
+        }
+
+        /* Modal */
+        #element-modal {
+            background-color: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(5px);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            height: 8px;
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 4px;
+        }
+
+        /* Quiz Overlay */
+        #quiz-overlay {
+            background-color: #1e1e1e;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-gray-800 p-4 shadow-lg sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
+                Periodic Table
+            </h1>
+
+            <div class="flex flex-col sm:flex-row gap-4 items-center w-full md:w-auto">
+                <input type="text" id="search-input" placeholder="Search element..."
+                    class="px-3 py-1 bg-gray-700 text-white rounded border border-gray-600 focus:outline-none focus:border-blue-400 w-full sm:w-48">
+
+                <div class="flex flex-wrap gap-2 justify-center" id="filters">
+                    <!-- Filters generated by JS -->
+                </div>
+            </div>
+
+            <div class="flex gap-2 shrink-0">
+                <button onclick="resetFilters()"
+                    class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm transition">Reset</button>
+                <button onclick="startQuiz()"
+                    class="px-3 py-1 bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-500 hover:to-teal-500 rounded text-sm font-bold transition">Start
+                    Quiz</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Table -->
+    <main class="flex-grow p-4">
+        <div id="periodic-table" class="periodic-table">
+            <!-- Elements generated by JS -->
+        </div>
+    </main>
+
+    <!-- Element Detail Modal -->
+    <div id="element-modal" class="fixed inset-0 hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-gray-700 rounded-xl shadow-2xl max-w-lg w-full p-6 relative transform transition-all scale-100"
+            id="modal-content">
+            <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                    </path>
+                </svg>
+            </button>
+
+            <div class="flex gap-6">
+                <div id="modal-preview"
+                    class="w-32 h-32 flex flex-col justify-center items-center border-2 rounded-lg text-3xl font-bold">
+                    <!-- Preview Box -->
+                </div>
+                <div class="flex-1">
+                    <h2 id="modal-name" class="text-3xl font-bold mb-1 text-white"></h2>
+                    <p id="modal-category" class="text-sm uppercase tracking-wider mb-4 opacity-75"></p>
+
+                    <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                        <div class="text-gray-400">Atomic Number:</div>
+                        <div id="modal-number" class="text-white"></div>
+
+                        <div class="text-gray-400">Atomic Mass:</div>
+                        <div id="modal-mass" class="text-white"></div>
+
+                        <div class="text-gray-400">Electron Config:</div>
+                        <div id="modal-config" class="text-white break-words col-span-2 md:col-span-1"></div>
+
+                        <div class="text-gray-400">Phase:</div>
+                        <div id="modal-phase" class="text-white"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 pt-4 border-t border-gray-800">
+                <p id="modal-summary" class="text-gray-300 leading-relaxed"></p>
+            </div>
+
+            <div class="mt-4 text-right">
+                <a id="modal-wiki" href="#" target="_blank" class="text-blue-400 hover:text-blue-300 text-sm">Read more
+                    on Wikipedia &rarr;</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quiz Overlay -->
+    <div id="quiz-overlay" class="fixed inset-0 hidden z-50 flex flex-col items-center justify-center p-4">
+        <div class="max-w-2xl w-full bg-gray-800 rounded-xl shadow-2xl p-8 text-center">
+            <h2 class="text-3xl font-bold mb-6 text-purple-400">Element Quiz</h2>
+
+            <div id="quiz-start-screen">
+                <p class="mb-8 text-lg text-gray-300">Test your knowledge of the periodic table! You will be asked 5
+                    questions.</p>
+                <button onclick="initQuizGame()"
+                    class="px-8 py-3 bg-purple-600 hover:bg-purple-500 rounded-lg font-bold text-xl transition">Begin</button>
+                <button onclick="closeQuiz()"
+                    class="px-8 py-3 ml-4 bg-gray-700 hover:bg-gray-600 rounded-lg font-bold text-xl transition">Cancel</button>
+            </div>
+
+            <div id="quiz-game-screen" class="hidden">
+                <div class="flex justify-between items-center mb-6 text-sm text-gray-400">
+                    <span id="quiz-progress">Question 1/5</span>
+                    <span id="quiz-score">Score: 0</span>
+                </div>
+
+                <div class="mb-8">
+                    <h3 id="quiz-question" class="text-2xl font-semibold mb-4 text-white">Question text here?</h3>
+                    <div id="quiz-element-display"
+                        class="w-24 h-24 mx-auto mb-4 border-2 border-white rounded flex flex-col justify-center items-center hidden">
+                        <!-- Used for visual questions -->
+                    </div>
+                </div>
+
+                <div id="quiz-options" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Options buttons -->
+                </div>
+            </div>
+
+            <div id="quiz-end-screen" class="hidden">
+                <div class="text-6xl mb-4">🏆</div>
+                <h3 class="text-2xl font-bold mb-2">Quiz Complete!</h3>
+                <p class="text-xl mb-6">Your score: <span id="final-score" class="font-bold text-green-400"></span>/5
+                </p>
+                <p id="quiz-feedback" class="mb-8 text-gray-300"></p>
+                <button onclick="initQuizGame()"
+                    class="px-6 py-2 bg-purple-600 hover:bg-purple-500 rounded font-bold transition">Play Again</button>
+                <button onclick="closeQuiz()"
+                    class="px-6 py-2 ml-4 bg-gray-700 hover:bg-gray-600 rounded font-bold transition">Back to
+                    Table</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA ---
+        // Compact dataset to stay within reasonable length but provide full table.
+        // Format: [number, symbol, name, mass, category_key, col, row, summary_snippet]
+        // Categories mapped to keys for brevity.
+        const categories = {
+            'dn': 'diatomic nonmetal',
+            'ng': 'noble gas',
+            'am': 'alkali metal',
+            'aem': 'alkaline earth metal',
+            'm': 'metalloid',
+            'pn': 'polyatomic nonmetal',
+            'ptm': 'post-transition metal',
+            'tm': 'transition metal',
+            'l': 'lanthanide',
+            'a': 'actinide',
+            'u': 'unknown'
+        };
+
+        const rawData = [
+            [1, 'H', 'Hydrogen', 1.008, 'dn', 1, 1, 'Lightest element, fuel of stars.'],
+            [2, 'He', 'Helium', 4.0026, 'ng', 18, 1, 'Second lightest, inert gas.'],
+            [3, 'Li', 'Lithium', 6.94, 'am', 1, 2, 'Lightest metal, used in batteries.'],
+            [4, 'Be', 'Beryllium', 9.0122, 'aem', 2, 2, 'Lightweight but toxic metal.'],
+            [5, 'B', 'Boron', 10.81, 'm', 13, 2, 'Essential plant nutrient.'],
+            [6, 'C', 'Carbon', 12.011, 'pn', 14, 2, 'Basis of life and organic chemistry.'],
+            [7, 'N', 'Nitrogen', 14.007, 'dn', 15, 2, 'Major component of atmosphere.'],
+            [8, 'O', 'Oxygen', 15.999, 'dn', 16, 2, 'Essential for respiration.'],
+            [9, 'F', 'Fluorine', 18.998, 'dn', 17, 2, 'Most reactive nonmetal.'],
+            [10, 'Ne', 'Neon', 20.180, 'ng', 18, 2, 'Used in glowing signs.'],
+            [11, 'Na', 'Sodium', 22.990, 'am', 1, 3, 'Soft metal, component of salt.'],
+            [12, 'Mg', 'Magnesium', 24.305, 'aem', 2, 3, 'Burn with bright white light.'],
+            [13, 'Al', 'Aluminium', 26.982, 'ptm', 13, 3, 'Most abundant metal in crust.'],
+            [14, 'Si', 'Silicon', 28.085, 'm', 14, 3, 'Basis of semiconductors.'],
+            [15, 'P', 'Phosphorus', 30.974, 'pn', 15, 3, 'Essential for DNA and energy.'],
+            [16, 'S', 'Sulfur', 32.06, 'pn', 16, 3, 'Yellow solid, distinct smell.'],
+            [17, 'Cl', 'Chlorine', 35.45, 'dn', 17, 3, 'Disinfectant, component of salt.'],
+            [18, 'Ar', 'Argon', 39.948, 'ng', 18, 3, 'Inert gas in lightbulbs.'],
+            [19, 'K', 'Potassium', 39.098, 'am', 1, 4, 'Vital for nerve function.'],
+            [20, 'Ca', 'Calcium', 40.078, 'aem', 2, 4, 'Essential for bones.'],
+            [21, 'Sc', 'Scandium', 44.956, 'tm', 3, 4, 'Used in aerospace alloys.'],
+            [22, 'Ti', 'Titanium', 47.867, 'tm', 4, 4, 'Strong, lightweight, corrosion-resistant.'],
+            [23, 'V', 'Vanadium', 50.942, 'tm', 5, 4, 'Used in steel alloys.'],
+            [24, 'Cr', 'Chromium', 51.996, 'tm', 6, 4, 'Used in stainless steel.'],
+            [25, 'Mn', 'Manganese', 54.938, 'tm', 7, 4, 'Essential trace nutrient.'],
+            [26, 'Fe', 'Iron', 55.845, 'tm', 8, 4, 'Main component of steel and blood.'],
+            [27, 'Co', 'Cobalt', 58.933, 'tm', 9, 4, 'Blue pigment, magnets.'],
+            [28, 'Ni', 'Nickel', 58.693, 'tm', 10, 4, 'Used in coins and plating.'],
+            [29, 'Cu', 'Copper', 63.546, 'tm', 11, 4, 'Excellent electrical conductor.'],
+            [30, 'Zn', 'Zinc', 65.38, 'tm', 12, 4, 'Galvanizing steel, immune function.'],
+            [31, 'Ga', 'Gallium', 69.723, 'ptm', 13, 4, 'Melts in your hand.'],
+            [32, 'Ge', 'Germanium', 72.630, 'm', 14, 4, 'Early semiconductor material.'],
+            [33, 'As', 'Arsenic', 74.922, 'm', 15, 4, 'Notorious poison.'],
+            [34, 'Se', 'Selenium', 78.96, 'pn', 16, 4, 'Used in photocopiers.'],
+            [35, 'Br', 'Bromine', 79.904, 'dn', 17, 4, 'Liquid nonmetal at room temp.'],
+            [36, 'Kr', 'Krypton', 83.798, 'ng', 18, 4, 'Used in high-speed flash photography.'],
+            [37, 'Rb', 'Rubidium', 85.468, 'am', 1, 5, 'Used in atomic clocks.'],
+            [38, 'Sr', 'Strontium', 87.62, 'aem', 2, 5, 'Red fireworks.'],
+            [39, 'Y', 'Yttrium', 88.906, 'tm', 3, 5, 'Used in LEDs and phosphors.'],
+            [40, 'Zr', 'Zirconium', 91.224, 'tm', 4, 5, 'Gemstones and nuclear reactors.'],
+            [41, 'Nb', 'Niobium', 92.906, 'tm', 5, 5, 'Superconducting magnets.'],
+            [42, 'Mo', 'Molybdenum', 95.95, 'tm', 6, 5, 'High melting point alloys.'],
+            [43, 'Tc', 'Technetium', 98, 'tm', 7, 5, 'First artificially produced element.'],
+            [44, 'Ru', 'Ruthenium', 101.07, 'tm', 8, 5, 'Rare platinum group metal.'],
+            [45, 'Rh', 'Rhodium', 102.91, 'tm', 9, 5, 'Most expensive precious metal.'],
+            [46, 'Pd', 'Palladium', 106.42, 'tm', 10, 5, 'Catalytic converters.'],
+            [47, 'Ag', 'Silver', 107.87, 'tm', 11, 5, 'Best electrical conductor.'],
+            [48, 'Cd', 'Cadmium', 112.41, 'tm', 12, 5, 'Toxic, used in batteries.'],
+            [49, 'In', 'Indium', 114.82, 'ptm', 13, 5, 'Touch screens (ITO).'],
+            [50, 'Sn', 'Tin', 118.71, 'ptm', 14, 5, 'Used in solder and bronze.'],
+            [51, 'Sb', 'Antimony', 121.76, 'm', 15, 5, 'Used in flame retardants.'],
+            [52, 'Te', 'Tellurium', 127.60, 'm', 16, 5, 'Solar panels.'],
+            [53, 'I', 'Iodine', 126.90, 'dn', 17, 5, 'Disinfectant, thyroid health.'],
+            [54, 'Xe', 'Xenon', 131.29, 'ng', 18, 5, 'Ion engines for spacecraft.'],
+            [55, 'Cs', 'Cesium', 132.91, 'am', 1, 6, 'Most precise atomic clocks.'],
+            [56, 'Ba', 'Barium', 137.33, 'aem', 2, 6, 'Medical imaging contrast.'],
+            // Lanthanides 57-71
+            [57, 'La', 'Lanthanum', 138.91, 'l', 3, 9, 'Hybrid car batteries.'], // Row 9 used for separation
+            [58, 'Ce', 'Cerium', 140.12, 'l', 4, 9, 'Lighter flints.'],
+            [59, 'Pr', 'Praseodymium', 140.91, 'l', 5, 9, 'Yellow glass coloring.'],
+            [60, 'Nd', 'Neodymium', 144.24, 'l', 6, 9, 'Strong permanent magnets.'],
+            [61, 'Pm', 'Promethium', 145, 'l', 7, 9, 'Radioactive, luminous paint.'],
+            [62, 'Sm', 'Samarium', 150.36, 'l', 8, 9, 'Magnets, nuclear control rods.'],
+            [63, 'Eu', 'Europium', 151.96, 'l', 9, 9, 'Red phosphor in TV screens.'],
+            [64, 'Gd', 'Gadolinium', 157.25, 'l', 10, 9, 'MRI contrast agent.'],
+            [65, 'Tb', 'Terbium', 158.93, 'l', 11, 9, 'Green phosphor.'],
+            [66, 'Dy', 'Dysprosium', 162.50, 'l', 12, 9, 'Lasers and magnets.'],
+            [67, 'Ho', 'Holmium', 164.93, 'l', 13, 9, 'Strongest magnetic fields.'],
+            [68, 'Er', 'Erbium', 167.26, 'l', 14, 9, 'Fiber optic amplifiers.'],
+            [69, 'Tm', 'Thulium', 168.93, 'l', 15, 9, 'Portable X-ray machines.'],
+            [70, 'Yb', 'Ytterbium', 173.05, 'l', 16, 9, 'Atomic clocks.'],
+            [71, 'Lu', 'Lutetium', 174.97, 'l', 17, 9, 'Cancer therapy.'],
+            // Continuation of Row 6
+            [72, 'Hf', 'Hafnium', 178.49, 'tm', 4, 6, 'Nuclear control rods.'],
+            [73, 'Ta', 'Tantalum', 180.95, 'tm', 5, 6, 'Capacitors in electronics.'],
+            [74, 'W', 'Tungsten', 183.84, 'tm', 6, 6, 'Lightbulb filaments.'],
+            [75, 'Re', 'Rhenium', 186.21, 'tm', 7, 6, 'Jet engines.'],
+            [76, 'Os', 'Osmium', 190.23, 'tm', 8, 6, 'Densest natural element.'],
+            [77, 'Ir', 'Iridium', 192.22, 'tm', 9, 6, 'Corrosion resistance, meteorite impact layer.'],
+            [78, 'Pt', 'Platinum', 195.08, 'tm', 10, 6, 'Jewelry, catalytic converters.'],
+            [79, 'Au', 'Gold', 196.97, 'tm', 11, 6, 'Currency, electronics, jewelry.'],
+            [80, 'Hg', 'Mercury', 200.59, 'tm', 12, 6, 'Liquid metal, thermometers.'],
+            [81, 'Tl', 'Thallium', 204.38, 'ptm', 13, 6, 'Highly toxic.'],
+            [82, 'Pb', 'Lead', 207.2, 'ptm', 14, 6, 'Radiation shielding, batteries.'],
+            [83, 'Bi', 'Bismuth', 208.98, 'ptm', 15, 6, 'Pepto-Bismol ingredient.'],
+            [84, 'Po', 'Polonium', 209, 'm', 16, 6, 'Highly radioactive.'],
+            [85, 'At', 'Astatine', 210, 'm', 17, 6, 'Rarest naturally occurring element.'],
+            [86, 'Rn', 'Radon', 222, 'ng', 18, 6, 'Radioactive gas in basements.'],
+            // Row 7
+            [87, 'Fr', 'Francium', 223, 'am', 1, 7, 'Extremely rare and reactive.'],
+            [88, 'Ra', 'Radium', 226, 'aem', 2, 7, 'Once used in glow-in-the-dark paint.'],
+            // Actinides 89-103
+            [89, 'Ac', 'Actinium', 227, 'a', 3, 10, 'Cancer treatment.'],
+            [90, 'Th', 'Thorium', 232.04, 'a', 4, 10, 'Nuclear fuel potential.'],
+            [91, 'Pa', 'Protactinium', 231.04, 'a', 5, 10, 'Scarce and toxic.'],
+            [92, 'U', 'Uranium', 238.03, 'a', 6, 10, 'Nuclear fuel and weapons.'],
+            [93, 'Np', 'Neptunium', 237, 'a', 7, 10, 'Byproduct of nuclear reactors.'],
+            [94, 'Pu', 'Plutonium', 244, 'a', 8, 10, 'Nuclear weapons, space probes.'],
+            [95, 'Am', 'Americium', 243, 'a', 9, 10, 'Smoke detectors.'],
+            [96, 'Cm', 'Curium', 247, 'a', 10, 10, 'Mars rovers.'],
+            [97, 'Bk', 'Berkelium', 247, 'a', 11, 10, 'Scientific research.'],
+            [98, 'Cf', 'Californium', 251, 'a', 12, 10, 'Starts nuclear reactors.'],
+            [99, 'Es', 'Einsteinium', 252, 'a', 13, 10, 'Synthetic element.'],
+            [100, 'Fm', 'Fermium', 257, 'a', 14, 10, 'Synthetic element.'],
+            [101, 'Md', 'Mendelevium', 258, 'a', 15, 10, 'Synthetic element.'],
+            [102, 'No', 'Nobelium', 259, 'a', 16, 10, 'Synthetic element.'],
+            [103, 'Lr', 'Lawrencium', 266, 'a', 17, 10, 'Synthetic element.'],
+            // Continuation of Row 7
+            [104, 'Rf', 'Rutherfordium', 267, 'tm', 4, 7, 'Synthetic element.'],
+            [105, 'Db', 'Dubnium', 268, 'tm', 5, 7, 'Synthetic element.'],
+            [106, 'Sg', 'Seaborgium', 269, 'tm', 6, 7, 'Synthetic element.'],
+            [107, 'Bh', 'Bohrium', 270, 'tm', 7, 7, 'Synthetic element.'],
+            [108, 'Hs', 'Hassium', 277, 'tm', 8, 7, 'Synthetic element.'],
+            [109, 'Mt', 'Meitnerium', 278, 'u', 9, 7, 'Synthetic element.'],
+            [110, 'Ds', 'Darmstadtium', 281, 'u', 10, 7, 'Synthetic element.'],
+            [111, 'Rg', 'Roentgenium', 282, 'u', 11, 7, 'Synthetic element.'],
+            [112, 'Cn', 'Copernicium', 285, 'tm', 12, 7, 'Synthetic element.'],
+            [113, 'Nh', 'Nihonium', 286, 'u', 13, 7, 'Synthetic element.'],
+            [114, 'Fl', 'Flerovium', 289, 'ptm', 14, 7, 'Synthetic element.'],
+            [115, 'Mc', 'Moscovium', 290, 'u', 15, 7, 'Synthetic element.'],
+            [116, 'Lv', 'Livermorium', 293, 'u', 16, 7, 'Synthetic element.'],
+            [117, 'Ts', 'Tennessine', 294, 'u', 17, 7, 'Synthetic element.'],
+            [118, 'Og', 'Oganesson', 294, 'u', 18, 7, 'Synthetic element, heaviest.']
+        ];
+
+        // Hydrate objects
+        const elements = rawData.map(d => ({
+            number: d[0],
+            symbol: d[1],
+            name: d[2],
+            mass: d[3],
+            categoryKey: d[4],
+            category: categories[d[4]],
+            col: d[5],
+            row: d[6],
+            summary: d[7]
+        }));
+
+        // Render Table
+        const tableContainer = document.getElementById('periodic-table');
+        const searchInput = document.getElementById('search-input');
+        let currentFilterKey = null;
+
+        searchInput.addEventListener('input', () => {
+            renderTable(currentFilterKey);
+        });
+
+        function renderTable(filterKey = null) {
+            currentFilterKey = filterKey;
+            tableContainer.innerHTML = '';
+            const searchTerm = searchInput.value.toLowerCase();
+
+            elements.forEach(el => {
+                const elDiv = document.createElement('div');
+                elDiv.className = `element cat-${el.category.replace(/ /g, '-')} p-1 relative`;
+                elDiv.style.gridColumn = el.col;
+                elDiv.style.gridRow = el.row;
+
+                // Determine visibility based on category filter AND search term
+                const matchesCategory = !filterKey || el.categoryKey === filterKey;
+                const matchesSearch = !searchTerm ||
+                    el.name.toLowerCase().includes(searchTerm) ||
+                    el.symbol.toLowerCase().includes(searchTerm) ||
+                    el.number.toString().includes(searchTerm);
+
+                if (!matchesCategory || !matchesSearch) {
+                    elDiv.style.opacity = '0.1';
+                    elDiv.style.pointerEvents = 'none';
+                    // If it's a search mismatch, we might want to hide it entirely or keep layout?
+                    // Keeping layout (opacity) preserves the table shape which is crucial for periodic table.
+                }
+
+                elDiv.innerHTML = `
+                    <div class="number">${el.number}</div>
+                    <div class="symbol">${el.symbol}</div>
+                    <div class="name truncate">${el.name}</div>
+                `;
+
+                elDiv.onclick = () => openModal(el);
+
+                tableContainer.appendChild(elDiv);
+            });
+        }
+
+        // Render Filters
+        const filterContainer = document.getElementById('filters');
+        Object.keys(categories).forEach(key => {
+            const btn = document.createElement('button');
+            btn.className = `px-2 py-1 text-xs rounded border border-gray-600 hover:brightness-110 cat-${categories[key].replace(/ /g, '-')}`;
+            btn.style.backgroundColor = 'var(--bg-color)';
+            btn.innerText = categories[key];
+            btn.onclick = () => renderTable(key);
+            filterContainer.appendChild(btn);
+        });
+
+        function resetFilters() {
+            searchInput.value = '';
+            renderTable(null);
+        }
+
+        // Modal Logic
+        const modal = document.getElementById('element-modal');
+
+        function openModal(el) {
+            document.getElementById('modal-name').innerText = el.name;
+            document.getElementById('modal-category').innerText = el.category;
+            document.getElementById('modal-number').innerText = el.number;
+            document.getElementById('modal-mass').innerText = el.mass;
+            document.getElementById('modal-summary').innerText = el.summary;
+            document.getElementById('modal-wiki').href = `https://en.wikipedia.org/wiki/${el.name}`;
+
+            const prev = document.getElementById('modal-preview');
+            prev.className = `w-32 h-32 flex flex-col justify-center items-center border-2 rounded-lg text-3xl font-bold cat-${el.category.replace(/ /g, '-')}`;
+            prev.innerHTML = `<div>${el.symbol}</div><div class="text-sm font-normal">${el.number}</div>`;
+
+            // Dummy config for visual completeness (calculating real config is complex)
+            document.getElementById('modal-config').innerText = `[Noble] ...`; // Placeholder
+
+            // Phase guess based on category
+            let phase = 'Solid';
+            if (['Hydrogen', 'Helium', 'Nitrogen', 'Oxygen', 'Fluorine', 'Neon', 'Chlorine', 'Argon', 'Krypton', 'Xenon', 'Radon'].includes(el.name)) phase = 'Gas';
+            if (['Mercury', 'Bromine'].includes(el.name)) phase = 'Liquid';
+            document.getElementById('modal-phase').innerText = phase;
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            modal.classList.add('hidden');
+        }
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal();
+        });
+
+        // Quiz Logic
+        const quizOverlay = document.getElementById('quiz-overlay');
+        let currentQuestion = 0;
+        let score = 0;
+        const totalQuestions = 5;
+        let quizQuestions = [];
+
+        function startQuiz() {
+            quizOverlay.classList.remove('hidden');
+            document.getElementById('quiz-start-screen').classList.remove('hidden');
+            document.getElementById('quiz-game-screen').classList.add('hidden');
+            document.getElementById('quiz-end-screen').classList.add('hidden');
+        }
+
+        function closeQuiz() {
+            quizOverlay.classList.add('hidden');
+        }
+
+        function initQuizGame() {
+            document.getElementById('quiz-start-screen').classList.add('hidden');
+            document.getElementById('quiz-end-screen').classList.add('hidden');
+            document.getElementById('quiz-game-screen').classList.remove('hidden');
+            currentQuestion = 0;
+            score = 0;
+            generateQuestions();
+            showQuestion();
+        }
+
+        function generateQuestions() {
+            quizQuestions = [];
+            for (let i = 0; i < totalQuestions; i++) {
+                const rand = Math.random();
+                const el = elements[Math.floor(Math.random() * elements.length)];
+                let type = 'symbol';
+
+                if (rand < 0.33) type = 'symbol';
+                else if (rand < 0.66) type = 'number';
+                else type = 'visual';
+
+                let question = { type, el };
+
+                if (type === 'symbol') {
+                    question.text = `What is the symbol for ${el.name}?`;
+                    question.correct = el.symbol;
+                    question.options = generateOptions(el.symbol, 'symbol');
+                } else if (type === 'number') {
+                    question.text = `Which element has atomic number ${el.number}?`;
+                    question.correct = el.name;
+                    question.options = generateOptions(el.name, 'name');
+                } else {
+                    question.text = `Identify this element:`;
+                    question.correct = el.name;
+                    question.options = generateOptions(el.name, 'name');
+                }
+                quizQuestions.push(question);
+            }
+        }
+
+        function generateOptions(correctAnswer, type) {
+            let opts = [correctAnswer];
+            while (opts.length < 4) {
+                const r = elements[Math.floor(Math.random() * elements.length)];
+                const val = type === 'symbol' ? r.symbol : r.name;
+                if (!opts.includes(val) && val !== correctAnswer) opts.push(val);
+            }
+            return opts.sort(() => Math.random() - 0.5);
+        }
+
+        function showQuestion() {
+            const q = quizQuestions[currentQuestion];
+            const display = document.getElementById('quiz-element-display');
+
+            document.getElementById('quiz-progress').innerText = `Question ${currentQuestion + 1}/${totalQuestions}`;
+            document.getElementById('quiz-score').innerText = `Score: ${score}`;
+            document.getElementById('quiz-question').innerText = q.text;
+
+            if (q.type === 'visual') {
+                display.classList.remove('hidden');
+                display.className = `w-32 h-32 mx-auto mb-6 flex flex-col justify-center items-center border-2 rounded-lg text-4xl font-bold cat-${q.el.category.replace(/ /g, '-')}`;
+                display.innerHTML = `
+                    <div class="text-xs absolute top-2 left-2 opacity-75">${q.el.number}</div>
+                    <div>${q.el.symbol}</div>
+                    <div class="text-xs opacity-50 mt-1">???</div>
+                `;
+                display.style.position = 'relative'; // Ensure absolute positioning works for number
+            } else {
+                display.classList.add('hidden');
+            }
+
+            const optsContainer = document.getElementById('quiz-options');
+            optsContainer.innerHTML = '';
+
+            q.options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = "p-4 bg-gray-700 hover:bg-gray-600 rounded-lg text-lg font-semibold transition";
+                btn.innerText = opt;
+                btn.onclick = () => handleAnswer(opt, q.correct);
+                optsContainer.appendChild(btn);
+            });
+        }
+
+        function handleAnswer(selected, correct) {
+            const buttons = document.getElementById('quiz-options').children;
+            let selectedBtn;
+
+            for (let btn of buttons) {
+                btn.disabled = true; // Disable all buttons
+                if (btn.innerText === selected) selectedBtn = btn;
+                if (btn.innerText === correct) btn.classList.add('bg-green-600', 'border-green-400', 'border-2');
+            }
+
+            if (selected === correct) {
+                score++;
+                selectedBtn.classList.remove('bg-gray-700');
+                selectedBtn.classList.add('bg-green-600');
+            } else {
+                selectedBtn.classList.remove('bg-gray-700');
+                selectedBtn.classList.add('bg-red-600');
+            }
+
+            setTimeout(() => {
+                currentQuestion++;
+                if (currentQuestion < totalQuestions) {
+                    showQuestion();
+                } else {
+                    endQuiz();
+                }
+            }, 1000);
+        }
+
+        function endQuiz() {
+            document.getElementById('quiz-game-screen').classList.add('hidden');
+            document.getElementById('quiz-end-screen').classList.remove('hidden');
+            document.getElementById('final-score').innerText = score;
+
+            let msg = '';
+            if (score === 5) msg = "Perfect score! You're a chemist!";
+            else if (score >= 3) msg = "Great job!";
+            else msg = "Keep studying!";
+            document.getElementById('quiz-feedback').innerText = msg;
+        }
+
+        // Initialize
+        renderTable();
+
+    </script>
+</body>
+
+</html>
