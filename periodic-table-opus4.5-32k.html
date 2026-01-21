@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Periodic Table</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        .element-cell {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .element-cell:hover {
+            transform: scale(1.15);
+            z-index: 10;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .element-cell.filtered-out {
+            opacity: 0.15;
+            pointer-events: none;
+        }
+
+        .category-alkali {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a5a);
+        }
+
+        .category-alkaline {
+            background: linear-gradient(135deg, #ffa94d, #ff922b);
+        }
+
+        .category-transition {
+            background: linear-gradient(135deg, #ffd43b, #fab005);
+        }
+
+        .category-post-transition {
+            background: linear-gradient(135deg, #69db7c, #51cf66);
+        }
+
+        .category-metalloid {
+            background: linear-gradient(135deg, #38d9a9, #20c997);
+        }
+
+        .category-nonmetal {
+            background: linear-gradient(135deg, #4dabf7, #339af0);
+        }
+
+        .category-halogen {
+            background: linear-gradient(135deg, #9775fa, #845ef7);
+        }
+
+        .category-noble {
+            background: linear-gradient(135deg, #da77f2, #cc5de8);
+        }
+
+        .category-lanthanide {
+            background: linear-gradient(135deg, #f783ac, #e64980);
+        }
+
+        .category-actinide {
+            background: linear-gradient(135deg, #a9e34b, #82c91e);
+        }
+
+        .category-unknown {
+            background: linear-gradient(135deg, #adb5bd, #868e96);
+        }
+
+        .modal-backdrop {
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+        }
+
+        .periodic-grid {
+            display: grid;
+            grid-template-columns: repeat(18, minmax(40px, 1fr));
+            gap: 3px;
+        }
+
+        @media (max-width: 1200px) {
+            .periodic-grid {
+                grid-template-columns: repeat(18, 1fr);
+                gap: 2px;
+            }
+
+            .element-cell {
+                font-size: 0.6rem;
+                padding: 2px;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-gray-900 text-white min-h-screen">
+    <div class="container mx-auto px-4 py-6">
+        <!-- Header -->
+        <header class="text-center mb-6">
+            <h1
+                class="text-4xl font-bold bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent mb-2">
+                Interactive Periodic Table
+            </h1>
+            <p class="text-gray-400">Click any element for details • Use filters to explore • Test your knowledge with
+                the quiz</p>
+        </header>
+
+        <!-- Controls -->
+        <div class="flex flex-wrap justify-center gap-4 mb-6">
+            <div class="flex items-center gap-2">
+                <label class="text-gray-300">Filter by Category:</label>
+                <select id="categoryFilter"
+                    class="bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-cyan-500">
+                    <option value="all">All Elements</option>
+                    <option value="alkali">Alkali Metals</option>
+                    <option value="alkaline">Alkaline Earth</option>
+                    <option value="transition">Transition Metals</option>
+                    <option value="post-transition">Post-Transition</option>
+                    <option value="metalloid">Metalloids</option>
+                    <option value="nonmetal">Nonmetals</option>
+                    <option value="halogen">Halogens</option>
+                    <option value="noble">Noble Gases</option>
+                    <option value="lanthanide">Lanthanides</option>
+                    <option value="actinide">Actinides</option>
+                </select>
+            </div>
+            <input type="text" id="searchInput" placeholder="Search element..."
+                class="bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-cyan-500 w-48">
+            <button onclick="openQuiz()"
+                class="bg-gradient-to-r from-cyan-500 to-purple-600 px-6 py-2 rounded-lg font-semibold hover:opacity-90 transition">
+                🧪 Start Quiz
+            </button>
+        </div>
+
+        <!-- Legend -->
+        <div class="flex flex-wrap justify-center gap-2 mb-6 text-xs">
+            <span class="category-alkali px-2 py-1 rounded text-white">Alkali Metals</span>
+            <span class="category-alkaline px-2 py-1 rounded text-white">Alkaline Earth</span>
+            <span class="category-transition px-2 py-1 rounded text-white">Transition</span>
+            <span class="category-post-transition px-2 py-1 rounded text-white">Post-Transition</span>
+            <span class="category-metalloid px-2 py-1 rounded text-white">Metalloids</span>
+            <span class="category-nonmetal px-2 py-1 rounded text-white">Nonmetals</span>
+            <span class="category-halogen px-2 py-1 rounded text-white">Halogens</span>
+            <span class="category-noble px-2 py-1 rounded text-white">Noble Gases</span>
+            <span class="category-lanthanide px-2 py-1 rounded text-white">Lanthanides</span>
+            <span class="category-actinide px-2 py-1 rounded text-white">Actinides</span>
+        </div>
+
+        <!-- Periodic Table -->
+        <div id="periodicTable" class="periodic-grid max-w-7xl mx-auto mb-8"></div>
+
+        <!-- Lanthanides & Actinides -->
+        <div class="max-w-5xl mx-auto mt-4">
+            <div id="lanthanides" class="periodic-grid mb-2"
+                style="grid-template-columns: repeat(15, minmax(40px, 1fr));"></div>
+            <div id="actinides" class="periodic-grid" style="grid-template-columns: repeat(15, minmax(40px, 1fr));">
+            </div>
+        </div>
+    </div>
+
+    <!-- Element Modal -->
+    <div id="elementModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center z-50 p-4">
+        <div class="bg-gray-800 rounded-2xl max-w-lg w-full p-6 relative shadow-2xl transform transition">
+            <button onclick="closeModal()"
+                class="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl">&times;</button>
+            <div id="modalContent"></div>
+        </div>
+    </div>
+
+    <!-- Quiz Modal -->
+    <div id="quizModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center z-50 p-4">
+        <div class="bg-gray-800 rounded-2xl max-w-xl w-full p-6 relative shadow-2xl">
+            <button onclick="closeQuiz()"
+                class="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl">&times;</button>
+            <div id="quizContent"></div>
+        </div>
+    </div>
+
+    <script>
+        // Element Data
+        const elements = [
+            { number: 1, symbol: "H", name: "Hydrogen", mass: 1.008, category: "nonmetal", row: 1, col: 1, electrons: "1", discovered: 1766, state: "Gas", description: "The lightest and most abundant element in the universe." },
+            { number: 2, symbol: "He", name: "Helium", mass: 4.003, category: "noble", row: 1, col: 18, electrons: "2", discovered: 1868, state: "Gas", description: "An inert noble gas used in balloons and cryogenics." },
+            { number: 3, symbol: "Li", name: "Lithium", mass: 6.941, category: "alkali", row: 2, col: 1, electrons: "2,1", discovered: 1817, state: "Solid", description: "The lightest metal, used in batteries and medication." },
+            { number: 4, symbol: "Be", name: "Beryllium", mass: 9.012, category: "alkaline", row: 2, col: 2, electrons: "2,2", discovered: 1797, state: "Solid", description: "A lightweight metal used in aerospace materials." },
+            { number: 5, symbol: "B", name: "Boron", mass: 10.81, category: "metalloid", row: 2, col: 13, electrons: "2,3", discovered: 1808, state: "Solid", description: "A metalloid used in glass and detergents." },
+            { number: 6, symbol: "C", name: "Carbon", mass: 12.01, category: "nonmetal", row: 2, col: 14, electrons: "2,4", discovered: "Ancient", state: "Solid", description: "The basis of organic chemistry and all known life." },
+            { number: 7, symbol: "N", name: "Nitrogen", mass: 14.01, category: "nonmetal", row: 2, col: 15, electrons: "2,5", discovered: 1772, state: "Gas", description: "Makes up 78% of Earth's atmosphere." },
+            { number: 8, symbol: "O", name: "Oxygen", mass: 16.00, category: "nonmetal", row: 2, col: 16, electrons: "2,6", discovered: 1774, state: "Gas", description: "Essential for respiration and combustion." },
+            { number: 9, symbol: "F", name: "Fluorine", mass: 19.00, category: "halogen", row: 2, col: 17, electrons: "2,7", discovered: 1886, state: "Gas", description: "The most reactive and electronegative element." },
+            { number: 10, symbol: "Ne", name: "Neon", mass: 20.18, category: "noble", row: 2, col: 18, electrons: "2,8", discovered: 1898, state: "Gas", description: "Used in neon signs and high-voltage indicators." },
+            { number: 11, symbol: "Na", name: "Sodium", mass: 22.99, category: "alkali", row: 3, col: 1, electrons: "2,8,1", discovered: 1807, state: "Solid", description: "A highly reactive metal, essential for life." },
+            { number: 12, symbol: "Mg", name: "Magnesium", mass: 24.31, category: "alkaline", row: 3, col: 2, electrons: "2,8,2", discovered: 1755, state: "Solid", description: "A lightweight metal used in alloys and fireworks." },
+            { number: 13, symbol: "Al", name: "Aluminum", mass: 26.98, category: "post-transition", row: 3, col: 13, electrons: "2,8,3", discovered: 1825, state: "Solid", description: "The most abundant metal in Earth's crust." },
+            { number: 14, symbol: "Si", name: "Silicon", mass: 28.09, category: "metalloid", row: 3, col: 14, electrons: "2,8,4", discovered: 1824, state: "Solid", description: "Essential for electronics and computer chips." },
+            { number: 15, symbol: "P", name: "Phosphorus", mass: 30.97, category: "nonmetal", row: 3, col: 15, electrons: "2,8,5", discovered: 1669, state: "Solid", description: "Essential for life, found in DNA and ATP." },
+            { number: 16, symbol: "S", name: "Sulfur", mass: 32.07, category: "nonmetal", row: 3, col: 16, electrons: "2,8,6", discovered: "Ancient", state: "Solid", description: "Used in matches, gunpowder, and vulcanization." },
+            { number: 17, symbol: "Cl", name: "Chlorine", mass: 35.45, category: "halogen", row: 3, col: 17, electrons: "2,8,7", discovered: 1774, state: "Gas", description: "Used in water purification and plastics." },
+            { number: 18, symbol: "Ar", name: "Argon", mass: 39.95, category: "noble", row: 3, col: 18, electrons: "2,8,8", discovered: 1894, state: "Gas", description: "Used in welding and incandescent light bulbs." },
+            { number: 19, symbol: "K", name: "Potassium", mass: 39.10, category: "alkali", row: 4, col: 1, electrons: "2,8,8,1", discovered: 1807, state: "Solid", description: "Essential nutrient for plants and animals." },
+            { number: 20, symbol: "Ca", name: "Calcium", mass: 40.08, category: "alkaline", row: 4, col: 2, electrons: "2,8,8,2", discovered: 1808, state: "Solid", description: "Essential for bones and teeth." },
+            { number: 21, symbol: "Sc", name: "Scandium", mass: 44.96, category: "transition", row: 4, col: 3, electrons: "2,8,9,2", discovered: 1879, state: "Solid", description: "Used in aerospace and sports equipment." },
+            { number: 22, symbol: "Ti", name: "Titanium", mass: 47.87, category: "transition", row: 4, col: 4, electrons: "2,8,10,2", discovered: 1791, state: "Solid", description: "Strong, lightweight metal used in aerospace." },
+            { number: 23, symbol: "V", name: "Vanadium", mass: 50.94, category: "transition", row: 4, col: 5, electrons: "2,8,11,2", discovered: 1801, state: "Solid", description: "Used in steel alloys and catalysts." },
+            { number: 24, symbol: "Cr", name: "Chromium", mass: 52.00, category: "transition", row: 4, col: 6, electrons: "2,8,13,1", discovered: 1797, state: "Solid", description: "Used for chrome plating and stainless steel." },
+            { number: 25, symbol: "Mn", name: "Manganese", mass: 54.94, category: "transition", row: 4, col: 7, electrons: "2,8,13,2", discovered: 1774, state: "Solid", description: "Essential for steel production." },
+            { number: 26, symbol: "Fe", name: "Iron", mass: 55.85, category: "transition", row: 4, col: 8, electrons: "2,8,14,2", discovered: "Ancient", state: "Solid", description: "The most common element on Earth by mass." },
+            { number: 27, symbol: "Co", name: "Cobalt", mass: 58.93, category: "transition", row: 4, col: 9, electrons: "2,8,15,2", discovered: 1735, state: "Solid", description: "Used in batteries and blue pigments." },
+            { number: 28, symbol: "Ni", name: "Nickel", mass: 58.69, category: "transition", row: 4, col: 10, electrons: "2,8,16,2", discovered: 1751, state: "Solid", description: "Used in coins and stainless steel." },
+            { number: 29, symbol: "Cu", name: "Copper", mass: 63.55, category: "transition", row: 4, col: 11, electrons: "2,8,18,1", discovered: "Ancient", state: "Solid", description: "Excellent conductor used in wiring." },
+            { number: 30, symbol: "Zn", name: "Zinc", mass: 65.38, category: "transition", row: 4, col: 12, electrons: "2,8,18,2", discovered: "Ancient", state: "Solid", description: "Used for galvanizing and in batteries." },
+            { number: 31, symbol: "Ga", name: "Gallium", mass: 69.72, category: "post-transition", row: 4, col: 13, electrons: "2,8,18,3", discovered: 1875, state: "Solid", description: "Melts just above room temperature." },
+            { number: 32, symbol: "Ge", name: "Germanium", mass: 72.63, category: "metalloid", row: 4, col: 14, electrons: "2,8,18,4", discovered: 1886, state: "Solid", description: "Used in fiber optics and electronics." },
+            { number: 33, symbol: "As", name: "Arsenic", mass: 74.92, category: "metalloid", row: 4, col: 15, electrons: "2,8,18,5", discovered: "Ancient", state: "Solid", description: "Historically used as a poison." },
+            { number: 34, symbol: "Se", name: "Selenium", mass: 78.97, category: "nonmetal", row: 4, col: 16, electrons: "2,8,18,6", discovered: 1817, state: "Solid", description: "Essential trace element for humans." },
+            { number: 35, symbol: "Br", name: "Bromine", mass: 79.90, category: "halogen", row: 4, col: 17, electrons: "2,8,18,7", discovered: 1826, state: "Liquid", description: "One of two elements liquid at room temperature." },
+            { number: 36, symbol: "Kr", name: "Krypton", mass: 83.80, category: "noble", row: 4, col: 18, electrons: "2,8,18,8", discovered: 1898, state: "Gas", description: "Used in high-performance light bulbs." },
+            { number: 37, symbol: "Rb", name: "Rubidium", mass: 85.47, category: "alkali", row: 5, col: 1, electrons: "2,8,18,8,1", discovered: 1861, state: "Solid", description: "Used in atomic clocks and research." },
+            { number: 38, symbol: "Sr", name: "Strontium", mass: 87.62, category: "alkaline", row: 5, col: 2, electrons: "2,8,18,8,2", discovered: 1790, state: "Solid", description: "Produces red color in fireworks." },
+            { number: 39, symbol: "Y", name: "Yttrium", mass: 88.91, category: "transition", row: 5, col: 3, electrons: "2,8,18,9,2", discovered: 1794, state: "Solid", description: "Used in LEDs and superconductors." },
+            { number: 40, symbol: "Zr", name: "Zirconium", mass: 91.22, category: "transition", row: 5, col: 4, electrons: "2,8,18,10,2", discovered: 1789, state: "Solid", description: "Used in nuclear reactors and ceramics." },
+            { number: 41, symbol: "Nb", name: "Niobium", mass: 92.91, category: "transition", row: 5, col: 5, electrons: "2,8,18,12,1", discovered: 1801, state: "Solid", description: "Used in superconducting magnets." },
+            { number: 42, symbol: "Mo", name: "Molybdenum", mass: 95.95, category: "transition", row: 5, col: 6, electrons: "2,8,18,13,1", discovered: 1781, state: "Solid", description: "Used in high-strength steel alloys." },
+            { number: 43, symbol: "Tc", name: "Technetium", mass: 98, category: "transition", row: 5, col: 7, electrons: "2,8,18,13,2", discovered: 1937, state: "Solid", description: "First artificially produced element." },
+            { number: 44, symbol: "Ru", name: "Ruthenium", mass: 101.1, category: "transition", row: 5, col: 8, electrons: "2,8,18,15,1", discovered: 1844, state: "Solid", description: "Used in electronics and catalysts." },
+            { number: 45, symbol: "Rh", name: "Rhodium", mass: 102.9, category: "transition", row: 5, col: 9, electrons: "2,8,18,16,1", discovered: 1803, state: "Solid", description: "Used in catalytic converters." },
+            { number: 46, symbol: "Pd", name: "Palladium", mass: 106.4, category: "transition", row: 5, col: 10, electrons: "2,8,18,18", discovered: 1803, state: "Solid", description: "Used in catalytic converters and jewelry." },
+            { number: 47, symbol: "Ag", name: "Silver", mass: 107.9, category: "transition", row: 5, col: 11, electrons: "2,8,18,18,1", discovered: "Ancient", state: "Solid", description: "Best conductor of electricity and heat." },
+            { number: 48, symbol: "Cd", name: "Cadmium", mass: 112.4, category: "transition", row: 5, col: 12, electrons: "2,8,18,18,2", discovered: 1817, state: "Solid", description: "Used in batteries and pigments." },
+            { number: 49, symbol: "In", name: "Indium", mass: 114.8, category: "post-transition", row: 5, col: 13, electrons: "2,8,18,18,3", discovered: 1863, state: "Solid", description: "Used in touchscreens and LCD displays." },
+            { number: 50, symbol: "Sn", name: "Tin", mass: 118.7, category: "post-transition", row: 5, col: 14, electrons: "2,8,18,18,4", discovered: "Ancient", state: "Solid", description: "Used in bronze and tin cans." },
+            { number: 51, symbol: "Sb", name: "Antimony", mass: 121.8, category: "metalloid", row: 5, col: 15, electrons: "2,8,18,18,5", discovered: "Ancient", state: "Solid", description: "Used in flame retardants and alloys." },
+            { number: 52, symbol: "Te", name: "Tellurium", mass: 127.6, category: "metalloid", row: 5, col: 16, electrons: "2,8,18,18,6", discovered: 1783, state: "Solid", description: "Used in solar panels and alloys." },
+            { number: 53, symbol: "I", name: "Iodine", mass: 126.9, category: "halogen", row: 5, col: 17, electrons: "2,8,18,18,7", discovered: 1811, state: "Solid", description: "Essential for thyroid function." },
+            { number: 54, symbol: "Xe", name: "Xenon", mass: 131.3, category: "noble", row: 5, col: 18, electrons: "2,8,18,18,8", discovered: 1898, state: "Gas", description: "Used in flash lamps and anesthetics." },
+            { number: 55, symbol: "Cs", name: "Cesium", mass: 132.9, category: "alkali", row: 6, col: 1, electrons: "2,8,18,18,8,1", discovered: 1860, state: "Solid", description: "Used in atomic clocks." },
+            { number: 56, symbol: "Ba", name: "Barium", mass: 137.3, category: "alkaline", row: 6, col: 2, electrons: "2,8,18,18,8,2", discovered: 1808, state: "Solid", description: "Used in medical imaging and fireworks." },
+            { number: 71, symbol: "Lu", name: "Lutetium", mass: 175.0, category: "lanthanide", row: 6, col: 3, electrons: "2,8,18,32,9,2", discovered: 1907, state: "Solid", description: "Used in PET scan detectors." },
+            { number: 72, symbol: "Hf", name: "Hafnium", mass: 178.5, category: "transition", row: 6, col: 4, electrons: "2,8,18,32,10,2", discovered: 1923, state: "Solid", description: "Used in nuclear control rods." },
+            { number: 73, symbol: "Ta", name: "Tantalum", mass: 180.9, category: "transition", row: 6, col: 5, electrons: "2,8,18,32,11,2", discovered: 1802, state: "Solid", description: "Used in capacitors and surgical implants." },
+            { number: 74, symbol: "W", name: "Tungsten", mass: 183.8, category: "transition", row: 6, col: 6, electrons: "2,8,18,32,12,2", discovered: 1783, state: "Solid", description: "Has the highest melting point of any element." },
+            { number: 75, symbol: "Re", name: "Rhenium", mass: 186.2, category: "transition", row: 6, col: 7, electrons: "2,8,18,32,13,2", discovered: 1925, state: "Solid", description: "Used in jet engine components." },
+            { number: 76, symbol: "Os", name: "Osmium", mass: 190.2, category: "transition", row: 6, col: 8, electrons: "2,8,18,32,14,2", discovered: 1803, state: "Solid", description: "The densest naturally occurring element." },
+            { number: 77, symbol: "Ir", name: "Iridium", mass: 192.2, category: "transition", row: 6, col: 9, electrons: "2,8,18,32,15,2", discovered: 1803, state: "Solid", description: "Most corrosion-resistant metal known." },
+            { number: 78, symbol: "Pt", name: "Platinum", mass: 195.1, category: "transition", row: 6, col: 10, electrons: "2,8,18,32,17,1", discovered: 1735, state: "Solid", description: "Precious metal used in jewelry and catalysts." },
+            { number: 79, symbol: "Au", name: "Gold", mass: 197.0, category: "transition", row: 6, col: 11, electrons: "2,8,18,32,18,1", discovered: "Ancient", state: "Solid", description: "Highly valued precious metal, excellent conductor." },
+            { number: 80, symbol: "Hg", name: "Mercury", mass: 200.6, category: "transition", row: 6, col: 12, electrons: "2,8,18,32,18,2", discovered: "Ancient", state: "Liquid", description: "Only metal that is liquid at room temperature." },
+            { number: 81, symbol: "Tl", name: "Thallium", mass: 204.4, category: "post-transition", row: 6, col: 13, electrons: "2,8,18,32,18,3", discovered: 1861, state: "Solid", description: "Highly toxic, used in electronics." },
+            { number: 82, symbol: "Pb", name: "Lead", mass: 207.2, category: "post-transition", row: 6, col: 14, electrons: "2,8,18,32,18,4", discovered: "Ancient", state: "Solid", description: "Dense metal historically used in pipes and paint." },
+            { number: 83, symbol: "Bi", name: "Bismuth", mass: 209.0, category: "post-transition", row: 6, col: 15, electrons: "2,8,18,32,18,5", discovered: 1753, state: "Solid", description: "Used in medicine and low-melting alloys." },
+            { number: 84, symbol: "Po", name: "Polonium", mass: 209, category: "metalloid", row: 6, col: 16, electrons: "2,8,18,32,18,6", discovered: 1898, state: "Solid", description: "Highly radioactive, discovered by Marie Curie." },
+            { number: 85, symbol: "At", name: "Astatine", mass: 210, category: "halogen", row: 6, col: 17, electrons: "2,8,18,32,18,7", discovered: 1940, state: "Solid", description: "Rarest naturally occurring element." },
+            { number: 86, symbol: "Rn", name: "Radon", mass: 222, category: "noble", row: 6, col: 18, electrons: "2,8,18,32,18,8", discovered: 1900, state: "Gas", description: "Radioactive gas that can accumulate in homes." },
+            { number: 87, symbol: "Fr", name: "Francium", mass: 223, category: "alkali", row: 7, col: 1, electrons: "2,8,18,32,18,8,1", discovered: 1939, state: "Solid", description: "Most unstable naturally occurring element." },
+            { number: 88, symbol: "Ra", name: "Radium", mass: 226, category: "alkaline", row: 7, col: 2, electrons: "2,8,18,32,18,8,2", discovered: 1898, state: "Solid", description: "Discovered by Marie and Pierre Curie." },
+            { number: 103, symbol: "Lr", name: "Lawrencium", mass: 262, category: "actinide", row: 7, col: 3, electrons: "2,8,18,32,32,8,3", discovered: 1961, state: "Solid", description: "Named after Ernest Lawrence." },
+            { number: 104, symbol: "Rf", name: "Rutherfordium", mass: 267, category: "transition", row: 7, col: 4, electrons: "2,8,18,32,32,10,2", discovered: 1964, state: "Solid", description: "Named after Ernest Rutherford." },
+            { number: 105, symbol: "Db", name: "Dubnium", mass: 268, category: "transition", row: 7, col: 5, electrons: "2,8,18,32,32,11,2", discovered: 1967, state: "Solid", description: "Named after Dubna, Russia." },
+            { number: 106, symbol: "Sg", name: "Seaborgium", mass: 271, category: "transition", row: 7, col: 6, electrons: "2,8,18,32,32,12,2", discovered: 1974, state: "Solid", description: "Named after Glenn Seaborg." },
+            { number: 107, symbol: "Bh", name: "Bohrium", mass: 270, category: "transition", row: 7, col: 7, electrons: "2,8,18,32,32,13,2", discovered: 1981, state: "Solid", description: "Named after Niels Bohr." },
+            { number: 108, symbol: "Hs", name: "Hassium", mass: 277, category: "transition", row: 7, col: 8, electrons: "2,8,18,32,32,14,2", discovered: 1984, state: "Solid", description: "Named after Hesse, Germany." },
+            { number: 109, symbol: "Mt", name: "Meitnerium", mass: 276, category: "unknown", row: 7, col: 9, electrons: "2,8,18,32,32,15,2", discovered: 1982, state: "Solid", description: "Named after Lise Meitner." },
+            { number: 110, symbol: "Ds", name: "Darmstadtium", mass: 281, category: "unknown", row: 7, col: 10, electrons: "2,8,18,32,32,16,2", discovered: 1994, state: "Solid", description: "Named after Darmstadt, Germany." },
+            { number: 111, symbol: "Rg", name: "Roentgenium", mass: 280, category: "unknown", row: 7, col: 11, electrons: "2,8,18,32,32,17,2", discovered: 1994, state: "Solid", description: "Named after Wilhelm Röntgen." },
+            { number: 112, symbol: "Cn", name: "Copernicium", mass: 285, category: "transition", row: 7, col: 12, electrons: "2,8,18,32,32,18,2", discovered: 1996, state: "Solid", description: "Named after Nicolaus Copernicus." },
+            { number: 113, symbol: "Nh", name: "Nihonium", mass: 284, category: "unknown", row: 7, col: 13, electrons: "2,8,18,32,32,18,3", discovered: 2004, state: "Solid", description: "Named after Japan (Nihon)." },
+            { number: 114, symbol: "Fl", name: "Flerovium", mass: 289, category: "unknown", row: 7, col: 14, electrons: "2,8,18,32,32,18,4", discovered: 1998, state: "Solid", description: "Named after Flerov Laboratory." },
+            { number: 115, symbol: "Mc", name: "Moscovium", mass: 288, category: "unknown", row: 7, col: 15, electrons: "2,8,18,32,32,18,5", discovered: 2003, state: "Solid", description: "Named after Moscow." },
+            { number: 116, symbol: "Lv", name: "Livermorium", mass: 293, category: "unknown", row: 7, col: 16, electrons: "2,8,18,32,32,18,6", discovered: 2000, state: "Solid", description: "Named after Lawrence Livermore Lab." },
+            { number: 117, symbol: "Ts", name: "Tennessine", mass: 294, category: "unknown", row: 7, col: 17, electrons: "2,8,18,32,32,18,7", discovered: 2010, state: "Solid", description: "Named after Tennessee." },
+            { number: 118, symbol: "Og", name: "Oganesson", mass: 294, category: "unknown", row: 7, col: 18, electrons: "2,8,18,32,32,18,8", discovered: 2002, state: "Solid", description: "Named after Yuri Oganessian." },
+            // Lanthanides
+            { number: 57, symbol: "La", name: "Lanthanum", mass: 138.9, category: "lanthanide", row: 8, col: 1, electrons: "2,8,18,18,9,2", discovered: 1839, state: "Solid", description: "Used in camera lenses and lighting." },
+            { number: 58, symbol: "Ce", name: "Cerium", mass: 140.1, category: "lanthanide", row: 8, col: 2, electrons: "2,8,18,19,9,2", discovered: 1803, state: "Solid", description: "Most abundant rare earth element." },
+            { number: 59, symbol: "Pr", name: "Praseodymium", mass: 140.9, category: "lanthanide", row: 8, col: 3, electrons: "2,8,18,21,8,2", discovered: 1885, state: "Solid", description: "Used in magnets and aircraft engines." },
+            { number: 60, symbol: "Nd", name: "Neodymium", mass: 144.2, category: "lanthanide", row: 8, col: 4, electrons: "2,8,18,22,8,2", discovered: 1885, state: "Solid", description: "Used in powerful permanent magnets." },
+            { number: 61, symbol: "Pm", name: "Promethium", mass: 145, category: "lanthanide", row: 8, col: 5, electrons: "2,8,18,23,8,2", discovered: 1945, state: "Solid", description: "Only radioactive lanthanide." },
+            { number: 62, symbol: "Sm", name: "Samarium", mass: 150.4, category: "lanthanide", row: 8, col: 6, electrons: "2,8,18,24,8,2", discovered: 1879, state: "Solid", description: "Used in magnets and cancer treatment." },
+            { number: 63, symbol: "Eu", name: "Europium", mass: 152.0, category: "lanthanide", row: 8, col: 7, electrons: "2,8,18,25,8,2", discovered: 1901, state: "Solid", description: "Used in TV screens and euro banknotes." },
+            { number: 64, symbol: "Gd", name: "Gadolinium", mass: 157.3, category: "lanthanide", row: 8, col: 8, electrons: "2,8,18,25,9,2", discovered: 1880, state: "Solid", description: "Used in MRI contrast agents." },
+            { number: 65, symbol: "Tb", name: "Terbium", mass: 158.9, category: "lanthanide", row: 8, col: 9, electrons: "2,8,18,27,8,2", discovered: 1843, state: "Solid", description: "Used in green phosphors and magnets." },
+            { number: 66, symbol: "Dy", name: "Dysprosium", mass: 162.5, category: "lanthanide", row: 8, col: 10, electrons: "2,8,18,28,8,2", discovered: 1886, state: "Solid", description: "Has highest magnetic susceptibility." },
+            { number: 67, symbol: "Ho", name: "Holmium", mass: 164.9, category: "lanthanide", row: 8, col: 11, electrons: "2,8,18,29,8,2", discovered: 1878, state: "Solid", description: "Used in magnets and lasers." },
+            { number: 68, symbol: "Er", name: "Erbium", mass: 167.3, category: "lanthanide", row: 8, col: 12, electrons: "2,8,18,30,8,2", discovered: 1843, state: "Solid", description: "Used in fiber optic amplifiers." },
+            { number: 69, symbol: "Tm", name: "Thulium", mass: 168.9, category: "lanthanide", row: 8, col: 13, electrons: "2,8,18,31,8,2", discovered: 1879, state: "Solid", description: "Rarest lanthanide, used in X-ray devices." },
+            { number: 70, symbol: "Yb", name: "Ytterbium", mass: 173.1, category: "lanthanide", row: 8, col: 14, electrons: "2,8,18,32,8,2", discovered: 1878, state: "Solid", description: "Used in lasers and metallurgy." },
+            // Actinides
+            { number: 89, symbol: "Ac", name: "Actinium", mass: 227, category: "actinide", row: 9, col: 1, electrons: "2,8,18,32,18,9,2", discovered: 1899, state: "Solid", description: "Source of alpha rays for cancer treatment." },
+            { number: 90, symbol: "Th", name: "Thorium", mass: 232.0, category: "actinide", row: 9, col: 2, electrons: "2,8,18,32,18,10,2", discovered: 1828, state: "Solid", description: "Potential nuclear fuel source." },
+            { number: 91, symbol: "Pa", name: "Protactinium", mass: 231.0, category: "actinide", row: 9, col: 3, electrons: "2,8,18,32,20,9,2", discovered: 1913, state: "Solid", description: "Rare and highly radioactive." },
+            { number: 92, symbol: "U", name: "Uranium", mass: 238.0, category: "actinide", row: 9, col: 4, electrons: "2,8,18,32,21,9,2", discovered: 1789, state: "Solid", description: "Used in nuclear reactors and weapons." },
+            { number: 93, symbol: "Np", name: "Neptunium", mass: 237, category: "actinide", row: 9, col: 5, electrons: "2,8,18,32,22,9,2", discovered: 1940, state: "Solid", description: "First transuranium element discovered." },
+            { number: 94, symbol: "Pu", name: "Plutonium", mass: 244, category: "actinide", row: 9, col: 6, electrons: "2,8,18,32,24,8,2", discovered: 1940, state: "Solid", description: "Used in nuclear weapons and reactors." },
+            { number: 95, symbol: "Am", name: "Americium", mass: 243, category: "actinide", row: 9, col: 7, electrons: "2,8,18,32,25,8,2", discovered: 1944, state: "Solid", description: "Used in smoke detectors." },
+            { number: 96, symbol: "Cm", name: "Curium", mass: 247, category: "actinide", row: 9, col: 8, electrons: "2,8,18,32,25,9,2", discovered: 1944, state: "Solid", description: "Named after Marie and Pierre Curie." },
+            { number: 97, symbol: "Bk", name: "Berkelium", mass: 247, category: "actinide", row: 9, col: 9, electrons: "2,8,18,32,27,8,2", discovered: 1949, state: "Solid", description: "Named after Berkeley, California." },
+            { number: 98, symbol: "Cf", name: "Californium", mass: 251, category: "actinide", row: 9, col: 10, electrons: "2,8,18,32,28,8,2", discovered: 1950, state: "Solid", description: "Used in neutron sources." },
+            { number: 99, symbol: "Es", name: "Einsteinium", mass: 252, category: "actinide", row: 9, col: 11, electrons: "2,8,18,32,29,8,2", discovered: 1952, state: "Solid", description: "Named after Albert Einstein." },
+            { number: 100, symbol: "Fm", name: "Fermium", mass: 257, category: "actinide", row: 9, col: 12, electrons: "2,8,18,32,30,8,2", discovered: 1952, state: "Solid", description: "Named after Enrico Fermi." },
+            { number: 101, symbol: "Md", name: "Mendelevium", mass: 258, category: "actinide", row: 9, col: 13, electrons: "2,8,18,32,31,8,2", discovered: 1955, state: "Solid", description: "Named after Dmitri Mendeleev." },
+            { number: 102, symbol: "No", name: "Nobelium", mass: 259, category: "actinide", row: 9, col: 14, electrons: "2,8,18,32,32,8,2", discovered: 1958, state: "Solid", description: "Named after Alfred Nobel." }
+        ];
+
+        // Render periodic table
+        function renderTable() {
+            const table = document.getElementById('periodicTable');
+            const lanthanides = document.getElementById('lanthanides');
+            const actinides = document.getElementById('actinides');
+
+            table.innerHTML = '';
+            lanthanides.innerHTML = '';
+            actinides.innerHTML = '';
+
+            // Create grid with 18 columns and 7 rows
+            const grid = {};
+            elements.forEach(el => {
+                if (el.row <= 7) {
+                    grid[`${el.row}-${el.col}`] = el;
+                }
+            });
+
+            // Add placeholder for lanthanides and actinides
+            for (let row = 1; row <= 7; row++) {
+                for (let col = 1; col <= 18; col++) {
+                    const key = `${row}-${col}`;
+                    if (grid[key]) {
+                        table.appendChild(createElementCell(grid[key]));
+                    } else if (row === 6 && col === 3) {
+                        const placeholder = document.createElement('div');
+                        placeholder.className = 'element-cell category-lanthanide rounded p-1 text-center text-white text-xs flex items-center justify-center';
+                        placeholder.innerHTML = '57-71';
+                        placeholder.title = 'Lanthanides';
+                        table.appendChild(placeholder);
+                    } else if (row === 7 && col === 3) {
+                        const placeholder = document.createElement('div');
+                        placeholder.className = 'element-cell category-actinide rounded p-1 text-center text-white text-xs flex items-center justify-center';
+                        placeholder.innerHTML = '89-103';
+                        placeholder.title = 'Actinides';
+                        table.appendChild(placeholder);
+                    } else {
+                        const empty = document.createElement('div');
+                        table.appendChild(empty);
+                    }
+                }
+            }
+
+            // Lanthanides (row 8)
+            elements.filter(el => el.row === 8).sort((a, b) => a.col - b.col).forEach(el => {
+                lanthanides.appendChild(createElementCell(el));
+            });
+
+            // Actinides (row 9)
+            elements.filter(el => el.row === 9).sort((a, b) => a.col - b.col).forEach(el => {
+                actinides.appendChild(createElementCell(el));
+            });
+        }
+
+        function createElementCell(el) {
+            const cell = document.createElement('div');
+            cell.className = `element-cell category-${el.category} rounded p-1 text-center text-white`;
+            cell.dataset.category = el.category;
+            cell.dataset.name = el.name.toLowerCase();
+            cell.dataset.symbol = el.symbol.toLowerCase();
+            cell.innerHTML = `
+                <div class="text-xs opacity-75">${el.number}</div>
+                <div class="text-lg font-bold">${el.symbol}</div>
+                <div class="text-xs truncate hidden sm:block">${el.name}</div>
+            `;
+            cell.onclick = () => showElement(el);
+            return cell;
+        }
+
+        function showElement(el) {
+            const modal = document.getElementById('elementModal');
+            const content = document.getElementById('modalContent');
+
+            content.innerHTML = `
+                <div class="flex items-start gap-4 mb-4">
+                    <div class="category-${el.category} w-20 h-20 rounded-xl flex flex-col items-center justify-center text-white">
+                        <span class="text-xs opacity-75">${el.number}</span>
+                        <span class="text-3xl font-bold">${el.symbol}</span>
+                    </div>
+                    <div>
+                        <h2 class="text-2xl font-bold text-white">${el.name}</h2>
+                        <p class="text-gray-400 capitalize">${el.category.replace('-', ' ')}</p>
+                        <p class="text-cyan-400">${el.mass} u</p>
+                    </div>
+                </div>
+                <p class="text-gray-300 mb-4">${el.description}</p>
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div class="bg-gray-700 rounded-lg p-3">
+                        <div class="text-gray-400">State at Room Temp</div>
+                        <div class="text-white font-semibold">${el.state}</div>
+                    </div>
+                    <div class="bg-gray-700 rounded-lg p-3">
+                        <div class="text-gray-400">Discovered</div>
+                        <div class="text-white font-semibold">${el.discovered}</div>
+                    </div>
+                    <div class="bg-gray-700 rounded-lg p-3 col-span-2">
+                        <div class="text-gray-400">Electron Configuration</div>
+                        <div class="text-white font-semibold">${el.electrons}</div>
+                    </div>
+                </div>
+            `;
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('elementModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        // Filtering
+        document.getElementById('categoryFilter').addEventListener('change', applyFilters);
+        document.getElementById('searchInput').addEventListener('input', applyFilters);
+
+        function applyFilters() {
+            const category = document.getElementById('categoryFilter').value;
+            const search = document.getElementById('searchInput').value.toLowerCase();
+
+            document.querySelectorAll('.element-cell').forEach(cell => {
+                const matchesCategory = category === 'all' || cell.dataset.category === category;
+                const matchesSearch = !search ||
+                    (cell.dataset.name && cell.dataset.name.includes(search)) ||
+                    (cell.dataset.symbol && cell.dataset.symbol.includes(search));
+
+                if (matchesCategory && matchesSearch) {
+                    cell.classList.remove('filtered-out');
+                } else {
+                    cell.classList.add('filtered-out');
+                }
+            });
+        }
+
+        // Quiz
+        let quizScore = 0;
+        let quizQuestion = 0;
+        let quizTotal = 10;
+        let currentAnswer = null;
+
+        function openQuiz() {
+            quizScore = 0;
+            quizQuestion = 0;
+            document.getElementById('quizModal').classList.remove('hidden');
+            document.getElementById('quizModal').classList.add('flex');
+            nextQuestion();
+        }
+
+        function closeQuiz() {
+            document.getElementById('quizModal').classList.add('hidden');
+            document.getElementById('quizModal').classList.remove('flex');
+        }
+
+        function nextQuestion() {
+            if (quizQuestion >= quizTotal) {
+                showResults();
+                return;
+            }
+
+            quizQuestion++;
+            const questionTypes = ['symbol', 'number', 'name', 'category'];
+            const type = questionTypes[Math.floor(Math.random() * questionTypes.length)];
+            const element = elements[Math.floor(Math.random() * elements.length)];
+
+            let question = '';
+            let options = [];
+
+            if (type === 'symbol') {
+                question = `What is the symbol for ${element.name}?`;
+                currentAnswer = element.symbol;
+                options = [element.symbol];
+                while (options.length < 4) {
+                    const rand = elements[Math.floor(Math.random() * elements.length)].symbol;
+                    if (!options.includes(rand)) options.push(rand);
+                }
+            } else if (type === 'number') {
+                question = `What is the atomic number of ${element.name}?`;
+                currentAnswer = element.number.toString();
+                options = [element.number.toString()];
+                while (options.length < 4) {
+                    const rand = (Math.floor(Math.random() * 118) + 1).toString();
+                    if (!options.includes(rand)) options.push(rand);
+                }
+            } else if (type === 'name') {
+                question = `Which element has the symbol ${element.symbol}?`;
+                currentAnswer = element.name;
+                options = [element.name];
+                while (options.length < 4) {
+                    const rand = elements[Math.floor(Math.random() * elements.length)].name;
+                    if (!options.includes(rand)) options.push(rand);
+                }
+            } else {
+                question = `What category does ${element.name} belong to?`;
+                currentAnswer = element.category;
+                const categories = [...new Set(elements.map(e => e.category))];
+                options = [element.category];
+                while (options.length < 4) {
+                    const rand = categories[Math.floor(Math.random() * categories.length)];
+                    if (!options.includes(rand)) options.push(rand);
+                }
+            }
+
+            // Shuffle options
+            options.sort(() => Math.random() - 0.5);
+
+            document.getElementById('quizContent').innerHTML = `
+                <div class="text-center mb-6">
+                    <div class="text-gray-400 mb-2">Question ${quizQuestion} of ${quizTotal}</div>
+                    <div class="w-full bg-gray-700 rounded-full h-2 mb-4">
+                        <div class="bg-gradient-to-r from-cyan-500 to-purple-600 h-2 rounded-full transition-all" style="width: ${(quizQuestion / quizTotal) * 100}%"></div>
+                    </div>
+                    <h3 class="text-xl font-bold text-white">${question}</h3>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    ${options.map(opt => `
+                        <button onclick="checkAnswer('${opt.replace(/'/g, "\\'")}')" 
+                            class="bg-gray-700 hover:bg-gray-600 text-white py-3 px-4 rounded-lg transition capitalize">
+                            ${opt.replace('-', ' ')}
+                        </button>
+                    `).join('')}
+                </div>
+                <div class="text-center mt-4 text-gray-400">
+                    Score: ${quizScore}/${quizQuestion - 1}
+                </div>
+            `;
+        }
+
+        function checkAnswer(answer) {
+            const isCorrect = answer === currentAnswer;
+            if (isCorrect) quizScore++;
+
+            document.getElementById('quizContent').innerHTML = `
+                <div class="text-center">
+                    <div class="text-6xl mb-4">${isCorrect ? '✅' : '❌'}</div>
+                    <h3 class="text-2xl font-bold mb-2 ${isCorrect ? 'text-green-400' : 'text-red-400'}">
+                        ${isCorrect ? 'Correct!' : 'Incorrect!'}
+                    </h3>
+                    ${!isCorrect ? `<p class="text-gray-400 mb-4">The correct answer was: <span class="text-white capitalize">${currentAnswer.replace('-', ' ')}</span></p>` : ''}
+                    <button onclick="nextQuestion()" class="bg-gradient-to-r from-cyan-500 to-purple-600 px-8 py-3 rounded-lg font-semibold hover:opacity-90 transition mt-4">
+                        ${quizQuestion < quizTotal ? 'Next Question' : 'See Results'}
+                    </button>
+                </div>
+            `;
+        }
+
+        function showResults() {
+            const percentage = Math.round((quizScore / quizTotal) * 100);
+            let message = '';
+            let emoji = '';
+
+            if (percentage >= 90) { message = 'Chemistry Genius!'; emoji = '🏆'; }
+            else if (percentage >= 70) { message = 'Great Job!'; emoji = '🌟'; }
+            else if (percentage >= 50) { message = 'Not Bad!'; emoji = '👍'; }
+            else { message = 'Keep Practicing!'; emoji = '📚'; }
+
+            document.getElementById('quizContent').innerHTML = `
+                <div class="text-center">
+                    <div class="text-6xl mb-4">${emoji}</div>
+                    <h3 class="text-3xl font-bold text-white mb-2">${message}</h3>
+                    <p class="text-5xl font-bold bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent mb-4">
+                        ${quizScore}/${quizTotal}
+                    </p>
+                    <p class="text-gray-400 mb-6">You scored ${percentage}%</p>
+                    <div class="flex gap-4 justify-center">
+                        <button onclick="openQuiz()" class="bg-gradient-to-r from-cyan-500 to-purple-600 px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition">
+                            Play Again
+                        </button>
+                        <button onclick="closeQuiz()" class="bg-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-600 transition">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Close modals on backdrop click
+        document.getElementById('elementModal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('elementModal')) closeModal();
+        });
+        document.getElementById('quizModal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('quizModal')) closeQuiz();
+        });
+
+        // Initialize
+        renderTable();
+    </script>
+</body>
+
+</html>
