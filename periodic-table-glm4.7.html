@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Periodic Table</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        .element {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .element:hover {
+            transform: scale(1.15);
+            z-index: 10;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .category-alkali {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a5a);
+        }
+
+        .category-alkaline {
+            background: linear-gradient(135deg, #ffa94d, #ff922b);
+        }
+
+        .category-transition {
+            background: linear-gradient(135deg, #ffd43b, #fab005);
+        }
+
+        .category-post-transition {
+            background: linear-gradient(135deg, #69db7c, #51cf66);
+        }
+
+        .category-metalloid {
+            background: linear-gradient(135deg, #4dabf7, #339af0);
+        }
+
+        .category-nonmetal {
+            background: linear-gradient(135deg, #9775fa, #845ef7);
+        }
+
+        .category-halogen {
+            background: linear-gradient(135deg, #f783ac, #e64980);
+        }
+
+        .category-noble {
+            background: linear-gradient(135deg, #63e6be, #20c997);
+        }
+
+        .category-lanthanide {
+            background: linear-gradient(135deg, #a5d8ff, #74c0fc);
+        }
+
+        .category-actinide {
+            background: linear-gradient(135deg, #da77f2, #be4bdb);
+        }
+
+        .category-unknown {
+            background: linear-gradient(135deg, #adb5bd, #868e96);
+        }
+
+        .filter-btn.active {
+            ring: 2px;
+            transform: scale(1.05);
+        }
+
+        .modal-backdrop {
+            backdrop-filter: blur(4px);
+        }
+
+        .quiz-option:hover:not(:disabled) {
+            transform: translateY(-2px);
+        }
+
+        .quiz-option.correct {
+            animation: correctPulse 0.5s ease;
+        }
+
+        .quiz-option.incorrect {
+            animation: incorrectShake 0.5s ease;
+        }
+
+        @keyframes correctPulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        @keyframes incorrectShake {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-5px);
+            }
+
+            75% {
+                transform: translateX(5px);
+            }
+        }
+
+        .periodic-table {
+            display: grid;
+            grid-template-columns: repeat(18, 1fr);
+            gap: 3px;
+        }
+
+        .element-hidden {
+            opacity: 0.2;
+            pointer-events: none;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-900 min-h-screen text-white">
+    <!-- Header -->
+    <header class="bg-gray-800 shadow-lg py-4 px-6 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+            <h1
+                class="text-2xl md:text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
+                ⚛️ Interactive Periodic Table
+            </h1>
+            <div class="flex gap-3">
+                <button onclick="openQuiz()"
+                    class="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all">
+                    <span>🎯</span> Quiz
+                </button>
+                <button onclick="resetFilters()"
+                    class="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-lg font-semibold transition-all">
+                    Reset Filters
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto p-4 md:p-6">
+        <!-- Category Filters -->
+        <section class="mb-6">
+            <h2 class="text-lg font-semibold mb-3 text-gray-300">Filter by Category:</h2>
+            <div class="flex flex-wrap gap-2" id="categoryFilters">
+                <button onclick="toggleCategory('alkali')" data-category="alkali"
+                    class="filter-btn category-alkali px-3 py-1 rounded-full text-sm font-medium text-gray-900 transition-all">Alkali
+                    Metals</button>
+                <button onclick="toggleCategory('alkaline')" data-category="alkaline"
+                    class="filter-btn category-alkaline px-3 py-1 rounded-full text-sm font-medium text-gray-900 transition-all">Alkaline
+                    Earth</button>
+                <button onclick="toggleCategory('transition')" data-category="transition"
+                    class="filter-btn category-transition px-3 py-1 rounded-full text-sm font-medium text-gray-900 transition-all">Transition
+                    Metals</button>
+                <button onclick="toggleCategory('post-transition')" data-category="post-transition"
+                    class="filter-btn category-post-transition px-3 py-1 rounded-full text-sm font-medium text-gray-900 transition-all">Post-Transition</button>
+                <button onclick="toggleCategory('metalloid')" data-category="metalloid"
+                    class="filter-btn category-metalloid px-3 py-1 rounded-full text-sm font-medium text-gray-900 transition-all">Metalloids</button>
+                <button onclick="toggleCategory('nonmetal')" data-category="nonmetal"
+                    class="filter-btn category-nonmetal px-3 py-1 rounded-full text-sm font-medium text-gray-900 transition-all">Nonmetals</button>
+                <button onclick="toggleCategory('halogen')" data-category="halogen"
+                    class="filter-btn category-halogen px-3 py-1 rounded-full text-sm font-medium text-gray-900 transition-all">Halogens</button>
+                <button onclick="toggleCategory('noble')" data-category="noble"
+                    class="filter-btn category-noble px-3 py-1 rounded-full text-sm font-medium text-gray-900 transition-all">Noble
+                    Gases</button>
+                <button onclick="toggleCategory('lanthanide')" data-category="lanthanide"
+                    class="filter-btn category-lanthanide px-3 py-1 rounded-full text-sm font-medium text-gray-900 transition-all">Lanthanides</button>
+                <button onclick="toggleCategory('actinide')" data-category="actinide"
+                    class="filter-btn category-actinide px-3 py-1 rounded-full text-sm font-medium text-gray-900 transition-all">Actinides</button>
+            </div>
+        </section>
+
+        <!-- Search -->
+        <section class="mb-6">
+            <div class="relative">
+                <input type="text" id="searchInput" oninput="searchElements()"
+                    placeholder="Search by name, symbol, or atomic number..."
+                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 pl-12 focus:outline-none focus:ring-2 focus:ring-purple-500 text-white">
+                <span class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">🔍</span>
+            </div>
+        </section>
+
+        <!-- Periodic Table -->
+        <section class="overflow-x-auto pb-4">
+            <div id="periodicTable" class="periodic-table min-w-[900px]"></div>
+
+            <!-- Lanthanides & Actinides Legend -->
+            <div class="mt-4 grid grid-cols-2 gap-4 text-sm">
+                <div>
+                    <div class="text-gray-400 mb-2">* Lanthanides (57-71):</div>
+                    <div id="lanthanides" class="flex gap-1 overflow-x-auto pb-2"></div>
+                </div>
+                <div>
+                    <div class="text-gray-400 mb-2">** Actinides (89-103):</div>
+                    <div id="actinides" class="flex gap-1 overflow-x-auto pb-2"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Legend -->
+        <section class="mt-6 grid grid-cols-2 md:grid-cols-5 gap-2 text-sm">
+            <div class="flex items-center gap-2">
+                <div class="w-4 h-4 rounded category-alkali"></div><span class="text-gray-300">Alkali Metal</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="w-4 h-4 rounded category-alkaline"></div><span class="text-gray-300">Alkaline Earth</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="w-4 h-4 rounded category-transition"></div><span class="text-gray-300">Transition
+                    Metal</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="w-4 h-4 rounded category-post-transition"></div><span
+                    class="text-gray-300">Post-Transition</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="w-4 h-4 rounded category-metalloid"></div><span class="text-gray-300">Metalloid</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="w-4 h-4 rounded category-nonmetal"></div><span class="text-gray-300">Nonmetal</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="w-4 h-4 rounded category-halogen"></div><span class="text-gray-300">Halogen</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="w-4 h-4 rounded category-noble"></div><span class="text-gray-300">Noble Gas</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="w-4 h-4 rounded category-lanthanide"></div><span class="text-gray-300">Lanthanide</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="w-4 h-4 rounded category-actinide"></div><span class="text-gray-300">Actinide</span>
+            </div>
+        </section>
+    </main>
+
+    <!-- Element Modal -->
+    <div id="elementModal" class="fixed inset-0 bg-black/70 modal-backdrop hidden items-center justify-center z-50 p-4">
+        <div class="bg-gray-800 rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div id="modalHeader" class="p-6 rounded-t-2xl">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h2 id="modalSymbol" class="text-5xl font-bold text-white"></h2>
+                        <h3 id="modalName" class="text-2xl text-white/90"></h3>
+                        <p id="modalNumber" class="text-white/70"></p>
+                    </div>
+                    <button onclick="closeModal()" class="text-white/70 hover:text-white text-2xl">&times;</button>
+                </div>
+            </div>
+            <div class="p-6 space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-gray-700/50 rounded-lg p-3">
+                        <p class="text-gray-400 text-sm">Atomic Mass</p>
+                        <p id="modalMass" class="text-lg font-semibold"></p>
+                    </div>
+                    <div class="bg-gray-700/50 rounded-lg p-3">
+                        <p class="text-gray-400 text-sm">Category</p>
+                        <p id="modalCategory" class="text-lg font-semibold"></p>
+                    </div>
+                    <div class="bg-gray-700/50 rounded-lg p-3">
+                        <p class="text-gray-400 text-sm">Electron Config</p>
+                        <p id="modalConfig" class="text-lg font-semibold text-sm"></p>
+                    </div>
+                    <div class="bg-gray-700/50 rounded-lg p-3">
+                        <p class="text-gray-400 text-sm">Electronegativity</p>
+                        <p id="modalElectro" class="text-lg font-semibold"></p>
+                    </div>
+                </div>
+                <div class="bg-gray-700/50 rounded-lg p-3">
+                    <p class="text-gray-400 text-sm">Discovery</p>
+                    <p id="modalDiscovery" class="text-lg font-semibold"></p>
+                </div>
+                <div class="bg-gray-700/50 rounded-lg p-3">
+                    <p class="text-gray-400 text-sm">Uses</p>
+                    <p id="modalUses" class="text-lg"></p>
+                </div>
+                <div class="bg-gray-700/50 rounded-lg p-3">
+                    <p class="text-gray-400 text-sm">Fun Fact</p>
+                    <p id="modalFact" class="text-lg italic text-purple-300"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quiz Modal -->
+    <div id="quizModal" class="fixed inset-0 bg-black/70 modal-backdrop hidden items-center justify-center z-50 p-4">
+        <div class="bg-gray-800 rounded-2xl max-w-md w-full shadow-2xl">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">🎯 Element Quiz</h2>
+                    <button onclick="closeQuiz()" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+                </div>
+
+                <div id="quizContent">
+                    <div class="mb-4 flex justify-between items-center">
+                        <span class="text-gray-400">Question <span id="questionNum">1</span>/10</span>
+                        <span class="bg-purple-600 px-3 py-1 rounded-full text-sm">Score: <span
+                                id="score">0</span></span>
+                    </div>
+
+                    <div class="bg-gray-700/50 rounded-xl p-4 mb-6">
+                        <p id="quizQuestion" class="text-lg font-semibold text-center"></p>
+                    </div>
+
+                    <div id="quizOptions" class="space-y-3"></div>
+
+                    <div id="quizFeedback" class="mt-4 text-center hidden">
+                        <p id="feedbackText" class="text-lg font-semibold"></p>
+                    </div>
+
+                    <button id="nextBtn" onclick="nextQuestion()"
+                        class="w-full mt-6 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 py-3 rounded-lg font-semibold hidden transition-all">
+                        Next Question
+                    </button>
+                </div>
+
+                <div id="quizResults" class="hidden text-center">
+                    <div class="text-6xl mb-4">🏆</div>
+                    <h3 class="text-2xl font-bold mb-2">Quiz Complete!</h3>
+                    <p class="text-gray-300 mb-4">You scored <span id="finalScore"
+                            class="text-purple-400 font-bold text-2xl"></span> out of 10!</p>
+                    <p id="resultMessage" class="text-lg mb-6"></p>
+                    <button onclick="startQuiz()"
+                        class="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 px-6 py-3 rounded-lg font-semibold transition-all">
+                        Play Again
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Periodic Table Data
+        const elements = [
+            { number: 1, symbol: "H", name: "Hydrogen", mass: 1.008, category: "nonmetal", row: 1, col: 1, config: "1s¹", electro: 2.20, discovery: "1766", uses: "Rocket fuel, hydrogenation of fats, ammonia production", fact: "The most abundant element in the universe, making up about 75% of all normal matter!" },
+            { number: 2, symbol: "He", name: "Helium", mass: 4.003, category: "noble", row: 1, col: 18, config: "1s²", electro: null, discovery: "1868", uses: "Balloons, MRI scanners, cryogenics, deep-sea diving gas", fact: "Discovered in the sun before it was found on Earth!" },
+            { number: 3, symbol: "Li", name: "Lithium", mass: 6.941, category: "alkali", row: 2, col: 1, config: "[He] 2s¹", electro: 0.98, discovery: "1817", uses: "Rechargeable batteries, ceramics, antidepressant medication", fact: "The lightest metal and the least dense solid element!" },
+            { number: 4, symbol: "Be", name: "Beryllium", mass: 9.012, category: "alkaline", row: 2, col: 2, config: "[He] 2s²", electro: 1.57, discovery: "1798", uses: "Aerospace components, X-ray windows, nuclear reactors", fact: "Highly toxic - beryllium dust can cause a serious lung condition!" },
+            { number: 5, symbol: "B", name: "Boron", mass: 10.81, category: "metalloid", row: 2, col: 13, config: "[He] 2s² 2p¹", electro: 2.04, discovery: "1808", uses: "Fiberglass, detergents, semiconductors, Pyrex glass", fact: "Essential micronutrient for plants but toxic in high amounts!" },
+            { number: 6, symbol: "C", name: "Carbon", mass: 12.01, category: "nonmetal", row: 2, col: 14, config: "[He] 2s² 2p²", electro: 2.55, discovery: "Ancient", uses: "Diamonds, graphite, steel, organic compounds, carbon fiber", fact: "Forms more compounds than any other element - over 10 million known!" },
+            { number: 7, symbol: "N", name: "Nitrogen", mass: 14.01, category: "nonmetal", row: 2, col: 15, config: "[He] 2s² 2p³", electro: 3.04, discovery: "1772", uses: "Fertilizers, explosives, food packaging, cryogenics", fact: "Makes up 78% of Earth's atmosphere by volume!" },
+            { number: 8, symbol: "O", name: "Oxygen", mass: 16.00, category: "nonmetal", row: 2, col: 16, config: "[He] 2s² 2p⁴", electro: 3.44, discovery: "1774", uses: "Respiration, steel making, medical applications, rocket oxidizer", fact: "Makes up about 65% of the human body by mass!" },
+            { number: 9, symbol: "F", name: "Fluorine", mass: 19.00, category: "halogen", row: 2, col: 17, config: "[He] 2s² 2p⁵", electro: 3.98, discovery: "1886", uses: "Toothpaste, Teflon, refrigerants, uranium enrichment", fact: "The most electronegative and reactive of all elements!" },
+            { number: 10, symbol: "Ne", name: "Neon", mass: 20.18, category: "noble", row: 2, col: 18, config: "[He] 2s² 2p⁶", electro: null, discovery: "1898", uses: "Neon signs, high-voltage indicators, lasers, cryogenics", fact: "Gives a reddish-orange glow in vacuum discharge tubes!" },
+            { number: 11, symbol: "Na", name: "Sodium", mass: 22.99, category: "alkali", row: 3, col: 1, config: "[Ne] 3s¹", electro: 0.93, discovery: "1807", uses: "Table salt, street lights, soap, metal alloys", fact: "So reactive with water that it can explode!" },
+            { number: 12, symbol: "Mg", name: "Magnesium", mass: 24.31, category: "alkaline", row: 3, col: 2, config: "[Ne] 3s²", electro: 1.31, discovery: "1755", uses: "Alloys, flares, fireworks, antacids, chlorophyll", fact: "Burns with an incredibly bright white light!" },
+            { number: 13, symbol: "Al", name: "Aluminum", mass: 26.98, category: "post-transition", row: 3, col: 13, config: "[Ne] 3s² 3p¹", electro: 1.61, discovery: "1825", uses: "Cans, foil, aircraft, windows, power lines", fact: "The most abundant metal in Earth's crust!" },
+            { number: 14, symbol: "Si", name: "Silicon", mass: 28.09, category: "metalloid", row: 3, col: 14, config: "[Ne] 3s² 3p²", electro: 1.90, discovery: "1824", uses: "Computer chips, solar cells, glass, concrete", fact: "The second most abundant element in Earth's crust!" },
+            { number: 15, symbol: "P", name: "Phosphorus", mass: 30.97, category: "nonmetal", row: 3, col: 15, config: "[Ne] 3s² 3p³", electro: 2.19, discovery: "1669", uses: "Fertilizers, matches, fireworks, DNA, ATP", fact: "White phosphorus glows in the dark - that's why it's named after the Morning Star!" },
+            { number: 16, symbol: "S", name: "Sulfur", mass: 32.07, category: "nonmetal", row: 3, col: 16, config: "[Ne] 3s² 3p⁴", electro: 2.58, discovery: "Ancient", uses: "Sulfuric acid, gunpowder, vulcanization, fungicides", fact: "Responsible for the smell of rotten eggs!" },
+            { number: 17, symbol: "Cl", name: "Chlorine", mass: 35.45, category: "halogen", row: 3, col: 17, config: "[Ne] 3s² 3p⁵", electro: 3.16, discovery: "1774", uses: "Water purification, PVC, bleach, disinfectants", fact: "Used as a chemical weapon in WWI before better alternatives were found!" },
+            { number: 18, symbol: "Ar", name: "Argon", mass: 39.95, category: "noble", row: 3, col: 18, config: "[Ne] 3s² 3p⁶", electro: null, discovery: "1894", uses: "Light bulbs, welding, wine preservation", fact: "Makes up nearly 1% of Earth's atmosphere!" },
+            { number: 19, symbol: "K", name: "Potassium", mass: 39.10, category: "alkali", row: 4, col: 1, config: "[Ar] 4s¹", electro: 0.82, discovery: "1807", uses: "Fertilizers, soap, glass, gunpowder, bananas", fact: "Essential for nerve function - too much or too little can be fatal!" },
+            { number: 20, symbol: "Ca", name: "Calcium", mass: 40.08, category: "alkaline", row: 4, col: 2, config: "[Ar] 4s²", electro: 1.00, discovery: "1808", uses: "Cement, bones, teeth, cheese making, steel", fact: "The most abundant metal in the human body!" },
+            { number: 21, symbol: "Sc", name: "Scandium", mass: 44.96, category: "transition", row: 4, col: 3, config: "[Ar] 3d¹ 4s²", electro: 1.36, discovery: "1879", uses: "Aerospace alloys, sports equipment, high-intensity lamps", fact: "Named after Scandinavia!" },
+            { number: 22, symbol: "Ti", name: "Titanium", mass: 47.87, category: "transition", row: 4, col: 4, config: "[Ar] 3d² 4s²", electro: 1.54, discovery: "1791", uses: "Aircraft, implants, jewelry, white pigment (TiO₂)", fact: "Has the highest strength-to-weight ratio of any metal!" },
+            { number: 23, symbol: "V", name: "Vanadium", mass: 50.94, category: "transition", row: 4, col: 5, config: "[Ar] 3d³ 4s²", electro: 1.63, discovery: "1801", uses: "Steel alloys, tools, jet engines, sulfuric acid", fact: "Named after Vanadis, the Scandinavian goddess of beauty!" },
+            { number: 24, symbol: "Cr", name: "Chromium", mass: 52.00, category: "transition", row: 4, col: 6, config: "[Ar] 3d⁵ 4s¹", electro: 1.66, discovery: "1797", uses: "Stainless steel, chrome plating, dyes, tanning", fact: "Its name comes from the Greek word for color!" },
+            { number: 25, symbol: "Mn", name: "Manganese", mass: 54.94, category: "transition", row: 4, col: 7, config: "[Ar] 3d⁵ 4s²", electro: 1.55, discovery: "1774", uses: "Steel production, batteries, aluminum cans, glass", fact: "Essential for life - manganese deficiency can cause skeletal problems!" },
+            { number: 26, symbol: "Fe", name: "Iron", mass: 55.85, category: "transition", row: 4, col: 8, config: "[Ar] 3d⁶ 4s²", electro: 1.83, discovery: "Ancient", uses: "Steel, tools, vehicles, blood hemoglobin", fact: "The most used metal and the fourth most abundant element in Earth's crust!" },
+            { number: 27, symbol: "Co", name: "Cobalt", mass: 58.93, category: "transition", row: 4, col: 9, config: "[Ar] 3d⁷ 4s²", electro: 1.88, discovery: "1735", uses: "Superalloys, batteries, magnets, blue pigment", fact: "Cobalt-60 is used in cancer radiation therapy!" },
+            { number: 28, symbol: "Ni", name: "Nickel", mass: 58.69, category: "transition", row: 4, col: 10, config: "[Ar] 3d⁸ 4s²", electro: 1.91, discovery: "1751", uses: "Stainless steel, coins, batteries, plating", fact: "Named after 'kupfernickel' - German for 'devil's copper'!" },
+            { number: 29, symbol: "Cu", name: "Copper", mass: 63.55, category: "transition", row: 4, col: 11, config: "[Ar] 3d¹⁰ 4s¹", electro: 1.90, discovery: "Ancient", uses: "Wiring, pipes, coins, brass, bronze", fact: "One of the few metals that occurs naturally in pure form!" },
+            { number: 30, symbol: "Zn", name: "Zinc", mass: 65.38, category: "transition", row: 4, col: 12, config: "[Ar] 3d¹⁰ 4s²", electro: 1.65, discovery: "1746", uses: "Galvanization, brass, batteries, sunscreen", fact: "Essential trace element - required for over 300 enzymes!" },
+            { number: 31, symbol: "Ga", name: "Gallium", mass: 69.72, category: "post-transition", row: 4, col: 13, config: "[Ar] 3d¹⁰ 4s² 4p¹", electro: 1.81, discovery: "1875", uses: "Semiconductors, LEDs, thermometers, solar panels", fact: "Melts in your hand at just 29.76°C (85.6°F)!" },
+            { number: 32, symbol: "Ge", name: "Germanium", mass: 72.63, category: "metalloid", row: 4, col: 14, config: "[Ar] 3d¹⁰ 4s² 4p²", electro: 2.01, discovery: "1886", uses: "Semiconductors, fiber optics, infrared optics", fact: "Predicted by Mendeleev 15 years before it was discovered!" },
+            { number: 33, symbol: "As", name: "Arsenic", mass: 74.92, category: "metalloid", row: 4, col: 15, config: "[Ar] 3d¹⁰ 4s² 4p³", electro: 2.18, discovery: "Ancient", uses: "Semiconductors, pesticides, wood preservative", fact: "Called the 'King of Poisons' - was historically used for royal assassinations!" },
+            { number: 34, symbol: "Se", name: "Selenium", mass: 78.97, category: "nonmetal", row: 4, col: 16, config: "[Ar] 3d¹⁰ 4s² 4p⁴", electro: 2.55, discovery: "1817", uses: "Photocopiers, solar cells, glass, electronics", fact: "Essential in trace amounts but toxic in larger doses!" },
+            { number: 35, symbol: "Br", name: "Bromine", mass: 79.90, category: "halogen", row: 4, col: 17, config: "[Ar] 3d¹⁰ 4s² 4p⁵", electro: 2.96, discovery: "1826", uses: "Fire retardants, pesticides, photography, medicine", fact: "One of only two elements that are liquid at room temperature!" },
+            { number: 36, symbol: "Kr", name: "Krypton", mass: 83.80, category: "noble", row: 4, col: 18, config: "[Ar] 3d¹⁰ 4s² 4p⁶", electro: 3.00, discovery: "1898", uses: "High-intensity lamps, lasers, flash photography", fact: "Superman's home planet was named after this element!" },
+            { number: 37, symbol: "Rb", name: "Rubidium", mass: 85.47, category: "alkali", row: 5, col: 1, config: "[Kr] 5s¹", electro: 0.82, discovery: "1861", uses: "Fireworks, atomic clocks, research", fact: "Ignites spontaneously in air!" },
+            { number: 38, symbol: "Sr", name: "Strontium", mass: 87.62, category: "alkaline", row: 5, col: 2, config: "[Kr] 5s²", electro: 0.95, discovery: "1790", uses: "Fireworks (red flares), magnets, TV tubes", fact: "Named after Strontian, Scotland where it was discovered!" },
+            { number: 39, symbol: "Y", name: "Yttrium", mass: 88.91, category: "transition", row: 5, col: 3, config: "[Kr] 4d¹ 5s²", electro: 1.22, discovery: "1794", uses: "LEDs, lasers, superconductors, cancer treatment", fact: "Named after the village of Ytterby, Sweden!" },
+            { number: 40, symbol: "Zr", name: "Zirconium", mass: 91.22, category: "transition", row: 5, col: 4, config: "[Kr] 4d² 5s²", electro: 1.33, discovery: "1789", uses: "Nuclear reactors, ceramics, cubic zirconia", fact: "Cubic zirconia is a famous diamond simulant!" },
+            { number: 41, symbol: "Nb", name: "Niobium", mass: 92.91, category: "transition", row: 5, col: 5, config: "[Kr] 4d⁴ 5s¹", electro: 1.6, discovery: "1801", uses: "Steel alloys, superconductors, jet engines", fact: "Named after Niobe from Greek mythology!" },
+            { number: 42, symbol: "Mo", name: "Molybdenum", mass: 95.95, category: "transition", row: 5, col: 6, config: "[Kr] 4d⁵ 5s¹", electro: 2.16, discovery: "1781", uses: "Steel alloys, lubricants, catalysts, electrodes", fact: "Essential trace element for all living organisms!" },
+            { number: 43, symbol: "Tc", name: "Technetium", mass: 98, category: "transition", row: 5, col: 7, config: "[Kr] 4d⁵ 5s²", electro: 1.9, discovery: "1937", uses: "Medical imaging, steel alloying", fact: "The first artificially produced element - every atom is synthetic!" },
+            { number: 44, symbol: "Ru", name: "Ruthenium", mass: 101.1, category: "transition", row: 5, col: 8, config: "[Kr] 4d⁷ 5s¹", electro: 2.2, discovery: "1844", uses: "Electronics, catalysts, platinum alloys", fact: "Named after Russia (Ruthenia in Latin)!" },
+            { number: 45, symbol: "Rh", name: "Rhodium", mass: 102.9, category: "transition", row: 5, col: 9, config: "[Kr] 4d⁸ 5s¹", electro: 2.28, discovery: "1803", uses: "Catalytic converters, jewelry, mirrors", fact: "The most expensive precious metal - more valuable than gold!" },
+            { number: 46, symbol: "Pd", name: "Palladium", mass: 106.4, category: "transition", row: 5, col: 10, config: "[Kr] 4d¹⁰", electro: 2.20, discovery: "1803", uses: "Catalytic converters, electronics, jewelry, hydrogen storage", fact: "Can absorb 900 times its own volume of hydrogen!" },
+            { number: 47, symbol: "Ag", name: "Silver", mass: 107.9, category: "transition", row: 5, col: 11, config: "[Kr] 4d¹⁰ 5s¹", electro: 1.93, discovery: "Ancient", uses: "Jewelry, coins, electronics, mirrors, photography", fact: "The best conductor of electricity and heat of all metals!" },
+            { number: 48, symbol: "Cd", name: "Cadmium", mass: 112.4, category: "transition", row: 5, col: 12, config: "[Kr] 4d¹⁰ 5s²", electro: 1.69, discovery: "1817", uses: "Batteries, pigments, plating, nuclear reactors", fact: "Highly toxic - its use is being phased out worldwide!" },
+            { number: 49, symbol: "In", name: "Indium", mass: 114.8, category: "post-transition", row: 5, col: 13, config: "[Kr] 4d¹⁰ 5s² 5p¹", electro: 1.78, discovery: "1863", uses: "Touch screens, LCDs, semiconductors, solders", fact: "Named after its indigo-blue spectral line!" },
+            { number: 50, symbol: "Sn", name: "Tin", mass: 118.7, category: "post-transition", row: 5, col: 14, config: "[Kr] 4d¹⁰ 5s² 5p²", electro: 1.96, discovery: "Ancient", uses: "Solder, cans, bronze, pewter, coatings", fact: "When tin gets very cold, it crumbles into powder - called 'tin disease'!" },
+            { number: 51, symbol: "Sb", name: "Antimony", mass: 121.8, category: "metalloid", row: 5, col: 15, config: "[Kr] 4d¹⁰ 5s² 5p³", electro: 2.05, discovery: "Ancient", uses: "Flame retardants, batteries, semiconductors", fact: "Its name means 'not alone' because it's rarely found pure in nature!" },
+            { number: 52, symbol: "Te", name: "Tellurium", mass: 127.6, category: "metalloid", row: 5, col: 16, config: "[Kr] 4d¹⁰ 5s² 5p⁴", electro: 2.1, discovery: "1783", uses: "Solar panels, thermoelectrics, steel alloys", fact: "Named after Earth (Tellus in Latin)!" },
+            { number: 53, symbol: "I", name: "Iodine", mass: 126.9, category: "halogen", row: 5, col: 17, config: "[Kr] 4d¹⁰ 5s² 5p⁵", electro: 2.66, discovery: "1811", uses: "Antiseptics, salt, thyroid health, photography", fact: "Essential for thyroid function - deficiency causes goiters!" },
+            { number: 54, symbol: "Xe", name: "Xenon", mass: 131.3, category: "noble", row: 5, col: 18, config: "[Kr] 4d¹⁰ 5s² 5p⁶", electro: 2.6, discovery: "1898", uses: "High-intensity lamps, ion propulsion, anesthesia", fact: "Can form compounds despite being a 'noble' gas!" },
+            { number: 55, symbol: "Cs", name: "Cesium", mass: 132.9, category: "alkali", row: 6, col: 1, config: "[Xe] 6s¹", electro: 0.79, discovery: "1860", uses: "Atomic clocks, oil drilling, photoelectric cells", fact: "The most electropositive stable element!" },
+            { number: 56, symbol: "Ba", name: "Barium", mass: 137.3, category: "alkaline", row: 6, col: 2, config: "[Xe] 6s²", electro: 0.89, discovery: "1808", uses: "X-rays (barium meals), fireworks, glass, ceramics", fact: "Its name comes from the Greek word for 'heavy'!" },
+            { number: 57, symbol: "La", name: "Lanthanum", mass: 138.9, category: "lanthanide", row: 9, col: 3, config: "[Xe] 5d¹ 6s²", electro: 1.10, discovery: "1839", uses: "Camera lenses, batteries, catalytic converters", fact: "Gives its name to the entire lanthanide series!" },
+            { number: 58, symbol: "Ce", name: "Cerium", mass: 140.1, category: "lanthanide", row: 9, col: 4, config: "[Xe] 4f¹ 5d¹ 6s²", electro: 1.12, discovery: "1803", uses: "Self-cleaning ovens, flint, glass polishing, catalytic converters", fact: "The most abundant rare earth element!" },
+            { number: 59, symbol: "Pr", name: "Praseodymium", mass: 140.9, category: "lanthanide", row: 9, col: 5, config: "[Xe] 4f³ 6s²", electro: 1.13, discovery: "1885", uses: "Magnets, lasers, welding goggles, aircraft engines", fact: "Its name means 'green twin' in Greek!" },
+            { number: 60, symbol: "Nd", name: "Neodymium", mass: 144.2, category: "lanthanide", row: 9, col: 6, config: "[Xe] 4f⁴ 6s²", electro: 1.14, discovery: "1885", uses: "Powerful magnets, lasers, headphones, wind turbines", fact: "Makes the strongest permanent magnets known!" },
+            { number: 61, symbol: "Pm", name: "Promethium", mass: 145, category: "lanthanide", row: 9, col: 7, config: "[Xe] 4f⁵ 6s²", electro: 1.13, discovery: "1945", uses: "Nuclear batteries, luminous paint", fact: "The only radioactive lanthanide with no stable isotopes!" },
+            { number: 62, symbol: "Sm", name: "Samarium", mass: 150.4, category: "lanthanide", row: 9, col: 8, config: "[Xe] 4f⁶ 6s²", electro: 1.17, discovery: "1879", uses: "Magnets, nuclear reactors, cancer treatment", fact: "Named after the mineral samarskite!" },
+            { number: 63, symbol: "Eu", name: "Europium", mass: 152.0, category: "lanthanide", row: 9, col: 9, config: "[Xe] 4f⁷ 6s²", electro: 1.2, discovery: "1901", uses: "Euro banknotes, LEDs, lasers, TV screens", fact: "Named after Europe - the only element named after a continent!" },
+            { number: 64, symbol: "Gd", name: "Gadolinium", mass: 157.3, category: "lanthanide", row: 9, col: 10, config: "[Xe] 4f⁷ 5d¹ 6s²", electro: 1.20, discovery: "1880", uses: "MRI contrast, nuclear reactors, magnets", fact: "Named after Johan Gadolin, the 'father of rare earth chemistry'!" },
+            { number: 65, symbol: "Tb", name: "Terbium", mass: 158.9, category: "lanthanide", row: 9, col: 11, config: "[Xe] 4f⁹ 6s²", electro: 1.2, discovery: "1843", uses: "Green phosphors, solid-state devices, naval sonar", fact: "Named after Ytterby, Sweden like several other elements!" },
+            { number: 66, symbol: "Dy", name: "Dysprosium", mass: 162.5, category: "lanthanide", row: 9, col: 12, config: "[Xe] 4f¹⁰ 6s²", electro: 1.22, discovery: "1886", uses: "Magnets, nuclear reactors, data storage", fact: "Its name means 'hard to get' in Greek!" },
+            { number: 67, symbol: "Ho", name: "Holmium", mass: 164.9, category: "lanthanide", row: 9, col: 13, config: "[Xe] 4f¹¹ 6s²", electro: 1.23, discovery: "1878", uses: "Lasers, nuclear reactors, magnets", fact: "Has the highest magnetic moment of any naturally occurring element!" },
+            { number: 68, symbol: "Er", name: "Erbium", mass: 167.3, category: "lanthanide", row: 9, col: 14, config: "[Xe] 4f¹² 6s²", electro: 1.24, discovery: "1843", uses: "Fiber optics, lasers, metallurgy", fact: "Its salts are pink - giving rose-colored glass!" },
+            { number: 69, symbol: "Tm", name: "Thulium", mass: 168.9, category: "lanthanide", row: 9, col: 15, config: "[Xe] 4f¹³ 6s²", electro: 1.25, discovery: "1879", uses: "Portable X-rays, lasers, surgical devices", fact: "The second-rarest lanthanide!" },
+            { number: 70, symbol: "Yb", name: "Ytterbium", mass: 173.0, category: "lanthanide", row: 9, col: 16, config: "[Xe] 4f¹⁴ 6s²", electro: 1.1, discovery: "1878", uses: "Atomic clocks, lasers, stress gauges", fact: "Named after Ytterby - a village that gave its name to 4 elements!" },
+            { number: 71, symbol: "Lu", name: "Lutetium", mass: 175.0, category: "lanthanide", row: 9, col: 17, config: "[Xe] 4f¹⁴ 5d¹ 6s²", electro: 1.27, discovery: "1907", uses: "PET scanners, cancer treatment, LEDs", fact: "The hardest and densest lanthanide!" },
+            { number: 72, symbol: "Hf", name: "Hafnium", mass: 178.5, category: "transition", row: 6, col: 4, config: "[Xe] 4f¹⁴ 5d² 6s²", electro: 1.3, discovery: "1923", uses: "Nuclear control rods, computer chips, microprocessors", fact: "Named after Hafnia, the Latin name for Copenhagen!" },
+            { number: 73, symbol: "Ta", name: "Tantalum", mass: 180.9, category: "transition", row: 6, col: 5, config: "[Xe] 4f¹⁴ 5d³ 6s²", electro: 1.5, discovery: "1802", uses: "Capacitors, surgical implants, turbine blades", fact: "Named after Tantalus from Greek mythology who was condemned to stand in water!" },
+            { number: 74, symbol: "W", name: "Tungsten", mass: 183.8, category: "transition", row: 6, col: 6, config: "[Xe] 4f¹⁴ 5d⁴ 6s²", electro: 2.36, discovery: "1783", uses: "Light bulb filaments, drilling, cutting tools", fact: "Has the highest melting point of all elements: 3422°C!" },
+            { number: 75, symbol: "Re", name: "Rhenium", mass: 186.2, category: "transition", row: 6, col: 7, config: "[Xe] 4f¹⁴ 5d⁵ 6s²", electro: 1.9, discovery: "1925", uses: "Jet engine alloys, thermocouples, catalysts", fact: "One of the rarest elements in Earth's crust!" },
+            { number: 76, symbol: "Os", name: "Osmium", mass: 190.2, category: "transition", row: 6, col: 8, config: "[Xe] 4f¹⁴ 5d⁶ 6s²", electro: 2.2, discovery: "1803", uses: "Fountain pen tips, electrical contacts, alloys", fact: "The densest naturally occurring element!" },
+            { number: 77, symbol: "Ir", name: "Iridium", mass: 192.2, category: "transition", row: 6, col: 9, config: "[Xe] 4f¹⁴ 5d⁷ 6s²", electro: 2.20, discovery: "1803", uses: "Spark plugs, crucibles, satellite components", fact: "The asteroid that killed the dinosaurs left a worldwide iridium layer!" },
+            { number: 78, symbol: "Pt", name: "Platinum", mass: 195.1, category: "transition", row: 6, col: 10, config: "[Xe] 4f¹⁴ 5d⁹ 6s¹", electro: 2.28, discovery: "1735", uses: "Jewelry, catalytic converters, lab equipment", fact: "So rare that all the platinum ever mined would fit in a 25ft cube!" },
+            { number: 79, symbol: "Au", name: "Gold", mass: 197.0, category: "transition", row: 6, col: 11, config: "[Xe] 4f¹⁴ 5d¹⁰ 6s¹", electro: 2.54, discovery: "Ancient", uses: "Jewelry, electronics, currency, dentistry", fact: "So malleable that 1g can be beaten into a 1m² sheet!" },
+            { number: 80, symbol: "Hg", name: "Mercury", mass: 200.6, category: "transition", row: 6, col: 12, config: "[Xe] 4f¹⁴ 5d¹⁰ 6s²", electro: 2.00, discovery: "Ancient", uses: "Thermometers, barometers, fluorescent lamps", fact: "The only metal that's liquid at room temperature!" },
+            { number: 81, symbol: "Tl", name: "Thallium", mass: 204.4, category: "post-transition", row: 6, col: 13, config: "[Xe] 4f¹⁴ 5d¹⁰ 6s² 6p¹", electro: 1.62, discovery: "1861", uses: "Electronics, high-temperature glass, medical imaging", fact: "Its name comes from the Greek word for 'green shoot' due to its green spectral line!" },
+            { number: 82, symbol: "Pb", name: "Lead", mass: 207.2, category: "post-transition", row: 6, col: 14, config: "[Xe] 4f¹⁴ 5d¹⁰ 6s² 6p²", electro: 1.87, discovery: "Ancient", uses: "Batteries, radiation shielding, ammunition", fact: "The Romans used lead pipes for plumbing - that's where the word comes from!" },
+            { number: 83, symbol: "Bi", name: "Bismuth", mass: 209.0, category: "post-transition", row: 6, col: 15, config: "[Xe] 4f¹⁴ 5d¹⁰ 6s² 6p³", electro: 2.02, discovery: "1753", uses: "Pepto-Bismol, cosmetics, alloys, fire sprinklers", fact: "Forms beautiful rainbow-colored crystals when oxidized!" },
+            { number: 84, symbol: "Po", name: "Polonium", mass: 209, category: "metalloid", row: 6, col: 16, config: "[Xe] 4f¹⁴ 5d¹⁰ 6s² 6p⁴", electro: 2.0, discovery: "1898", uses: "Anti-static devices, heat sources in space probes", fact: "Named after Poland by Marie Curie!" },
+            { number: 85, symbol: "At", name: "Astatine", mass: 210, category: "halogen", row: 6, col: 17, config: "[Xe] 4f¹⁴ 5d¹⁰ 6s² 6p⁵", electro: 2.2, discovery: "1940", uses: "Cancer treatment research", fact: "The rarest naturally occurring element - less than 1g exists on Earth!" },
+            { number: 86, symbol: "Rn", name: "Radon", mass: 222, category: "noble", row: 6, col: 18, config: "[Xe] 4f¹⁴ 5d¹⁰ 6s² 6p⁶", electro: 2.2, discovery: "1900", uses: "Cancer treatment (radon seeds)", fact: "A radioactive gas that can seep into basements and cause lung cancer!" },
+            { number: 87, symbol: "Fr", name: "Francium", mass: 223, category: "alkali", row: 7, col: 1, config: "[Rn] 7s¹", electro: 0.7, discovery: "1939", uses: "Research only", fact: "So rare that only about 30 grams exist on Earth at any time!" },
+            { number: 88, symbol: "Ra", name: "Radium", mass: 226, category: "alkaline", row: 7, col: 2, config: "[Rn] 7s²", electro: 0.9, discovery: "1898", uses: "Cancer treatment, luminous paint (historical)", fact: "Discovered by Marie and Pierre Curie - Marie died from radiation exposure!" },
+            { number: 89, symbol: "Ac", name: "Actinium", mass: 227, category: "actinide", row: 10, col: 3, config: "[Rn] 6d¹ 7s²", electro: 1.1, discovery: "1899", uses: "Cancer treatment, neutron sources", fact: "Glows blue in the dark due to its radioactivity!" },
+            { number: 90, symbol: "Th", name: "Thorium", mass: 232.0, category: "actinide", row: 10, col: 4, config: "[Rn] 6d² 7s²", electro: 1.3, discovery: "1829", uses: "Nuclear fuel, gas mantles, camera lenses", fact: "Named after Thor, the Norse god of thunder!" },
+            { number: 91, symbol: "Pa", name: "Protactinium", mass: 231.0, category: "actinide", row: 10, col: 5, config: "[Rn] 5f² 6d¹ 7s²", electro: 1.5, discovery: "1913", uses: "Scientific research", fact: "Very rare and highly toxic!" },
+            { number: 92, symbol: "U", name: "Uranium", mass: 238.0, category: "actinide", row: 10, col: 6, config: "[Rn] 5f³ 6d¹ 7s²", electro: 1.38, discovery: "1789", uses: "Nuclear power, weapons, armor-piercing rounds", fact: "Radioactive enough to expose photographic plates in the dark!" },
+            { number: 93, symbol: "Np", name: "Neptunium", mass: 237, category: "actinide", row: 10, col: 7, config: "[Rn] 5f⁴ 6d¹ 7s²", electro: 1.36, discovery: "1940", uses: "Neutron detection equipment", fact: "Named after Neptune since it was discovered after Uranium!" },
+            { number: 94, symbol: "Pu", name: "Plutonium", mass: 244, category: "actinide", row: 10, col: 8, config: "[Rn] 5f⁶ 7s²", electro: 1.28, discovery: "1940", uses: "Nuclear weapons, reactors, space power", fact: "Named after Pluto - the dwarf planet!" },
+            { number: 95, symbol: "Am", name: "Americium", mass: 243, category: "actinide", row: 10, col: 9, config: "[Rn] 5f⁷ 7s²", electro: 1.13, discovery: "1944", uses: "Smoke detectors, neutron sources", fact: "Named after the Americas!" },
+            { number: 96, symbol: "Cm", name: "Curium", mass: 247, category: "actinide", row: 10, col: 10, config: "[Rn] 5f⁷ 6d¹ 7s²", electro: 1.28, discovery: "1944", uses: "Space exploration, alpha particle X-ray spectrometers", fact: "Named after Marie and Pierre Curie!" },
+            { number: 97, symbol: "Bk", name: "Berkelium", mass: 247, category: "actinide", row: 10, col: 11, config: "[Rn] 5f⁹ 7s²", electro: 1.3, discovery: "1949", uses: "Scientific research", fact: "Named after Berkeley, California!" },
+            { number: 98, symbol: "Cf", name: "Californium", mass: 251, category: "actinide", row: 10, col: 12, config: "[Rn] 5f¹⁰ 7s²", electro: 1.3, discovery: "1950", uses: "Metal detectors, cancer treatment, neutron activation", fact: "Named after California and UC Berkeley!" },
+            { number: 99, symbol: "Es", name: "Einsteinium", mass: 252, category: "actinide", row: 10, col: 13, config: "[Rn] 5f¹¹ 7s²", electro: 1.3, discovery: "1952", uses: "Scientific research", fact: "Named after Albert Einstein!" },
+            { number: 100, symbol: "Fm", name: "Fermium", mass: 257, category: "actinide", row: 10, col: 14, config: "[Rn] 5f¹² 7s²", electro: 1.3, discovery: "1952", uses: "Scientific research", fact: "Named after Enrico Fermi!" },
+            { number: 101, symbol: "Md", name: "Mendelevium", mass: 258, category: "actinide", row: 10, col: 15, config: "[Rn] 5f¹³ 7s²", electro: 1.3, discovery: "1955", uses: "Scientific research", fact: "Named after Dmitri Mendeleev, creator of the periodic table!" },
+            { number: 102, symbol: "No", name: "Nobelium", mass: 259, category: "actinide", row: 10, col: 16, config: "[Rn] 5f¹⁴ 7s²", electro: 1.3, discovery: "1958", uses: "Scientific research", fact: "Named after Alfred Nobel, inventor of dynamite!" },
+            { number: 103, symbol: "Lr", name: "Lawrencium", mass: 262, category: "actinide", row: 10, col: 17, config: "[Rn] 5f¹⁴ 7s² 7p¹", electro: 1.3, discovery: "1961", uses: "Scientific research", fact: "Named after Ernest Lawrence, inventor of the cyclotron!" },
+            { number: 104, symbol: "Rf", name: "Rutherfordium", mass: 267, category: "transition", row: 7, col: 4, config: "[Rn] 5f¹⁴ 6d² 7s²", electro: null, discovery: "1969", uses: "Scientific research", fact: "Named after Ernest Rutherford, father of nuclear physics!" },
+            { number: 105, symbol: "Db", name: "Dubnium", mass: 268, category: "transition", row: 7, col: 5, config: "[Rn] 5f¹⁴ 6d³ 7s²", electro: null, discovery: "1970", uses: "Scientific research", fact: "Named after Dubna, Russia where it was synthesized!" },
+            { number: 106, symbol: "Sg", name: "Seaborgium", mass: 269, category: "transition", row: 7, col: 6, config: "[Rn] 5f¹⁴ 6d⁴ 7s²", electro: null, discovery: "1974", uses: "Scientific research", fact: "Named while Glenn Seaborg was still alive - a rare honor!" },
+            { number: 107, symbol: "Bh", name: "Bohrium", mass: 270, category: "transition", row: 7, col: 7, config: "[Rn] 5f¹⁴ 6d⁵ 7s²", electro: null, discovery: "1981", uses: "Scientific research", fact: "Named after Niels Bohr!" },
+            { number: 108, symbol: "Hs", name: "Hassium", mass: 269, category: "transition", row: 7, col: 8, config: "[Rn] 5f¹⁴ 6d⁶ 7s²", electro: null, discovery: "1984", uses: "Scientific research", fact: "Named after Hesse, Germany where it was discovered!" },
+            { number: 109, symbol: "Mt", name: "Meitnerium", mass: 278, category: "unknown", row: 7, col: 9, config: "[Rn] 5f¹⁴ 6d⁷ 7s²", electro: null, discovery: "1982", uses: "Scientific research", fact: "Named after Lise Meitner, discoverer of nuclear fission!" },
+            { number: 110, symbol: "Ds", name: "Darmstadtium", mass: 281, category: "unknown", row: 7, col: 10, config: "[Rn] 5f¹⁴ 6d⁸ 7s²", electro: null, discovery: "1994", uses: "Scientific research", fact: "Named after Darmstadt, Germany!" },
+            { number: 111, symbol: "Rg", name: "Roentgenium", mass: 282, category: "unknown", row: 7, col: 11, config: "[Rn] 5f¹⁴ 6d⁹ 7s²", electro: null, discovery: "1994", uses: "Scientific research", fact: "Named after Wilhelm Röntgen, discoverer of X-rays!" },
+            { number: 112, symbol: "Cn", name: "Copernicium", mass: 285, category: "unknown", row: 7, col: 12, config: "[Rn] 5f¹⁴ 6d¹⁰ 7s²", electro: null, discovery: "1996", uses: "Scientific research", fact: "Named after Nicolaus Copernicus!" },
+            { number: 113, symbol: "Nh", name: "Nihonium", mass: 286, category: "unknown", row: 7, col: 13, config: "[Rn] 5f¹⁴ 6d¹⁰ 7s² 7p¹", electro: null, discovery: "2004", uses: "Scientific research", fact: "Named after Japan (Nihon in Japanese)!" },
+            { number: 114, symbol: "Fl", name: "Flerovium", mass: 289, category: "unknown", row: 7, col: 14, config: "[Rn] 5f¹⁴ 6d¹⁰ 7s² 7p²", electro: null, discovery: "1999", uses: "Scientific research", fact: "Named after the Flerov Laboratory!" },
+            { number: 115, symbol: "Mc", name: "Moscovium", mass: 290, category: "unknown", row: 7, col: 15, config: "[Rn] 5f¹⁴ 6d¹⁰ 7s² 7p³", electro: null, discovery: "2003", uses: "Scientific research", fact: "Named after Moscow!" },
+            { number: 116, symbol: "Lv", name: "Livermorium", mass: 293, category: "unknown", row: 7, col: 16, config: "[Rn] 5f¹⁴ 6d¹⁰ 7s² 7p⁴", electro: null, discovery: "2000", uses: "Scientific research", fact: "Named after the Lawrence Livermore National Laboratory!" },
+            { number: 117, symbol: "Ts", name: "Tennessine", mass: 294, category: "unknown", row: 7, col: 17, config: "[Rn] 5f¹⁴ 6d¹⁰ 7s² 7p⁵", electro: null, discovery: "2010", uses: "Scientific research", fact: "Named after Tennessee!" },
+            { number: 118, symbol: "Og", name: "Oganesson", mass: 294, category: "unknown", row: 7, col: 18, config: "[Rn] 5f¹⁴ 6d¹⁰ 7s² 7p⁶", electro: null, discovery: "2006", uses: "Scientific research", fact: "The heaviest element known - named after Yuri Oganessian!" }
+        ];
+
+        let activeCategories = new Set();
+        let quizQuestions = [];
+        let currentQuestion = 0;
+        let score = 0;
+        let quizAnswered = false;
+
+        // Category display names
+        const categoryNames = {
+            'alkali': 'Alkali Metal',
+            'alkaline': 'Alkaline Earth Metal',
+            'transition': 'Transition Metal',
+            'post-transition': 'Post-Transition Metal',
+            'metalloid': 'Metalloid',
+            'nonmetal': 'Nonmetal',
+            'halogen': 'Halogen',
+            'noble': 'Noble Gas',
+            'lanthanide': 'Lanthanide',
+            'actinide': 'Actinide',
+            'unknown': 'Unknown'
+        };
+
+        // Build Periodic Table
+        function buildPeriodicTable() {
+            const table = document.getElementById('periodicTable');
+            table.innerHTML = '';
+
+            // Create grid with 18 columns and 7 main rows + 2 for f-block
+            for (let row = 1; row <= 10; row++) {
+                for (let col = 1; col <= 18; col++) {
+                    const element = elements.find(e => e.row === row && e.col === col);
+
+                    if (element) {
+                        const elDiv = document.createElement('div');
+                        elDiv.className = `element category-${element.category} rounded-lg p-1 md:p-2 text-center relative`;
+                        elDiv.dataset.number = element.number;
+                        elDiv.dataset.category = element.category;
+                        elDiv.onclick = () => openModal(element);
+
+                        elDiv.innerHTML = `
+                            <div class="text-xs text-gray-900/70">${element.number}</div>
+                            <div class="text-lg md:text-xl font-bold text-gray-900">${element.symbol}</div>
+                            <div class="text-xs text-gray-900 hidden md:block truncate">${element.name}</div>
+                        `;
+
+                        table.appendChild(elDiv);
+                    } else if (row === 6 && col === 3) {
+                        // Lanthanide placeholder
+                        const placeholder = document.createElement('div');
+                        placeholder.className = 'bg-gray-700/50 rounded-lg p-1 text-center text-xs';
+                        placeholder.innerHTML = '<span class="text-gray-400">*</span>';
+                        table.appendChild(placeholder);
+                    } else if (row === 7 && col === 3) {
+                        // Actinide placeholder
+                        const placeholder = document.createElement('div');
+                        placeholder.className = 'bg-gray-700/50 rounded-lg p-1 text-center text-xs';
+                        placeholder.innerHTML = '<span class="text-gray-400">**</span>';
+                        table.appendChild(placeholder);
+                    } else {
+                        // Empty cell
+                        const empty = document.createElement('div');
+                        empty.className = 'invisible';
+                        table.appendChild(empty);
+                    }
+                }
+            }
+
+            // Build f-block rows
+            const lanthanidesContainer = document.getElementById('lanthanides');
+            const actinidesContainer = document.getElementById('actinides');
+
+            elements.filter(e => e.category === 'lanthanide').forEach(element => {
+                const elDiv = document.createElement('div');
+                elDiv.className = `element category-${element.category} rounded p-1 text-center min-w-[45px]`;
+                elDiv.dataset.number = element.number;
+                elDiv.dataset.category = element.category;
+                elDiv.onclick = () => openModal(element);
+                elDiv.innerHTML = `
+                    <div class="text-xs text-gray-900/70">${element.number}</div>
+                    <div class="font-bold text-gray-900">${element.symbol}</div>
+                `;
+                lanthanidesContainer.appendChild(elDiv);
+            });
+
+            elements.filter(e => e.category === 'actinide').forEach(element => {
+                const elDiv = document.createElement('div');
+                elDiv.className = `element category-${element.category} rounded p-1 text-center min-w-[45px]`;
+                elDiv.dataset.number = element.number;
+                elDiv.dataset.category = element.category;
+                elDiv.onclick = () => openModal(element);
+                elDiv.innerHTML = `
+                    <div class="text-xs text-gray-900/70">${element.number}</div>
+                    <div class="font-bold text-gray-900">${element.symbol}</div>
+                `;
+                actinidesContainer.appendChild(elDiv);
+            });
+        }
+
+        // Modal functions
+        function openModal(element) {
+            const modal = document.getElementById('elementModal');
+
+            document.getElementById('modalSymbol').textContent = element.symbol;
+            document.getElementById('modalName').textContent = element.name;
+            document.getElementById('modalNumber').textContent = `Atomic Number: ${element.number}`;
+            document.getElementById('modalMass').textContent = element.mass + ' u';
+            document.getElementById('modalCategory').textContent = categoryNames[element.category];
+            document.getElementById('modalConfig').textContent = element.config;
+            document.getElementById('modalElectro').textContent = element.electro ? element.electro : 'N/A';
+            document.getElementById('modalDiscovery').textContent = element.discovery;
+            document.getElementById('modalUses').textContent = element.uses;
+            document.getElementById('modalFact').textContent = element.fact;
+
+            document.getElementById('modalHeader').className = `p-6 rounded-t-2xl category-${element.category}`;
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('elementModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        // Filter functions
+        function toggleCategory(category) {
+            const btn = document.querySelector(`[data-category="${category}"]`);
+
+            if (activeCategories.has(category)) {
+                activeCategories.delete(category);
+                btn.classList.remove('ring-2', 'ring-white');
+            } else {
+                activeCategories.add(category);
+                btn.classList.add('ring-2', 'ring-white');
+            }
+
+            applyFilters();
+        }
+
+        function applyFilters() {
+            const allElements = document.querySelectorAll('.element');
+
+            allElements.forEach(el => {
+                const category = el.dataset.category;
+
+                if (activeCategories.size === 0 || activeCategories.has(category)) {
+                    el.classList.remove('element-hidden');
+                } else {
+                    el.classList.add('element-hidden');
+                }
+            });
+        }
+
+        function resetFilters() {
+            activeCategories.clear();
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('ring-2', 'ring-white');
+            });
+            document.getElementById('searchInput').value = '';
+            applyFilters();
+        }
+
+        // Search function
+        function searchElements() {
+            const query = document.getElementById('searchInput').value.toLowerCase().trim();
+            const allElements = document.querySelectorAll('.element');
+
+            if (!query) {
+                applyFilters();
+                return;
+            }
+
+            allElements.forEach(el => {
+                const number = el.dataset.number;
+                const element = elements.find(e => e.number == number);
+
+                const match = element.name.toLowerCase().includes(query) ||
+                    element.symbol.toLowerCase().includes(query) ||
+                    element.number.toString().includes(query);
+
+                if (match && (activeCategories.size === 0 || activeCategories.has(element.category))) {
+                    el.classList.remove('element-hidden');
+                } else {
+                    el.classList.add('element-hidden');
+                }
+            });
+        }
+
+        // Quiz functions
+        function openQuiz() {
+            document.getElementById('quizModal').classList.remove('hidden');
+            document.getElementById('quizModal').classList.add('flex');
+            startQuiz();
+        }
+
+        function closeQuiz() {
+            document.getElementById('quizModal').classList.add('hidden');
+            document.getElementById('quizModal').classList.remove('flex');
+        }
+
+        function startQuiz() {
+            score = 0;
+            currentQuestion = 0;
+            quizQuestions = generateQuizQuestions();
+
+            document.getElementById('quizContent').classList.remove('hidden');
+            document.getElementById('quizResults').classList.add('hidden');
+
+            showQuestion();
+        }
+
+        function generateQuizQuestions() {
+            const questions = [];
+            const usedElements = new Set();
+
+            // Question types: 0=symbol to name, 1=name to symbol, 2=atomic number, 3=category
+            while (questions.length < 10) {
+                const element = elements[Math.floor(Math.random() * elements.length)];
+                if (usedElements.has(element.number)) continue;
+                usedElements.add(element.number);
+
+                const type = Math.floor(Math.random() * 4);
+                let question, correctAnswer, options;
+
+                switch (type) {
+                    case 0:
+                        question = `What element is ${element.symbol}?`;
+                        correctAnswer = element.name;
+                        options = generateOptions(element.name, 'name');
+                        break;
+                    case 1:
+                        question = `What is the symbol for ${element.name}?`;
+                        correctAnswer = element.symbol;
+                        options = generateOptions(element.symbol, 'symbol');
+                        break;
+                    case 2:
+                        question = `What is the atomic number of ${element.name}?`;
+                        correctAnswer = element.number.toString();
+                        options = generateNumberOptions(element.number);
+                        break;
+                    case 3:
+                        question = `What category does ${element.name} belong to?`;
+                        correctAnswer = categoryNames[element.category];
+                        options = generateCategoryOptions(element.category);
+                        break;
+                }
+
+                questions.push({ question, correctAnswer, options });
+            }
+
+            return questions;
+        }
+
+        function generateOptions(correct, type) {
+            const options = [correct];
+            const used = new Set([correct]);
+
+            while (options.length < 4) {
+                const element = elements[Math.floor(Math.random() * elements.length)];
+                const value = type === 'name' ? element.name : element.symbol;
+                if (!used.has(value)) {
+                    used.add(value);
+                    options.push(value);
+                }
+            }
+
+            return shuffleArray(options);
+        }
+
+        function generateNumberOptions(correct) {
+            const options = [correct];
+
+            while (options.length < 4) {
+                const num = Math.floor(Math.random() * 118) + 1;
+                if (!options.includes(num.toString())) {
+                    options.push(num.toString());
+                }
+            }
+
+            return shuffleArray(options);
+        }
+
+        function generateCategoryOptions(correct) {
+            const options = [categoryNames[correct]];
+            const categories = Object.values(categoryNames);
+
+            while (options.length < 4) {
+                const cat = categories[Math.floor(Math.random() * categories.length)];
+                if (!options.includes(cat)) {
+                    options.push(cat);
+                }
+            }
+
+            return shuffleArray(options);
+        }
+
+        function shuffleArray(array) {
+            const newArray = [...array];
+            for (let i = newArray.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+            }
+            return newArray;
+        }
+
+        function showQuestion() {
+            quizAnswered = false;
+            const q = quizQuestions[currentQuestion];
+
+            document.getElementById('questionNum').textContent = currentQuestion + 1;
+            document.getElementById('score').textContent = score;
+            document.getElementById('quizQuestion').textContent = q.question;
+            document.getElementById('quizFeedback').classList.add('hidden');
+            document.getElementById('nextBtn').classList.add('hidden');
+
+            const optionsContainer = document.getElementById('quizOptions');
+            optionsContainer.innerHTML = '';
+
+            q.options.forEach(option => {
+                const btn = document.createElement('button');
+                btn.className = 'quiz-option w-full bg-gray-700 hover:bg-gray-600 p-3 rounded-lg text-left transition-all';
+                btn.textContent = option;
+                btn.onclick = () => selectAnswer(option, q.correctAnswer, btn);
+                optionsContainer.appendChild(btn);
+            });
+        }
+
+        function selectAnswer(selected, correct, btn) {
+            if (quizAnswered) return;
+            quizAnswered = true;
+
+            const allButtons = document.querySelectorAll('.quiz-option');
+            allButtons.forEach(b => b.disabled = true);
+
+            if (selected === correct) {
+                score++;
+                document.getElementById('score').textContent = score;
+                btn.classList.add('correct', 'bg-green-600');
+                btn.classList.remove('bg-gray-700');
+
+                document.getElementById('feedbackText').textContent = '✓ Correct!';
+                document.getElementById('feedbackText').className = 'text-lg font-semibold text-green-400';
+            } else {
+                btn.classList.add('incorrect', 'bg-red-600');
+                btn.classList.remove('bg-gray-700');
+
+                allButtons.forEach(b => {
+                    if (b.textContent === correct) {
+                        b.classList.add('bg-green-600');
+                    }
+                });
+
+                document.getElementById('feedbackText').textContent = `✗ The answer was: ${correct}`;
+                document.getElementById('feedbackText').className = 'text-lg font-semibold text-red-400';
+            }
+
+            document.getElementById('quizFeedback').classList.remove('hidden');
+            document.getElementById('nextBtn').classList.remove('hidden');
+
+            if (currentQuestion === 9) {
+                document.getElementById('nextBtn').textContent = 'See Results';
+            }
+        }
+
+        function nextQuestion() {
+            currentQuestion++;
+
+            if (currentQuestion >= 10) {
+                showResults();
+            } else {
+                showQuestion();
+            }
+        }
+
+        function showResults() {
+            document.getElementById('quizContent').classList.add('hidden');
+            document.getElementById('quizResults').classList.remove('hidden');
+            document.getElementById('finalScore').textContent = score;
+
+            let message = '';
+            if (score === 10) message = '🌟 Perfect! You\'re a chemistry genius!';
+            else if (score >= 8) message = '🎉 Excellent work! Great knowledge!';
+            else if (score >= 6) message = '👍 Good job! Keep learning!';
+            else if (score >= 4) message = '📚 Not bad, but room for improvement!';
+            else message = '🔬 Time to study the periodic table more!';
+
+            document.getElementById('resultMessage').textContent = message;
+        }
+
+        // Close modals on outside click
+        document.getElementById('elementModal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('elementModal')) closeModal();
+        });
+
+        document.getElementById('quizModal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('quizModal')) closeQuiz();
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+                closeQuiz();
+            }
+        });
+
+        // Initialize
+        buildPeriodicTable();
+    </script>
+</body>
+
+</html>
