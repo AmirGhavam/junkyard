@@ -1,0 +1,1270 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Optical Illusion Showcase</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        :root {
+            color-scheme: dark;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        .card {
+            background: linear-gradient(180deg, rgba(15, 23, 42, .8), rgba(2, 6, 23, .8));
+        }
+
+        .fine-grid {
+            background-image:
+                radial-gradient(circle at 1px 1px, rgba(148, 163, 184, .18) 1px, rgba(0, 0, 0, 0) 0);
+            background-size: 18px 18px;
+        }
+
+        .focus-ring:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, .35);
+        }
+
+        .range {
+            accent-color: rgb(56 189 248);
+        }
+
+        .mono {
+            font-variant-numeric: tabular-nums;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
+
+        /* Better pointer feel for drag handles */
+        .grab {
+            cursor: grab;
+        }
+
+        .grabbing {
+            cursor: grabbing !important;
+        }
+
+        /* Reduce motion support */
+        @media (prefers-reduced-motion: reduce) {
+            .anim {
+                transition: none !important;
+                animation: none !important;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-slate-950 text-slate-100 selection:bg-cyan-300/30 selection:text-slate-50">
+    <header class="sticky top-0 z-50 border-b border-slate-800/70 bg-slate-950/70 backdrop-blur">
+        <div class="mx-auto max-w-7xl px-4 py-3 flex items-center gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="h-9 w-9 rounded-xl bg-cyan-400/10 border border-cyan-300/20 grid place-items-center">
+                    <span class="text-cyan-200 font-semibold">OI</span>
+                </div>
+                <div class="min-w-0">
+                    <h1 class="text-lg md:text-xl font-semibold tracking-tight truncate">Optical Illusion Showcase</h1>
+                    <p class="text-xs text-slate-300/90 truncate">Classic illusions • explanations • interactive
+                        “reveal” tools</p>
+                </div>
+            </div>
+            <div class="ml-auto flex items-center gap-2">
+                <button id="truthModeBtn"
+                    class="focus-ring rounded-lg border border-slate-700 bg-slate-900/70 hover:bg-slate-900 px-3 py-2 text-sm">
+                    Truth Mode: <span id="truthModeLabel" class="font-semibold text-cyan-200">Off</span>
+                </button>
+                <button id="resetBtn"
+                    class="focus-ring rounded-lg border border-slate-700 bg-slate-900/70 hover:bg-slate-900 px-3 py-2 text-sm">
+                    Reset
+                </button>
+                <a href="#about"
+                    class="focus-ring hidden sm:inline-flex rounded-lg border border-slate-700 bg-slate-900/70 hover:bg-slate-900 px-3 py-2 text-sm">How
+                    to use</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="mx-auto max-w-7xl px-4 py-8">
+        <div class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
+            <aside class="lg:sticky lg:top-[84px] h-fit">
+                <div class="card rounded-2xl border border-slate-800/60 p-4">
+                    <h2 class="text-sm font-semibold text-slate-200">Illusions</h2>
+                    <nav class="mt-3 space-y-1 text-sm">
+                        <a class="block rounded-lg px-3 py-2 hover:bg-slate-900/60 border border-transparent hover:border-slate-800/60"
+                            href="#muller">Müller–Lyer (length)</a>
+                        <a class="block rounded-lg px-3 py-2 hover:bg-slate-900/60 border border-transparent hover:border-slate-800/60"
+                            href="#ebbinghaus">Ebbinghaus (size)</a>
+                        <a class="block rounded-lg px-3 py-2 hover:bg-slate-900/60 border border-transparent hover:border-slate-800/60"
+                            href="#ponzo">Ponzo (depth)</a>
+                        <a class="block rounded-lg px-3 py-2 hover:bg-slate-900/60 border border-transparent hover:border-slate-800/60"
+                            href="#cafewall">Café wall (tilt)</a>
+                        <a class="block rounded-lg px-3 py-2 hover:bg-slate-900/60 border border-transparent hover:border-slate-800/60"
+                            href="#checker">Checker shadow (brightness)</a>
+                    </nav>
+                    <div
+                        class="mt-4 rounded-xl border border-slate-800/60 bg-slate-900/40 p-3 text-xs text-slate-300 leading-relaxed">
+                        <p class="font-semibold text-slate-200">Interaction triggers</p>
+                        <ul class="mt-2 list-disc pl-4 space-y-1">
+                            <li><span class="text-slate-100">Reveal</span> overlays measure what’s actually equal.</li>
+                            <li><span class="text-slate-100">Drag</span> elements in Ponzo to feel the effect.</li>
+                            <li><span class="text-slate-100">Sliders</span> let you amplify or weaken the illusion.</li>
+                        </ul>
+                    </div>
+                </div>
+            </aside>
+
+            <section class="space-y-6">
+                <section id="about" class="scroll-mt-24">
+                    <div class="card rounded-2xl border border-slate-800/60 p-5 fine-grid">
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <h2 class="text-xl font-semibold">How to use</h2>
+                                <p class="mt-1 text-sm text-slate-300 max-w-3xl">
+                                    Each card includes (1) the illusion, (2) a short explanation, and (3) controls. Use
+                                    <span class="font-semibold text-cyan-200">Truth Mode</span> to show measurement
+                                    guides across all illusions.
+                                    Everything is generated locally (SVG/Canvas), so it runs as a single file.
+                                </p>
+                            </div>
+                            <div class="hidden md:block text-xs text-slate-300">
+                                <div class="rounded-xl border border-slate-800/60 bg-slate-900/40 p-3">
+                                    <div class="mono">Tip: try squinting</div>
+                                    <div class="mono">Tip: step back</div>
+                                    <div class="mono">Tip: toggle guides</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Müller–Lyer -->
+                <section id="muller" class="scroll-mt-24">
+                    <div class="card rounded-2xl border border-slate-800/60 p-5">
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <h2 class="text-xl font-semibold">Müller–Lyer illusion</h2>
+                                <p class="mt-1 text-sm text-slate-300">Two equal lines look different in length
+                                    depending on the “fins” at the ends.</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button data-reveal="muller"
+                                    class="revealBtn focus-ring rounded-lg border border-slate-700 bg-slate-900/60 hover:bg-slate-900 px-3 py-2 text-sm">Reveal</button>
+                                <button id="mullerSwap"
+                                    class="focus-ring rounded-lg border border-slate-700 bg-slate-900/60 hover:bg-slate-900 px-3 py-2 text-sm">Swap
+                                    fins</button>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-4 items-start">
+                            <div class="rounded-2xl border border-slate-800/60 bg-slate-950/40 p-4">
+                                <svg id="mullerSvg" viewBox="0 0 640 220" class="w-full h-[240px] sm:h-[280px]">
+                                    <rect x="0" y="0" width="640" height="220" fill="rgba(2,6,23,.18)" />
+                                    <g id="mullerLines"></g>
+                                    <g id="mullerGuides" opacity="0"></g>
+                                </svg>
+                                <div class="mt-2 text-xs text-slate-300">
+                                    Try: turn on <span class="text-cyan-200 font-semibold">Truth Mode</span> or press
+                                    <span class="font-semibold">Reveal</span> to see the equal-length ruler.</n </div>
+                                </div>
+
+                                <div class="rounded-2xl border border-slate-800/60 bg-slate-950/40 p-4">
+                                    <div class="grid gap-3">
+                                        <label class="text-sm">
+                                            <div class="flex items-center justify-between">
+                                                <span class="text-slate-200">Base length</span>
+                                                <span id="mullerBaseLabel" class="mono text-slate-200">320</span>
+                                            </div>
+                                            <input id="mullerBase" class="range w-full" type="range" min="180" max="440"
+                                                value="320" />
+                                        </label>
+
+                                        <label class="text-sm">
+                                            <div class="flex items-center justify-between">
+                                                <span class="text-slate-200">Difference (top vs bottom)</span>
+                                                <span id="mullerDiffLabel" class="mono text-slate-200">0</span>
+                                            </div>
+                                            <input id="mullerDiff" class="range w-full" type="range" min="-120"
+                                                max="120" value="0" />
+                                            <p class="mt-1 text-xs text-slate-400">Set it to 0 to make the physical
+                                                lengths equal.</p>
+                                        </label>
+
+                                        <div class="grid grid-cols-2 gap-2">
+                                            <button id="mullerEqual"
+                                                class="focus-ring rounded-lg border border-slate-700 bg-slate-900/60 hover:bg-slate-900 px-3 py-2 text-sm">Make
+                                                equal</button>
+                                            <button id="mullerRandom"
+                                                class="focus-ring rounded-lg border border-slate-700 bg-slate-900/60 hover:bg-slate-900 px-3 py-2 text-sm">Randomize</button>
+                                        </div>
+
+                                        <details class="rounded-xl border border-slate-800/60 bg-slate-900/30 p-3">
+                                            <summary class="cursor-pointer text-sm text-slate-200 font-semibold">What’s
+                                                happening?</summary>
+                                            <p class="mt-2 text-sm text-slate-300 leading-relaxed">
+                                                The fins change how your visual system interprets the endpoints (as
+                                                corners in depth or as expansions/contractions).
+                                                That shifts the perceived length even when the physical length is
+                                                identical.
+                                            </p>
+                                        </details>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                </section>
+
+                <!-- Ebbinghaus -->
+                <section id="ebbinghaus" class="scroll-mt-24">
+                    <div class="card rounded-2xl border border-slate-800/60 p-5">
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <h2 class="text-xl font-semibold">Ebbinghaus illusion</h2>
+                                <p class="mt-1 text-sm text-slate-300">Two identical circles appear different depending
+                                    on the surrounding context.</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button data-reveal="ebbinghaus"
+                                    class="revealBtn focus-ring rounded-lg border border-slate-700 bg-slate-900/60 hover:bg-slate-900 px-3 py-2 text-sm">Reveal</button>
+                                <button id="ebbinghausSwap"
+                                    class="focus-ring rounded-lg border border-slate-700 bg-slate-900/60 hover:bg-slate-900 px-3 py-2 text-sm">Swap
+                                    surrounds</button>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-4 items-start">
+                            <div class="rounded-2xl border border-slate-800/60 bg-slate-950/40 p-4">
+                                <svg id="ebbingSvg" viewBox="0 0 640 260" class="w-full h-[260px] sm:h-[300px]">
+                                    <rect x="0" y="0" width="640" height="260" fill="rgba(2,6,23,.18)" />
+                                    <g id="ebbingCircles"></g>
+                                    <g id="ebbingGuides" opacity="0"></g>
+                                </svg>
+                                <div class="mt-2 text-xs text-slate-300">
+                                    Try: increase surround size difference; then press <span
+                                        class="font-semibold">Reveal</span>.
+                                </div>
+                            </div>
+
+                            <div class="rounded-2xl border border-slate-800/60 bg-slate-950/40 p-4">
+                                <div class="grid gap-3">
+                                    <label class="text-sm">
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-slate-200">Surround size difference</span>
+                                            <span id="ebbingDiffLabel" class="mono text-slate-200">26</span>
+                                        </div>
+                                        <input id="ebbingDiff" class="range w-full" type="range" min="0" max="60"
+                                            value="26" />
+                                    </label>
+
+                                    <label class="text-sm">
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-slate-200">Surround distance</span>
+                                            <span id="ebbingDistLabel" class="mono text-slate-200">62</span>
+                                        </div>
+                                        <input id="ebbingDist" class="range w-full" type="range" min="44" max="100"
+                                            value="62" />
+                                    </label>
+
+                                    <label class="text-sm">
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-slate-200">Number of surround circles</span>
+                                            <span id="ebbingCountLabel" class="mono text-slate-200">8</span>
+                                        </div>
+                                        <input id="ebbingCount" class="range w-full" type="range" min="6" max="12"
+                                            value="8" />
+                                    </label>
+
+                                    <details class="rounded-xl border border-slate-800/60 bg-slate-900/30 p-3">
+                                        <summary class="cursor-pointer text-sm text-slate-200 font-semibold">What’s
+                                            happening?</summary>
+                                        <p class="mt-2 text-sm text-slate-300 leading-relaxed">
+                                            Your brain judges size comparatively. Large neighbors make the center feel
+                                            smaller; small neighbors make it feel larger.
+                                            This is a context (relative) perception effect, not a change in the actual
+                                            circle.
+                                        </p>
+                                    </details>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Ponzo -->
+                <section id="ponzo" class="scroll-mt-24">
+                    <div class="card rounded-2xl border border-slate-800/60 p-5">
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <h2 class="text-xl font-semibold">Ponzo illusion</h2>
+                                <p class="mt-1 text-sm text-slate-300">Objects at “different depths” look different in
+                                    size even when identical.</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button data-reveal="ponzo"
+                                    class="revealBtn focus-ring rounded-lg border border-slate-700 bg-slate-900/60 hover:bg-slate-900 px-3 py-2 text-sm">Reveal</button>
+                                <button id="ponzoReset"
+                                    class="focus-ring rounded-lg border border-slate-700 bg-slate-900/60 hover:bg-slate-900 px-3 py-2 text-sm">Center
+                                    bars</button>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-4 items-start">
+                            <div class="rounded-2xl border border-slate-800/60 bg-slate-950/40 p-4">
+                                <svg id="ponzoSvg" viewBox="0 0 640 300" class="w-full h-[280px] sm:h-[320px]">
+                                    <rect x="0" y="0" width="640" height="300" fill="rgba(2,6,23,.18)" />
+                                    <g id="ponzoScene"></g>
+                                    <g id="ponzoGuides" opacity="0"></g>
+                                </svg>
+                                <div class="mt-2 text-xs text-slate-300">Drag the bars up/down. Keep their physical
+                                    length equal; notice the perceived size shift.</div>
+                            </div>
+
+                            <div class="rounded-2xl border border-slate-800/60 bg-slate-950/40 p-4">
+                                <div class="grid gap-3">
+                                    <label class="text-sm">
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-slate-200">Rail convergence</span>
+                                            <span id="ponzoConvLabel" class="mono text-slate-200">0.62</span>
+                                        </div>
+                                        <input id="ponzoConv" class="range w-full" type="range" min="0.30" max="0.86"
+                                            value="0.62" step="0.01" />
+                                    </label>
+
+                                    <label class="text-sm">
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-slate-200">Bar length</span>
+                                            <span id="ponzoLenLabel" class="mono text-slate-200">250</span>
+                                        </div>
+                                        <input id="ponzoLen" class="range w-full" type="range" min="160" max="340"
+                                            value="250" />
+                                    </label>
+
+                                    <div
+                                        class="rounded-xl border border-slate-800/60 bg-slate-900/30 p-3 text-sm text-slate-300">
+                                        <p class="font-semibold text-slate-200">Drag targets</p>
+                                        <p class="mt-1">Grab the bars (they highlight). Try placing one near the top
+                                            (far) and one near the bottom (near).</p>
+                                    </div>
+
+                                    <details class="rounded-xl border border-slate-800/60 bg-slate-900/30 p-3">
+                                        <summary class="cursor-pointer text-sm text-slate-200 font-semibold">What’s
+                                            happening?</summary>
+                                        <p class="mt-2 text-sm text-slate-300 leading-relaxed">
+                                            The converging rails suggest perspective depth. Your brain applies size
+                                            constancy: “farther” objects must be larger to cast the same retinal size.
+                                            So the upper bar feels longer even when both are identical.
+                                        </p>
+                                    </details>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Café wall -->
+                <section id="cafewall" class="scroll-mt-24">
+                    <div class="card rounded-2xl border border-slate-800/60 p-5">
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <h2 class="text-xl font-semibold">Café wall illusion</h2>
+                                <p class="mt-1 text-sm text-slate-300">Straight horizontal lines can look slanted when
+                                    rows of offset tiles are added.</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button data-reveal="cafewall"
+                                    class="revealBtn focus-ring rounded-lg border border-slate-700 bg-slate-900/60 hover:bg-slate-900 px-3 py-2 text-sm">Reveal</button>
+                                <button id="cafeAnimate"
+                                    class="focus-ring rounded-lg border border-slate-700 bg-slate-900/60 hover:bg-slate-900 px-3 py-2 text-sm">Wiggle</button>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-4 items-start">
+                            <div class="rounded-2xl border border-slate-800/60 bg-slate-950/40 p-4">
+                                <canvas id="cafeCanvas" width="900" height="420"
+                                    class="w-full h-[260px] sm:h-[320px] rounded-xl border border-slate-800/60 bg-slate-950"></canvas>
+                                <div class="mt-2 text-xs text-slate-300">Try: increase mortar width and offset; then
+                                    turn on <span class="font-semibold">Reveal</span> to overlay straight guides.</div>
+                            </div>
+
+                            <div class="rounded-2xl border border-slate-800/60 bg-slate-950/40 p-4">
+                                <div class="grid gap-3">
+                                    <label class="text-sm">
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-slate-200">Row offset</span>
+                                            <span id="cafeOffsetLabel" class="mono text-slate-200">0.50</span>
+                                        </div>
+                                        <input id="cafeOffset" class="range w-full" type="range" min="0" max="1"
+                                            value="0.50" step="0.01" />
+                                    </label>
+
+                                    <label class="text-sm">
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-slate-200">Mortar thickness</span>
+                                            <span id="cafeMortarLabel" class="mono text-slate-200">7</span>
+                                        </div>
+                                        <input id="cafeMortar" class="range w-full" type="range" min="2" max="18"
+                                            value="7" />
+                                    </label>
+
+                                    <label class="text-sm">
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-slate-200">Contrast</span>
+                                            <span id="cafeContrastLabel" class="mono text-slate-200">0.95</span>
+                                        </div>
+                                        <input id="cafeContrast" class="range w-full" type="range" min="0.5" max="1"
+                                            value="0.95" step="0.01" />
+                                    </label>
+
+                                    <details class="rounded-xl border border-slate-800/60 bg-slate-900/30 p-3">
+                                        <summary class="cursor-pointer text-sm text-slate-200 font-semibold">What’s
+                                            happening?</summary>
+                                        <p class="mt-2 text-sm text-slate-300 leading-relaxed">
+                                            Local edge interactions and contrast make the mortar lines appear tilted.
+                                            Even though each mortar row is physically straight, the alternating offsets
+                                            bias the perceived direction.
+                                        </p>
+                                    </details>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Checker shadow -->
+                <section id="checker" class="scroll-mt-24">
+                    <div class="card rounded-2xl border border-slate-800/60 p-5">
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <h2 class="text-xl font-semibold">Checker shadow illusion (Adelson)</h2>
+                                <p class="mt-1 text-sm text-slate-300">A square in shadow can be the same luminance as a
+                                    square in light — but look different.</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button data-reveal="checker"
+                                    class="revealBtn focus-ring rounded-lg border border-slate-700 bg-slate-900/60 hover:bg-slate-900 px-3 py-2 text-sm">Reveal</button>
+                                <button id="checkerToggleShadow"
+                                    class="focus-ring rounded-lg border border-slate-700 bg-slate-900/60 hover:bg-slate-900 px-3 py-2 text-sm">Toggle
+                                    shadow</button>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-4 items-start">
+                            <div class="rounded-2xl border border-slate-800/60 bg-slate-950/40 p-4">
+                                <canvas id="checkerCanvas" width="900" height="520"
+                                    class="w-full h-[280px] sm:h-[340px] rounded-xl border border-slate-800/60 bg-slate-950"></canvas>
+                                <div
+                                    class="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-300">
+                                    <div>Click inside the canvas to sample a pixel (approximate):</div>
+                                    <div class="mono">Sample: <span id="checkerSample">—</span></div>
+                                </div>
+                            </div>
+
+                            <div class="rounded-2xl border border-slate-800/60 bg-slate-950/40 p-4">
+                                <div class="grid gap-3">
+                                    <label class="text-sm">
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-slate-200">Cylinder strength</span>
+                                            <span id="checkerShadowLabel" class="mono text-slate-200">0.78</span>
+                                        </div>
+                                        <input id="checkerShadow" class="range w-full" type="range" min="0" max="1"
+                                            value="0.78" step="0.01" />
+                                    </label>
+
+                                    <label class="text-sm">
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-slate-200">Ambient light</span>
+                                            <span id="checkerAmbientLabel" class="mono text-slate-200">0.18</span>
+                                        </div>
+                                        <input id="checkerAmbient" class="range w-full" type="range" min="0" max="0.35"
+                                            value="0.18" step="0.01" />
+                                    </label>
+
+                                    <div
+                                        class="rounded-xl border border-slate-800/60 bg-slate-900/30 p-3 text-sm text-slate-300">
+                                        <p class="font-semibold text-slate-200">Reveal tools</p>
+                                        <ul class="mt-2 list-disc pl-4 space-y-1">
+                                            <li>“Reveal” overlays A/B and a connecting strip.</li>
+                                            <li>“Toggle shadow” removes the shadow cue.</li>
+                                        </ul>
+                                    </div>
+
+                                    <details class="rounded-xl border border-slate-800/60 bg-slate-900/30 p-3">
+                                        <summary class="cursor-pointer text-sm text-slate-200 font-semibold">What’s
+                                            happening?</summary>
+                                        <p class="mt-2 text-sm text-slate-300 leading-relaxed">
+                                            The visual system tries to infer surface reflectance, discounting
+                                            illumination.
+                                            When a region is interpreted as “in shadow,” your brain boosts its perceived
+                                            brightness.
+                                        </p>
+                                    </details>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <footer class="py-6 text-center text-xs text-slate-400">
+                    Built as a single-page demo (SVG + Canvas + Tailwind). Works offline after load.
+                </footer>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        // ---------- Utilities ----------
+        const $ = (sel, root = document) => root.querySelector(sel);
+        const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+        function clamp(v, a, b) { return Math.min(b, Math.max(a, v)); }
+
+        function svgEl(tag, attrs = {}) {
+            const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+            for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v));
+            return el;
+        }
+
+        function setText(id, value) {
+            const el = typeof id === 'string' ? $(id) : id;
+            if (!el) return;
+            el.textContent = value;
+        }
+
+        function fmt(n, digits = 0) {
+            const d = Math.max(0, digits);
+            return Number(n).toFixed(d);
+        }
+
+        // ---------- Global state ----------
+        const state = {
+            truthMode: false,
+            reveal: {
+                muller: false,
+                ebbinghaus: false,
+                ponzo: false,
+                cafewall: false,
+                checker: false,
+            },
+            muller: {
+                base: 320,
+                diff: 0,
+                swap: false,
+            },
+            ebbinghaus: {
+                diff: 26,
+                dist: 62,
+                count: 8,
+                swap: false,
+            },
+            ponzo: {
+                convergence: 0.62,
+                len: 250,
+                yTop: 105,
+                yBottom: 220,
+                dragTarget: null,
+            },
+            cafewall: {
+                offset: 0.50,
+                mortar: 7,
+                contrast: 0.95,
+                wiggle: false,
+                wiggleT: 0,
+            },
+            checker: {
+                shadowStrength: 0.78,
+                ambient: 0.18,
+                shadowOn: true,
+            }
+        };
+
+        function isRevealed(key) {
+            return state.truthMode || !!state.reveal[key];
+        }
+
+        function updateTruthModeUI() {
+            setText('#truthModeLabel', state.truthMode ? 'On' : 'Off');
+            $('#truthModeBtn').classList.toggle('border-cyan-300/40', state.truthMode);
+            $('#truthModeBtn').classList.toggle('bg-cyan-400/10', state.truthMode);
+        }
+
+        // ---------- Müller–Lyer rendering ----------
+        function drawFins(g, x, y, outward = true, size = 18, stroke = 'rgba(226,232,240,.95)') {
+            // Fins are two short lines at +/- 35° from the main line.
+            const a = outward ? 1 : -1;
+            const dx = a * size;
+            const dy = size * 0.72;
+            g.appendChild(svgEl('line', { x1: x, y1: y, x2: x + dx, y2: y - dy, stroke, 'stroke-width': 4, 'stroke-linecap': 'round' }));
+            g.appendChild(svgEl('line', { x1: x, y1: y, x2: x + dx, y2: y + dy, stroke, 'stroke-width': 4, 'stroke-linecap': 'round' }));
+        }
+
+        function drawRuler(g, x1, x2, y, label, color = 'rgba(56,189,248,.95)') {
+            g.appendChild(svgEl('line', { x1, y1: y, x2, y2: y, stroke: color, 'stroke-width': 2, 'stroke-linecap': 'round' }));
+            const len = x2 - x1;
+            const ticks = Math.max(4, Math.floor(len / 30));
+            for (let i = 0; i <= ticks; i++) {
+                const t = i / ticks;
+                const x = x1 + t * len;
+                const h = i % 2 === 0 ? 12 : 8;
+                g.appendChild(svgEl('line', { x1: x, y1: y - h, x2: x, y2: y + h, stroke: color, 'stroke-width': 2, opacity: 0.9 }));
+            }
+            const text = svgEl('text', { x: (x1 + x2) / 2, y: y - 16, fill: color, 'font-size': 14, 'text-anchor': 'middle', 'font-family': 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace' });
+            text.textContent = label;
+            g.appendChild(text);
+        }
+
+        function renderMuller() {
+            const svg = $('#mullerSvg');
+            const linesG = $('#mullerLines');
+            const guidesG = $('#mullerGuides');
+            linesG.replaceChildren();
+            guidesG.replaceChildren();
+
+            const base = state.muller.base;
+            const diff = state.muller.diff;
+
+            const topLen = clamp(base - diff, 120, 520);
+            const bottomLen = clamp(base + diff, 120, 520);
+
+            const cx = 320;
+            const yTop = 78;
+            const yBottom = 150;
+            const x1Top = cx - topLen / 2;
+            const x2Top = cx + topLen / 2;
+            const x1Bot = cx - bottomLen / 2;
+            const x2Bot = cx + bottomLen / 2;
+
+            const stroke = 'rgba(226,232,240,.96)';
+
+            // Fins: classic illusion uses outward vs inward; allow swap.
+            const topOutward = state.muller.swap ? false : true;
+            const botOutward = state.muller.swap ? true : false;
+
+            // Top
+            linesG.appendChild(svgEl('line', { x1: x1Top, y1: yTop, x2: x2Top, y2: yTop, stroke, 'stroke-width': 6, 'stroke-linecap': 'round' }));
+            drawFins(linesG, x1Top, yTop, !topOutward, 18, stroke);
+            drawFins(linesG, x2Top, yTop, topOutward, 18, stroke);
+
+            // Bottom
+            linesG.appendChild(svgEl('line', { x1: x1Bot, y1: yBottom, x2: x2Bot, y2: yBottom, stroke, 'stroke-width': 6, 'stroke-linecap': 'round' }));
+            drawFins(linesG, x1Bot, yBottom, !botOutward, 18, stroke);
+            drawFins(linesG, x2Bot, yBottom, botOutward, 18, stroke);
+
+            // Labels
+            const t1 = svgEl('text', { x: 24, y: yTop + 6, fill: 'rgba(148,163,184,.95)', 'font-size': 12 });
+            t1.textContent = 'Top';
+            const t2 = svgEl('text', { x: 24, y: yBottom + 6, fill: 'rgba(148,163,184,.95)', 'font-size': 12 });
+            t2.textContent = 'Bottom';
+            linesG.appendChild(t1);
+            linesG.appendChild(t2);
+
+            // Guides
+            const show = isRevealed('muller');
+            guidesG.setAttribute('opacity', show ? '1' : '0');
+            if (show) {
+                // faint reference axes
+                guidesG.appendChild(svgEl('line', { x1: 0, y1: yTop, x2: 640, y2: yTop, stroke: 'rgba(56,189,248,.18)', 'stroke-width': 1 }));
+                guidesG.appendChild(svgEl('line', { x1: 0, y1: yBottom, x2: 640, y2: yBottom, stroke: 'rgba(56,189,248,.18)', 'stroke-width': 1 }));
+                drawRuler(guidesG, x1Top, x2Top, yTop + 34, `Top length: ${Math.round(topLen)} px`);
+                drawRuler(guidesG, x1Bot, x2Bot, yBottom + 34, `Bottom length: ${Math.round(bottomLen)} px`);
+            }
+
+            setText('#mullerBaseLabel', String(Math.round(base)));
+            setText('#mullerDiffLabel', String(Math.round(diff)));
+        }
+
+        // ---------- Ebbinghaus rendering ----------
+        function renderEbbinghaus() {
+            const g = $('#ebbingCircles');
+            const guides = $('#ebbingGuides');
+            g.replaceChildren();
+            guides.replaceChildren();
+
+            const cxL = 210;
+            const cxR = 430;
+            const cy = 130;
+            const rCenter = 24;
+
+            const diff = state.ebbinghaus.diff;
+            const dist = state.ebbinghaus.dist;
+            const count = state.ebbinghaus.count;
+
+            const rBig = 36 + diff;
+            const rSmall = Math.max(10, 36 - diff);
+
+            const leftBig = state.ebbinghaus.swap ? false : true;
+            const rL = leftBig ? rBig : rSmall;
+            const rR = leftBig ? rSmall : rBig;
+
+            // Surround circles around each center
+            function ring(centerX, centerY, rSurround, distFromCenter) {
+                for (let i = 0; i < count; i++) {
+                    const a = (i / count) * Math.PI * 2;
+                    const x = centerX + Math.cos(a) * distFromCenter;
+                    const y = centerY + Math.sin(a) * distFromCenter;
+                    g.appendChild(svgEl('circle', { cx: x, cy: y, r: rSurround, fill: 'rgba(148,163,184,.12)', stroke: 'rgba(148,163,184,.50)', 'stroke-width': 2 }));
+                }
+            }
+
+            ring(cxL, cy, rL, dist);
+            ring(cxR, cy, rR, dist);
+
+            // Center circles: identical
+            g.appendChild(svgEl('circle', { cx: cxL, cy, r: rCenter, fill: 'rgba(226,232,240,.92)', stroke: 'rgba(226,232,240,.92)', 'stroke-width': 2 }));
+            g.appendChild(svgEl('circle', { cx: cxR, cy, r: rCenter, fill: 'rgba(226,232,240,.92)', stroke: 'rgba(226,232,240,.92)', 'stroke-width': 2 }));
+
+            // subtle glow
+            g.appendChild(svgEl('circle', { cx: cxL, cy, r: rCenter + 10, fill: 'none', stroke: 'rgba(56,189,248,.22)', 'stroke-width': 2 }));
+            g.appendChild(svgEl('circle', { cx: cxR, cy, r: rCenter + 10, fill: 'none', stroke: 'rgba(56,189,248,.22)', 'stroke-width': 2 }));
+
+            // Guides
+            const show = isRevealed('ebbinghaus');
+            guides.setAttribute('opacity', show ? '1' : '0');
+            if (show) {
+                const c = 'rgba(56,189,248,.95)';
+                // measure diameter
+                function measure(cx, cy, r, label) {
+                    guides.appendChild(svgEl('line', { x1: cx - r, y1: cy, x2: cx + r, y2: cy, stroke: c, 'stroke-width': 2 }));
+                    guides.appendChild(svgEl('line', { x1: cx - r, y1: cy - 10, x2: cx - r, y2: cy + 10, stroke: c, 'stroke-width': 2 }));
+                    guides.appendChild(svgEl('line', { x1: cx + r, y1: cy - 10, x2: cx + r, y2: cy + 10, stroke: c, 'stroke-width': 2 }));
+                    const t = svgEl('text', { x: cx, y: cy - 18, fill: c, 'font-size': 14, 'text-anchor': 'middle', 'font-family': 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace' });
+                    t.textContent = label;
+                    guides.appendChild(t);
+                }
+                measure(cxL, cy, rCenter, `Diameter: ${Math.round(rCenter * 2)} px`);
+                measure(cxR, cy, rCenter, `Diameter: ${Math.round(rCenter * 2)} px`);
+            }
+
+            setText('#ebbingDiffLabel', String(Math.round(diff)));
+            setText('#ebbingDistLabel', String(Math.round(dist)));
+            setText('#ebbingCountLabel', String(Math.round(count)));
+        }
+
+        // ---------- Ponzo rendering + drag ----------
+        function renderPonzo() {
+            const scene = $('#ponzoScene');
+            const guides = $('#ponzoGuides');
+            scene.replaceChildren();
+            guides.replaceChildren();
+
+            const w = 640, h = 300;
+            const conv = state.ponzo.convergence;
+            const len = state.ponzo.len;
+
+            const topXLeft = w * (0.5 - conv * 0.18);
+            const topXRight = w * (0.5 + conv * 0.18);
+            const bottomXLeft = w * 0.18;
+            const bottomXRight = w * 0.82;
+
+            // Rails
+            scene.appendChild(svgEl('line', { x1: bottomXLeft, y1: h - 18, x2: topXLeft, y2: 20, stroke: 'rgba(148,163,184,.85)', 'stroke-width': 6, 'stroke-linecap': 'round' }));
+            scene.appendChild(svgEl('line', { x1: bottomXRight, y1: h - 18, x2: topXRight, y2: 20, stroke: 'rgba(148,163,184,.85)', 'stroke-width': 6, 'stroke-linecap': 'round' }));
+
+            // Cross ties
+            for (let i = 0; i < 10; i++) {
+                const t = i / 9;
+                const y = 34 + t * (h - 70);
+                const xL = bottomXLeft + (topXLeft - bottomXLeft) * (1 - t);
+                const xR = bottomXRight + (topXRight - bottomXRight) * (1 - t);
+                scene.appendChild(svgEl('line', { x1: xL, y1: y, x2: xR, y2: y, stroke: 'rgba(100,116,139,.35)', 'stroke-width': 3 }));
+            }
+
+            // Bars (draggable)
+            const barStroke = 'rgba(226,232,240,.96)';
+            const barStroke2 = 'rgba(226,232,240,.96)';
+
+            function bar(y, id) {
+                const x1 = w / 2 - len / 2;
+                const x2 = w / 2 + len / 2;
+                const grp = svgEl('g', { id });
+                const isDragging = state.ponzo.dragTarget === id;
+
+                grp.appendChild(svgEl('line', { x1, y1: y, x2, y2: y, stroke: id === 'barTop' ? barStroke : barStroke2, 'stroke-width': 10, 'stroke-linecap': 'round' }));
+                // hit area
+                grp.appendChild(svgEl('line', { x1, y1: y, x2, y2: y, stroke: 'transparent', 'stroke-width': 28, 'stroke-linecap': 'round' }));
+                // small handles
+                grp.appendChild(svgEl('circle', { cx: x1, cy: y, r: 7, fill: isDragging ? 'rgba(56,189,248,.95)' : 'rgba(56,189,248,.55)' }));
+                grp.appendChild(svgEl('circle', { cx: x2, cy: y, r: 7, fill: isDragging ? 'rgba(56,189,248,.95)' : 'rgba(56,189,248,.55)' }));
+                grp.classList.add('grab');
+                grp.style.pointerEvents = 'auto';
+                grp.dataset.drag = id;
+                return grp;
+            }
+
+            scene.appendChild(bar(state.ponzo.yTop, 'barTop'));
+            scene.appendChild(bar(state.ponzo.yBottom, 'barBottom'));
+
+            // Depth shading overlay
+            const grad = svgEl('linearGradient', { id: 'ponzoFog', x1: '0', y1: '0', x2: '0', y2: '1' });
+            grad.appendChild(svgEl('stop', { offset: '0%', 'stop-color': 'rgba(2,6,23,.55)' }));
+            grad.appendChild(svgEl('stop', { offset: '45%', 'stop-color': 'rgba(2,6,23,.12)' }));
+            grad.appendChild(svgEl('stop', { offset: '100%', 'stop-color': 'rgba(2,6,23,.05)' }));
+            const defs = svgEl('defs');
+            defs.appendChild(grad);
+            scene.appendChild(defs);
+            scene.appendChild(svgEl('rect', { x: 0, y: 0, width: w, height: h, fill: 'url(#ponzoFog)', opacity: 0.6 }));
+
+            // Guides
+            const show = isRevealed('ponzo');
+            guides.setAttribute('opacity', show ? '1' : '0');
+            if (show) {
+                const c = 'rgba(56,189,248,.95)';
+                const x1 = w / 2 - len / 2;
+                const x2 = w / 2 + len / 2;
+                drawRuler(guides, x1, x2, state.ponzo.yTop - 26, `Top bar: ${Math.round(len)} px`, c);
+                drawRuler(guides, x1, x2, state.ponzo.yBottom + 26, `Bottom bar: ${Math.round(len)} px`, c);
+            }
+
+            setText('#ponzoConvLabel', fmt(conv, 2));
+            setText('#ponzoLenLabel', String(Math.round(len)));
+        }
+
+        function attachPonzoDrag() {
+            const svg = $('#ponzoSvg');
+            let active = null;
+            let startY = 0;
+            let startVal = 0;
+
+            function getSvgPoint(evt) {
+                const pt = svg.createSVGPoint();
+                pt.x = evt.clientX;
+                pt.y = evt.clientY;
+                const ctm = svg.getScreenCTM();
+                return pt.matrixTransform(ctm.inverse());
+            }
+
+            svg.addEventListener('pointerdown', (e) => {
+                const target = e.target.closest('g[data-drag]');
+                if (!target) return;
+                active = target.dataset.drag;
+                state.ponzo.dragTarget = active;
+                const p = getSvgPoint(e);
+                startY = p.y;
+                startVal = active === 'barTop' ? state.ponzo.yTop : state.ponzo.yBottom;
+                svg.setPointerCapture(e.pointerId);
+                svg.classList.add('grabbing');
+                renderPonzo();
+            });
+
+            svg.addEventListener('pointermove', (e) => {
+                if (!active) return;
+                const p = getSvgPoint(e);
+                const dy = p.y - startY;
+                const y = clamp(startVal + dy, 56, 264);
+                if (active === 'barTop') state.ponzo.yTop = y;
+                if (active === 'barBottom') state.ponzo.yBottom = y;
+                renderPonzo();
+            });
+
+            function endDrag(e) {
+                if (!active) return;
+                active = null;
+                state.ponzo.dragTarget = null;
+                svg.classList.remove('grabbing');
+                renderPonzo();
+            }
+            svg.addEventListener('pointerup', endDrag);
+            svg.addEventListener('pointercancel', endDrag);
+            svg.addEventListener('pointerleave', endDrag);
+        }
+
+        // ---------- Café wall rendering (Canvas) ----------
+        function drawCafeWall() {
+            const canvas = $('#cafeCanvas');
+            const ctx = canvas.getContext('2d');
+            const W = canvas.width, H = canvas.height;
+            ctx.clearRect(0, 0, W, H);
+
+            const offset = state.cafewall.offset;
+            const mortar = state.cafewall.mortar;
+            const contrast = state.cafewall.contrast;
+
+            const tileW = 90;
+            const tileH = 44;
+            const rows = Math.floor((H - 40) / (tileH + mortar));
+            const cols = Math.ceil(W / tileW) + 2;
+
+            // Background
+            ctx.fillStyle = 'rgba(2,6,23,1)';
+            ctx.fillRect(0, 0, W, H);
+
+            // Mortar color
+            const mortarGray = Math.floor(190 * contrast);
+            ctx.fillStyle = `rgb(${mortarGray},${mortarGray},${mortarGray})`;
+
+            const topPad = 22;
+            const leftPad = 22;
+
+            // Draw rows
+            for (let r = 0; r < rows; r++) {
+                const y = topPad + r * (tileH + mortar);
+
+                // mortar band
+                ctx.fillStyle = `rgb(${mortarGray},${mortarGray},${mortarGray})`;
+                ctx.fillRect(0, y + tileH, W, mortar);
+
+                const shiftBase = (r % 2 === 0 ? 0 : 1) * offset * (tileW / 2);
+                for (let c = -1; c < cols; c++) {
+                    const x = leftPad + c * tileW + shiftBase;
+                    const isBlack = (c + r) % 2 === 0;
+                    const v = isBlack ? Math.floor(22 * (1 - contrast) + 16) : Math.floor(240 * contrast);
+                    ctx.fillStyle = `rgb(${v},${v},${v})`;
+                    ctx.fillRect(x, y, tileW - 2, tileH);
+                }
+            }
+
+            // Slight vignetting
+            const grad = ctx.createRadialGradient(W * 0.5, H * 0.35, 80, W * 0.5, H * 0.5, Math.max(W, H) * 0.65);
+            grad.addColorStop(0, 'rgba(2,6,23,0)');
+            grad.addColorStop(1, 'rgba(2,6,23,0.55)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, W, H);
+
+            // Reveal guides
+            const show = isRevealed('cafewall');
+            if (show) {
+                ctx.save();
+                ctx.globalAlpha = 0.9;
+                ctx.strokeStyle = 'rgba(56,189,248,0.95)';
+                ctx.lineWidth = 3;
+                for (let r = 0; r <= rows; r++) {
+                    const y = topPad + r * (tileH + mortar) + tileH + mortar / 2;
+                    ctx.beginPath();
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(W, y);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+
+            // Title
+            ctx.fillStyle = 'rgba(148,163,184,0.85)';
+            ctx.font = '20px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto';
+            ctx.fillText('Café wall: the blue guides are perfectly horizontal', 24, 36);
+
+            setText('#cafeOffsetLabel', fmt(offset, 2));
+            setText('#cafeMortarLabel', String(Math.round(mortar)));
+            setText('#cafeContrastLabel', fmt(contrast, 2));
+        }
+
+        // Wiggle animation: subtle offset oscillation
+        function tickCafe() {
+            if (!state.cafewall.wiggle) return;
+            state.cafewall.wiggleT += 1;
+            const t = state.cafewall.wiggleT;
+            const base = Number($('#cafeOffset').value);
+            // small oscillation +/- 0.08
+            state.cafewall.offset = clamp(base + Math.sin(t / 16) * 0.08, 0, 1);
+            drawCafeWall();
+            requestAnimationFrame(tickCafe);
+        }
+
+        // ---------- Checker shadow rendering (Canvas) ----------
+        function drawCheckerShadow() {
+            const canvas = $('#checkerCanvas');
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            const W = canvas.width, H = canvas.height;
+            ctx.clearRect(0, 0, W, H);
+
+            // parameters
+            const shadowStrength = state.checker.shadowStrength;
+            const ambient = state.checker.ambient;
+            const shadowOn = state.checker.shadowOn;
+
+            // background
+            ctx.fillStyle = 'rgb(3,6,17)';
+            ctx.fillRect(0, 0, W, H);
+
+            // Checkerboard
+            const boardX = 120, boardY = 90;
+            const sq = 56;
+            const cols = 10, rows = 7;
+
+            // base colors (pre-shadow)
+            const light = 210;
+            const dark = 70;
+
+            function squareColor(i, j) {
+                const v = ((i + j) % 2 === 0) ? light : dark;
+                // ambient lifts everything
+                const vv = Math.round(v * (1 - ambient) + 255 * ambient);
+                return vv;
+            }
+
+            // Shadow field (a soft elliptical shadow cast by a cylinder)
+            function shadowAt(x, y) {
+                if (!shadowOn) return 0;
+                // Ellipse centered slightly right
+                const cx = boardX + sq * 5.2;
+                const cy = boardY + sq * 2.6;
+                const rx = sq * 3.2;
+                const ry = sq * 2.1;
+                const dx = (x - cx) / rx;
+                const dy = (y - cy) / ry;
+                const d2 = dx * dx + dy * dy;
+                const s = Math.exp(-d2 * 1.9); // 0..1
+                return s * shadowStrength;
+            }
+
+            // draw squares with per-pixel shadow approximation via per-square sampling
+            for (let j = 0; j < rows; j++) {
+                for (let i = 0; i < cols; i++) {
+                    const x = boardX + i * sq;
+                    const y = boardY + j * sq;
+                    const base = squareColor(i, j);
+                    // sample shadow in square center
+                    const s = shadowAt(x + sq * 0.5, y + sq * 0.5);
+                    // shadow darkens
+                    const v = Math.round(base * (1 - 0.62 * s));
+                    ctx.fillStyle = `rgb(${v},${v},${v})`;
+                    ctx.fillRect(x, y, sq, sq);
+                }
+            }
+
+            // Cylinder
+            const cylX = boardX + sq * 4.5;
+            const cylY = boardY + sq * 0.8;
+            const cylW = sq * 2.6;
+            const cylH = sq * 4.4;
+
+            // body gradient
+            const body = ctx.createLinearGradient(cylX, 0, cylX + cylW, 0);
+            body.addColorStop(0, 'rgba(226,232,240,0.15)');
+            body.addColorStop(0.28, 'rgba(226,232,240,0.55)');
+            body.addColorStop(0.55, 'rgba(226,232,240,0.18)');
+            body.addColorStop(1, 'rgba(226,232,240,0.42)');
+
+            ctx.fillStyle = body;
+            roundRect(ctx, cylX, cylY, cylW, cylH, 22);
+            ctx.fill();
+
+            // top ellipse
+            ctx.fillStyle = 'rgba(226,232,240,0.55)';
+            ctx.beginPath();
+            ctx.ellipse(cylX + cylW / 2, cylY, cylW / 2, 14, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // shadow blur overlay (visual cue)
+            if (shadowOn) {
+                const sx = boardX + sq * 3.2;
+                const sy = boardY + sq * 1.7;
+                const sW = sq * 5.8;
+                const sH = sq * 3.7;
+                const shadowGrad = ctx.createRadialGradient(sx + sW * 0.55, sy + sH * 0.55, sq * 0.4, sx + sW * 0.55, sy + sH * 0.55, Math.max(sW, sH) * 0.65);
+                shadowGrad.addColorStop(0, `rgba(2,6,23,${0.50 * shadowStrength})`);
+                shadowGrad.addColorStop(1, 'rgba(2,6,23,0)');
+                ctx.fillStyle = shadowGrad;
+                ctx.fillRect(sx, sy, sW, sH);
+            }
+
+            // Choose A and B squares similar to Adelson layout
+            const A = { i: 2, j: 5 };
+            const B = { i: 6, j: 3 };
+
+            // We tune the shadow to roughly equalize A and B luminance. We'll adjust B with a tiny compensating strip.
+            // Overlay: labels and reveal strip
+            const show = isRevealed('checker');
+            if (show) {
+                // label boxes
+                labelSquare(ctx, boardX + A.i * sq, boardY + A.j * sq, sq, 'A');
+                labelSquare(ctx, boardX + B.i * sq, boardY + B.j * sq, sq, 'B');
+
+                // connecting strip: sample the mid gray of B and draw a strip across to A to show equality impression.
+                const xA = boardX + A.i * sq;
+                const yA = boardY + A.j * sq;
+                const xB = boardX + B.i * sq;
+                const yB = boardY + B.j * sq;
+                // compute approximate displayed gray values
+                const baseA = squareColor(A.i, A.j);
+                const baseB = squareColor(B.i, B.j);
+                const vA = Math.round(baseA * (1 - 0.62 * shadowAt(xA + sq / 2, yA + sq / 2)));
+                const vB = Math.round(baseB * (1 - 0.62 * shadowAt(xB + sq / 2, yB + sq / 2)));
+
+                const stripV = Math.round((vA + vB) / 2);
+                ctx.fillStyle = `rgba(${stripV},${stripV},${stripV},0.85)`;
+                ctx.fillRect(Math.min(xA, xB) + sq * 0.2, (yA + yB) / 2 + sq * 0.15, Math.abs(xA - xB) + sq * 0.6, sq * 0.7);
+                ctx.strokeStyle = 'rgba(56,189,248,0.95)';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(Math.min(xA, xB) + sq * 0.2, (yA + yB) / 2 + sq * 0.15, Math.abs(xA - xB) + sq * 0.6, sq * 0.7);
+
+                // numeric readout
+                ctx.fillStyle = 'rgba(56,189,248,0.95)';
+                ctx.font = '18px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace';
+                ctx.fillText(`Approx luminance A≈${vA}   B≈${vB}`, 24, 42);
+            }
+
+            // caption
+            ctx.fillStyle = 'rgba(148,163,184,0.9)';
+            ctx.font = '20px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto';
+            ctx.fillText('Checker shadow: A and B can be the same shade (context changes perception)', 24, 72);
+
+            setText('#checkerShadowLabel', fmt(shadowStrength, 2));
+            setText('#checkerAmbientLabel', fmt(ambient, 2));
+        }
+
+        function roundRect(ctx, x, y, w, h, r) {
+            const rr = Math.min(r, w / 2, h / 2);
+            ctx.beginPath();
+            ctx.moveTo(x + rr, y);
+            ctx.arcTo(x + w, y, x + w, y + h, rr);
+            ctx.arcTo(x + w, y + h, x, y + h, rr);
+            ctx.arcTo(x, y + h, x, y, rr);
+            ctx.arcTo(x, y, x + w, y, rr);
+            ctx.closePath();
+        }
+
+        function labelSquare(ctx, x, y, sq, label) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(56,189,248,0.95)';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(x + 2, y + 2, sq - 4, sq - 4);
+            ctx.fillStyle = 'rgba(2,6,23,0.65)';
+            ctx.fillRect(x + 6, y + 6, 26, 26);
+            ctx.fillStyle = 'rgba(226,232,240,0.98)';
+            ctx.font = '16px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace';
+            ctx.fillText(label, x + 14, y + 24);
+            ctx.restore();
+        }
+
+        function attachCheckerSampler() {
+            const canvas = $('#checkerCanvas');
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+            canvas.addEventListener('pointerdown', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const x = Math.floor((e.clientX - rect.left) * (canvas.width / rect.width));
+                const y = Math.floor((e.clientY - rect.top) * (canvas.height / rect.height));
+                const data = ctx.getImageData(clamp(x, 0, canvas.width - 1), clamp(y, 0, canvas.height - 1), 1, 1).data;
+                setText('#checkerSample', `rgb(${data[0]}, ${data[1]}, ${data[2]}) @ (${x},${y})`);
+            });
+        }
+
+        // ---------- Reveal + reset wiring ----------
+        function setReveal(key, on) {
+            state.reveal[key] = !!on;
+            rerenderAll();
+        }
+
+        function toggleReveal(key) {
+            state.reveal[key] = !state.reveal[key];
+            rerenderAll();
+        }
+
+        function rerenderAll() {
+            renderMuller();
+            renderEbbinghaus();
+            renderPonzo();
+            drawCafeWall();
+            drawCheckerShadow();
+            updateTruthModeUI();
+            // update reveal button labels
+            $$('.revealBtn').forEach(btn => {
+                const key = btn.getAttribute('data-reveal');
+                const on = isRevealed(key);
+                btn.textContent = on ? 'Hide' : 'Reveal';
+                btn.classList.toggle('border-cyan-300/40', on);
+                btn.classList.toggle('bg-cyan-400/10', on);
+            });
+        }
+
+        function resetAll() {
+            state.truthMode = false;
+            Object.keys(state.reveal).forEach(k => state.reveal[k] = false);
+
+            state.muller = { base: 320, diff: 0, swap: false };
+            state.ebbinghaus = { diff: 26, dist: 62, count: 8, swap: false };
+            state.ponzo = { convergence: 0.62, len: 250, yTop: 105, yBottom: 220, dragTarget: null };
+            state.cafewall = { offset: 0.50, mortar: 7, contrast: 0.95, wiggle: false, wiggleT: 0 };
+            state.checker = { shadowStrength: 0.78, ambient: 0.18, shadowOn: true };
+
+            // reset inputs
+            $('#mullerBase').value = state.muller.base;
+            $('#mullerDiff').value = state.muller.diff;
+
+            $('#ebbingDiff').value = state.ebbinghaus.diff;
+            $('#ebbingDist').value = state.ebbinghaus.dist;
+            $('#ebbingCount').value = state.ebbinghaus.count;
+
+            $('#ponzoConv').value = state.ponzo.convergence;
+            $('#ponzoLen').value = state.ponzo.len;
+
+            $('#cafeOffset').value = state.cafewall.offset;
+            $('#cafeMortar').value = state.cafewall.mortar;
+            $('#cafeContrast').value = state.cafewall.contrast;
+
+            $('#checkerShadow').value = state.checker.shadowStrength;
+            $('#checkerAmbient').value = state.checker.ambient;
+
+            setText('#checkerSample', '—');
+            rerenderAll();
+        }
+
+        // ---------- Initialize ----------
+        function init() {
+            // Global controls
+            $('#truthModeBtn').addEventListener('click', () => {
+                state.truthMode = !state.truthMode;
+                rerenderAll();
+            });
+            $('#resetBtn').addEventListener('click', resetAll);
+
+            // Reveal buttons per card
+            $$('.revealBtn').forEach(btn => {
+                btn.addEventListener('click', () => toggleReveal(btn.getAttribute('data-reveal')));
+            });
+
+            // Muller controls
+            $('#mullerBase').addEventListener('input', (e) => { state.muller.base = Number(e.target.value); renderMuller(); });
+            $('#mullerDiff').addEventListener('input', (e) => { state.muller.diff = Number(e.target.value); renderMuller(); });
+            $('#mullerSwap').addEventListener('click', () => { state.muller.swap = !state.muller.swap; renderMuller(); });
+            $('#mullerEqual').addEventListener('click', () => { state.muller.diff = 0; $('#mullerDiff').value = 0; renderMuller(); });
+            $('#mullerRandom').addEventListener('click', () => {
+                state.muller.base = Math.round(240 + Math.random() * 180);
+                state.muller.diff = Math.round((Math.random() * 2 - 1) * 90);
+                $('#mullerBase').value = state.muller.base;
+                $('#mullerDiff').value = state.muller.diff;
+                renderMuller();
+            });
+
+            // Ebbinghaus controls
+            $('#ebbingDiff').addEventListener('input', (e) => { state.ebbinghaus.diff = Number(e.target.value); renderEbbinghaus(); });
+            $('#ebbingDist').addEventListener('input', (e) => { state.ebbinghaus.dist = Number(e.target.value); renderEbbinghaus(); });
+            $('#ebbingCount').addEventListener('input', (e) => { state.ebbinghaus.count = Number(e.target.value); renderEbbinghaus(); });
+            $('#ebbinghausSwap').addEventListener('click', () => { state.ebbinghaus.swap = !state.ebbinghaus.swap; renderEbbinghaus(); });
+
+            // Ponzo controls
+            $('#ponzoConv').addEventListener('input', (e) => { state.ponzo.convergence = Number(e.target.value); renderPonzo(); });
+            $('#ponzoLen').addEventListener('input', (e) => { state.ponzo.len = Number(e.target.value); renderPonzo(); });
+            $('#ponzoReset').addEventListener('click', () => {
+                state.ponzo.yTop = 105;
+                state.ponzo.yBottom = 220;
+                renderPonzo();
+            });
+            attachPonzoDrag();
+
+            // Café wall controls
+            $('#cafeOffset').addEventListener('input', (e) => { state.cafewall.offset = Number(e.target.value); drawCafeWall(); });
+            $('#cafeMortar').addEventListener('input', (e) => { state.cafewall.mortar = Number(e.target.value); drawCafeWall(); });
+            $('#cafeContrast').addEventListener('input', (e) => { state.cafewall.contrast = Number(e.target.value); drawCafeWall(); });
+            $('#cafeAnimate').addEventListener('click', () => {
+                state.cafewall.wiggle = !state.cafewall.wiggle;
+                $('#cafeAnimate').textContent = state.cafewall.wiggle ? 'Stop' : 'Wiggle';
+                if (state.cafewall.wiggle) requestAnimationFrame(tickCafe);
+            });
+
+            // Checker controls
+            $('#checkerShadow').addEventListener('input', (e) => { state.checker.shadowStrength = Number(e.target.value); drawCheckerShadow(); });
+            $('#checkerAmbient').addEventListener('input', (e) => { state.checker.ambient = Number(e.target.value); drawCheckerShadow(); });
+            $('#checkerToggleShadow').addEventListener('click', () => { state.checker.shadowOn = !state.checker.shadowOn; drawCheckerShadow(); });
+            attachCheckerSampler();
+
+            // initial
+            rerenderAll();
+        }
+
+        init();
+    </script>
+</body>
+
+</html>
