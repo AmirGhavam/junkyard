@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Optical Illusion Showcase</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .gradient-bg {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .illusion-container {
+            transition: all 0.5s ease;
+        }
+
+        /* Müller-Lyer Illusion */
+        .muller-line {
+            height: 4px;
+            background: #e94560;
+            transition: all 0.3s ease;
+        }
+
+        /* Ponzo Illusion */
+        .ponzo-line {
+            height: 3px;
+            background: #e94560;
+        }
+
+        /* Ebbinghaus Circles */
+        .ebbinghaus-center {
+            transition: all 0.5s ease;
+        }
+
+        /* Spinning Dancer */
+        @keyframes spin {
+            from {
+                transform: rotateY(0deg);
+            }
+
+            to {
+                transform: rotateY(360deg);
+            }
+        }
+
+        .dancer {
+            animation: spin 3s linear infinite;
+            animation-play-state: running;
+        }
+
+        .dancer.paused {
+            animation-play-state: paused;
+        }
+
+        /* Grid Illusion */
+        .grid-cell {
+            width: 20px;
+            height: 20px;
+            background: #1a1a2e;
+            border: 2px solid #e94560;
+        }
+
+        /* Motion Dots */
+        @keyframes drift {
+
+            0%,
+            100% {
+                transform: translate(0, 0);
+            }
+
+            25% {
+                transform: translate(10px, -10px);
+            }
+
+            50% {
+                transform: translate(0, 0);
+            }
+
+            75% {
+                transform: translate(-10px, 10px);
+            }
+        }
+
+        .motion-dot {
+            animation: drift 2s ease-in-out infinite;
+        }
+
+        /* Rubin's Vase */
+        .vase-shape {
+            fill: #e94560;
+            transition: all 0.3s ease;
+        }
+
+        /* Scintillating Grid */
+        .scintillating-cell {
+            width: 30px;
+            height: 30px;
+            background: #0f0;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+        }
+
+        .scintillating-cell:hover {
+            background: #fff;
+            box-shadow: 0 0 20px #0f0;
+        }
+
+        /* Explanation Panel */
+        .explanation {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease;
+        }
+
+        .explanation.open {
+            max-height: 500px;
+        }
+
+        /* Hover Effects */
+        .hover-lift:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(233, 69, 96, 0.3);
+        }
+
+        /* Color Squares */
+        .color-square {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .color-square.revealed {
+            opacity: 0.3;
+        }
+
+        /* Animated Background */
+        .bg-pattern {
+            background-image: radial-gradient(circle at 20% 50%, rgba(233, 69, 96, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 50%, rgba(0, 243, 255, 0.1) 0%, transparent 50%);
+        }
+
+        /* Strobe Effect */
+        @keyframes strobe {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .strobe-warning {
+            animation: strobe 1s ease-in-out infinite;
+        }
+
+        /* Cafe Wall */
+        .cafe-row {
+            display: flex;
+        }
+
+        .cafe-brick {
+            width: 40px;
+            height: 20px;
+            background: #1a1a2e;
+            border: 1px solid #e94560;
+        }
+
+        /* Hermann Grid Focus */
+        .hermann-focus {
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, #e94560 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+    </style>
+</head>
+
+<body class="gradient-bg min-h-screen text-white bg-pattern">
+    <!-- Header -->
+    <header class="py-8 text-center relative overflow-hidden">
+        <div class="absolute inset-0 overflow-hidden">
+            <div
+                class="absolute top-10 left-10 w-20 h-20 border-2 border-pink-500 rounded-full opacity-20 animate-pulse">
+            </div>
+            <div class="absolute top-20 right-20 w-32 h-32 border-2 border-cyan-400 rounded-full opacity-20 animate-pulse"
+                style="animation-delay: 0.5s;"></div>
+            <div class="absolute bottom-10 left-1/4 w-16 h-16 border-2 border-yellow-400 rounded-full opacity-20 animate-pulse"
+                style="animation-delay: 1s;"></div>
+        </div>
+        <h1
+            class="text-5xl md:text-6xl font-bold bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-400 bg-clip-text text-transparent mb-4">
+            Optical Illusions
+        </h1>
+        <p class="text-xl text-gray-300 max-w-2xl mx-auto px-4">
+            Discover how your brain can be tricked by visual perception. Click on illusions to interact and reveal
+            explanations!
+        </p>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8">
+
+        <!-- Illusion Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+
+            <!-- 1. Müller-Lyer Illusion -->
+            <div class="card rounded-2xl p-6 hover-lift transition-all duration-300">
+                <h3 class="text-2xl font-semibold text-pink-400 mb-4">Müller-Lyer Illusion</h3>
+                <div class="illusion-container flex flex-col items-center gap-6 mb-4">
+                    <div class="flex items-center gap-8">
+                        <div class="flex items-center">
+                            <div
+                                class="w-0 h-0 border-t-[15px] border-t-transparent border-b-[15px] border-b-transparent border-r-[25px] border-r-pink-500">
+                            </div>
+                            <div class="muller-line w-32" id="muller1"></div>
+                            <div
+                                class="w-0 h-0 border-t-[15px] border-t-transparent border-b-[15px] border-b-transparent border-l-[25px] border-l-pink-500">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-8">
+                        <div class="flex items-center">
+                            <div
+                                class="w-0 h-0 border-l-[25px] border-l-pink-500 border-t-[15px] border-t-transparent border-b-[15px] border-b-transparent">
+                            </div>
+                            <div class="muller-line w-32" id="muller2"></div>
+                            <div
+                                class="w-0 h-0 border-r-[25px] border-r-pink-500 border-t-[15px] border-t-transparent border-b-[15px] border-b-transparent">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-gray-400 text-center mb-4">Which line looks longer?</p>
+                <button onclick="checkMullerLyer()"
+                    class="w-full py-2 bg-gradient-to-r from-pink-500 to-purple-600 rounded-lg font-semibold hover:opacity-90 transition">
+                    Check Answer
+                </button>
+                <div class="explanation mt-4" id="muller-explanation">
+                    <div class="bg-pink-500/20 rounded-lg p-4 text-sm">
+                        <p class="font-semibold text-pink-300 mb-2">The Truth:</p>
+                        <p class="text-gray-300">Both lines are exactly the same length! The arrowheads create depth
+                            cues that trick our brain. Outward-pointing arrows make the line appear longer because they
+                            suggest distance perspective.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Ponzo Illusion -->
+            <div class="card rounded-2xl p-6 hover-lift transition-all duration-300">
+                <h3 class="text-2xl font-semibold text-cyan-400 mb-4">Ponzo Illusion</h3>
+                <div class="illusion-container flex justify-center mb-4 relative h-48">
+                    <svg width="250" height="180" viewBox="0 0 250 180">
+                        <!-- Converging lines -->
+                        <line x1="30" y1="20" x2="100" y2="160" stroke="#4a5568" stroke-width="2" />
+                        <line x1="220" y1="20" x2="150" y2="160" stroke="#4a5568" stroke-width="2" />
+                        <!-- Horizontal lines -->
+                        <line x1="55" y1="60" x2="195" y2="60" class="ponzo-line" id="ponzo-top" />
+                        <line x1="90" y1="120" x2="160" y2="120" class="ponzo-line" id="ponzo-bottom" />
+                    </svg>
+                </div>
+                <p class="text-gray-400 text-center mb-4">Which red line is longer?</p>
+                <button onclick="checkPonzo()"
+                    class="w-full py-2 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-lg font-semibold hover:opacity-90 transition">
+                    Check Answer
+                </button>
+                <div class="explanation mt-4" id="ponzo-explanation">
+                    <div class="bg-cyan-500/20 rounded-lg p-4 text-sm">
+                        <p class="font-semibold text-cyan-300 mb-2">The Truth:</p>
+                        <p class="text-gray-300">Both red lines are identical! The converging lines create a sense of
+                            depth, making the upper line appear farther away. Our brain compensates by perceiving it as
+                            larger.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Ebbinghaus Illusion -->
+            <div class="card rounded-2xl p-6 hover-lift transition-all duration-300">
+                <h3 class="text-2xl font-semibold text-yellow-400 mb-4">Ebbinghaus Illusion</h3>
+                <div class="illusion-container flex justify-around items-center mb-4 h-40">
+                    <div class="flex items-center justify-center">
+                        <div class="relative">
+                            <div class="absolute -top-8 -left-8 w-8 h-8 rounded-full border-4 border-gray-500"></div>
+                            <div class="absolute -top-8 left-4 w-8 h-8 rounded-full border-4 border-gray-500"></div>
+                            <div class="absolute top-2 -left-8 w-8 h-8 rounded-full border-4 border-gray-500"></div>
+                            <div class="absolute top-2 left-4 w-8 h-8 rounded-full border-4 border-gray-500"></div>
+                            <div class="absolute -bottom-4 -left-8 w-8 h-8 rounded-full border-4 border-gray-500"></div>
+                            <div class="absolute -bottom-4 left-4 w-8 h-8 rounded-full border-4 border-gray-500"></div>
+                            <div class="ebbinghaus-center w-8 h-8 rounded-full bg-yellow-400"></div>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-center">
+                        <div class="relative">
+                            <div class="absolute -top-12 -left-12 w-4 h-4 rounded-full border-4 border-gray-500"></div>
+                            <div class="absolute -top-12 left-2 w-4 h-4 rounded-full border-4 border-gray-500"></div>
+                            <div class="absolute -top-12 left-8 w-4 h-4 rounded-full border-4 border-gray-500"></div>
+                            <div class="absolute top-2 -left-12 w-4 h-4 rounded-full border-4 border-gray-500"></div>
+                            <div class="absolute top-2 left-8 w-4 h-4 rounded-full border-4 border-gray-500"></div>
+                            <div class="absolute top-8 -left-12 w-4 h-4 rounded-full border-4 border-gray-500"></div>
+                            <div class="absolute top-8 left-2 w-4 h-4 rounded-full border-4 border-gray-500"></div>
+                            <div class="absolute top-8 left-8 w-4 h-4 rounded-full border-4 border-gray-500"></div>
+                            <div class="ebbinghaus-center w-8 h-8 rounded-full bg-yellow-400"></div>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-gray-400 text-center mb-4">Which center circle is larger?</p>
+                <button onclick="checkEbbinghaus()"
+                    class="w-full py-2 bg-gradient-to-r from-yellow-500 to-orange-600 rounded-lg font-semibold hover:opacity-90 transition">
+                    Check Answer
+                </button>
+                <div class="explanation mt-4" id="ebbinghaus-explanation">
+                    <div class="bg-yellow-500/20 rounded-lg p-4 text-sm">
+                        <p class="font-semibold text-yellow-300 mb-2">The Truth:</p>
+                        <p class="text-gray-300">Both center circles are the same size! The surrounding circles affect
+                            our perception - small circles make the center appear larger, while large circles make it
+                            seem smaller.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. Color Illusion -->
+            <div class="card rounded-2xl p-6 hover-lift transition-all duration-300">
+                <h3 class="text-2xl font-semibold text-green-400 mb-4">Color Context Illusion</h3>
+                <div class="illusion-container flex justify-center gap-8 mb-4">
+                    <div class="color-square bg-purple-800 w-24 h-24 rounded-lg flex items-center justify-center"
+                        onclick="revealColor(this)">
+                        <div class="w-12 h-12 rounded-full bg-blue-400 transition-colors duration-500" id="color1">
+                        </div>
+                    </div>
+                    <div class="color-square bg-yellow-200 w-24 h-24 rounded-lg flex items-center justify-center"
+                        onclick="revealColor(this)">
+                        <div class="w-12 h-12 rounded-full bg-blue-400 transition-colors duration-500" id="color2">
+                        </div>
+                    </div>
+                </div>
+                <p class="text-gray-400 text-center mb-4">Click squares to reveal the truth</p>
+                <div class="explanation mt-4" id="color-explanation">
+                    <div class="bg-green-500/20 rounded-lg p-4 text-sm">
+                        <p class="font-semibold text-green-300 mb-2">The Truth:</p>
+                        <p class="text-gray-300">Both inner circles are exactly the same color! Our perception of color
+                            is influenced by the surrounding context - the same color appears different against purple
+                            vs. yellow backgrounds.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. Hermann Grid -->
+            <div class="card rounded-2xl p-6 hover-lift transition-all duration-300">
+                <h3 class="text-2xl font-semibold text-purple-400 mb-4">Hermann Grid</h3>
+                <div class="illusion-container flex justify-center mb-4" id="hermann-grid">
+                    <div class="grid grid-cols-5 gap-2 bg-black p-2 rounded-lg">
+                        <!-- Generated by JS -->
+                    </div>
+                </div>
+                <p class="text-gray-400 text-center mb-4">Stare at the intersections - do you see gray dots?</p>
+                <button onclick="toggleHermann()"
+                    class="w-full py-2 bg-gradient-to-r from-purple-500 to-pink-600 rounded-lg font-semibold hover:opacity-90 transition">
+                    Toggle Explanation
+                </button>
+                <div class="explanation mt-4" id="hermann-explanation">
+                    <div class="bg-purple-500/20 rounded-lg p-4 text-sm">
+                        <p class="font-semibold text-purple-300 mb-2">What's Happening:</p>
+                        <p class="text-gray-300">Those gray dots at intersections don't actually exist! They're caused
+                            by lateral inhibition in your retina - when receptors in the intersection are stimulated by
+                            light from all four sides, they inhibit each other more than those along the lines.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 6. Motion Afterimage -->
+            <div class="card rounded-2xl p-6 hover-lift transition-all duration-300">
+                <h3 class="text-2xl font-semibold text-red-400 mb-4">Motion Afterimage</h3>
+                <div class="illusion-container flex justify-center mb-4">
+                    <div class="w-32 h-32 relative" id="spiral-container">
+                        <svg viewBox="0 0 100 100" class="w-full h-full" id="spiral">
+                            <defs>
+                                <pattern id="spiralPattern" x="0" y="0" width="100" height="100"
+                                    patternUnits="userSpaceOnUse">
+                                    <circle cx="50" cy="50" r="45" fill="none" stroke="#e94560" stroke-width="8" />
+                                    <circle cx="50" cy="50" r="35" fill="none" stroke="#1a1a2e" stroke-width="8" />
+                                    <circle cx="50" cy="50" r="25" fill="none" stroke="#e94560" stroke-width="8" />
+                                    <circle cx="50" cy="50" r="15" fill="none" stroke="#1a1a2e" stroke-width="8" />
+                                    <circle cx="50" cy="50" r="5" fill="#e94560" />
+                                </pattern>
+                            </defs>
+                            <rect width="100" height="100" fill="url(#spiralPattern)" />
+                        </svg>
+                    </div>
+                </div>
+                <p class="text-gray-400 text-center mb-4">Stare at center for 30s, then look away</p>
+                <button onclick="toggleSpiral()" id="spiral-btn"
+                    class="w-full py-2 bg-gradient-to-r from-red-500 to-orange-600 rounded-lg font-semibold hover:opacity-90 transition">
+                    Start Animation
+                </button>
+                <div class="explanation mt-4" id="spiral-explanation">
+                    <div class="bg-red-500/20 rounded-lg p-4 text-sm">
+                        <p class="font-semibold text-red-300 mb-2">What's Happening:</p>
+                        <p class="text-gray-300">When you stare at the spinning pattern and then look at a plain
+                            surface, you'll see it spinning the opposite way! This is due to neural adaptation - your
+                            visual neurons become fatigued from constant stimulation and "overshoot" when you look away.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 7. Cafe Wall Illusion -->
+            <div class="card rounded-2xl p-6 hover-lift transition-all duration-300">
+                <h3 class="text-2xl font-semibold text-indigo-400 mb-4">Café Wall Illusion</h3>
+                <div class="illusion-container flex justify-center mb-4 overflow-hidden">
+                    <div id="cafe-wall" class="flex flex-col gap-1">
+                        <!-- Generated by JS -->
+                    </div>
+                </div>
+                <p class="text-gray-400 text-center mb-4">Are the horizontal lines straight or slanted?</p>
+                <button onclick="checkCafeWall()"
+                    class="w-full py-2 bg-gradient-to-r from-indigo-500 to-blue-600 rounded-lg font-semibold hover:opacity-90 transition">
+                    Reveal Truth
+                </button>
+                <div class="explanation mt-4" id="cafe-explanation">
+                    <div class="bg-indigo-500/20 rounded-lg p-4 text-sm">
+                        <p class="font-semibold text-indigo-300 mb-2">The Truth:</p>
+                        <p class="text-gray-300">All horizontal lines are perfectly straight! The alternating offset
+                            bricks create a powerful illusion of sloping lines. This illusion was discovered on a café
+                            wall in Bristol, England.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 8. Rubin's Vase -->
+            <div class="card rounded-2xl p-6 hover-lift transition-all duration-300">
+                <h3 class="text-2xl font-semibold text-pink-400 mb-4">Rubin's Vase</h3>
+                <div class="illusion-container flex justify-center mb-4 cursor-pointer" onclick="toggleRubin()">
+                    <svg width="150" height="150" viewBox="0 0 150 150" id="rubin-vase">
+                        <path class="vase-shape" d="M75 20 
+                                   C55 20, 45 40, 45 60 
+                                   C45 90, 55 110, 55 110 
+                                   C55 120, 60 130, 75 130 
+                                   C90 130, 95 120, 95 110 
+                                   C95 110, 105 90, 105 60 
+                                   C105 40, 95 20, 75 20 Z" />
+                        <defs>
+                            <clipPath id="vaseClip">
+                                <use href="#rubin-vase" />
+                            </clipPath>
+                        </defs>
+                    </svg>
+                </div>
+                <p class="text-gray-400 text-center mb-4">Click to toggle - What do you see?</p>
+                <div class="flex gap-2 justify-center mb-4">
+                    <span class="px-3 py-1 bg-pink-500/30 rounded-full text-sm">🏺 A Vase</span>
+                    <span class="px-3 py-1 bg-white/10 rounded-full text-sm">👤 Two Faces</span>
+                </div>
+                <div class="explanation mt-4" id="rubin-explanation">
+                    <div class="bg-pink-500/20 rounded-lg p-4 text-sm">
+                        <p class="font-semibold text-pink-300 mb-2">What's Happening:</p>
+                        <p class="text-gray-300">This is a classic example of figure-ground perception. Your brain can't
+                            process both images simultaneously - it switches between seeing a vase and two faces looking
+                            at each other. The pink area alternates between being the object (vase) and the background
+                            (space between faces).</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 9. Scintillating Grid -->
+            <div class="card rounded-2xl p-6 hover-lift transition-all duration-300">
+                <h3 class="text-2xl font-semibold text-emerald-400 mb-4">Scintillating Grid</h3>
+                <div class="illusion-container flex justify-center mb-4" id="scintillating-grid">
+                    <div class="grid grid-cols-7 gap-1 bg-gray-900 p-2 rounded-lg">
+                        <!-- Generated by JS -->
+                    </div>
+                </div>
+                <p class="text-gray-400 text-center mb-4">Do you see phantom black dots at intersections?</p>
+                <button onclick="toggleScintillating()"
+                    class="w-full py-2 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-lg font-semibold hover:opacity-90 transition">
+                    Toggle Explanation
+                </button>
+                <div class="explanation mt-4" id="scintillating-explanation">
+                    <div class="bg-emerald-500/20 rounded-lg p-4 text-sm">
+                        <p class="font-semibold text-emerald-300 mb-2">What's Happening:</p>
+                        <p class="text-gray-300">Those black dots that appear and disappear aren't real! Similar to the
+                            Hermann Grid, this is caused by lateral inhibition. Try focusing on one intersection - the
+                            dot disappears because your eye is directly processing that area.</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Interactive Section -->
+        <section class="mt-16 text-center">
+            <h2
+                class="text-3xl font-bold mb-8 bg-gradient-to-r from-pink-500 to-cyan-400 bg-clip-text text-transparent">
+                Try It Yourself
+            </h2>
+            <div class="card rounded-2xl p-8 max-w-2xl mx-auto">
+                <h3 class="text-xl font-semibold text-yellow-400 mb-4">Blind Spot Test</h3>
+                <div class="flex justify-between items-center px-8 mb-6">
+                    <div class="w-4 h-4 bg-pink-500 rounded-full"></div>
+                    <div class="text-gray-400 text-sm">~15cm from screen</div>
+                    <div class="w-16 h-16 border-4 border-yellow-400 rounded-full"></div>
+                </div>
+                <p class="text-gray-300 mb-4">
+                    <strong>Instructions:</strong> Close your right eye and stare at the pink dot with your left eye.
+                    Slowly move closer/farther from the screen until the yellow circle disappears!
+                </p>
+                <div class="explanation mt-4" id="blindspot-explanation">
+                    <div class="bg-yellow-500/20 rounded-lg p-4 text-sm">
+                        <p class="font-semibold text-yellow-300 mb-2">Why This Happens:</p>
+                        <p class="text-gray-300">Your blind spot is where the optic nerve connects to your retina -
+                            there are no light-sensitive cells there. Your brain normally fills in this gap using
+                            information from the other eye and surrounding context.</p>
+                    </div>
+                </div>
+                <button onclick="toggleBlindSpot()"
+                    class="mt-4 px-6 py-2 bg-gradient-to-r from-yellow-500 to-orange-600 rounded-lg font-semibold hover:opacity-90 transition">
+                    Toggle Explanation
+                </button>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="mt-16 text-center text-gray-500 py-8">
+            <p>🧠 Explore the fascinating world of visual perception</p>
+            <p class="text-sm mt-2">Illusions reveal how our brains construct reality</p>
+        </footer>
+
+    </main>
+
+    <script>
+        // Initialize grids on load
+        document.addEventListener('DOMContentLoaded', function () {
+            initHermannGrid();
+            initScintillatingGrid();
+            initCafeWall();
+        });
+
+        // Müller-Lyer Check
+        function checkMullerLyer() {
+            const line1 = document.getElementById('muller1');
+            const line2 = document.getElementById('muller2');
+            const explanation = document.getElementById('muller-explanation');
+
+            // Animate to show they're equal
+            line1.style.background = '#00f3ff';
+            line2.style.background = '#00f3ff';
+
+            setTimeout(() => {
+                line1.style.background = '#e94560';
+                line2.style.background = '#e94560';
+            }, 2000);
+
+            explanation.classList.toggle('open');
+        }
+
+        // Ponzo Check
+        function checkPonzo() {
+            const topLine = document.getElementById('ponzo-top');
+            const bottomLine = document.getElementById('ponzo-bottom');
+            const explanation = document.getElementById('ponzo-explanation');
+
+            topLine.style.stroke = '#00f3ff';
+            bottomLine.style.stroke = '#00f3ff';
+            topLine.style.strokeWidth = '5';
+            bottomLine.style.strokeWidth = '5';
+
+            setTimeout(() => {
+                topLine.style.stroke = '#e94560';
+                bottomLine.style.stroke = '#e94560';
+                topLine.style.strokeWidth = '3';
+                bottomLine.style.strokeWidth = '3';
+            }, 2000);
+
+            explanation.classList.toggle('open');
+        }
+
+        // Ebbinghaus Check
+        function checkEbbinghaus() {
+            const centers = document.querySelectorAll('.ebbinghaus-center');
+            const explanation = document.getElementById('ebbinghaus-explanation');
+
+            centers.forEach(center => {
+                center.style.boxShadow = '0 0 20px #fbbf24, 0 0 40px #fbbf24';
+                center.style.transform = 'scale(1.2)';
+            });
+
+            setTimeout(() => {
+                centers.forEach(center => {
+                    center.style.boxShadow = 'none';
+                    center.style.transform = 'scale(1)';
+                });
+            }, 2000);
+
+            explanation.classList.toggle('open');
+        }
+
+        // Color Illusion
+        function revealColor(element) {
+            const color1 = document.getElementById('color1');
+            const color2 = document.getElementById('color2');
+            const explanation = document.getElementById('color-explanation');
+
+            // Change both to the same background
+            color1.style.background = '#60a5fa';
+            color2.style.background = '#60a5fa';
+
+            // Fade outer backgrounds
+            element.classList.add('revealed');
+
+            setTimeout(() => {
+                explanation.classList.add('open');
+            }, 500);
+        }
+
+        // Hermann Grid
+        function initHermannGrid() {
+            const grid = document.querySelector('#hermann-grid .grid');
+            for (let i = 0; i < 25; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'w-10 h-10 bg-white';
+                grid.appendChild(cell);
+            }
+        }
+
+        function toggleHermann() {
+            const explanation = document.getElementById('hermann-explanation');
+            explanation.classList.toggle('open');
+        }
+
+        // Spiral Animation
+        let spiralAnimating = false;
+        let spiralAngle = 0;
+        let animationId;
+
+        function toggleSpiral() {
+            const btn = document.getElementById('spiral-btn');
+            const explanation = document.getElementById('spiral-explanation');
+            const spiral = document.getElementById('spiral');
+
+            if (!spiralAnimating) {
+                spiralAnimating = true;
+                btn.textContent = 'Stop Animation';
+                animateSpiral();
+            } else {
+                spiralAnimating = false;
+                btn.textContent = 'Start Animation';
+                cancelAnimationFrame(animationId);
+                spiral.style.transform = 'rotate(0deg)';
+                spiralAngle = 0;
+            }
+        }
+
+        function animateSpiral() {
+            const spiral = document.getElementById('spiral');
+            spiralAngle += 5;
+            spiral.style.transform = `rotate(${spiralAngle}deg)`;
+
+            if (spiralAnimating) {
+                animationId = requestAnimationFrame(animateSpiral);
+            }
+        }
+
+        // Cafe Wall
+        function initCafeWall() {
+            const wall = document.getElementById('cafe-wall');
+            const colors = ['#1a1a2e', '#f0f0f0'];
+
+            for (let row = 0; row < 8; row++) {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'flex';
+
+                const offset = row % 2 === 0 ? 0 : 20;
+
+                for (let col = 0; col < 10; col++) {
+                    const brick = document.createElement('div');
+                    brick.className = 'cafe-brick';
+                    brick.style.background = colors[(row + col) % 2];
+                    rowDiv.appendChild(brick);
+                }
+
+                if (offset) {
+                    rowDiv.style.transform = `translateX(${offset}px)`;
+                }
+
+                wall.appendChild(rowDiv);
+            }
+        }
+
+        function checkCafeWall() {
+            const wall = document.getElementById('cafe-wall');
+            const explanation = document.getElementById('cafe-explanation');
+            const rows = wall.querySelectorAll('.flex');
+
+            // Reset positions
+            rows.forEach(row => {
+                row.style.transform = 'translateX(0)';
+            });
+
+            setTimeout(() => {
+                // Re-offset
+                rows.forEach((row, index) => {
+                    if (index % 2 === 1) {
+                        row.style.transform = 'translateX(20px)';
+                    }
+                });
+            }, 3000);
+
+            explanation.classList.toggle('open');
+        }
+
+        // Rubin's Vase
+        let rubinState = 0;
+        function toggleRubin() {
+            const vase = document.querySelector('.vase-shape');
+            const explanation = document.getElementById('rubin-explanation');
+            rubinState++;
+
+            if (rubinState % 2 === 0) {
+                vase.style.fill = '#e94560';
+            } else {
+                vase.style.fill = '#1a1a2e';
+            }
+
+            explanation.classList.toggle('open');
+        }
+
+        // Scintillating Grid
+        function initScintillatingGrid() {
+            const grid = document.querySelector('#scintillating-grid .grid');
+            for (let i = 0; i < 49; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'scintillating-cell';
+                grid.appendChild(cell);
+            }
+        }
+
+        function toggleScintillating() {
+            const explanation = document.getElementById('scintillating-explanation');
+            explanation.classList.toggle('open');
+        }
+
+        // Blind Spot
+        function toggleBlindSpot() {
+            const explanation = document.getElementById('blindspot-explanation');
+            explanation.classList.toggle('open');
+        }
+    </script>
+</body>
+
+</html>
