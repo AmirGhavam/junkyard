@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Optical Illusion Showcase</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @keyframes rotate {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes rotateReverse {
+            from {
+                transform: rotate(360deg);
+            }
+
+            to {
+                transform: rotate(0deg);
+            }
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        .rotating {
+            animation: rotate 8s linear infinite;
+        }
+
+        .rotating-reverse {
+            animation: rotateReverse 8s linear infinite;
+        }
+
+        .pulsing {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .illusion-card {
+            transition: all 0.3s ease;
+        }
+
+        .illusion-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Hermann Grid */
+        .hermann-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 40px);
+            gap: 12px;
+            background: white;
+            padding: 15px;
+        }
+
+        .hermann-square {
+            width: 40px;
+            height: 40px;
+            background: #1a1a1a;
+        }
+
+        /* Cafe Wall */
+        .cafe-row {
+            display: flex;
+            height: 30px;
+            margin: 2px 0;
+        }
+
+        .cafe-tile {
+            width: 30px;
+            height: 30px;
+        }
+
+        /* Spinning Circles */
+        .spin-container {
+            position: relative;
+            width: 250px;
+            height: 250px;
+        }
+
+        .spin-ring {
+            position: absolute;
+            border-radius: 50%;
+            border: 8px dashed;
+        }
+
+        /* Afterimage */
+        .afterimage-dot {
+            width: 20px;
+            height: 20px;
+            background: #00ff00;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        /* Müller-Lyer */
+        .muller-line {
+            stroke: #fff;
+            stroke-width: 4;
+        }
+
+        .muller-arrow {
+            stroke: #fff;
+            stroke-width: 3;
+            fill: none;
+        }
+
+        /* Motion illusion */
+        .motion-dot {
+            transition: all 0.1s ease;
+        }
+
+        /* Gradient background */
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        }
+
+        .explanation-panel {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease;
+        }
+
+        .explanation-panel.open {
+            max-height: 300px;
+        }
+
+        /* Zollner */
+        .zollner-line {
+            stroke: white;
+            stroke-width: 3;
+        }
+
+        .zollner-hatch {
+            stroke: #888;
+            stroke-width: 2;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen text-white pb-20">
+    <!-- Header -->
+    <header class="text-center py-12 px-4">
+        <h1
+            class="text-5xl font-bold mb-4 bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 bg-clip-text text-transparent">
+            🎭 Optical Illusion Showcase
+        </h1>
+        <p class="text-xl text-gray-300 max-w-2xl mx-auto">
+            Explore the fascinating world of visual perception. Your brain will trick you!
+            <br><span class="text-sm text-gray-400 mt-2 block">Click on each illusion to reveal how it works.</span>
+        </p>
+    </header>
+
+    <!-- Illusions Grid -->
+    <main class="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+
+        <!-- 1. Hermann Grid -->
+        <div class="illusion-card bg-gray-800/50 backdrop-blur rounded-2xl p-6 cursor-pointer"
+            onclick="toggleExplanation(this)">
+            <h3 class="text-xl font-bold text-purple-400 mb-4">👁️ Hermann Grid</h3>
+            <div class="flex justify-center items-center min-h-[200px]">
+                <div class="hermann-grid rounded-lg">
+                    <div class="hermann-square"></div>
+                    <div class="hermann-square"></div>
+                    <div class="hermann-square"></div>
+                    <div class="hermann-square"></div>
+                    <div class="hermann-square"></div>
+                    <div class="hermann-square"></div>
+                    <div class="hermann-square"></div>
+                    <div class="hermann-square"></div>
+                    <div class="hermann-square"></div>
+                    <div class="hermann-square"></div>
+                    <div class="hermann-square"></div>
+                    <div class="hermann-square"></div>
+                    <div class="hermann-square"></div>
+                    <div class="hermann-square"></div>
+                    <div class="hermann-square"></div>
+                    <div class="hermann-square"></div>
+                    <div class="hermann-square"></div>
+                    <div class="hermann-square"></div>
+                    <div class="hermann-square"></div>
+                    <div class="hermann-square"></div>
+                    <div class="hermann-square"></div>
+                    <div class="hermann-square"></div>
+                    <div class="hermann-square"></div>
+                    <div class="hermann-square"></div>
+                    <div class="hermann-square"></div>
+                    <div class="hermann-square"></div>
+                    <div class="hermann-square"></div>
+                    <div class="hermann-square"></div>
+                    <div class="hermann-square"></div>
+                    <div class="hermann-square"></div>
+                </div>
+            </div>
+            <p class="text-center text-gray-400 mt-4 text-sm">See ghostly dots at the intersections?</p>
+            <div class="explanation-panel mt-4 text-gray-300 text-sm bg-gray-900/50 rounded-lg p-4">
+                <strong class="text-green-400">How it works:</strong> Your retinal ganglion cells respond to contrast.
+                At intersections, the inhibition from surrounding white areas is stronger, making you perceive darker
+                spots that aren't really there!
+            </div>
+        </div>
+
+        <!-- 2. Spinning Circles -->
+        <div class="illusion-card bg-gray-800/50 backdrop-blur rounded-2xl p-6 cursor-pointer"
+            onclick="toggleExplanation(this)">
+            <h3 class="text-xl font-bold text-pink-400 mb-4">🌀 Rotating Rings</h3>
+            <div class="flex justify-center items-center min-h-[200px]">
+                <div class="spin-container" id="spinContainer">
+                    <div class="spin-ring rotating"
+                        style="width:220px;height:220px;top:15px;left:15px;border-color:#ff6b6b;"></div>
+                    <div class="spin-ring rotating-reverse"
+                        style="width:170px;height:170px;top:40px;left:40px;border-color:#4ecdc4;"></div>
+                    <div class="spin-ring rotating"
+                        style="width:120px;height:120px;top:65px;left:65px;border-color:#ffe66d;"></div>
+                    <div class="spin-ring rotating-reverse"
+                        style="width:70px;height:70px;top:90px;left:90px;border-color:#ff6b6b;"></div>
+                </div>
+            </div>
+            <p class="text-center text-gray-400 mt-4 text-sm">Stare at the center - do they seem to pulse?</p>
+            <div class="explanation-panel mt-4 text-gray-300 text-sm bg-gray-900/50 rounded-lg p-4">
+                <strong class="text-green-400">How it works:</strong> The opposing rotations create conflicting motion
+                signals in your visual cortex. Your brain struggles to process the directions, creating a hypnotic,
+                pulsating effect!
+            </div>
+        </div>
+
+        <!-- 3. Müller-Lyer -->
+        <div class="illusion-card bg-gray-800/50 backdrop-blur rounded-2xl p-6 cursor-pointer"
+            onclick="toggleExplanation(this)">
+            <h3 class="text-xl font-bold text-cyan-400 mb-4">↔️ Müller-Lyer</h3>
+            <div class="flex justify-center items-center min-h-[200px]">
+                <svg width="250" height="150" viewBox="0 0 250 150">
+                    <!-- Top line with outward arrows -->
+                    <line x1="50" y1="50" x2="200" y2="50" class="muller-line" />
+                    <polyline points="50,30 50,50 50,70" class="muller-arrow" />
+                    <polyline points="30,50 50,50 30,30" class="muller-arrow" />
+                    <polyline points="30,50 50,50 30,70" class="muller-arrow" />
+                    <polyline points="200,30 200,50 200,70" class="muller-arrow" />
+                    <polyline points="220,50 200,50 220,30" class="muller-arrow" />
+                    <polyline points="220,50 200,50 220,70" class="muller-arrow" />
+
+                    <!-- Bottom line with inward arrows -->
+                    <line x1="50" y1="100" x2="200" y2="100" class="muller-line" />
+                    <polyline points="70,80 50,100 70,120" class="muller-arrow" />
+                    <polyline points="180,80 200,100 180,120" class="muller-arrow" />
+                </svg>
+            </div>
+            <p class="text-center text-gray-400 mt-4 text-sm">Which horizontal line is longer?</p>
+            <div class="explanation-panel mt-4 text-gray-300 text-sm bg-gray-900/50 rounded-lg p-4">
+                <strong class="text-green-400">How it works:</strong> Both lines are identical! The arrows trick your
+                brain using depth cues. Outward arrows suggest an outside corner (farther), inward arrows suggest an
+                inside corner (closer). Your brain "corrects" the size!
+            </div>
+        </div>
+
+        <!-- 4. Café Wall -->
+        <div class="illusion-card bg-gray-800/50 backdrop-blur rounded-2xl p-6 cursor-pointer"
+            onclick="toggleExplanation(this)">
+            <h3 class="text-xl font-bold text-yellow-400 mb-4">🧱 Café Wall</h3>
+            <div class="flex justify-center items-center min-h-[200px]">
+                <div class="bg-gray-500 p-2 rounded" id="cafeWall">
+                    <!-- Generated by JS -->
+                </div>
+            </div>
+            <p class="text-center text-gray-400 mt-4 text-sm">Are the gray lines parallel or slanted?</p>
+            <div class="explanation-panel mt-4 text-gray-300 text-sm bg-gray-900/50 rounded-lg p-4">
+                <strong class="text-green-400">How it works:</strong> The lines are perfectly parallel! The alternating
+                offset of black and white tiles creates a "wedge" illusion. Your visual cortex interprets the luminance
+                borders as tilted edges.
+            </div>
+        </div>
+
+        <!-- 5. Color Afterimage -->
+        <div class="illusion-card bg-gray-800/50 backdrop-blur rounded-2xl p-6 cursor-pointer"
+            onclick="toggleExplanation(this)">
+            <h3 class="text-xl font-bold text-green-400 mb-4">🎨 Color Afterimage</h3>
+            <div class="flex flex-col justify-center items-center min-h-[200px]">
+                <div id="afterimageBox"
+                    class="w-48 h-32 bg-cyan-500 rounded-lg flex items-center justify-center relative transition-all duration-300">
+                    <div class="w-4 h-4 bg-black rounded-full"></div>
+                </div>
+                <button onclick="event.stopPropagation(); startAfterimage()"
+                    class="mt-4 px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-semibold transition">
+                    Stare at dot for 20 seconds, then click!
+                </button>
+            </div>
+            <p class="text-center text-gray-400 mt-4 text-sm">See the complementary color appear!</p>
+            <div class="explanation-panel mt-4 text-gray-300 text-sm bg-gray-900/50 rounded-lg p-4">
+                <strong class="text-green-400">How it works:</strong> Staring at a color fatigues specific cone cells in
+                your retina. When you look at white, those cones are less responsive, so you see the opposite
+                (complementary) color!
+            </div>
+        </div>
+
+        <!-- 6. Zöllner Illusion -->
+        <div class="illusion-card bg-gray-800/50 backdrop-blur rounded-2xl p-6 cursor-pointer"
+            onclick="toggleExplanation(this)">
+            <h3 class="text-xl font-bold text-red-400 mb-4">📐 Zöllner Lines</h3>
+            <div class="flex justify-center items-center min-h-[200px]">
+                <svg width="220" height="180" viewBox="0 0 220 180" id="zollnerSvg">
+                    <!-- Generated by JS -->
+                </svg>
+            </div>
+            <p class="text-center text-gray-400 mt-4 text-sm">Are the long lines parallel?</p>
+            <div class="explanation-panel mt-4 text-gray-300 text-sm bg-gray-900/50 rounded-lg p-4">
+                <strong class="text-green-400">How it works:</strong> The short diagonal lines create an angle that your
+                brain exaggerates. This angular distortion makes perfectly parallel lines appear to converge and
+                diverge!
+            </div>
+        </div>
+
+        <!-- 7. Motion Binding -->
+        <div class="illusion-card bg-gray-800/50 backdrop-blur rounded-2xl p-6 cursor-pointer"
+            onclick="toggleExplanation(this)">
+            <h3 class="text-xl font-bold text-indigo-400 mb-4">🔵 Motion Dots</h3>
+            <div class="flex justify-center items-center min-h-[200px]">
+                <svg width="220" height="180" viewBox="0 0 220 180" id="motionSvg">
+                    <!-- Dots animated by JS -->
+                </svg>
+            </div>
+            <p class="text-center text-gray-400 mt-4 text-sm">Watch the dots orbit - do you see a shape?</p>
+            <div class="explanation-panel mt-4 text-gray-300 text-sm bg-gray-900/50 rounded-lg p-4">
+                <strong class="text-green-400">How it works:</strong> Your brain is wired to find patterns and connect
+                moving objects. Even though only dots exist, you perceive an invisible rotating shape connecting them!
+            </div>
+        </div>
+
+        <!-- 8. Size Constancy (Ebbinghaus) -->
+        <div class="illusion-card bg-gray-800/50 backdrop-blur rounded-2xl p-6 cursor-pointer"
+            onclick="toggleExplanation(this)">
+            <h3 class="text-xl font-bold text-orange-400 mb-4">⭕ Ebbinghaus Circles</h3>
+            <div class="flex justify-center items-center min-h-[200px] gap-12">
+                <!-- Left group - small surrounding circles -->
+                <div class="relative w-24 h-24">
+                    <div
+                        class="absolute top-1/2 left-1/2 w-8 h-8 bg-orange-500 rounded-full transform -translate-x-1/2 -translate-y-1/2">
+                    </div>
+                    <div class="absolute top-0 left-1/2 w-4 h-4 bg-gray-400 rounded-full transform -translate-x-1/2">
+                    </div>
+                    <div class="absolute bottom-0 left-1/2 w-4 h-4 bg-gray-400 rounded-full transform -translate-x-1/2">
+                    </div>
+                    <div class="absolute top-1/2 left-0 w-4 h-4 bg-gray-400 rounded-full transform -translate-y-1/2">
+                    </div>
+                    <div class="absolute top-1/2 right-0 w-4 h-4 bg-gray-400 rounded-full transform -translate-y-1/2">
+                    </div>
+                    <div class="absolute top-2 left-2 w-4 h-4 bg-gray-400 rounded-full"></div>
+                    <div class="absolute top-2 right-2 w-4 h-4 bg-gray-400 rounded-full"></div>
+                    <div class="absolute bottom-2 left-2 w-4 h-4 bg-gray-400 rounded-full"></div>
+                    <div class="absolute bottom-2 right-2 w-4 h-4 bg-gray-400 rounded-full"></div>
+                </div>
+                <!-- Right group - large surrounding circles -->
+                <div class="relative w-32 h-32">
+                    <div
+                        class="absolute top-1/2 left-1/2 w-8 h-8 bg-orange-500 rounded-full transform -translate-x-1/2 -translate-y-1/2">
+                    </div>
+                    <div class="absolute -top-4 left-1/2 w-10 h-10 bg-gray-400 rounded-full transform -translate-x-1/2">
+                    </div>
+                    <div
+                        class="absolute -bottom-4 left-1/2 w-10 h-10 bg-gray-400 rounded-full transform -translate-x-1/2">
+                    </div>
+                    <div class="absolute top-1/2 -left-4 w-10 h-10 bg-gray-400 rounded-full transform -translate-y-1/2">
+                    </div>
+                    <div
+                        class="absolute top-1/2 -right-4 w-10 h-10 bg-gray-400 rounded-full transform -translate-y-1/2">
+                    </div>
+                </div>
+            </div>
+            <p class="text-center text-gray-400 mt-4 text-sm">Which orange circle is bigger?</p>
+            <div class="explanation-panel mt-4 text-gray-300 text-sm bg-gray-900/50 rounded-lg p-4">
+                <strong class="text-green-400">How it works:</strong> Both orange circles are identical! Your brain
+                judges size relative to surrounding objects. Small neighbors make the center look large, and vice versa.
+                This is called "size contrast."
+            </div>
+        </div>
+
+        <!-- 9. Impossible Triangle -->
+        <div class="illusion-card bg-gray-800/50 backdrop-blur rounded-2xl p-6 cursor-pointer"
+            onclick="toggleExplanation(this)">
+            <h3 class="text-xl font-bold text-teal-400 mb-4">🔺 Penrose Triangle</h3>
+            <div class="flex justify-center items-center min-h-[200px]">
+                <svg width="180" height="180" viewBox="0 0 180 180">
+                    <polygon points="90,20 160,140 120,140 90,85 60,140 20,140" fill="#2dd4bf" stroke="#0d9488"
+                        stroke-width="2" />
+                    <polygon points="90,20 120,140 100,140 90,55" fill="#14b8a6" />
+                    <polygon points="20,140 60,140 90,85 60,85" fill="#0f766e" />
+                    <polygon points="160,140 120,140 90,85 120,85" fill="#5eead4" />
+                    <polygon points="60,85 90,85 90,55 75,55" fill="#99f6e4" />
+                    <polygon points="120,85 90,85 90,55 105,55" fill="#0d9488" />
+                    <!-- Create impossible appearance -->
+                    <polygon points="75,55 90,20 90,55" fill="#2dd4bf" />
+                    <polygon points="105,55 90,20 90,55" fill="#14b8a6" />
+                </svg>
+            </div>
+            <p class="text-center text-gray-400 mt-4 text-sm">Can this object exist in 3D?</p>
+            <div class="explanation-panel mt-4 text-gray-300 text-sm bg-gray-900/50 rounded-lg p-4">
+                <strong class="text-green-400">How it works:</strong> The Penrose triangle is an "impossible object" -
+                it can't exist in 3D space! Each corner looks correct locally, but they can't connect globally. Your
+                brain tries to interpret 2D as 3D and gets stuck!
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Interactive Controls -->
+    <section class="max-w-4xl mx-auto mt-16 px-4">
+        <h2 class="text-2xl font-bold text-center mb-8 text-gray-200">🎛️ Interactive Controls</h2>
+        <div class="bg-gray-800/50 backdrop-blur rounded-2xl p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label class="block text-gray-300 mb-2">Rotation Speed</label>
+                <input type="range" id="speedSlider" min="1" max="20" value="8" class="w-full accent-purple-500"
+                    onchange="updateSpeed(this.value)">
+            </div>
+            <div>
+                <label class="block text-gray-300 mb-2">Animation Toggle</label>
+                <button onclick="toggleAnimations()" id="animToggle"
+                    class="px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg font-semibold transition">
+                    Pause All ⏸️
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="text-center py-8 mt-12 text-gray-500 text-sm">
+        <p>Your brain is amazing at being fooled! 🧠✨</p>
+    </footer>
+
+    <script>
+        // Initialize illusions
+        document.addEventListener('DOMContentLoaded', () => {
+            createCafeWall();
+            createZollner();
+            createMotionDots();
+        });
+
+        // Toggle explanation panels
+        function toggleExplanation(card) {
+            const panel = card.querySelector('.explanation-panel');
+            panel.classList.toggle('open');
+        }
+
+        // Café Wall Illusion
+        function createCafeWall() {
+            const container = document.getElementById('cafeWall');
+            container.innerHTML = '';
+            for (let row = 0; row < 6; row++) {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'cafe-row';
+                rowDiv.style.marginLeft = (row % 2 === 0) ? '0px' : '15px';
+                for (let col = 0; col < 8; col++) {
+                    const tile = document.createElement('div');
+                    tile.className = 'cafe-tile';
+                    tile.style.background = col % 2 === 0 ? '#1a1a1a' : '#ffffff';
+                    rowDiv.appendChild(tile);
+                }
+                container.appendChild(rowDiv);
+            }
+        }
+
+        // Zöllner Illusion
+        function createZollner() {
+            const svg = document.getElementById('zollnerSvg');
+            svg.innerHTML = '';
+            const lines = 5;
+            const spacing = 35;
+
+            for (let i = 0; i < lines; i++) {
+                const y = 20 + i * spacing;
+                // Main line
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', '10');
+                line.setAttribute('y1', y);
+                line.setAttribute('x2', '210');
+                line.setAttribute('y2', y);
+                line.setAttribute('class', 'zollner-line');
+                svg.appendChild(line);
+
+                // Hatches
+                const hatchAngle = i % 2 === 0 ? 30 : -30;
+                for (let j = 0; j < 14; j++) {
+                    const hx = 20 + j * 14;
+                    const hatch = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    hatch.setAttribute('x1', hx - 8);
+                    hatch.setAttribute('y1', y - 10);
+                    hatch.setAttribute('x2', hx + 8);
+                    hatch.setAttribute('y2', y + 10);
+                    hatch.setAttribute('class', 'zollner-hatch');
+                    hatch.setAttribute('transform', `rotate(${hatchAngle}, ${hx}, ${y})`);
+                    svg.appendChild(hatch);
+                }
+            }
+        }
+
+        // Motion Dots
+        let motionAngle = 0;
+        function createMotionDots() {
+            const svg = document.getElementById('motionSvg');
+            const centerX = 110, centerY = 90, radius = 60;
+            const numDots = 6;
+
+            function animate() {
+                svg.innerHTML = '';
+                for (let i = 0; i < numDots; i++) {
+                    const angle = motionAngle + (i * Math.PI * 2 / numDots);
+                    const x = centerX + Math.cos(angle) * radius;
+                    const y = centerY + Math.sin(angle) * radius;
+
+                    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    circle.setAttribute('cx', x);
+                    circle.setAttribute('cy', y);
+                    circle.setAttribute('r', 10);
+                    circle.setAttribute('fill', `hsl(${i * 60}, 70%, 60%)`);
+                    circle.setAttribute('class', 'motion-dot');
+                    svg.appendChild(circle);
+                }
+                motionAngle += 0.02;
+                if (!animationsPaused) {
+                    requestAnimationFrame(animate);
+                }
+            }
+            animate();
+        }
+
+        // Afterimage Effect
+        function startAfterimage() {
+            const box = document.getElementById('afterimageBox');
+            box.style.background = '#ffffff';
+            setTimeout(() => {
+                box.style.background = '#06b6d4'; // Reset to cyan
+            }, 3000);
+        }
+
+        // Speed Control
+        function updateSpeed(value) {
+            const duration = 16 - value + 1;
+            document.querySelectorAll('.rotating, .rotating-reverse').forEach(el => {
+                el.style.animationDuration = duration + 's';
+            });
+        }
+
+        // Animation Toggle
+        let animationsPaused = false;
+        function toggleAnimations() {
+            animationsPaused = !animationsPaused;
+            const btn = document.getElementById('animToggle');
+
+            document.querySelectorAll('.rotating, .rotating-reverse').forEach(el => {
+                el.style.animationPlayState = animationsPaused ? 'paused' : 'running';
+            });
+
+            btn.textContent = animationsPaused ? 'Play All ▶️' : 'Pause All ⏸️';
+
+            if (!animationsPaused) {
+                createMotionDots();
+            }
+        }
+    </script>
+</body>
+
+</html>
