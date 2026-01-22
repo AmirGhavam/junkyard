@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visual Paradox | Interactive Optical Illusions</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #e2e8f0;
+        }
+
+        /* Custom ranges for sliders */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #38bdf8;
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #334155;
+            border-radius: 2px;
+        }
+
+        /* Cafe Wall Specifics */
+        .cafe-row {
+            display: flex;
+            width: 140%;
+            /* Wider to allow shift without gaps */
+            margin-left: -20%;
+            will-change: transform;
+        }
+
+        .cafe-block {
+            width: 40px;
+            height: 40px;
+        }
+
+        .cafe-block.black {
+            background-color: #000;
+        }
+
+        .cafe-block.white {
+            background-color: #fff;
+        }
+
+        /* Kanizsa Specifics */
+        .pacman {
+            width: 0;
+            height: 0;
+            border: 30px solid #000;
+            border-right-color: transparent;
+            /* Creates the mouth opening at 0deg (Right) */
+            border-radius: 50%;
+            position: absolute;
+            transition: transform 0.1s linear;
+        }
+
+        .triangle-overlay {
+            width: 0;
+            height: 0;
+            /* Calculated for Base 132px, Height 132px to match pacman centers exactly */
+            border-left: 66px solid transparent;
+            border-right: 66px solid transparent;
+            border-bottom: 132px solid rgba(56, 189, 248, 0.2);
+            position: absolute;
+            /* Apex aligns with center of top pacman */
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            pointer-events: none;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="py-12 px-6 text-center bg-slate-900 border-b border-slate-800">
+        <h1
+            class="text-4xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600 mb-4 tracking-tight">
+            Visual Paradox
+        </h1>
+        <p class="text-slate-400 max-w-2xl mx-auto text-lg">
+            Explore the glitches in your perception. Interact with these classic optical illusions to understand how
+            your brain constructs reality.
+        </p>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow container mx-auto px-4 py-12">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+            <!-- Illusion 1: Muller-Lyer -->
+            <div class="bg-slate-800 rounded-2xl overflow-hidden shadow-xl border border-slate-700 flex flex-col">
+                <div class="p-6 border-b border-slate-700 bg-slate-800/50">
+                    <h2 class="text-2xl font-bold text-white mb-2">Müller-Lyer Illusion</h2>
+                    <p class="text-sm text-slate-400">Which line is longer? Drag the slider to adjust the arrowheads.
+                    </p>
+                </div>
+                <div class="relative h-64 bg-slate-200 flex flex-col justify-center items-center overflow-hidden"
+                    id="muller-container">
+                    <!-- Lines are drawn via JS/SVG interaction or simplified DOM -->
+                    <div class="relative w-64 h-24 flex flex-col justify-between">
+                        <!-- Top Line (Inward fins) -->
+                        <div class="relative h-1 bg-black w-full" id="line-top">
+                            <div
+                                class="absolute left-0 top-1/2 -translate-y-1/2 w-8 h-1 bg-black origin-left rotate-45 fin-left-top transition-transform">
+                            </div>
+                            <div
+                                class="absolute left-0 top-1/2 -translate-y-1/2 w-8 h-1 bg-black origin-left -rotate-45 fin-left-bottom transition-transform">
+                            </div>
+                            <div
+                                class="absolute right-0 top-1/2 -translate-y-1/2 w-8 h-1 bg-black origin-right -rotate-45 fin-right-top transition-transform">
+                            </div>
+                            <div
+                                class="absolute right-0 top-1/2 -translate-y-1/2 w-8 h-1 bg-black origin-right rotate-45 fin-right-bottom transition-transform">
+                            </div>
+                        </div>
+
+                        <!-- Bottom Line (Outward fins) -->
+                        <div class="relative h-1 bg-black w-full" id="line-bottom">
+                            <div
+                                class="absolute left-0 top-1/2 -translate-y-1/2 w-8 h-1 bg-black origin-left -rotate-45 fin-left-top-b transition-transform">
+                            </div>
+                            <div
+                                class="absolute left-0 top-1/2 -translate-y-1/2 w-8 h-1 bg-black origin-left rotate-45 fin-left-bottom-b transition-transform">
+                            </div>
+                            <div
+                                class="absolute right-0 top-1/2 -translate-y-1/2 w-8 h-1 bg-black origin-right rotate-45 fin-right-top-b transition-transform">
+                            </div>
+                            <div
+                                class="absolute right-0 top-1/2 -translate-y-1/2 w-8 h-1 bg-black origin-right -rotate-45 fin-right-bottom-b transition-transform">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Truth Overlay -->
+                    <div id="muller-overlay"
+                        class="absolute inset-0 w-64 mx-auto pointer-events-none opacity-0 transition-opacity duration-300">
+                        <div
+                            class="absolute left-0 top-0 bottom-0 w-0.5 bg-red-500/50 border-r border-dashed border-red-600">
+                        </div>
+                        <div
+                            class="absolute right-0 top-0 bottom-0 w-0.5 bg-red-500/50 border-l border-dashed border-red-600">
+                        </div>
+                    </div>
+                </div>
+                <div class="p-6 mt-auto bg-slate-800">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="text-xs font-semibold text-slate-500 uppercase">Fin Angle</span>
+                        <button onclick="toggleMullerTruth()"
+                            class="px-3 py-1 text-xs font-bold text-cyan-900 bg-cyan-400 rounded hover:bg-cyan-300 transition-colors">
+                            Reveal Truth
+                        </button>
+                    </div>
+                    <input type="range" min="0" max="180" value="45" class="w-full" id="muller-slider">
+                </div>
+            </div>
+
+            <!-- Illusion 2: Ebbinghaus -->
+            <div class="bg-slate-800 rounded-2xl overflow-hidden shadow-xl border border-slate-700 flex flex-col">
+                <div class="p-6 border-b border-slate-700 bg-slate-800/50">
+                    <h2 class="text-2xl font-bold text-white mb-2">Ebbinghaus Illusion</h2>
+                    <p class="text-sm text-slate-400">Are the orange circles the same size? Change the context.</p>
+                </div>
+                <div class="relative h-64 bg-slate-200 flex justify-center items-center overflow-hidden">
+
+                    <div class="flex w-full justify-around items-center px-4 relative">
+
+                        <!-- Left Group (Large Surround) -->
+                        <div class="relative flex justify-center items-center w-32 h-32 transition-all duration-500"
+                            id="ebbinghaus-left">
+                            <div class="absolute w-8 h-8 rounded-full bg-orange-500 z-10" id="orange-left"></div>
+                            <!-- Surrounding circles generated by JS -->
+                        </div>
+
+                        <!-- Right Group (Small Surround) -->
+                        <div class="relative flex justify-center items-center w-32 h-32 transition-all duration-500"
+                            id="ebbinghaus-right">
+                            <div class="absolute w-8 h-8 rounded-full bg-orange-500 z-10" id="orange-right"></div>
+                            <!-- Surrounding circles generated by JS -->
+                        </div>
+
+                    </div>
+
+                    <!-- Comparison Overlay -->
+                    <div id="ebbinghaus-overlay"
+                        class="absolute inset-0 pointer-events-none opacity-0 transition-opacity duration-500 flex justify-center items-center">
+                        <div class="w-full h-0.5 bg-red-500/50 absolute top-1/2 -translate-y-1/2"></div>
+                        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-32">
+                            <!-- Dashed boxes around orange circles -->
+                            <div class="w-8 h-8 border-2 border-red-500 rounded-full"></div>
+                            <div class="w-8 h-8 border-2 border-red-500 rounded-full"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-6 mt-auto bg-slate-800">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="text-xs font-semibold text-slate-500 uppercase">Context Size</span>
+                        <button onclick="toggleEbbinghausTruth()"
+                            class="px-3 py-1 text-xs font-bold text-cyan-900 bg-cyan-400 rounded hover:bg-cyan-300 transition-colors">
+                            Compare
+                        </button>
+                    </div>
+                    <input type="range" min="0" max="100" value="0" class="w-full" id="ebbinghaus-slider">
+                </div>
+            </div>
+
+            <!-- Illusion 3: Café Wall -->
+            <div class="bg-slate-800 rounded-2xl overflow-hidden shadow-xl border border-slate-700 flex flex-col">
+                <div class="p-6 border-b border-slate-700 bg-slate-800/50">
+                    <h2 class="text-2xl font-bold text-white mb-2">Café Wall Illusion</h2>
+                    <p class="text-sm text-slate-400">Are the horizontal grey lines parallel? Adjust the offset.</p>
+                </div>
+                <div class="relative h-64 bg-white overflow-hidden flex flex-col justify-center" id="cafe-container">
+                    <!-- Rows generated by JS -->
+                </div>
+                <div class="p-6 mt-auto bg-slate-800">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="text-xs font-semibold text-slate-500 uppercase">Row Offset</span>
+                        <button onclick="resetCafeWall()"
+                            class="px-3 py-1 text-xs font-bold text-cyan-900 bg-cyan-400 rounded hover:bg-cyan-300 transition-colors">
+                            Straighten
+                        </button>
+                    </div>
+                    <input type="range" min="0" max="40" value="20" class="w-full" id="cafe-slider">
+                </div>
+            </div>
+
+            <!-- Illusion 4: Kanizsa Triangle -->
+            <div class="bg-slate-800 rounded-2xl overflow-hidden shadow-xl border border-slate-700 flex flex-col">
+                <div class="p-6 border-b border-slate-700 bg-slate-800/50">
+                    <h2 class="text-2xl font-bold text-white mb-2">Kanizsa Triangle</h2>
+                    <p class="text-sm text-slate-400">Your brain creates a white triangle that isn't there.</p>
+                </div>
+                <div class="relative h-64 bg-white flex justify-center items-center overflow-hidden">
+                    <div class="relative w-48 h-48">
+                        <!-- Pacmans -->
+                        <div class="pacman top-0 left-1/2 -translate-x-1/2 rotate-90" id="k-top"></div>
+                        <div class="pacman bottom-0 left-0 -rotate-45" id="k-left"></div>
+                        <div class="pacman bottom-0 right-0 rotate-225" id="k-right"></div>
+
+                        <!-- Overlay to prove it -->
+                        <div class="triangle-overlay" id="kanizsa-overlay"></div>
+                    </div>
+                </div>
+                <div class="p-6 mt-auto bg-slate-800">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="text-xs font-semibold text-slate-500 uppercase">Pacman Rotation</span>
+                        <button onclick="toggleKanizsaOutline()"
+                            class="px-3 py-1 text-xs font-bold text-cyan-900 bg-cyan-400 rounded hover:bg-cyan-300 transition-colors">
+                            Show Contour
+                        </button>
+                    </div>
+                    <input type="range" min="0" max="360" value="0" class="w-full" id="kanizsa-slider">
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="py-8 text-center text-slate-500 text-sm border-t border-slate-800">
+        <p>&copy; 2023 Visual Paradox Showcase. Built with Tailwind CSS & JS.</p>
+    </footer>
+
+    <script>
+        // --- Müller-Lyer Logic ---
+        const mullerSlider = document.getElementById('muller-slider');
+        const fins = document.querySelectorAll('.fin-left-top, .fin-left-bottom, .fin-right-top, .fin-right-bottom');
+        const finsB = document.querySelectorAll('.fin-left-top-b, .fin-left-bottom-b, .fin-right-top-b, .fin-right-bottom-b');
+        const mullerOverlay = document.getElementById('muller-overlay');
+
+        function updateMuller(val) {
+            // Top Line: Fins point IN (usually < 90 relative to line, but here we rotate)
+            // Initial CSS: rotate-45 (points out). We want to animate angle.
+            // Simplified: We adjust the rotation transform directly via style.
+
+            // Top fins (Arrows pointing IN <--) 
+            // Default 45 deg = out. We need them to point IN.
+            // Let's redefine based on slider.
+            // Slider 0 -> pointing completely IN (arrowhead)
+            // Slider 180 -> pointing completely OUT (tails)
+
+            // Actually, let's keep it simple.
+            // Slider value modifies the angle.
+
+            const angle = val;
+
+            // Target specific elements for top line (inward perception)
+            // Using style transform to override Tailwind classes
+            document.querySelector('.fin-left-top').style.transform = `translateY(-50%) rotate(${angle}deg)`;
+            document.querySelector('.fin-left-bottom').style.transform = `translateY(-50%) rotate(-${angle}deg)`;
+            document.querySelector('.fin-right-top').style.transform = `translateY(-50%) rotate(-${angle}deg)`;
+            document.querySelector('.fin-right-bottom').style.transform = `translateY(-50%) rotate(${angle}deg)`;
+
+            // Bottom line (outward perception) - Invert logic or offset
+            // To maximize illusion, one points in, one points out.
+            // Let's make the slider control the "divergence" from neutral.
+            // Neutral is 90deg (perpendicular).
+
+            // Let's do standard Muller Lyer: Top is IN (arrowheads), Bottom is OUT (arrowtails).
+            // Slider adjusts the intensity of the angle.
+
+            const intensity = parseInt(val);
+            // Map 0-180. 
+            // 45 deg is classic.
+
+            // Top Line (Inward pointing arrows >-< )
+            // Left side needs to point RIGHT. Right side needs to point LEFT.
+            // Left-Top fin: rotate(45) points top-right. We want bottom-right to make an arrow?
+            // Let's just hard code the intended rotation logic.
+
+            // Left Fins Top Line
+            document.querySelector('.fin-left-top').style.transform = `translateY(-50%) rotate(${intensity}deg)`;
+            document.querySelector('.fin-left-bottom').style.transform = `translateY(-50%) rotate(-${intensity}deg)`;
+            // Right Fins Top Line
+            document.querySelector('.fin-right-top').style.transform = `translateY(-50%) rotate(-${intensity}deg)`;
+            document.querySelector('.fin-right-bottom').style.transform = `translateY(-50%) rotate(${intensity}deg)`;
+
+            // Bottom Line (Outward pointing >-< )
+            // Inverse the angle
+            const invIntensity = 180 - intensity;
+            // Left Fins Bottom Line
+            document.querySelector('.fin-left-top-b').style.transform = `translateY(-50%) rotate(${invIntensity}deg)`;
+            document.querySelector('.fin-left-bottom-b').style.transform = `translateY(-50%) rotate(-${invIntensity}deg)`;
+            // Right Fins Bottom Line
+            document.querySelector('.fin-right-top-b').style.transform = `translateY(-50%) rotate(-${invIntensity}deg)`;
+            document.querySelector('.fin-right-bottom-b').style.transform = `translateY(-50%) rotate(${invIntensity}deg)`;
+        }
+
+        mullerSlider.addEventListener('input', (e) => {
+            updateMuller(e.target.value);
+        });
+
+        // Initialize
+        updateMuller(45);
+
+        function toggleMullerTruth() {
+            mullerOverlay.style.opacity = mullerOverlay.style.opacity === '1' ? '0' : '1';
+        }
+
+
+        // --- Ebbinghaus Logic ---
+        const ebbinghausSlider = document.getElementById('ebbinghaus-slider');
+        const leftGroup = document.getElementById('ebbinghaus-left');
+        const rightGroup = document.getElementById('ebbinghaus-right');
+        const ebbinghausOverlay = document.getElementById('ebbinghaus-overlay');
+
+        function createSurroundingCircles() {
+            // Clear existing
+            const existing = document.querySelectorAll('.surround-circle');
+            existing.forEach(e => e.remove());
+
+            // Left Group: Big circles
+            for (let i = 0; i < 6; i++) {
+                const angle = (i * 60) * (Math.PI / 180);
+                const r = 45; // Distance from center
+                const el = document.createElement('div');
+                el.className = 'absolute rounded-full bg-slate-400 surround-circle transition-all duration-300';
+                el.style.width = '24px'; // Initial Size
+                el.style.height = '24px';
+                // Position based on angle
+                const x = Math.cos(angle) * r;
+                const y = Math.sin(angle) * r;
+                el.style.transform = `translate(${x}px, ${y}px)`;
+                el.dataset.angle = angle;
+                el.dataset.group = 'left';
+                leftGroup.appendChild(el);
+            }
+
+            // Right Group: Small circles
+            for (let i = 0; i < 8; i++) {
+                const angle = (i * 45) * (Math.PI / 180);
+                const r = 26; // Distance from center
+                const el = document.createElement('div');
+                el.className = 'absolute rounded-full bg-slate-400 surround-circle transition-all duration-300';
+                el.style.width = '10px'; // Initial Size
+                el.style.height = '10px';
+                const x = Math.cos(angle) * r;
+                const y = Math.sin(angle) * r;
+                el.style.transform = `translate(${x}px, ${y}px)`;
+                el.dataset.angle = angle;
+                el.dataset.group = 'right';
+                rightGroup.appendChild(el);
+            }
+        }
+
+        createSurroundingCircles();
+
+        function updateEbbinghaus(val) {
+            // val 0 to 100.
+            // 0 = Strong illusion (Big surrounding vs Small surrounding)
+            // 100 = No illusion (Equal surrounding)
+
+            const factor = val / 100; // 0 to 1
+
+            // Left Group (Starts Big, shrinks to medium)
+            // Start size: 30px, End size: 15px
+            // Start dist: 50px, End dist: 35px
+            const leftSize = 30 - (15 * factor);
+            const leftDist = 50 - (15 * factor);
+
+            // Right Group (Starts Small, grows to medium)
+            // Start size: 8px, End size: 15px
+            // Start dist: 24px, End dist: 35px
+            const rightSize = 8 + (7 * factor);
+            const rightDist = 24 + (11 * factor);
+
+            const circles = document.querySelectorAll('.surround-circle');
+            circles.forEach(c => {
+                const angle = parseFloat(c.dataset.angle);
+                if (c.dataset.group === 'left') {
+                    c.style.width = `${leftSize}px`;
+                    c.style.height = `${leftSize}px`;
+                    const x = Math.cos(angle) * leftDist;
+                    const y = Math.sin(angle) * leftDist;
+                    c.style.transform = `translate(${x}px, ${y}px)`;
+                } else {
+                    c.style.width = `${rightSize}px`;
+                    c.style.height = `${rightSize}px`;
+                    const x = Math.cos(angle) * rightDist;
+                    const y = Math.sin(angle) * rightDist;
+                    c.style.transform = `translate(${x}px, ${y}px)`;
+                }
+            });
+
+            // Move groups closer visually if needed, but not required for illusion
+        }
+
+        ebbinghausSlider.addEventListener('input', (e) => {
+            updateEbbinghaus(e.target.value);
+        });
+
+        // Init state
+        updateEbbinghaus(0);
+
+        function toggleEbbinghausTruth() {
+            // Move the circles physically together to overlay? Or just draw lines?
+            // Let's just show the overlay.
+            ebbinghausOverlay.style.opacity = ebbinghausOverlay.style.opacity === '1' ? '0' : '1';
+
+            // Also animate the containers closer together to make comparison easier
+            if (ebbinghausOverlay.style.opacity === '1') {
+                leftGroup.style.transform = 'translateX(20px)';
+                rightGroup.style.transform = 'translateX(-20px)';
+            } else {
+                leftGroup.style.transform = 'translateX(0)';
+                rightGroup.style.transform = 'translateX(0)';
+            }
+        }
+
+
+        // --- Café Wall Logic ---
+        const cafeContainer = document.getElementById('cafe-container');
+        const cafeSlider = document.getElementById('cafe-slider');
+
+        function initCafeWall() {
+            // Create 6 rows
+            for (let i = 0; i < 8; i++) {
+                const row = document.createElement('div');
+                row.className = 'cafe-row';
+                // Create blocks
+                // Pattern: Black, White, Black, White
+                for (let j = 0; j < 20; j++) {
+                    const block = document.createElement('div');
+                    block.className = `cafe-block ${j % 2 === 0 ? 'black' : 'white'}`;
+                    row.appendChild(block);
+                }
+                // Grey mortar line between rows
+                if (i > 0) {
+                    const mortar = document.createElement('div');
+                    mortar.style.height = '2px';
+                    mortar.style.backgroundColor = '#94a3b8'; // slate-400
+                    mortar.style.width = '120%';
+                    mortar.style.marginLeft = '-10%';
+                    mortar.style.position = 'relative';
+                    mortar.style.zIndex = '10';
+                    cafeContainer.appendChild(mortar);
+                }
+                cafeContainer.appendChild(row);
+            }
+        }
+
+        initCafeWall();
+
+        function updateCafeWall(offset) {
+            const rows = document.querySelectorAll('.cafe-row');
+            rows.forEach((row, index) => {
+                // Shift every other row or progressive shift?
+                // Standard Cafe Wall: Alternate rows are shifted.
+                // Row 0: 0
+                // Row 1: shift
+                // Row 2: 0
+                // Row 3: shift
+
+                // Or varying shifts
+                if (index % 2 !== 0) {
+                    row.style.transform = `translateX(${offset}px)`;
+                } else {
+                    row.style.transform = `translateX(-${offset}px)`;
+                }
+            });
+        }
+
+        cafeSlider.addEventListener('input', (e) => {
+            updateCafeWall(e.target.value);
+        });
+
+        function resetCafeWall() {
+            cafeSlider.value = 0;
+            updateCafeWall(0);
+        }
+
+        // Init
+        updateCafeWall(20);
+
+
+        // --- Kanizsa Logic ---
+        const kanizsaSlider = document.getElementById('kanizsa-slider');
+        const kTop = document.getElementById('k-top');
+        const kLeft = document.getElementById('k-left');
+        const kRight = document.getElementById('k-right');
+        const kOverlay = document.getElementById('kanizsa-overlay');
+
+        function updateKanizsa(deg) {
+            // Initial rotations:
+            // Top: 90
+            // Left: -45 (315)
+            // Right: 225 (-135)
+
+            // Add slider value to these base values to rotate them
+            const d = parseInt(deg);
+
+            kTop.style.transform = `translateX(-50%) rotate(${90 + d}deg)`;
+            kLeft.style.transform = `rotate(${-45 + d}deg)`;
+            kRight.style.transform = `rotate(${225 + d}deg)`;
+        }
+
+        kanizsaSlider.addEventListener('input', (e) => {
+            updateKanizsa(e.target.value);
+        });
+
+        function toggleKanizsaOutline() {
+            kOverlay.style.opacity = kOverlay.style.opacity === '1' ? '0' : '1';
+        }
+
+    </script>
+</body>
+
+</html>
