@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>15-Puzzle Game</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        .tile {
+            transition: transform 0.2s ease-in-out, background-color 0.2s;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .tile:active {
+            transform: scale(0.95);
+        }
+
+        .tile-empty {
+            cursor: default;
+            background-color: transparent;
+            box-shadow: none;
+            border: none;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col items-center justify-center font-sans p-4">
+
+    <div class="max-w-md w-full bg-slate-800 rounded-xl shadow-2xl p-6 border border-slate-700">
+        <h1 class="text-3xl font-bold text-center mb-6 text-blue-400">15-Puzzle</h1>
+
+        <!-- Stats Bar -->
+        <div class="flex justify-between mb-6 bg-slate-700 p-3 rounded-lg">
+            <div class="text-center w-1/2 border-r border-slate-600">
+                <p class="text-xs text-slate-400 uppercase tracking-wider">Moves</p>
+                <p id="move-count" class="text-2xl font-mono font-bold text-white">0</p>
+            </div>
+            <div class="text-center w-1/2">
+                <p class="text-xs text-slate-400 uppercase tracking-wider">Time</p>
+                <p id="timer" class="text-2xl font-mono font-bold text-white">00:00</p>
+            </div>
+        </div>
+
+        <!-- Game Board -->
+        <div id="game-board" class="grid grid-cols-4 gap-2 bg-slate-700 p-2 rounded-lg mb-6 aspect-square relative">
+            <!-- Tiles will be generated here by JS -->
+        </div>
+
+        <!-- Win Message -->
+        <div id="win-message" class="hidden text-center mb-4">
+            <p class="text-green-400 font-bold text-xl animate-pulse">🎉 Puzzle Solved! 🎉</p>
+        </div>
+
+        <!-- Controls -->
+        <button id="new-game-btn"
+            class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-lg transition duration-200 shadow-lg active:translate-y-0.5">
+            New Game
+        </button>
+    </div>
+
+    <script>
+        // Game State
+        const BOARD_SIZE = 4;
+        let tiles = []; // 1D array representing the 4x4 grid
+        let moves = 0;
+        let timeElapsed = 0;
+        let timerInterval = null;
+        let isGameActive = false;
+
+        // DOM Elements
+        const boardEl = document.getElementById('game-board');
+        const moveCountEl = document.getElementById('move-count');
+        const timerEl = document.getElementById('timer');
+        const newGameBtn = document.getElementById('new-game-btn');
+        const winMessageEl = document.getElementById('win-message');
+
+        // Initialize
+        function init() {
+            // Create solved state: [1, 2, ..., 15, 0]
+            tiles = Array.from({ length: BOARD_SIZE * BOARD_SIZE }, (_, i) => (i + 1) % 16);
+            renderBoard();
+        }
+
+        // Start a new game
+        function startNewGame() {
+            stopTimer();
+            moves = 0;
+            timeElapsed = 0;
+            isGameActive = true;
+            winMessageEl.classList.add('hidden');
+            updateStats();
+
+            // Generate solvable shuffle
+            // Instead of random shuffle, we simulate random moves from solved state
+            // This guarantees solvability
+            tiles = Array.from({ length: BOARD_SIZE * BOARD_SIZE }, (_, i) => (i + 1) % 16);
+            shuffleBoard();
+
+            renderBoard();
+            startTimer();
+        }
+
+        function shuffleBoard() {
+            let emptyIdx = 15; // 0 is at index 15 initially
+            let previousIdx = -1;
+            const shuffleMoves = 1000; // Number of random moves to shuffle
+
+            for (let i = 0; i < shuffleMoves; i++) {
+                const neighbors = getNeighbors(emptyIdx);
+                // Filter out the tile we just moved so we don't just wiggle back and forth too much
+                const validNeighbors = neighbors.filter(idx => idx !== previousIdx);
+
+                // Pick a random neighbor
+                const randomNeighbor = validNeighbors[Math.floor(Math.random() * validNeighbors.length)];
+
+                // Swap
+                [tiles[emptyIdx], tiles[randomNeighbor]] = [tiles[randomNeighbor], tiles[emptyIdx]];
+                previousIdx = emptyIdx;
+                emptyIdx = randomNeighbor;
+            }
+        }
+
+        function getNeighbors(index) {
+            const row = Math.floor(index / BOARD_SIZE);
+            const col = index % BOARD_SIZE;
+            const neighbors = [];
+
+            if (row > 0) neighbors.push(index - BOARD_SIZE); // Up
+            if (row < BOARD_SIZE - 1) neighbors.push(index + BOARD_SIZE); // Down
+            if (col > 0) neighbors.push(index - 1); // Left
+            if (col < BOARD_SIZE - 1) neighbors.push(index + 1); // Right
+
+            return neighbors;
+        }
+
+        function renderBoard() {
+            boardEl.innerHTML = '';
+            tiles.forEach((tileValue, index) => {
+                const tileEl = document.createElement('div');
+
+                // Common classes
+                let classes = 'flex items-center justify-center rounded-md font-bold text-2xl shadow-md h-full w-full';
+
+                if (tileValue === 0) {
+                    classes += ' tile-empty';
+                } else {
+                    classes += ' tile bg-slate-600 text-white border-t border-slate-500 border-b-4 border-slate-800 hover:bg-slate-500';
+                    tileEl.textContent = tileValue;
+                    tileEl.onclick = () => handleTileClick(index);
+                }
+
+                tileEl.className = classes;
+                // Add position data for potential animation improvements later
+                tileEl.dataset.index = index;
+                boardEl.appendChild(tileEl);
+            });
+        }
+
+        function handleTileClick(index) {
+            if (!isGameActive) return;
+
+            const emptyIndex = tiles.indexOf(0);
+            const neighbors = getNeighbors(emptyIndex);
+
+            if (neighbors.includes(index)) {
+                // Swap
+                [tiles[emptyIndex], tiles[index]] = [tiles[index], tiles[emptyIndex]];
+                moves++;
+                updateStats();
+                renderBoard();
+                checkWin();
+            }
+        }
+
+        function updateStats() {
+            moveCountEl.textContent = moves;
+            const minutes = Math.floor(timeElapsed / 60).toString().padStart(2, '0');
+            const seconds = (timeElapsed % 60).toString().padStart(2, '0');
+            timerEl.textContent = `${minutes}:${seconds}`;
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timeElapsed++;
+                updateStats();
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+        }
+
+        function checkWin() {
+            // Solved state: 1, 2, 3, ..., 15, 0
+            const isSolved = tiles.every((val, index) => {
+                if (index === tiles.length - 1) return val === 0;
+                return val === index + 1;
+            });
+
+            if (isSolved) {
+                isGameActive = false;
+                stopTimer();
+                winMessageEl.classList.remove('hidden');
+            }
+        }
+
+        // Event Listeners
+        newGameBtn.addEventListener('click', startNewGame);
+
+        document.addEventListener('keydown', (e) => {
+            if (!isGameActive) return;
+
+            const emptyIndex = tiles.indexOf(0);
+            const row = Math.floor(emptyIndex / BOARD_SIZE);
+            const col = emptyIndex % BOARD_SIZE;
+
+            let targetIndex = -1;
+
+            switch (e.key) {
+                case 'ArrowUp':
+                    // Move tile UP into empty slot (so tile must be BELOW empty slot)
+                    if (row < BOARD_SIZE - 1) targetIndex = emptyIndex + BOARD_SIZE;
+                    break;
+                case 'ArrowDown':
+                    // Move tile DOWN into empty slot (so tile must be ABOVE empty slot)
+                    if (row > 0) targetIndex = emptyIndex - BOARD_SIZE;
+                    break;
+                case 'ArrowLeft':
+                    // Move tile LEFT into empty slot (so tile must be RIGHT of empty slot)
+                    if (col < BOARD_SIZE - 1) targetIndex = emptyIndex + 1;
+                    break;
+                case 'ArrowRight':
+                    // Move tile RIGHT into empty slot (so tile must be LEFT of empty slot)
+                    if (col > 0) targetIndex = emptyIndex - 1;
+                    break;
+            }
+
+            if (targetIndex !== -1) {
+                // Perform move
+                [tiles[emptyIndex], tiles[targetIndex]] = [tiles[targetIndex], tiles[emptyIndex]];
+                moves++;
+                updateStats();
+                renderBoard();
+                checkWin();
+            }
+        });
+
+        // Initial setup (display solved state but don't start game yet)
+        init();
+        // Automatically start a game for better UX on load
+        startNewGame();
+
+    </script>
+</body>
+
+</html>
