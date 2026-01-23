@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>15-Puzzle Game</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @keyframes celebrate {
+
+            0%,
+            100% {
+                transform: scale(1) rotate(0deg);
+            }
+
+            25% {
+                transform: scale(1.1) rotate(-5deg);
+            }
+
+            50% {
+                transform: scale(1.2) rotate(5deg);
+            }
+
+            75% {
+                transform: scale(1.1) rotate(-5deg);
+            }
+        }
+
+        @keyframes tileSlide {
+            0% {
+                transform: scale(0.9);
+            }
+
+            50% {
+                transform: scale(1.05);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .tile {
+            transition: all 0.15s ease-out;
+        }
+
+        .tile:hover:not(.empty) {
+            transform: scale(0.98);
+        }
+
+        .tile.slide {
+            animation: tileSlide 0.15s ease-out;
+        }
+
+        .celebrate {
+            animation: celebrate 0.5s ease-in-out;
+        }
+
+        .empty {
+            background: transparent !important;
+            cursor: default !important;
+        }
+
+        .confetti {
+            position: fixed;
+            pointer-events: none;
+            z-index: 100;
+        }
+    </style>
+</head>
+
+<body
+    class="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-800 flex items-center justify-center p-4">
+    <div class="bg-white/10 backdrop-blur-lg rounded-3xl p-8 shadow-2xl">
+        <h1 class="text-4xl font-bold text-center text-white mb-2">15-Puzzle</h1>
+        <p class="text-center text-purple-200 mb-6">Click tiles to slide them into the empty space</p>
+
+        <!-- Stats Bar -->
+        <div class="flex justify-between items-center mb-6 px-2">
+            <div class="bg-white/20 rounded-xl px-5 py-3">
+                <p class="text-purple-200 text-sm">Moves</p>
+                <p id="moveCounter" class="text-2xl font-bold text-white">0</p>
+            </div>
+            <button id="shuffleBtn"
+                class="bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-600 hover:to-orange-600 text-white font-bold py-3 px-6 rounded-xl shadow-lg transform hover:scale-105 transition-all duration-200">
+                🔀 Shuffle
+            </button>
+            <div class="bg-white/20 rounded-xl px-5 py-3">
+                <p class="text-purple-200 text-sm">Time</p>
+                <p id="timer" class="text-2xl font-bold text-white">0:00</p>
+            </div>
+        </div>
+
+        <!-- Game Board -->
+        <div id="board" class="grid grid-cols-4 gap-2 p-4 bg-white/10 rounded-2xl">
+            <!-- Tiles will be generated here -->
+        </div>
+
+        <!-- Win Message -->
+        <div id="winMessage" class="hidden mt-6 text-center">
+            <p class="text-3xl font-bold text-yellow-300 celebrate">🎉 Congratulations! 🎉</p>
+            <p class="text-purple-200 mt-2">You solved it in <span id="finalMoves" class="text-white font-bold"></span>
+                moves and <span id="finalTime" class="text-white font-bold"></span>!</p>
+        </div>
+
+        <!-- Instructions -->
+        <div class="mt-6 text-center text-purple-300 text-sm">
+            <p>Arrange the numbers 1-15 in order, with the empty space at the end.</p>
+        </div>
+    </div>
+
+    <script>
+        // Game State
+        let tiles = [];
+        let moves = 0;
+        let seconds = 0;
+        let timerInterval = null;
+        let gameStarted = false;
+        let gameSolved = false;
+
+        // DOM Elements
+        const board = document.getElementById('board');
+        const moveCounter = document.getElementById('moveCounter');
+        const timerDisplay = document.getElementById('timer');
+        const shuffleBtn = document.getElementById('shuffleBtn');
+        const winMessage = document.getElementById('winMessage');
+        const finalMoves = document.getElementById('finalMoves');
+        const finalTime = document.getElementById('finalTime');
+
+        // Initialize the solved state
+        function initTiles() {
+            tiles = [];
+            for (let i = 1; i <= 15; i++) {
+                tiles.push(i);
+            }
+            tiles.push(0); // 0 represents the empty space
+        }
+
+        // Render the board
+        function renderBoard() {
+            board.innerHTML = '';
+            tiles.forEach((tile, index) => {
+                const tileEl = document.createElement('div');
+                tileEl.className = `tile w-20 h-20 flex items-center justify-center text-2xl font-bold rounded-xl cursor-pointer select-none ${tile === 0
+                    ? 'empty'
+                    : 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg hover:shadow-xl'
+                    }`;
+                tileEl.textContent = tile === 0 ? '' : tile;
+                tileEl.dataset.index = index;
+
+                if (tile !== 0) {
+                    tileEl.addEventListener('click', () => moveTile(index));
+                }
+
+                board.appendChild(tileEl);
+            });
+        }
+
+        // Get the index of the empty space
+        function getEmptyIndex() {
+            return tiles.indexOf(0);
+        }
+
+        // Check if a tile can move
+        function canMove(index) {
+            const emptyIndex = getEmptyIndex();
+            const row = Math.floor(index / 4);
+            const col = index % 4;
+            const emptyRow = Math.floor(emptyIndex / 4);
+            const emptyCol = emptyIndex % 4;
+
+            return (Math.abs(row - emptyRow) === 1 && col === emptyCol) ||
+                (Math.abs(col - emptyCol) === 1 && row === emptyRow);
+        }
+
+        // Move a tile
+        function moveTile(index) {
+            if (gameSolved || !canMove(index)) return;
+
+            // Start timer on first move
+            if (!gameStarted) {
+                gameStarted = true;
+                startTimer();
+            }
+
+            const emptyIndex = getEmptyIndex();
+
+            // Swap tiles
+            [tiles[index], tiles[emptyIndex]] = [tiles[emptyIndex], tiles[index]];
+
+            // Increment move counter
+            moves++;
+            moveCounter.textContent = moves;
+
+            // Re-render with animation
+            renderBoard();
+            animateTile(emptyIndex);
+
+            // Check for win
+            if (checkWin()) {
+                handleWin();
+            }
+        }
+
+        // Animate the moved tile
+        function animateTile(index) {
+            const tileEls = board.querySelectorAll('.tile');
+            if (tileEls[index] && tiles[index] !== 0) {
+                tileEls[index].classList.add('slide');
+                setTimeout(() => tileEls[index].classList.remove('slide'), 150);
+            }
+        }
+
+        // Check if the puzzle is solved
+        function checkWin() {
+            for (let i = 0; i < 15; i++) {
+                if (tiles[i] !== i + 1) return false;
+            }
+            return tiles[15] === 0;
+        }
+
+        // Handle win state
+        function handleWin() {
+            gameSolved = true;
+            stopTimer();
+
+            finalMoves.textContent = moves;
+            finalTime.textContent = formatTime(seconds);
+            winMessage.classList.remove('hidden');
+
+            // Create confetti
+            createConfetti();
+        }
+
+        // Create confetti celebration
+        function createConfetti() {
+            const colors = ['#ff6b6b', '#4ecdc4', '#ffe66d', '#95e1d3', '#f38181', '#aa96da'];
+            for (let i = 0; i < 50; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.left = Math.random() * 100 + 'vw';
+                confetti.style.top = '-10px';
+                confetti.style.width = Math.random() * 10 + 5 + 'px';
+                confetti.style.height = Math.random() * 10 + 5 + 'px';
+                confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+                confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
+                document.body.appendChild(confetti);
+
+                const duration = Math.random() * 2 + 2;
+                confetti.animate([
+                    { transform: `translateY(0) rotate(0deg)`, opacity: 1 },
+                    { transform: `translateY(100vh) rotate(${Math.random() * 720}deg)`, opacity: 0 }
+                ], {
+                    duration: duration * 1000,
+                    easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+                }).onfinish = () => confetti.remove();
+            }
+        }
+
+        // Shuffle the tiles
+        function shuffle() {
+            // Reset state
+            moves = 0;
+            seconds = 0;
+            gameStarted = false;
+            gameSolved = false;
+            moveCounter.textContent = '0';
+            timerDisplay.textContent = '0:00';
+            winMessage.classList.add('hidden');
+            stopTimer();
+
+            // Shuffle using random moves to ensure solvability
+            let emptyIndex = 15;
+            let lastMove = -1;
+            const shuffleMoves = 200;
+
+            for (let i = 0; i < shuffleMoves; i++) {
+                const neighbors = [];
+                const row = Math.floor(emptyIndex / 4);
+                const col = emptyIndex % 4;
+
+                if (row > 0) neighbors.push(emptyIndex - 4);
+                if (row < 3) neighbors.push(emptyIndex + 4);
+                if (col > 0) neighbors.push(emptyIndex - 1);
+                if (col < 3) neighbors.push(emptyIndex + 1);
+
+                // Don't undo the last move immediately
+                const validNeighbors = neighbors.filter(n => n !== lastMove);
+                const moveFrom = validNeighbors[Math.floor(Math.random() * validNeighbors.length)] || neighbors[0];
+
+                [tiles[emptyIndex], tiles[moveFrom]] = [tiles[moveFrom], tiles[emptyIndex]];
+                lastMove = emptyIndex;
+                emptyIndex = moveFrom;
+            }
+
+            renderBoard();
+        }
+
+        // Timer functions
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                seconds++;
+                timerDisplay.textContent = formatTime(seconds);
+            }, 1000);
+        }
+
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+
+        function formatTime(totalSeconds) {
+            const mins = Math.floor(totalSeconds / 60);
+            const secs = totalSeconds % 60;
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // Initialize game
+        function init() {
+            initTiles();
+            renderBoard();
+            shuffleBtn.addEventListener('click', shuffle);
+        }
+
+        // Start the game
+        init();
+    </script>
+</body>
+
+</html>
