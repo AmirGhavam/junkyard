@@ -1,0 +1,304 @@
+<![CDATA[<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Basketball Free Throw Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        #message div { transition: opacity 0.5s; }
+    </style>
+</head>
+<body class="bg-gradient-to-b from-cyan-500 to-blue-800 flex flex-col h-screen">
+    <header class="bg-black bg-opacity-60 text-white p-6 text-center">
+        <h1 class="text-4xl font-bold mb-2">Basketball Free Throw Game</h1>
+        <div class="text-2xl">
+            Score: <span id="score">0</span> | 
+            Streak: <span id="streak">0</span> | 
+            Best: <span id="best">0</span>
+        </div>
+    </header>
+
+    <div id="message" class="fixed inset-0 flex items-center justify-center pointer-events-none z-10">
+        <div class="text-8xl font-bold text-yellow-400 opacity-0"></div>
+    </div>
+
+    <canvas id="gameCanvas" class="flex-1"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Responsive canvas
+        function resize() {
+            canvas.width = canvas.clientWidth;
+            canvas.height = canvas.clientHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Dynamic positions
+        const getShootX = () => canvas.width * 0.3;
+        const getShootY = () => canvas.height * 0.85;
+        const getHoopX = () => canvas.width * 0.75;
+        const getHoopY = () => canvas.height * 0.3;
+        const getRimLength = () => canvas.width * 0.11;
+
+        const ball = {
+            radius: Math.min(canvas.width, canvas.height) * 0.04,
+            x: getShootX(),
+            y: getShootY(),
+            vx: 0,
+            vy: 0,
+            inMotion: false,
+            touchedRim: false
+        };
+
+        const GRAVITY = 1400;
+        let score = 0;
+        let streak = 0;
+        let bestStreak = 0;
+        let isDragging = false;
+        let dragStartX = 0;
+        let dragStartY = 0;
+        let currentVx = 0;
+        let currentVy = 0;
+        let lastTime = 0;
+
+        function updateUI() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('streak').textContent = streak;
+            document.getElementById('best').textContent = bestStreak;
+        }
+
+        function showMessage(text) {
+            const el = document.querySelector('#message div');
+            el.textContent = text;
+            el.classList.remove('opacity-0');
+            el.classList.add('opacity-100');
+            setTimeout(() => {
+                el.classList.remove('opacity-100');
+                el.classList.add('opacity-0');
+            }, 1500);
+        }
+
+        function resetBall() {
+            ball.x = getShootX();
+            ball.y = getShootY();
+            ball.vx = 0;
+            ball.vy = 0;
+            ball.inMotion = false;
+            ball.touchedRim = false;
+        }
+
+        function drawHoop() {
+            const hx = getHoopX();
+            const hy = getHoopY();
+            const rl = getRimLength();
+
+            // Backboard
+            ctx.fillStyle = 'rgba(255,255,255,0.9)';
+            ctx.fillRect(hx - 25, hy - 90, 25, 180);
+
+            // Rim
+            ctx.strokeStyle = '#ff5500';
+            ctx.lineWidth = 10;
+            ctx.beginPath();
+            ctx.moveTo(hx - rl, hy);
+            ctx.lineTo(hx + 10, hy);
+            ctx.stroke();
+
+            // Net
+            ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+            ctx.lineWidth = 3;
+            for (let i = 0; i < 13; i++) {
+                const offset = i * rl / 12;
+                ctx.beginPath();
+                ctx.moveTo(hx - rl + offset, hy);
+                ctx.lineTo(hx - rl + offset + (i % 2 ? 15 : -15), hy + 70);
+                ctx.stroke();
+            }
+        }
+
+        function drawBall() {
+            ctx.save();
+            ctx.fillStyle = '#ff7733';
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Basketball lines
+            ctx.beginPath();
+            ctx.moveTo(ball.x - ball.radius, ball.y);
+            ctx.lineTo(ball.x + ball.radius, ball.y);
+            ctx.moveTo(ball.x, ball.y - ball.radius);
+            ctx.lineTo(ball.x, ball.y + ball.radius);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawTrajectory() {
+            if (!isDragging) return;
+
+            ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+            ctx.lineWidth = 4;
+            ctx.setLineDash([10, 15]);
+            ctx.beginPath();
+
+            let x = ball.x;
+            let y = ball.y;
+            let vx = currentVx;
+            let vy = currentVy;
+            ctx.moveTo(x, y);
+
+            for (let i = 0; i < 150; i++) {
+                vy += GRAVITY * 0.016;
+                x += vx * 0.016;
+                y += vy * 0.016;
+                ctx.lineTo(x, y);
+                if (y > canvas.height + 100) break;
+            }
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        function animate(time) {
+            if (!lastTime) lastTime = time;
+            const dt = (time - lastTime) / 1000;
+            lastTime = time;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawHoop();
+            drawTrajectory();
+            drawBall();
+
+            if (ball.inMotion) {
+                const prevY = ball.y;
+
+                ball.vy += GRAVITY * dt;
+                ball.x += ball.vx * dt;
+                ball.y += ball.vy * dt;
+
+                const hx = getHoopX();
+                const hy = getHoopY();
+                const rl = getRimLength();
+
+                // Backboard collision
+                if (ball.x + ball.radius > hx - 25 &&
+                    ball.x - ball.radius < hx &&
+                    ball.y > hy - 90 &&
+                    ball.y < hy + 90) {
+                    ball.vx = -Math.abs(ball.vx) * 0.8;
+                    ball.touchedRim = true;
+                }
+
+                // Rim collisions (front and back)
+                const rims = [hx - rl, hx];
+                rims.forEach(rx => {
+                    const dx = ball.x - rx;
+                    const dy = ball.y - hy;
+                    const dist = Math.hypot(dx, dy);
+                    if (dist < ball.radius + 22) {
+                        const nx = dx / dist;
+                        const ny = dy / dist;
+                        const velocityDot = ball.vx * nx + ball.vy * ny;
+                        ball.vx -= 2 * velocityDot * nx * 0.75;
+                        ball.vy -= 2 * velocityDot * ny * 0.75;
+                        ball.touchedRim = true;
+                    }
+                });
+
+                // Score detection
+                if (prevY <= hy + 10 && ball.y > hy + 10 &&
+                    ball.x > hx - rl && ball.x < hx + 30 &&
+                    ball.vy > 0) {
+                    score++;
+                    streak++;
+                    if (streak > bestStreak) bestStreak = streak;
+                    updateUI();
+                    showMessage(ball.touchedRim ? "Made!" : "SWISH!!!");
+                    resetBall();
+                }
+
+                // Miss detection
+                else if (ball.y > canvas.height + ball.radius * 5) {
+                    showMessage("Miss");
+                    streak = 0;
+                    updateUI();
+                    resetBall();
+                }
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        // Unified input handling
+        const getEventPos = (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        };
+
+        const startDrag = (e) => {
+            if (ball.inMotion) return;
+            const pos = getEventPos(e);
+            if (Math.hypot(pos.x - ball.x, pos.y - ball.y) < ball.radius + 80) {
+                isDragging = true;
+                dragStartX = pos.x;
+                dragStartY = pos.y;
+            }
+            if (e.touches) e.preventDefault();
+        };
+
+        const moveDrag = (e) => {
+            if (!isDragging) return;
+            const pos = getEventPos(e);
+            const dx = pos.x - dragStartX;
+            const dy = pos.y - dragStartY;
+            const dist = Math.hypot(dx, dy) || 1;
+            const angle = Math.atan2(dy, dx);
+            const power = dist * 5.5;  // Sensitivity tuning
+            currentVx = Math.cos(angle) * power;
+            currentVy = Math.sin(angle) * power;
+            if (e.touches) e.preventDefault();
+        };
+
+        const endDrag = () => {
+            if (!isDragging) return;
+            isDragging = false;
+            const minPower = 300;
+            if (Math.hypot(currentVx, currentVy) > minPower) {
+                ball.vx = currentVx;
+                ball.vy = currentVy;
+                ball.inMotion = true;
+                ball.touchedRim = false;
+            }
+        };
+
+        // Touch events
+        canvas.addEventListener('touchstart', startDrag, { passive: false });
+        canvas.addEventListener('touchmove', moveDrag, { passive: false });
+        canvas.addEventListener('touchend', endDrag);
+
+        // Mouse events
+        canvas.addEventListener('mousedown', startDrag);
+        canvas.addEventListener('mousemove', moveDrag);
+        canvas.addEventListener('mouseup', endDrag);
+        canvas.addEventListener('mouseleave', endDrag);
+
+        updateUI();
+        requestAnimationFrame(animate);
+    </script>
+</body>
+</html>]]>
