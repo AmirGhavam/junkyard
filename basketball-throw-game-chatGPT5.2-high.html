@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Free Throw Swipe</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            overscroll-behavior: none;
+            touch-action: none;
+        }
+
+        canvas {
+            touch-action: none;
+        }
+
+        .glass {
+            background: rgba(15, 23, 42, 0.58);
+            backdrop-filter: blur(10px);
+        }
+
+        .ring {
+            box-shadow: 0 0 0 1px rgba(148, 163, 184, .25) inset;
+        }
+
+        .btn {
+            box-shadow: 0 10px 30px rgba(0, 0, 0, .25);
+        }
+    </style>
+</head>
+
+<body class="bg-slate-950 text-slate-100">
+    <div class="relative w-screen h-screen overflow-hidden">
+        <canvas id="game" class="absolute inset-0 w-full h-full"></canvas>
+
+        <!-- Top HUD -->
+        <div class="pointer-events-none absolute left-0 right-0 top-0 p-3 sm:p-5">
+            <div class="mx-auto max-w-5xl flex flex-col gap-3">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="glass ring rounded-2xl px-4 py-3">
+                        <div class="text-xs uppercase tracking-widest text-slate-300">Free Throw Swipe</div>
+                        <div class="text-sm text-slate-200" id="status">Swipe up on the ball to shoot</div>
+                    </div>
+
+                    <div class="glass ring rounded-2xl px-4 py-3 flex items-center gap-4">
+                        <div>
+                            <div class="text-[11px] uppercase tracking-widest text-slate-300">Score</div>
+                            <div class="text-2xl font-semibold tabular-nums" id="score">0</div>
+                        </div>
+                        <div class="h-10 w-px bg-white/10"></div>
+                        <div>
+                            <div class="text-[11px] uppercase tracking-widest text-slate-300">Streak</div>
+                            <div class="text-2xl font-semibold tabular-nums" id="streak">0</div>
+                        </div>
+                        <div class="h-10 w-px bg-white/10"></div>
+                        <div>
+                            <div class="text-[11px] uppercase tracking-widest text-slate-300">Best</div>
+                            <div class="text-2xl font-semibold tabular-nums" id="best">0</div>
+                        </div>
+                        <div class="h-10 w-px bg-white/10"></div>
+                        <div>
+                            <div class="text-[11px] uppercase tracking-widest text-slate-300">Swishes</div>
+                            <div class="text-2xl font-semibold tabular-nums" id="swishes">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex gap-2 pointer-events-auto">
+                    <button id="btnHelp"
+                        class="btn glass ring rounded-xl px-3 py-2 text-sm hover:bg-slate-900/60 active:scale-[0.99]">Help</button>
+                    <button id="btnReset"
+                        class="btn glass ring rounded-xl px-3 py-2 text-sm hover:bg-slate-900/60 active:scale-[0.99]">Reset
+                        stats</button>
+                    <button id="btnNew"
+                        class="btn glass ring rounded-xl px-3 py-2 text-sm hover:bg-slate-900/60 active:scale-[0.99]">New
+                        ball</button>
+                    <div class="ml-auto glass ring rounded-xl px-3 py-2 text-sm text-slate-200 hidden sm:block">Tip:
+                        longer swipe = more power; aim line shows predicted arc.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast -->
+        <div id="toast"
+            class="pointer-events-none absolute left-1/2 top-28 -translate-x-1/2 opacity-0 transition-opacity duration-200">
+            <div class="glass ring rounded-2xl px-5 py-3 text-center">
+                <div class="text-lg font-semibold" id="toastTitle">Swish!</div>
+                <div class="text-sm text-slate-200" id="toastSub">Streak +1</div>
+            </div>
+        </div>
+
+        <!-- Help modal -->
+        <div id="help" class="hidden absolute inset-0">
+            <div class="absolute inset-0 bg-black/60"></div>
+            <div
+                class="absolute left-1/2 top-1/2 w-[min(720px,92vw)] -translate-x-1/2 -translate-y-1/2 glass ring rounded-3xl p-5 sm:p-7">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <div class="text-xl font-semibold">How to play</div>
+                        <div class="mt-2 text-slate-200 leading-relaxed">
+                            <ul class="list-disc pl-5 space-y-2">
+                                <li>Press/hold on the ball, then swipe upward to shoot.</li>
+                                <li>The dotted arc previews your shot while aiming.</li>
+                                <li>Rim + backboard have bouncy physics; you can bank it in.</li>
+                                <li><span class="font-semibold">Swish</span> = ball goes through without touching rim or
+                                    backboard.</li>
+                                <li>Make consecutive shots to build your <span class="font-semibold">streak</span>.</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <button id="btnCloseHelp"
+                        class="btn glass ring rounded-xl px-3 py-2 text-sm hover:bg-slate-900/60">Close</button>
+                </div>
+                <div class="mt-5 text-xs text-slate-300">Works with mouse or touch. Audio is generated (no external
+                    files).</div>
+            </div>
+        </div>
+
+        <!-- Footer hint -->
+        <div class="absolute bottom-3 left-0 right-0 px-3 sm:px-5">
+            <div class="mx-auto max-w-5xl flex items-end justify-between gap-3">
+                <div class="glass ring rounded-2xl px-4 py-3 text-sm text-slate-200">
+                    <div class="flex items-center gap-2">
+                        <span class="inline-block h-2 w-2 rounded-full bg-emerald-400" id="readyDot"></span>
+                        <span id="hint">Ready</span>
+                    </div>
+                </div>
+                <div class="glass ring rounded-2xl px-4 py-3 text-sm text-slate-200 hidden md:block">
+                    Rim hits aren’t swishes — but they still count if they drop.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (() => {
+            const canvas = document.getElementById('game');
+            const ctx = canvas.getContext('2d');
+
+            const ui = {
+                status: document.getElementById('status'),
+                score: document.getElementById('score'),
+                streak: document.getElementById('streak'),
+                best: document.getElementById('best'),
+                swishes: document.getElementById('swishes'),
+                toast: document.getElementById('toast'),
+                toastTitle: document.getElementById('toastTitle'),
+                toastSub: document.getElementById('toastSub'),
+                hint: document.getElementById('hint'),
+                readyDot: document.getElementById('readyDot'),
+                help: document.getElementById('help'),
+            };
+
+            const btnHelp = document.getElementById('btnHelp');
+            const btnCloseHelp = document.getElementById('btnCloseHelp');
+            const btnReset = document.getElementById('btnReset');
+            const btnNew = document.getElementById('btnNew');
+
+            // --- Audio (synth) ---
+            let audioCtx = null;
+            function beep({ freq = 440, dur = 0.06, type = 'sine', gain = 0.05 } = {}) {
+                try {
+                    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    const t0 = audioCtx.currentTime;
+                    const o = audioCtx.createOscillator();
+                    const g = audioCtx.createGain();
+                    o.type = type;
+                    o.frequency.value = freq;
+                    g.gain.setValueAtTime(0.0001, t0);
+                    g.gain.exponentialRampToValueAtTime(gain, t0 + 0.01);
+                    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+                    o.connect(g);
+                    g.connect(audioCtx.destination);
+                    o.start(t0);
+                    o.stop(t0 + dur + 0.02);
+                } catch (e) {
+                    // ignore
+                }
+            }
+            function rimClank(intensity = 1) {
+                beep({ freq: 220 + 160 * Math.random(), dur: 0.04 + 0.03 * intensity, type: 'triangle', gain: 0.045 + 0.03 * intensity });
+            }
+            function swishSound() {
+                beep({ freq: 880, dur: 0.04, type: 'sine', gain: 0.05 });
+                setTimeout(() => beep({ freq: 660, dur: 0.06, type: 'sine', gain: 0.04 }), 30);
+            }
+            function scoreSound() {
+                beep({ freq: 523.25, dur: 0.06, type: 'sine', gain: 0.05 });
+                setTimeout(() => beep({ freq: 659.25, dur: 0.06, type: 'sine', gain: 0.04 }), 55);
+            }
+
+            // --- Canvas sizing ---
+            let DPR = Math.max(1, Math.min(2.5, window.devicePixelRatio || 1));
+            function resize() {
+                const rect = canvas.getBoundingClientRect();
+                DPR = Math.max(1, Math.min(2.5, window.devicePixelRatio || 1));
+                canvas.width = Math.floor(rect.width * DPR);
+                canvas.height = Math.floor(rect.height * DPR);
+                ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+                world.w = rect.width;
+                world.h = rect.height;
+                layoutHoop();
+                resetBall(false);
+            }
+            window.addEventListener('resize', resize);
+
+            // --- World/physics ---
+            const world = {
+                w: 0,
+                h: 0,
+                g: 2100, // px/s^2
+                air: 0.996,
+                groundY: 0,
+                floorRest: 0.28,
+                sideRest: 0.55,
+                rimRest: 0.62,
+                boardRest: 0.66,
+                aimAssist: true,
+            };
+
+            const hoop = {
+                cx: 0,
+                cy: 0,
+                rimW: 150,
+                rimR: 11,          // rim cap collision radius
+                rimThickness: 10,  // draw thickness
+                netDepth: 72,
+                board: { x: 0, y: 0, w: 18, h: 120 },
+                sensorY: 0,
+                left: { x: 0, y: 0 },
+                right: { x: 0, y: 0 },
+            };
+
+            function layoutHoop() {
+                hoop.cx = world.w * 0.5;
+                hoop.cy = Math.max(110, world.h * 0.20);
+                hoop.rimW = Math.max(120, Math.min(180, world.w * 0.22));
+                hoop.rimR = Math.max(9, Math.min(14, world.w * 0.015));
+                hoop.rimThickness = Math.max(8, hoop.rimR * 1.05);
+                hoop.netDepth = Math.max(58, Math.min(90, world.h * 0.10));
+                hoop.sensorY = hoop.cy + 2;
+                hoop.left.x = hoop.cx - hoop.rimW * 0.5;
+                hoop.right.x = hoop.cx + hoop.rimW * 0.5;
+                hoop.left.y = hoop.cy;
+                hoop.right.y = hoop.cy;
+                hoop.board.w = Math.max(14, hoop.rimR * 1.6);
+                hoop.board.h = Math.max(95, Math.min(150, world.h * 0.18));
+                hoop.board.x = hoop.right.x + hoop.rimR * 0.72;
+                hoop.board.y = hoop.cy - hoop.board.h * 0.58;
+                world.groundY = world.h - Math.max(42, world.h * 0.07);
+            }
+
+            const ball = {
+                x: 0,
+                y: 0,
+                vx: 0,
+                vy: 0,
+                r: 16,
+                spin: 0,
+                ang: 0,
+                inFlight: false,
+                aiming: false,
+                grabbed: false,
+                lastX: 0,
+                lastY: 0,
+            };
+
+            const shot = {
+                id: 0,
+                touchedRim: false,
+                touchedBoard: false,
+                enteredHoop: false,
+                scored: false,
+                ended: false,
+                swish: false,
+                startAt: 0,
+            };
+
+            const stats = {
+                score: 0,
+                streak: 0,
+                best: 0,
+                swishes: 0,
+            };
+
+            const pointer = {
+                active: false,
+                id: null,
+                sx: 0,
+                sy: 0,
+                x: 0,
+                y: 0,
+                ex: 0,
+                ey: 0,
+                t0: 0,
+            };
+
+            function resetShotState() {
+                shot.id++;
+                shot.touchedRim = false;
+                shot.touchedBoard = false;
+                shot.enteredHoop = false;
+                shot.scored = false;
+                shot.ended = false;
+                shot.swish = false;
+                shot.startAt = performance.now();
+            }
+
+            function resetBall(soft = true) {
+                const startX = world.w * 0.5;
+                const startY = world.groundY - Math.max(38, world.h * 0.09);
+                ball.r = Math.max(14, Math.min(20, world.w * 0.02));
+                ball.x = soft ? lerp(ball.x || startX, startX, 0.9) : startX;
+                ball.y = soft ? lerp(ball.y || startY, startY, 0.9) : startY;
+                ball.vx = 0;
+                ball.vy = 0;
+                ball.spin = 0;
+                ball.ang = 0;
+                ball.inFlight = false;
+                ball.aiming = false;
+                ball.grabbed = false;
+                ball.lastX = ball.x;
+                ball.lastY = ball.y;
+                ui.status.textContent = 'Swipe up on the ball to shoot';
+                setHint('Ready', true);
+                resetShotState();
+            }
+
+            function setHint(text, ready = false) {
+                ui.hint.textContent = text;
+                ui.readyDot.className = 'inline-block h-2 w-2 rounded-full ' + (ready ? 'bg-emerald-400' : 'bg-amber-400');
+            }
+
+            function updateHUD() {
+                ui.score.textContent = String(stats.score);
+                ui.streak.textContent = String(stats.streak);
+                ui.best.textContent = String(stats.best);
+                ui.swishes.textContent = String(stats.swishes);
+            }
+
+            function toast(title, sub) {
+                ui.toastTitle.textContent = title;
+                ui.toastSub.textContent = sub;
+                ui.toast.style.opacity = '1';
+                clearTimeout(toast._t);
+                toast._t = setTimeout(() => { ui.toast.style.opacity = '0'; }, 850);
+            }
+
+            function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+            function lerp(a, b, t) { return a + (b - a) * t; }
+
+            function dist2(ax, ay, bx, by) {
+                const dx = ax - bx, dy = ay - by;
+                return dx * dx + dy * dy;
+            }
+
+            function norm(x, y) {
+                const m = Math.hypot(x, y) || 1;
+                return { x: x / m, y: y / m, m };
+            }
+
+            // --- Input ---
+            function getCanvasPos(e) {
+                const rect = canvas.getBoundingClientRect();
+                return {
+                    x: (e.clientX - rect.left),
+                    y: (e.clientY - rect.top)
+                };
+            }
+
+            function canGrab(p) {
+                if (ball.inFlight) return false;
+                const d = Math.hypot(p.x - ball.x, p.y - ball.y);
+                return d <= ball.r * 1.9;
+            }
+
+            canvas.addEventListener('pointerdown', (e) => {
+                const p = getCanvasPos(e);
+                if (!canGrab(p)) return;
+
+                pointer.active = true;
+                pointer.id = e.pointerId;
+                pointer.sx = p.x; pointer.sy = p.y;
+                pointer.x = p.x; pointer.y = p.y;
+                pointer.ex = p.x; pointer.ey = p.y;
+                pointer.t0 = performance.now();
+
+                ball.grabbed = true;
+                ball.aiming = true;
+                ui.status.textContent = 'Release to shoot';
+                setHint('Aiming', false);
+
+                try { canvas.setPointerCapture(e.pointerId); } catch { }
+            });
+
+            canvas.addEventListener('pointermove', (e) => {
+                if (!pointer.active || e.pointerId !== pointer.id) return;
+                const p = getCanvasPos(e);
+                pointer.x = p.x; pointer.y = p.y;
+                pointer.ex = p.x; pointer.ey = p.y;
+            });
+
+            function shootFromSwipe() {
+                const dx = pointer.ex - pointer.sx;
+                const dy = pointer.ey - pointer.sy;
+
+                // We interpret a swipe *away* from the ball as direction, but for basketball
+                // it feels natural to drag back a bit and release. We'll use opposite.
+                const sx = -dx;
+                const sy = -dy;
+
+                const dragDist = Math.hypot(sx, sy);
+                if (dragDist < ball.r * 0.6) return false;
+
+                // Scale tuned for screen size
+                const power = clamp(dragDist, 0, Math.max(280, world.h * 0.32));
+                const dir = norm(sx, sy);
+
+                // Make upward shots easier (bias toward up)
+                let vx = dir.x * power * 4.2;
+                let vy = dir.y * power * 4.2;
+
+                // If user swipes slightly downward, cap that.
+                vy = Math.min(vy, -240);
+
+                // Extra arc: add a bit more lift proportional to power.
+                vy -= power * 1.8;
+
+                // Clamp speed
+                const maxV = Math.max(2300, world.w * 3.2);
+                const vmag = Math.hypot(vx, vy);
+                if (vmag > maxV) {
+                    vx *= maxV / vmag;
+                    vy *= maxV / vmag;
+                }
+
+                ball.vx = vx;
+                ball.vy = vy;
+                ball.inFlight = true;
+                ball.aiming = false;
+                ball.grabbed = false;
+                resetShotState();
+                ui.status.textContent = 'Shoot again after the result';
+                setHint('In flight', false);
+                beep({ freq: 420, dur: 0.04, type: 'sine', gain: 0.04 });
+                return true;
+            }
+
+            canvas.addEventListener('pointerup', (e) => {
+                if (!pointer.active || e.pointerId !== pointer.id) return;
+                pointer.active = false;
+                ball.grabbed = false;
+
+                if (ball.aiming) {
+                    const ok = shootFromSwipe();
+                    if (!ok) {
+                        // Cancel aim
+                        ball.aiming = false;
+                        ui.status.textContent = 'Swipe up on the ball to shoot';
+                        setHint('Ready', true);
+                    }
+                }
+            });
+
+            canvas.addEventListener('pointercancel', () => {
+                pointer.active = false;
+                ball.grabbed = false;
+                ball.aiming = false;
+                if (!ball.inFlight) {
+                    ui.status.textContent = 'Swipe up on the ball to shoot';
+                    setHint('Ready', true);
+                }
+            });
+
+            // Buttons
+            btnHelp.addEventListener('click', () => ui.help.classList.remove('hidden'));
+            btnCloseHelp.addEventListener('click', () => ui.help.classList.add('hidden'));
+            ui.help.addEventListener('click', (e) => {
+                if (e.target === ui.help) ui.help.classList.add('hidden');
+            });
+            btnReset.addEventListener('click', () => {
+                stats.score = 0; stats.streak = 0; stats.best = 0; stats.swishes = 0;
+                updateHUD();
+                toast('Reset', 'Stats cleared');
+                beep({ freq: 300, dur: 0.05, type: 'square', gain: 0.03 });
+            });
+            btnNew.addEventListener('click', () => {
+                resetBall(false);
+                toast('New ball', 'Take your shot');
+            });
+
+            // --- Collisions ---
+            function collideWithCircle(cx, cy, cr, restitution, touchFlagSetter) {
+                // Ball-circle collision
+                const dx = ball.x - cx;
+                const dy = ball.y - cy;
+                const d = Math.hypot(dx, dy);
+                const minD = ball.r + cr;
+                if (d > 0 && d < minD) {
+                    const n = { x: dx / d, y: dy / d };
+                    const pen = minD - d;
+                    ball.x += n.x * pen;
+                    ball.y += n.y * pen;
+
+                    const vn = ball.vx * n.x + ball.vy * n.y;
+                    if (vn < 0) {
+                        ball.vx -= (1 + restitution) * vn * n.x;
+                        ball.vy -= (1 + restitution) * vn * n.y;
+
+                        // Tangential friction -> spin
+                        const tx = -n.y, ty = n.x;
+                        const vt = ball.vx * tx + ball.vy * ty;
+                        ball.vx -= tx * vt * 0.08;
+                        ball.vy -= ty * vt * 0.08;
+                        ball.spin += clamp(vt / 600, -2.5, 2.5);
+                    }
+
+                    touchFlagSetter?.();
+                    rimClank(clamp(Math.abs(vn) / 1400, 0.25, 1));
+                }
+            }
+
+            function collideWithBoard(rect) {
+                // Circle vs AABB
+                const closestX = clamp(ball.x, rect.x, rect.x + rect.w);
+                const closestY = clamp(ball.y, rect.y, rect.y + rect.h);
+                const dx = ball.x - closestX;
+                const dy = ball.y - closestY;
+                const d2 = dx * dx + dy * dy;
+                if (d2 < ball.r * ball.r) {
+                    const d = Math.sqrt(d2) || 0.0001;
+                    const n = { x: dx / d, y: dy / d };
+                    const pen = ball.r - d;
+                    ball.x += n.x * pen;
+                    ball.y += n.y * pen;
+
+                    const vn = ball.vx * n.x + ball.vy * n.y;
+                    if (vn < 0) {
+                        ball.vx -= (1 + world.boardRest) * vn * n.x;
+                        ball.vy -= (1 + world.boardRest) * vn * n.y;
+                        ball.vx *= 0.97;
+                        ball.vy *= 0.97;
+                    }
+
+                    if (!shot.touchedBoard) {
+                        shot.touchedBoard = true;
+                        rimClank(0.7);
+                    }
+                }
+            }
+
+            function collideWithFloor() {
+                const gy = world.groundY;
+                if (ball.y + ball.r > gy) {
+                    ball.y = gy - ball.r;
+                    if (ball.vy > 0) {
+                        ball.vy = -ball.vy * world.floorRest;
+                        ball.vx *= 0.82;
+                        ball.spin *= 0.85;
+                        if (Math.abs(ball.vy) > 180) rimClank(clamp(Math.abs(ball.vy) / 900, 0.2, 0.7));
+                    }
+
+                    if (Math.hypot(ball.vx, ball.vy) < 90) {
+                        ball.vx *= 0.3;
+                        ball.vy *= 0.3;
+                    }
+                }
+            }
+
+            function collideWithWalls() {
+                const left = 0, right = world.w;
+                if (ball.x - ball.r < left) {
+                    ball.x = left + ball.r;
+                    if (ball.vx < 0) ball.vx = -ball.vx * world.sideRest;
+                }
+                if (ball.x + ball.r > right) {
+                    ball.x = right - ball.r;
+                    if (ball.vx > 0) ball.vx = -ball.vx * world.sideRest;
+                }
+            }
+
+            function insideHoopX(x) {
+                const margin = ball.r * 0.55;
+                return x > hoop.left.x + margin && x < hoop.right.x - margin;
+            }
+
+            function updateScoring(prevY) {
+                // Enter hoop sensor when ball crosses rim plane downward within the rim.
+                if (!shot.enteredHoop && !shot.scored) {
+                    const crossingDown = (prevY < hoop.sensorY && ball.y >= hoop.sensorY && ball.vy > 0);
+                    if (crossingDown && insideHoopX(ball.x)) {
+                        shot.enteredHoop = true;
+                        shot.swish = !shot.touchedRim && !shot.touchedBoard;
+                    }
+                }
+
+                if (shot.enteredHoop && !shot.scored) {
+                    // Confirm score once it drops below the net depth.
+                    if (ball.y > hoop.cy + hoop.netDepth * 0.75) {
+                        shot.scored = true;
+
+                        stats.score += 2;
+                        stats.streak += 1;
+                        stats.best = Math.max(stats.best, stats.streak);
+
+                        if (shot.swish) {
+                            stats.swishes += 1;
+                            swishSound();
+                            toast('Swish!', `Streak ${stats.streak}`);
+                            setHint('Swish!', false);
+                        } else {
+                            scoreSound();
+                            toast('Bucket!', `Streak ${stats.streak}`);
+                            setHint('Scored', false);
+                        }
+
+                        updateHUD();
+                    }
+                }
+            }
+
+            function endShotIfNeeded() {
+                if (shot.ended) return;
+                const t = performance.now() - shot.startAt;
+                const speed = Math.hypot(ball.vx, ball.vy);
+
+                // If ball has fallen and is basically settled
+                if (!shot.scored) {
+                    const below = ball.y - ball.r > world.groundY + 5;
+                    const settled = (ball.y + ball.r >= world.groundY - 0.5 && speed < 80);
+                    const tooLong = t > 4300;
+
+                    if (settled || tooLong) {
+                        shot.ended = true;
+                        stats.streak = 0;
+                        updateHUD();
+                        toast('Miss', 'Streak reset');
+                        beep({ freq: 190, dur: 0.09, type: 'sawtooth', gain: 0.035 });
+                        setHint('Miss', false);
+                        setTimeout(() => resetBall(true), 520);
+                    }
+                    if (below && ball.vy > 600) {
+                        // just keep going; do nothing
+                    }
+                } else {
+                    // After scoring, reset shortly.
+                    shot.ended = true;
+                    setTimeout(() => resetBall(true), 520);
+                }
+            }
+
+            // --- Rendering ---
+            function drawCourt() {
+                const w = world.w, h = world.h;
+
+                // Background gradient
+                const g = ctx.createLinearGradient(0, 0, 0, h);
+                g.addColorStop(0, '#0b1220');
+                g.addColorStop(0.6, '#070a12');
+                g.addColorStop(1, '#05060b');
+                ctx.fillStyle = g;
+                ctx.fillRect(0, 0, w, h);
+
+                // Spotlight
+                const rg = ctx.createRadialGradient(w * 0.5, h * 0.2, 40, w * 0.5, h * 0.15, Math.max(w, h) * 0.75);
+                rg.addColorStop(0, 'rgba(56,189,248,0.12)');
+                rg.addColorStop(0.35, 'rgba(99,102,241,0.07)');
+                rg.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = rg;
+                ctx.fillRect(0, 0, w, h);
+
+                // Ground
+                const gy = world.groundY;
+                ctx.fillStyle = 'rgba(148,163,184,0.06)';
+                ctx.fillRect(0, gy, w, h - gy);
+
+                // Court line
+                ctx.strokeStyle = 'rgba(148,163,184,0.18)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(w * 0.08, gy);
+                ctx.lineTo(w * 0.92, gy);
+                ctx.stroke();
+
+                // Free-throw arc hint (aesthetic)
+                ctx.strokeStyle = 'rgba(148,163,184,0.10)';
+                ctx.lineWidth = 2;
+                const cx = w * 0.5, cy = gy;
+                const r = Math.min(w, h) * 0.32;
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, Math.PI, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            function drawHoop() {
+                // Backboard
+                const b = hoop.board;
+                ctx.save();
+                ctx.fillStyle = 'rgba(226,232,240,0.16)';
+                roundRect(b.x, b.y, b.w, b.h, 8);
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(226,232,240,0.22)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Target square
+                ctx.strokeStyle = 'rgba(248,113,113,0.65)';
+                ctx.lineWidth = 2;
+                const sq = { w: 46, h: 38 };
+                const sx = b.x - sq.w - 10;
+                const sy = hoop.cy - sq.h * 0.45;
+                roundRect(sx, sy, sq.w, sq.h, 6);
+                ctx.stroke();
+
+                // Rim (thick line)
+                ctx.lineCap = 'round';
+                ctx.strokeStyle = '#f97316';
+                ctx.lineWidth = hoop.rimThickness;
+                ctx.beginPath();
+                ctx.moveTo(hoop.left.x, hoop.left.y);
+                ctx.lineTo(hoop.right.x, hoop.right.y);
+                ctx.stroke();
+
+                // Rim highlight
+                ctx.strokeStyle = 'rgba(255,255,255,0.20)';
+                ctx.lineWidth = Math.max(2, hoop.rimThickness * 0.24);
+                ctx.beginPath();
+                ctx.moveTo(hoop.left.x, hoop.left.y - 1);
+                ctx.lineTo(hoop.right.x, hoop.right.y - 1);
+                ctx.stroke();
+
+                // Rim caps (visual)
+                ctx.fillStyle = '#fb923c';
+                ctx.beginPath();
+                ctx.arc(hoop.left.x, hoop.left.y, hoop.rimR * 0.85, 0, Math.PI * 2);
+                ctx.arc(hoop.right.x, hoop.right.y, hoop.rimR * 0.85, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Net
+                const netTopY = hoop.cy + hoop.rimThickness * 0.35;
+                const netBottomY = hoop.cy + hoop.netDepth;
+                const midX = hoop.cx;
+                ctx.strokeStyle = 'rgba(226,232,240,0.35)';
+                ctx.lineWidth = 1.3;
+                ctx.beginPath();
+                for (let i = 0; i <= 8; i++) {
+                    const t = i / 8;
+                    const xTop = lerp(hoop.left.x + 6, hoop.right.x - 6, t);
+                    const xBot = lerp(hoop.left.x + (t < 0.5 ? 22 : 10), hoop.right.x - (t > 0.5 ? 22 : 10), t);
+                    const sway = Math.sin((performance.now() / 1000) * 2.2 + t * 8) * 0.8;
+                    ctx.moveTo(xTop, netTopY);
+                    ctx.lineTo(lerp(xBot, midX, 0.35) + sway, netBottomY);
+                }
+                ctx.stroke();
+
+                // Net bottom arc
+                ctx.strokeStyle = 'rgba(226,232,240,0.20)';
+                ctx.beginPath();
+                ctx.ellipse(hoop.cx, netBottomY, hoop.rimW * 0.33, 7, 0, 0, Math.PI * 2);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+
+            function roundRect(x, y, w, h, r) {
+                const rr = Math.min(r, w / 2, h / 2);
+                ctx.beginPath();
+                ctx.moveTo(x + rr, y);
+                ctx.arcTo(x + w, y, x + w, y + h, rr);
+                ctx.arcTo(x + w, y + h, x, y + h, rr);
+                ctx.arcTo(x, y + h, x, y, rr);
+                ctx.arcTo(x, y, x + w, y, rr);
+                ctx.closePath();
+            }
+
+            function drawBall() {
+                // Shadow
+                const gy = world.groundY;
+                const height = clamp((gy - (ball.y + ball.r)) / 180, 0, 1);
+                const shadowW = lerp(ball.r * 1.7, ball.r * 0.95, height);
+                const shadowA = lerp(0.26, 0.06, height);
+                ctx.fillStyle = `rgba(0,0,0,${shadowA})`;
+                ctx.beginPath();
+                ctx.ellipse(ball.x, gy + 2, shadowW, shadowW * 0.34, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Ball
+                ctx.save();
+                ctx.translate(ball.x, ball.y);
+                ctx.rotate(ball.ang);
+
+                const grad = ctx.createRadialGradient(-ball.r * 0.35, -ball.r * 0.45, ball.r * 0.2, 0, 0, ball.r * 1.2);
+                grad.addColorStop(0, '#fb923c');
+                grad.addColorStop(0.55, '#f97316');
+                grad.addColorStop(1, '#c2410c');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(0, 0, ball.r, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Seams
+                ctx.strokeStyle = 'rgba(15,23,42,0.55)';
+                ctx.lineWidth = Math.max(1.8, ball.r * 0.12);
+                ctx.beginPath();
+                ctx.arc(0, 0, ball.r * 0.72, -Math.PI * 0.15, Math.PI * 1.15);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(0, 0, ball.r * 0.72, Math.PI * 0.85, Math.PI * 2.15);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.ellipse(0, 0, ball.r * 0.34, ball.r * 0.78, 0, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // Shine
+                ctx.fillStyle = 'rgba(255,255,255,0.14)';
+                ctx.beginPath();
+                ctx.ellipse(-ball.r * 0.25, -ball.r * 0.35, ball.r * 0.34, ball.r * 0.2, -0.4, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            }
+
+            function drawAim() {
+                if (!ball.aiming) return;
+
+                // Aim line
+                const dx = pointer.ex - pointer.sx;
+                const dy = pointer.ey - pointer.sy;
+                const sx = -dx;
+                const sy = -dy;
+                const dist = Math.hypot(sx, sy);
+
+                ctx.save();
+                ctx.strokeStyle = 'rgba(226,232,240,0.35)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([6, 6]);
+                ctx.beginPath();
+                ctx.moveTo(ball.x, ball.y);
+                ctx.lineTo(ball.x + sx, ball.y + sy);
+                ctx.stroke();
+
+                // Predicted arc preview
+                if (dist > ball.r * 0.6) {
+                    let vx = (sx / dist) * clamp(dist, 0, Math.max(280, world.h * 0.32)) * 4.2;
+                    let vy = (sy / dist) * clamp(dist, 0, Math.max(280, world.h * 0.32)) * 4.2;
+                    vy = Math.min(vy, -240);
+                    vy -= clamp(dist, 0, Math.max(280, world.h * 0.32)) * 1.8;
+                    const maxV = Math.max(2300, world.w * 3.2);
+                    const vmag = Math.hypot(vx, vy);
+                    if (vmag > maxV) { vx *= maxV / vmag; vy *= maxV / vmag; }
+
+                    // Integrate small steps without collisions (simple preview)
+                    let px = ball.x, py = ball.y;
+                    let pvx = vx, pvy = vy;
+                    const dt = 1 / 120;
+                    ctx.setLineDash([2, 8]);
+                    ctx.strokeStyle = 'rgba(34,211,238,0.45)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(px, py);
+                    for (let i = 0; i < 110; i++) {
+                        pvx *= Math.pow(world.air, 120 * dt);
+                        pvy *= Math.pow(world.air, 120 * dt);
+                        pvy += world.g * dt;
+                        px += pvx * dt;
+                        py += pvy * dt;
+                        if (py > world.groundY - ball.r) break;
+                        if (i % 3 === 0) ctx.lineTo(px, py);
+                    }
+                    ctx.stroke();
+
+                    // Power meter
+                    ctx.setLineDash([]);
+                    const meterW = 160;
+                    const meterH = 10;
+                    const x = clamp(ball.x - meterW / 2, 16, world.w - meterW - 16);
+                    const y = clamp(ball.y + ball.r + 14, 16, world.h - 30);
+                    const p = clamp(dist / Math.max(280, world.h * 0.32), 0, 1);
+                    ctx.fillStyle = 'rgba(15,23,42,0.55)';
+                    roundRect(x, y, meterW, meterH, 8);
+                    ctx.fill();
+                    const gg = ctx.createLinearGradient(x, y, x + meterW, y);
+                    gg.addColorStop(0, 'rgba(34,211,238,0.8)');
+                    gg.addColorStop(1, 'rgba(99,102,241,0.8)');
+                    ctx.fillStyle = gg;
+                    roundRect(x, y, meterW * p, meterH, 8);
+                    ctx.fill();
+                    ctx.strokeStyle = 'rgba(226,232,240,0.18)';
+                    ctx.lineWidth = 1;
+                    roundRect(x, y, meterW, meterH, 8);
+                    ctx.stroke();
+                }
+
+                ctx.restore();
+            }
+
+            // --- Game loop ---
+            let last = performance.now();
+            function tick(now) {
+                const dt = clamp((now - last) / 1000, 0, 1 / 30);
+                last = now;
+
+                // Physics
+                const prevY = ball.y;
+                ball.lastX = ball.x;
+                ball.lastY = ball.y;
+
+                if (ball.inFlight) {
+                    // Integrate
+                    ball.vx *= Math.pow(world.air, dt * 60);
+                    ball.vy *= Math.pow(world.air, dt * 60);
+                    ball.vy += world.g * dt;
+                    ball.x += ball.vx * dt;
+                    ball.y += ball.vy * dt;
+
+                    // Spin affects rotation
+                    ball.ang += (ball.spin + ball.vx * 0.0002) * dt * 6;
+                    ball.spin *= 0.995;
+
+                    // Rim collisions (two caps)
+                    collideWithCircle(hoop.left.x, hoop.left.y, hoop.rimR, world.rimRest, () => { shot.touchedRim = true; });
+                    collideWithCircle(hoop.right.x, hoop.right.y, hoop.rimR, world.rimRest, () => { shot.touchedRim = true; });
+
+                    // Slight rim line barrier (thin segment) so ball doesn't clip through edge
+                    // We approximate by a third circle at mid for grazing hits, but keep swish lane open.
+                    const midX = hoop.cx;
+                    if (!insideHoopX(ball.x)) {
+                        collideWithCircle(midX, hoop.cy, hoop.rimR * 0.85, world.rimRest * 0.9, () => { shot.touchedRim = true; });
+                    }
+
+                    // Backboard collision
+                    collideWithBoard(hoop.board);
+
+                    // Walls/floor
+                    collideWithWalls();
+                    collideWithFloor();
+
+                    // Scoring/miss resolution
+                    updateScoring(prevY);
+                    endShotIfNeeded();
+
+                    // Keep inFlight true even after bounces; endShotIfNeeded handles reset.
+                } else {
+                    // Idle ball gentle bob
+                    ball.ang *= 0.98;
+                }
+
+                // Render
+                ctx.clearRect(0, 0, world.w, world.h);
+                drawCourt();
+                drawHoop();
+                drawAim();
+                drawBall();
+
+                requestAnimationFrame(tick);
+            }
+
+            // --- Init ---
+            updateHUD();
+            resize();
+            resetBall(false);
+            requestAnimationFrame(tick);
+
+            // Accessibility: space to shoot a default shot (desktop)
+            window.addEventListener('keydown', (e) => {
+                if (e.code !== 'Space') return;
+                if (ball.inFlight) return;
+                // Aim toward hoop
+                const dx = hoop.cx - ball.x;
+                const dy = (hoop.cy - 20) - ball.y;
+                const dir = norm(dx, dy);
+                ball.vx = dir.x * 680;
+                ball.vy = dir.y * 680 - 900;
+                ball.inFlight = true;
+                ball.aiming = false;
+                resetShotState();
+                setHint('In flight', false);
+                beep({ freq: 420, dur: 0.04, type: 'sine', gain: 0.04 });
+            });
+
+            // If first interaction is on buttons, unlock audio on iOS
+            ['pointerdown', 'touchstart', 'mousedown'].forEach(evt => {
+                window.addEventListener(evt, () => {
+                    if (!audioCtx) {
+                        try {
+                            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                            const buf = audioCtx.createBuffer(1, 1, 22050);
+                            const src = audioCtx.createBufferSource();
+                            src.buffer = buf;
+                            src.connect(audioCtx.destination);
+                            src.start(0);
+                        } catch { }
+                    }
+                }, { once: true, passive: true });
+            });
+
+        })();
+    </script>
+</body>
+
+</html>
