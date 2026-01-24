@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Swish - 3D Free Throw Game</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #1a202c;
+            touch-action: none;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        #canvas-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .ui-layer {
+            pointer-events: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .score-board {
+            text-align: center;
+            color: white;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .streak-counter {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #fbbf24;
+            transition: transform 0.2s;
+        }
+
+        .streak-active {
+            transform: scale(1.2);
+            color: #f59e0b;
+            text-shadow: 0 0 10px #f59e0b;
+        }
+
+        .message-pop {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            font-size: 3rem;
+            font-weight: 900;
+            opacity: 0;
+            pointer-events: none;
+            text-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+            white-space: nowrap;
+        }
+
+        @keyframes popUp {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, -30%) scale(0.5);
+            }
+
+            50% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1.2);
+            }
+
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -80%) scale(1);
+            }
+        }
+
+        .pop-animate {
+            animation: popUp 1.2s ease-out forwards;
+        }
+
+        #guide-text {
+            position: absolute;
+            bottom: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 1.2rem;
+            pointer-events: none;
+            transition: opacity 0.5s;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="canvas-container">
+        <canvas id="gameCanvas"></canvas>
+
+        <div class="ui-layer">
+            <div class="score-board">
+                <div class="text-4xl font-bold" id="score">0</div>
+                <div class="text-sm uppercase tracking-widest opacity-80">Score</div>
+                <div id="streak-container" class="mt-2 opacity-0 transition-opacity duration-300">
+                    <div id="streak" class="streak-counter">0</div>
+                    <div class="text-xs uppercase text-yellow-400">Streak</div>
+                </div>
+            </div>
+            <div class="text-white text-opacity-50 text-xs text-center">
+                Best Streak: <span id="best-streak">0</span>
+            </div>
+        </div>
+
+        <div id="message" class="message-pop">SWISH!</div>
+        <div id="guide-text">Swipe up to shoot!</div>
+    </div>
+
+    <script>
+        // --- Configuration ---
+        const CONFIG = {
+            gravity: 18, // m/s^2
+            drag: 0.5,   // Air resistance
+            restitution: 0.7, // Bounciness
+            rimRadius: 0.23, // meters
+            ballRadius: 0.12, // meters
+            courtLength: 10,
+            hoopHeight: 3.05,
+            hoopZ: 4.5,
+            focalLength: 600, // For perspective projection
+            scaleMultiplier: 200 // Rendering scale (meters to pixels)
+        };
+
+        // --- State ---
+        const state = {
+            score: 0,
+            streak: 0,
+            bestStreak: 0,
+            ball: {
+                x: 0, y: 1.5, z: 0,
+                vx: 0, vy: 0, vz: 0,
+                active: false,
+                scored: false,
+                rimHit: false,
+                startPos: { x: 0, y: 1.5, z: 0 }
+            },
+            input: {
+                down: false,
+                startX: 0,
+                startY: 0,
+                currX: 0,
+                currY: 0,
+                startTime: 0
+            },
+            particles: [],
+            camera: { x: 0, y: 1.8, z: -1 },
+            guideVisible: true
+        };
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // UI Elements
+        const scoreEl = document.getElementById('score');
+        const streakEl = document.getElementById('streak');
+        const streakContainerEl = document.getElementById('streak-container');
+        const bestStreakEl = document.getElementById('best-streak');
+        const messageEl = document.getElementById('message');
+        const guideEl = document.getElementById('guide-text');
+
+        // --- Resize Handling ---
+        let width, height, centerX, centerY;
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+            centerX = width / 2;
+            centerY = height / 2;
+            CONFIG.focalLength = width < 500 ? 500 : 700; // Adjust FOV for mobile
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // --- Input Handling ---
+        function handleStart(x, y) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            if (state.ball.active && state.ball.z > 0.5) return; // Don't interrupt mid-shot unless near start
+
+            state.input.down = true;
+            state.input.startX = x;
+            state.input.startY = y;
+            state.input.currX = x;
+            state.input.currY = y;
+            state.input.startTime = Date.now();
+
+            // Reset ball if it was finishing up
+            if (!state.ball.active) {
+                resetBall();
+            }
+
+            if (state.guideVisible) {
+                state.guideVisible = false;
+                guideEl.style.opacity = '0';
+            }
+        }
+
+        function handleMove(x, y) {
+            if (!state.input.down) return;
+            state.input.currX = x;
+            state.input.currY = y;
+        }
+
+        function handleEnd() {
+            if (!state.input.down) return;
+            state.input.down = false;
+
+            const dx = state.input.currX - state.input.startX;
+            const dy = state.input.currY - state.input.startY;
+            const dt = (Date.now() - state.input.startTime) / 1000;
+
+            // Minimum swipe requirement
+            if (dy < -20 && dt < 1.0) { // Swipe UP
+                shoot(dx, dy, dt);
+            }
+        }
+
+        canvas.addEventListener('mousedown', e => handleStart(e.clientX, e.clientY));
+        canvas.addEventListener('mousemove', e => handleMove(e.clientX, e.clientY));
+        canvas.addEventListener('mouseup', handleEnd);
+
+        canvas.addEventListener('touchstart', e => {
+            // e.preventDefault(); 
+            handleStart(e.touches[0].clientX, e.touches[0].clientY);
+        }, { passive: false });
+        canvas.addEventListener('touchmove', e => {
+            e.preventDefault(); // Prevent scrolling
+            handleMove(e.touches[0].clientX, e.touches[0].clientY);
+        }, { passive: false });
+        canvas.addEventListener('touchend', handleEnd);
+
+        // --- Physics & Game Logic ---
+
+        function resetBall() {
+            state.ball.x = 0;
+            state.ball.y = 1.5;
+            state.ball.z = 0.5; // Start slightly in front of camera
+            state.ball.vx = 0;
+            state.ball.vy = 0;
+            state.ball.vz = 0;
+            state.ball.active = false;
+            state.ball.scored = false;
+            state.ball.rimHit = false;
+        }
+
+        function shoot(dx, dy, dt) {
+            // Calculate swipe velocity (pixels per second)
+            // dt is in seconds.
+            // dy is negative (swiping up).
+            const vy_pixels = Math.abs(dy) / Math.max(dt, 0.05);
+            const vx_pixels = dx / Math.max(dt, 0.05);
+
+            // Map pixel velocity to game units (meters/s)
+            // Typical fast swipe: 1000-2000 px/s
+            // Target Z speed: 6-12 m/s
+
+            const speedFactor = 0.0045;
+
+            // Base power on velocity, but clamp it to avoid crazy shots
+            let zPower = vy_pixels * speedFactor;
+            zPower = Math.max(5, Math.min(zPower, 14)); // Clamp between 5 and 14 m/s
+
+            // Y Power (Loft) needs to be enough to reach the hoop height (3.05m) from 1.5m
+            // Plus some arc. Higher zPower = needs slightly less high arc relative to distance?
+            // Actually, fixed launch angle is easier, but dynamic is more fun.
+            // Let's assume a launch angle roughly 45-60 degrees.
+            // If zPower is 8, yPower should be roughly 8-10.
+
+            let yPower = zPower * 0.8;
+
+            // X Power
+            let xPower = vx_pixels * 0.002;
+
+            // Add a bit of influence from the pure distance too, for "feel"
+            // (So a long slow drag still has some oomph, but not much)
+            const distInfluence = Math.abs(dy) * 0.005;
+            zPower += distInfluence;
+            yPower += distInfluence * 0.5;
+
+            state.ball.active = true;
+            state.ball.vx = xPower;
+            state.ball.vy = yPower;
+            state.ball.vz = zPower;
+        }
+
+        function checkCollision(dt) {
+            const b = state.ball;
+            const rimY = CONFIG.hoopHeight;
+            const rimZ = CONFIG.hoopZ;
+            const rimX = 0;
+
+            // 1. Backboard Collision
+            const backboardZ = rimZ + CONFIG.rimRadius + 0.1;
+            // Simple backboard rect bounds (approx)
+            if (b.z > backboardZ - b.radius && b.z < backboardZ + 0.1) {
+                if (b.y > rimY - 0.5 && b.y < rimY + 1.0 && Math.abs(b.x) < 0.9) {
+                    // Hit backboard
+                    b.vz *= -0.5; // Dampen and reflect
+                    b.z = backboardZ - b.radius - 0.01; // Push out
+                    b.rimHit = true;
+                    playSound('board');
+                }
+            }
+
+            // 2. Floor Collision
+            if (b.y - b.radius < 0) {
+                b.y = b.radius;
+                b.vy *= -CONFIG.restitution;
+                b.vx *= 0.9; // Friction
+                b.vz *= 0.9;
+                if (Math.abs(b.vy) < 0.5) b.vy = 0;
+
+                // If ball hits floor and hasn't scored, reset soon
+                if (!b.scored) {
+                    setTimeout(() => { if (b.active) resetBall(); }, 1500);
+                }
+            }
+
+            // 3. Rim Physics (Torus approximation)
+            // Check if ball is at rim height level
+            const distToRimCenter = Math.sqrt((b.x - rimX) ** 2 + (b.z - rimZ) ** 2);
+
+            // Vertical check: Ball must be close to rim plane Y
+            if (Math.abs(b.y - rimY) < CONFIG.rimRadius + b.radius) {
+
+                // Check if we hit the actual ring (torus tube)
+                // The ring is a circle at Radius R from center.
+                // Distance from center d. 
+                // If d is approx R, we hit the ring.
+
+                const ringThickness = 0.02; // Thickness of the metal
+                const collisionDist = CONFIG.rimRadius + b.radius; // Ball center to rim center limit
+
+                // "Inside" the rim (hole)
+                if (distToRimCenter < CONFIG.rimRadius - b.radius) {
+                    // Cleanly inside horizontally.
+                    // Check if passing through vertically downwards
+                    if (b.y < rimY && b.y + b.vy * dt >= rimY) {
+                        // This logic is tricky with discrete steps.
+                        // Better: Check if we just crossed the plane downwards.
+                    }
+                }
+                // "Hitting" the rim
+                else if (distToRimCenter < collisionDist) {
+                    // We are intersecting the cylinder of the rim.
+                    // Now check vertical intersection more precisely to bounce.
+                    // Simple sphere-sphere collision where the second sphere is the closest point on the rim circle.
+
+                    // Closest point on rim circle to ball:
+                    const angle = Math.atan2(b.z - rimZ, b.x - rimX);
+                    const closestRimX = rimX + Math.cos(angle) * CONFIG.rimRadius;
+                    const closestRimZ = rimZ + Math.sin(angle) * CONFIG.rimRadius;
+                    const closestRimY = rimY;
+
+                    const distToMetal = Math.sqrt(
+                        (b.x - closestRimX) ** 2 +
+                        (b.y - closestRimY) ** 2 +
+                        (b.z - closestRimZ) ** 2
+                    );
+
+                    if (distToMetal < b.radius + ringThickness) {
+                        // Collision!
+                        // Normal vector
+                        const nx = b.x - closestRimX;
+                        const ny = b.y - closestRimY;
+                        const nz = b.z - closestRimZ;
+                        const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
+
+                        // Normalize
+                        const unx = nx / len;
+                        const uny = ny / len;
+                        const unz = nz / len;
+
+                        // Reflect velocity vector V_new = V_old - 2(V_old . N)N
+                        const dot = b.vx * unx + b.vy * uny + b.vz * unz;
+
+                        b.vx = (b.vx - 2 * dot * unx) * 0.6;
+                        b.vy = (b.vy - 2 * dot * uny) * 0.6;
+                        b.vz = (b.vz - 2 * dot * unz) * 0.6;
+
+                        // Push out of collision
+                        const overlap = (b.radius + ringThickness) - distToMetal;
+                        b.x += unx * overlap;
+                        b.y += uny * overlap;
+                        b.z += unz * overlap;
+
+                        b.rimHit = true;
+                        playSound('rim');
+                    }
+                }
+            }
+
+            // 4. Scoring Logic
+            // Check if ball passes downwards through the hoop plane
+            // Previous Y was > rimY, Current Y <= rimY
+            // And distance to center < rimRadius
+            const prevY = b.y - b.vy * dt;
+            if (prevY > rimY && b.y <= rimY) {
+                if (distToRimCenter < CONFIG.rimRadius - 0.05) { // 0.05 buffer for "clean" visual
+                    // SCORE!
+                    if (!b.scored) {
+                        b.scored = true;
+                        handleScore(!b.rimHit); // Pass true if swish (no rim hit)
+
+                        // Slow down slightly to simulate net friction
+                        b.vy *= 0.5;
+                        b.vx *= 0.5;
+                        b.vz *= 0.5;
+                    }
+                }
+            }
+        }
+
+        function update(dt) {
+            if (state.ball.active) {
+                const b = state.ball;
+
+                // Gravity
+                b.vy -= CONFIG.gravity * dt;
+
+                // Move
+                b.x += b.vx * dt;
+                b.y += b.vy * dt;
+                b.z += b.vz * dt;
+
+                // Radius in simulation (constant)
+                b.radius = CONFIG.ballRadius;
+
+                checkCollision(dt);
+
+                // Reset if too far
+                if (b.z > 15 || b.y < -5) {
+                    resetBall();
+                    // Reset streak if missed and not scored
+                    if (!b.scored) resetStreak();
+                }
+            }
+
+            // Update Particles
+            for (let i = state.particles.length - 1; i >= 0; i--) {
+                const p = state.particles[i];
+                p.x += p.vx * dt;
+                p.y += p.vy * dt;
+                p.z += p.vz * dt;
+                p.vy -= CONFIG.gravity * 0.5 * dt;
+                p.life -= dt;
+                if (p.life <= 0) state.particles.splice(i, 1);
+            }
+        }
+
+        function project(x, y, z) {
+            // Simple perspective projection
+            // Relative to camera
+            const cx = state.camera.x;
+            const cy = state.camera.y;
+            const cz = state.camera.z;
+
+            const relX = x - cx;
+            const relY = y - cy;
+            const relZ = z - cz;
+
+            if (relZ <= 0) return null; // Behind camera
+
+            const scale = CONFIG.focalLength / relZ;
+            const screenX = centerX + relX * scale;
+            const screenY = centerY - relY * scale; // Y is up in 3D, down in Canvas
+
+            return { x: screenX, y: screenY, scale: scale };
+        }
+
+        function drawCourt(ctx) {
+            // Floor Color
+            const floorGradient = ctx.createLinearGradient(0, height, 0, height / 2);
+            floorGradient.addColorStop(0, '#334155');
+            floorGradient.addColorStop(1, '#1e293b');
+            ctx.fillStyle = floorGradient;
+            ctx.fillRect(0, centerY, width, height / 2);
+
+            // Wall
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, 0, width, centerY);
+
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#ffffff44';
+
+            // Draw Lines (Key, 3pt line approx)
+            // Baseline
+            const p1 = project(-5, 0, CONFIG.hoopZ);
+            const p2 = project(5, 0, CONFIG.hoopZ);
+            if (p1 && p2) {
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
+            }
+
+            // Lane lines
+            const l1 = project(-1.5, 0, CONFIG.hoopZ);
+            const l2 = project(-1.5, 0, 0);
+            if (l1 && l2) { ctx.beginPath(); ctx.moveTo(l1.x, l1.y); ctx.lineTo(l2.x, l2.y); ctx.stroke(); }
+
+            const r1 = project(1.5, 0, CONFIG.hoopZ);
+            const r2 = project(1.5, 0, 0);
+            if (r1 && r2) { ctx.beginPath(); ctx.moveTo(r1.x, r1.y); ctx.lineTo(r2.x, r2.y); ctx.stroke(); }
+        }
+
+        function drawHoop(ctx) {
+            // Backboard
+            const bbZ = CONFIG.hoopZ + CONFIG.rimRadius + 0.1;
+            const bbY = CONFIG.hoopHeight + 0.5; // Center of backboard
+            const bbW = 1.8;
+            const bbH = 1.2;
+
+            const tl = project(-bbW / 2, bbY + bbH / 2, bbZ);
+            const tr = project(bbW / 2, bbY + bbH / 2, bbZ);
+            const bl = project(-bbW / 2, bbY - bbH / 2, bbZ);
+            const br = project(bbW / 2, bbY - bbH / 2, bbZ);
+
+            if (tl && br) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.beginPath();
+                ctx.moveTo(tl.x, tl.y);
+                ctx.lineTo(tr.x, tr.y);
+                ctx.lineTo(br.x, br.y);
+                ctx.lineTo(bl.x, bl.y);
+                ctx.closePath();
+                ctx.fill();
+
+                // Inner Box
+                const ibW = 0.59;
+                const ibH = 0.45;
+                const ibY = CONFIG.hoopHeight + 0.15;
+
+                const itl = project(-ibW / 2, ibY + ibH / 2, bbZ - 0.01);
+                const ibr = project(ibW / 2, ibY - ibH / 2, bbZ - 0.01);
+                const itr = project(ibW / 2, ibY + ibH / 2, bbZ - 0.01);
+                const ibl = project(-ibW / 2, ibY - ibH / 2, bbZ - 0.01);
+
+                if (itl) {
+                    ctx.strokeStyle = '#ef4444';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(itl.x, itl.y);
+                    ctx.lineTo(itr.x, itr.y);
+                    ctx.lineTo(ibr.x, ibr.y);
+                    ctx.lineTo(ibl.x, ibl.y);
+                    ctx.closePath();
+                    ctx.stroke();
+                }
+            }
+
+            // Render Rim (Back part first)
+            const rimProj = project(0, CONFIG.hoopHeight, CONFIG.hoopZ);
+            if (!rimProj) return;
+
+            const rimScaleX = rimProj.scale * CONFIG.rimRadius;
+            const rimScaleY = rimProj.scale * CONFIG.rimRadius * 0.3; // Flattened for perspective
+
+            ctx.strokeStyle = '#ea580c';
+            ctx.lineWidth = 4 * (rimProj.scale / 100);
+
+            // Draw back half of rim
+            ctx.beginPath();
+            ctx.ellipse(rimProj.x, rimProj.y, rimScaleX, rimScaleY, 0, Math.PI, 0); // Bottom/Back half
+            ctx.stroke();
+
+            // Net (simplified lines)
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+            ctx.lineWidth = 1;
+            const netTopY = rimProj.y;
+            const netBotY = project(0, CONFIG.hoopHeight - 0.5, CONFIG.hoopZ).y;
+            const netWidthTop = rimScaleX;
+            const netWidthBot = rimScaleX * 0.4;
+
+            for (let i = 0; i <= 6; i++) {
+                const t = i / 6;
+                const xTop = rimProj.x - netWidthTop + (netWidthTop * 2 * t);
+                const xBot = rimProj.x - netWidthBot + (netWidthBot * 2 * t);
+                ctx.moveTo(xTop, netTopY);
+                ctx.lineTo(xBot, netBotY);
+            }
+            ctx.stroke();
+
+            // Save context for front rim draw later
+            return { proj: rimProj, rx: rimScaleX, ry: rimScaleY };
+        }
+
+        function drawFrontRim(ctx, data) {
+            if (!data) return;
+            ctx.strokeStyle = '#ea580c';
+            ctx.lineWidth = 4 * (data.proj.scale / 100);
+            ctx.beginPath();
+            ctx.ellipse(data.proj.x, data.proj.y, data.rx, data.ry, 0, 0, Math.PI); // Top/Front half
+            ctx.stroke();
+        }
+
+        function drawBall(ctx) {
+            const b = state.ball;
+            const proj = project(b.x, b.y, b.z);
+            if (!proj) return;
+
+            const radius = proj.scale * b.radius || 10;
+
+            ctx.beginPath();
+            ctx.arc(proj.x, proj.y, radius, 0, Math.PI * 2);
+
+            // Ball Gradient (Pseudo lighting)
+            const grad = ctx.createRadialGradient(
+                proj.x - radius * 0.3, proj.y - radius * 0.3, radius * 0.2,
+                proj.x, proj.y, radius
+            );
+            grad.addColorStop(0, '#fdba74');
+            grad.addColorStop(1, '#c2410c');
+            ctx.fillStyle = grad;
+            ctx.fill();
+
+            // Ball lines (Visual approximation, rotation is hard without texture mapping)
+            ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(proj.x, proj.y - radius);
+            ctx.lineTo(proj.x, proj.y + radius);
+            ctx.moveTo(proj.x - radius, proj.y);
+            ctx.lineTo(proj.x + radius, proj.y);
+            ctx.stroke();
+
+            // Shadow on floor
+            const floorProj = project(b.x, 0, b.z);
+            if (floorProj) {
+                // Shadow size and opacity based on height
+                const heightFactor = Math.max(0, 1 - b.y / 4); // Fade out as it goes up
+                const shadowRadius = radius * (0.8 + 0.5 * heightFactor); // Larger when close, but actually diffusion makes it blurrier/bigger? 
+                // Actually shadows get sharper and smaller (relative to light source) or bigger and blurrier (relative to ground). 
+                // Simple approach: Shrink slightly and fade out.
+
+                if (heightFactor > 0.1) {
+                    ctx.fillStyle = `rgba(0,0,0,${0.3 * heightFactor})`;
+                    ctx.beginPath();
+                    ctx.ellipse(floorProj.x, floorProj.y, radius * heightFactor, radius * 0.3 * heightFactor, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        function drawParticles(ctx) {
+            state.particles.forEach(p => {
+                const proj = project(p.x, p.y, p.z);
+                if (proj) {
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    ctx.arc(proj.x, proj.y, proj.scale * 0.05, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+        }
+
+        // --- Game Logic Handling ---
+        function handleScore(isSwish) {
+            state.score++;
+            state.streak++;
+            if (state.streak > state.bestStreak) {
+                state.bestStreak = state.streak;
+                bestStreakEl.innerText = state.bestStreak;
+                localStorage.setItem('swish_best_streak', state.bestStreak);
+            }
+
+            scoreEl.innerText = state.score;
+            streakEl.innerText = state.streak;
+
+            streakContainerEl.classList.remove('opacity-0');
+            streakEl.classList.remove('streak-active');
+            void streakEl.offsetWidth; // trigger reflow
+            streakEl.classList.add('streak-active');
+
+            // Confetti / Particles
+            createConfetti(CONFIG.hoopZ);
+
+            // UI Popups
+            messageEl.classList.remove('pop-animate');
+            void messageEl.offsetWidth;
+
+            if (isSwish) {
+                messageEl.innerText = "SWISH!";
+                messageEl.style.color = "#4ade80"; // Green
+            } else {
+                messageEl.innerText = "SCORED!";
+                messageEl.style.color = "#fff";
+            }
+
+            if (state.streak >= 3) {
+                messageEl.innerText += ` ${state.streak}x 🔥`;
+            }
+
+            messageEl.classList.add('pop-animate');
+
+            // Sound effect (Synthesized for portability)
+            playSound('score');
+            if (isSwish) setTimeout(() => playSound('swish'), 100);
+        }
+
+        function resetStreak() {
+            if (state.streak > 0) {
+                state.streak = 0;
+                streakEl.innerText = '0';
+                streakContainerEl.classList.add('opacity-0');
+                messageEl.innerText = "MISS";
+                messageEl.style.color = "#ef4444";
+                messageEl.classList.remove('pop-animate');
+                void messageEl.offsetWidth;
+                messageEl.classList.add('pop-animate');
+            }
+        }
+
+        function createConfetti(z) {
+            for (let i = 0; i < 30; i++) {
+                state.particles.push({
+                    x: 0,
+                    y: CONFIG.hoopHeight,
+                    z: z,
+                    vx: (Math.random() - 0.5) * 5,
+                    vy: Math.random() * 5,
+                    vz: (Math.random() - 0.5) * 5,
+                    life: 1.5,
+                    color: `hsl(${Math.random() * 360}, 100%, 50%)`
+                });
+            }
+        }
+
+        // Simple audio synth
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+            if (type === 'rim') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(40, now + 0.1);
+                gain.gain.setValueAtTime(0.5, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } else if (type === 'board') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(80, now);
+                gain.gain.setValueAtTime(1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                osc.start(now);
+                osc.stop(now + 0.15);
+            } else if (type === 'score') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(800, now + 0.1);
+                gain.gain.setValueAtTime(0.5, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (type === 'swish') {
+                // White noise approximation for swish is hard with just osc
+                // Use high pitch sine sweep for "clean" sound
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(1200, now);
+                osc.frequency.exponentialRampToValueAtTime(2000, now + 0.1);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            }
+        }
+
+        // --- Main Loop ---
+        let lastTime = 0;
+        function drawDragLine(ctx) {
+            if (!state.input.down) return;
+
+            const dx = state.input.currX - state.input.startX;
+            const dy = state.input.currY - state.input.startY;
+
+            // Only draw if there's significant movement
+            if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
+
+            ctx.beginPath();
+            ctx.moveTo(state.input.startX, state.input.startY);
+            ctx.lineTo(state.input.currX, state.input.currY);
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+
+            // Gradient for the line
+            const grad = ctx.createLinearGradient(state.input.startX, state.input.startY, state.input.currX, state.input.currY);
+            grad.addColorStop(0, 'rgba(255, 255, 255, 0.2)');
+            grad.addColorStop(1, 'rgba(255, 255, 255, 0.8)');
+            ctx.strokeStyle = grad;
+
+            ctx.stroke();
+        }
+
+        function loop(timestamp) {
+            const dt = Math.min((timestamp - lastTime) / 1000, 0.1);
+            lastTime = timestamp;
+
+            update(dt);
+
+            ctx.clearRect(0, 0, width, height);
+
+            drawCourt(ctx);
+            const rimData = drawHoop(ctx); // Draws backboard & back of rim
+
+            // Dynamic Z-sorting
+            // Hoop Center Z is CONFIG.hoopZ. Rim extends roughly from hoopZ-radius to hoopZ+radius.
+            // If ball is clearly in front of the front-most part of the rim, draw ball LAST.
+            // Front of rim Z approx: CONFIG.hoopZ - CONFIG.rimRadius
+
+            const frontOfRimZ = CONFIG.hoopZ - CONFIG.rimRadius;
+            const ballIsInFront = state.ball.z < frontOfRimZ + 0.1; // small buffer
+
+            if (ballIsInFront) {
+                if (rimData) drawFrontRim(ctx, rimData);
+                drawParticles(ctx);
+                drawBall(ctx);
+            } else {
+                drawParticles(ctx);
+                drawBall(ctx);
+                if (rimData) drawFrontRim(ctx, rimData);
+            }
+
+            drawDragLine(ctx);
+
+            requestAnimationFrame(loop);
+        }
+
+        // Load best streak
+        const savedStreak = localStorage.getItem('swish_best_streak');
+        if (savedStreak) {
+            state.bestStreak = parseInt(savedStreak);
+            bestStreakEl.innerText = state.bestStreak;
+        }
+
+        requestAnimationFrame(loop);
+
+    </script>
+</body>
+
+</html>
