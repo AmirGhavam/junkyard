@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pro Darts 3D</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        canvas {
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+            border-radius: 50%;
+            cursor: none;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .hud-panel {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid #444;
+            pointer-events: auto;
+        }
+
+        #score-board {
+            top: 20px;
+            left: 20px;
+            width: 250px;
+        }
+
+        #controls-info {
+            bottom: 20px;
+            left: 20px;
+            font-size: 0.9rem;
+            color: #ccc;
+        }
+
+        #power-meter-container {
+            position: absolute;
+            right: 40px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 30px;
+            height: 300px;
+            background: #333;
+            border: 2px solid #555;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+
+        #power-bar {
+            width: 100%;
+            height: 0%;
+            background: linear-gradient(to top, lime, yellow, red);
+            position: absolute;
+            bottom: 0;
+        }
+
+        #game-over-modal {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 50;
+            pointer-events: auto;
+        }
+
+        #start-modal {
+            display: flex;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 60;
+            pointer-events: auto;
+        }
+
+        .btn {
+            background: #2563eb;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2rem;
+            margin: 10px;
+            transition: background 0.2s;
+        }
+
+        .btn:hover {
+            background: #1d4ed8;
+        }
+
+        /* Custom cursor reticle */
+        #reticle {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border: 2px solid rgba(255, 0, 0, 0.7);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        #reticle::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 4px;
+            height: 4px;
+            background: red;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="game-container">
+        <canvas id="dartboard"></canvas>
+
+        <!-- Reticle -->
+        <div id="reticle" style="display: none;"></div>
+
+        <!-- UI Overlay -->
+        <div id="ui-layer">
+            <div id="score-board" class="hud-panel">
+                <div class="text-3xl font-bold text-center text-yellow-400 mb-2" id="current-score">501</div>
+                <div class="flex justify-between text-sm text-gray-300">
+                    <span>Last Throw:</span>
+                    <span id="last-throw">-</span>
+                </div>
+                <div class="flex justify-between text-sm text-gray-300 mt-1">
+                    <span>Round Score:</span>
+                    <span id="round-score">0</span>
+                </div>
+                <div class="flex justify-between text-sm text-gray-300 mt-1">
+                    <span>Darts Left:</span>
+                    <span id="darts-left">3</span>
+                </div>
+                <div class="mt-4 text-xs text-center text-gray-500" id="checkout-guide"></div>
+            </div>
+
+            <div id="power-meter-container">
+                <div id="power-bar"></div>
+            </div>
+
+            <div id="controls-info" class="hud-panel">
+                <p><strong>Controls:</strong></p>
+                <p>Move mouse to aim.</p>
+                <p>Hold Left Click to charge power.</p>
+                <p>Release to throw.</p>
+            </div>
+        </div>
+
+        <!-- Start Modal -->
+        <div id="start-modal">
+            <h1 class="text-5xl font-bold text-white mb-8">PRO DARTS</h1>
+            <div class="flex gap-4">
+                <button class="btn" onclick="startGame(301)">Play 301</button>
+                <button class="btn" onclick="startGame(501)">Play 501</button>
+            </div>
+            <p class="mt-4 text-gray-400">First to 0 wins. Must finish on a Double.</p>
+        </div>
+
+        <!-- Game Over Modal -->
+        <div id="game-over-modal">
+            <h1 class="text-4xl font-bold text-white mb-4" id="game-over-title">Winner!</h1>
+            <p class="text-xl text-gray-300 mb-8" id="game-over-stats"></p>
+            <button class="btn" onclick="resetGame()">Main Menu</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('dartboard');
+        const ctx = canvas.getContext('2d');
+        const reticle = document.getElementById('reticle');
+        const powerBar = document.getElementById('power-bar');
+
+        // Game State
+        let gameState = 'MENU'; // MENU, AIMING, CHARGING, FLIGHT, GAMEOVER, ROUND_OVER
+        let gameMode = 501;
+        let score = 501;
+        let turnStartScore = 501;
+        let currentDarts = 3;
+        let roundScore = 0;
+        let darts = []; // Array of landed darts
+        let activeDart = null; // Currently flying dart
+
+        // Board Geometry
+        let centerX, centerY, radius;
+        const SECTORS = [20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5];
+
+        // Aiming & Physics
+        let mouseX = 0, mouseY = 0;
+        let aimX = 0, aimY = 0;
+        let swayOffsetX = 0, swayOffsetY = 0;
+        let swayTime = 0;
+        let power = 0;
+        let powerDirection = 1;
+        let powerSpeed = 2;
+
+        // Resize handling
+        function resize() {
+            const size = Math.min(window.innerWidth, window.innerHeight) * 0.9;
+            canvas.width = size;
+            canvas.height = size;
+            centerX = size / 2;
+            centerY = size / 2;
+            radius = size / 2 - 20; // Padding
+            draw();
+        }
+        window.addEventListener('resize', resize);
+
+        // --- Rendering ---
+
+        function getSectorFromAngle(angle) {
+            // Adjust angle so 0 is at 3 o'clock, but standard dartboard 20 is at 12 o'clock (-90deg)
+            // Canvas 0 is 3 o'clock (Right). 
+            // 20 is at -PI/2.
+
+            // Normalize angle to 0-2PI
+            let normalized = angle;
+            if (normalized < 0) normalized += Math.PI * 2;
+
+            // Rotate so 20 is index 0. 
+            // Each sector is 18 degrees (PI/10).
+            // Sector 20 center is at -PI/2 (270 deg).
+            // So boundaries of 20 are -PI/2 - 9deg and -PI/2 + 9deg.
+
+            // Let's shift the coordinate system so 0 is at the start of sector 20 (counter-clockwise)
+            // 20 is centered at -90deg.
+            // It spans -99deg to -81deg.
+
+            // Simpler: Convert standard polar angle to sector index.
+            // 0 rad (3 o'clock) is sector 6.
+            // Angle from center (-PI to PI).
+
+            // Shift angle by 9 degrees (PI/20) + 90 degrees (PI/2) to align sector boundaries?
+            // Actually, let's just use degrees for easier debugging mental model
+            let deg = (angle * 180 / Math.PI);
+            // Transform so 0 is 12 o'clock (Top)
+            deg += 90;
+            if (deg < 0) deg += 360;
+            if (deg >= 360) deg -= 360;
+
+            // 0 is now top center of 20? No.
+            // 0 degrees in canvas is Right. +90 makes 0 at Bottom.
+
+            // Re-do: 
+            // 0 rad = Right (6). 
+            // -PI/2 = Top (20).
+            // PI = Left (11).
+            // PI/2 = Bottom (3).
+
+            // Let's add rotation to align a sector boundary with 0.
+            // Sector 6 is at 0 rad. It spans -9deg to +9deg.
+            // So index = round(angle / 18deg)?
+
+            // Angle of sector center relative to 0 (Right/Sector 6)
+            // 6, 13, 4, 18, 1, 20...
+            // Indices in SECTORS array:
+            // 6 is index 5.
+            // 20 is index 0.
+
+            // Let's calculate the angle for each sector and find the closest.
+            const step = (Math.PI * 2) / 20;
+            // Sector 20 is at -PI/2.
+
+            // Adjust angle so it maps 0 to 20?
+            // Current angle relative to -PI/2
+            let relativeAngle = angle + Math.PI / 2;
+            // Normalize
+            if (relativeAngle < 0) relativeAngle += Math.PI * 2;
+            if (relativeAngle >= Math.PI * 2) relativeAngle -= Math.PI * 2;
+
+            // Now 0 is center of 20.
+            // We want to map this to index. Since we go clockwise in array (20, 1, 18...), and angle increases clockwise in canvas?
+            // Canvas angles increase clockwise. So yes.
+
+            // Boundary check:
+            // Sector 20 is from -9deg to +9deg relative to top.
+            // So relativeAngle from -PI/20 to +PI/20 is index 0.
+
+            // We shifted by +PI/2, so now 0 is top.
+            // But the first sector (20) is centered at 0.
+            // We need to shift by half a sector (9 deg) to align boundaries for Math.floor.
+
+            let index = Math.floor((relativeAngle + Math.PI / 20) / step);
+            index = index % 20;
+
+            return SECTORS[index];
+        }
+
+        function getMultiplier(dist, r) {
+            // Distances as fraction of radius
+            // Based on standard dimensions approx
+            // Double ring: 170mm outer, 162mm inner -> ~0.8 to 0.76 (normalized) - Actually let's use fixed ratios
+            // Treble ring: 107mm outer, 99mm inner -> ~0.5 to 0.46
+            // Bull: 31.8mm (25) -> ~0.15
+            // Inner Bull: 12.7mm (50) -> ~0.06
+
+            const d = dist / r;
+
+            // Adjust ratios to look good on canvas
+            const R_DOUBLE_OUT = 1.0;
+            const R_DOUBLE_IN = 0.92;
+            const R_TREBLE_OUT = 0.6;
+            const R_TREBLE_IN = 0.52;
+            const R_BULL_OUT = 0.12;
+            const R_BULL_IN = 0.06;
+
+            if (d > R_DOUBLE_OUT) return 0; // Miss
+            if (d > R_DOUBLE_IN) return 2; // Double
+            if (d > R_TREBLE_OUT) return 1; // Single Outer
+            if (d > R_TREBLE_IN) return 3; // Treble
+            if (d > R_BULL_OUT) return 1; // Single Inner
+            if (d > R_BULL_IN) return 25; // Outer Bull (returns score directly, handle specially)
+            return 50; // Inner Bull
+        }
+
+        function drawBoard() {
+            if (!centerX) return;
+
+            // Colors
+            const black = '#121212';
+            const white = '#dddddd';
+            const red = '#e53935';
+            const green = '#43a047';
+
+            // Rings
+            const r_double_out = radius;
+            const r_double_in = radius * 0.92;
+            const r_treble_out = radius * 0.6;
+            const r_treble_in = radius * 0.52;
+            const r_bull_out = radius * 0.12;
+            const r_bull_in = radius * 0.06;
+
+            // Draw Sectors
+            const step = (Math.PI * 2) / 20;
+            // Start angle: -PI/2 - step/2 (To center 20 at top)
+            let startAngle = -Math.PI / 2 - step / 2;
+
+            for (let i = 0; i < 20; i++) {
+                const angle = startAngle + i * step;
+                const sectorNum = SECTORS[i];
+
+                // Determine colors
+                let isEven = i % 2 === 0; // 20 is even index (0)
+                // Standard colors: 20 is Black (White neighbor), 1 is White.
+                // Actually standard: 20(Black), 1(White), 18(Black)...
+                // Color logic: alternating black/white for singles
+                let singleColor = isEven ? black : white;
+                let specialColor = isEven ? red : green;
+
+                // Draw Single (Whole Slice first)
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY, r_double_out, angle, angle + step);
+                ctx.fillStyle = singleColor;
+                ctx.fill();
+                ctx.stroke();
+
+                // Draw Double Ring
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, r_double_out, angle, angle + step);
+                ctx.arc(centerX, centerY, r_double_in, angle + step, angle, true);
+                ctx.fillStyle = specialColor;
+                ctx.fill();
+                ctx.stroke();
+
+                // Draw Treble Ring
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, r_treble_out, angle, angle + step);
+                ctx.arc(centerX, centerY, r_treble_in, angle + step, angle, true);
+                ctx.fillStyle = specialColor;
+                ctx.fill();
+                ctx.stroke();
+
+                // Labels (Numbers)
+                // Calculate text position
+                const textRadius = radius * 1.12;
+                const textAngle = angle + step / 2;
+                const tx = centerX + Math.cos(textAngle) * textRadius;
+                const ty = centerY + Math.sin(textAngle) * textRadius;
+
+                ctx.save();
+                ctx.translate(tx, ty);
+                ctx.rotate(textAngle + Math.PI / 2); // Rotate text to align with board
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 24px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(sectorNum.toString(), 0, 0);
+                ctx.restore();
+            }
+
+            // Bullseye
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, r_bull_out, 0, Math.PI * 2);
+            ctx.fillStyle = green;
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, r_bull_in, 0, Math.PI * 2);
+            ctx.fillStyle = red;
+            ctx.fill();
+            ctx.stroke();
+
+            // Wire frame (simple strokes were added above, but let's add a clean overlay if needed)
+        }
+
+        function drawDarts() {
+            // Draw landed darts
+            darts.forEach(dart => drawDartSprite(dart.x, dart.y, dart.angle, 1, 0, false));
+
+            // Draw flying dart
+            if (activeDart) {
+                drawDartSprite(activeDart.x, activeDart.y, activeDart.rotation, activeDart.scale, activeDart.wobble, true);
+            }
+        }
+
+        function drawDartSprite(x, y, rotation, scale, wobble, isFlying) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(rotation + wobble); // Rotation from position + wobble
+            ctx.scale(scale, scale);
+
+            // Draw Dart
+            // Shadow if flying (offset)
+            if (isFlying) {
+                ctx.save();
+                ctx.translate(20 * (1 - scale), 20 * (1 - scale));
+                ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 5, 20, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // Flight
+            ctx.fillStyle = '#f00';
+            ctx.beginPath();
+            ctx.moveTo(-5, -40);
+            ctx.lineTo(5, -40);
+            ctx.lineTo(10, -60);
+            ctx.lineTo(0, -65);
+            ctx.lineTo(-10, -60);
+            ctx.fill();
+
+            // Flight Details
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, -40);
+            ctx.lineTo(0, -65);
+            ctx.moveTo(-5, -40);
+            ctx.lineTo(-10, -60);
+            ctx.moveTo(5, -40);
+            ctx.lineTo(10, -60);
+            ctx.stroke();
+
+            // Shaft
+            ctx.fillStyle = '#ccc';
+            ctx.fillRect(-2, -40, 4, 35);
+
+            // Barrel
+            ctx.fillStyle = '#d4af37'; // Gold
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 4, 15, 0, 0, Math.PI * 2);
+            ctx.fill();
+            // Grip lines
+            ctx.strokeStyle = '#b8860b';
+            ctx.beginPath();
+            ctx.moveTo(-3, -5); ctx.lineTo(3, -5);
+            ctx.moveTo(-4, 0); ctx.lineTo(4, 0);
+            ctx.moveTo(-3, 5); ctx.lineTo(3, 5);
+            ctx.stroke();
+
+            // Point
+            ctx.fillStyle = '#222';
+            ctx.beginPath();
+            ctx.moveTo(-1, 15);
+            ctx.lineTo(1, 15);
+            ctx.lineTo(0, 35); // Pointy end
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function draw() {
+            // Clear Background
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Board
+            drawBoard();
+
+            // Draw Darts
+            drawDarts();
+        }
+
+        // --- Logic ---
+
+        function startGame(mode) {
+            gameMode = mode;
+            score = mode;
+            turnStartScore = mode;
+            gameState = 'AIMING';
+            currentDarts = 3;
+            roundScore = 0;
+            darts = [];
+            activeDart = null;
+
+            document.getElementById('start-modal').style.display = 'none';
+            document.getElementById('game-over-modal').style.display = 'none';
+            document.getElementById('reticle').style.display = 'block';
+
+            // Ensure buttons are hidden/reset if needed
+            const nextBtn = document.getElementById('next-turn-btn');
+            if (nextBtn) nextBtn.remove();
+
+            updateUI();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function resetGame() {
+            document.getElementById('start-modal').style.display = 'flex';
+            document.getElementById('reticle').style.display = 'none';
+            gameState = 'MENU';
+        }
+
+        function updateUI() {
+            document.getElementById('current-score').innerText = score;
+            document.getElementById('darts-left').innerText = currentDarts;
+            document.getElementById('round-score').innerText = roundScore;
+
+            // Suggested checkout (simple version)
+            let guide = '';
+            if (score <= 170) {
+                guide = "Finishable!";
+            }
+            document.getElementById('checkout-guide').innerText = guide;
+        }
+
+        // --- Input & Loop ---
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (gameState !== 'AIMING' && gameState !== 'CHARGING') return;
+
+            const rect = canvas.getBoundingClientRect();
+            mouseX = e.clientX - rect.left;
+            mouseY = e.clientY - rect.top;
+        });
+
+        document.addEventListener('mousedown', (e) => {
+            if (e.target.tagName === 'BUTTON') return;
+            if (gameState === 'AIMING') {
+                gameState = 'CHARGING';
+                power = 0;
+                // Lock aim position roughly where mouse was, will update in loop
+                aimX = mouseX;
+                aimY = mouseY;
+            }
+        });
+
+        document.addEventListener('mouseup', (e) => {
+            if (gameState === 'CHARGING') {
+                throwDart();
+            }
+        });
+
+        function throwDart() {
+            gameState = 'FLIGHT';
+            const finalAimX = aimX + swayOffsetX;
+            const finalAimY = aimY + swayOffsetY;
+
+            // Calculate hit position variance based on power accuracy (optional, keep simple for now)
+            // Power mainly affects if it drops (gravity) or goes straight.
+            // Let's make power determine the vertical drop.
+            // 100% power = hits where aimed.
+            // 50% power = drops significantly.
+
+            // Ideal power is around 70-90%. 
+            // Let's say target Y shifts down based on (1 - power).
+
+            // Simple Physics Simulation
+            // Start from bottom center
+            const startX = centerX;
+            const startY = canvas.height + 50;
+
+            // Power factor: 0 to 100.
+            // Accuracy penalty from sway is already in finalAimX/Y.
+
+            // Vertical drop logic:
+            // Max Drop at 0 power = 300px.
+            // Min Drop at 100 power = -50px (throws slightly high).
+            const drop = (100 - power) * 3 - 50;
+
+            const targetX = finalAimX;
+            const targetY = finalAimY + drop;
+
+            activeDart = {
+                x: startX,
+                y: startY,
+                targetX: targetX,
+                targetY: targetY,
+                startX: startX,
+                startY: startY,
+                progress: 0,
+                scale: 2.5,
+                rotation: 0, // In flight rotation
+                wobble: 0
+            };
+
+            document.getElementById('reticle').style.display = 'none';
+
+            // Reset power bar
+            powerBar.style.height = '0%';
+        }
+
+        function gameLoop(timestamp) {
+            if (gameState === 'MENU') return;
+
+            // Sway Logic
+            swayTime += 0.02;
+            // Lissajous curve for natural sway
+            swayOffsetX = Math.sin(swayTime) * 15 + Math.sin(swayTime * 2.3) * 5;
+            swayOffsetY = Math.cos(swayTime * 1.5) * 15 + Math.cos(swayTime * 2.7) * 5;
+
+            // Update Reticle
+            if (gameState === 'AIMING') {
+                aimX = mouseX;
+                aimY = mouseY;
+                reticle.style.left = (canvas.getBoundingClientRect().left + aimX + swayOffsetX) + 'px';
+                reticle.style.top = (canvas.getBoundingClientRect().top + aimY + swayOffsetY) + 'px';
+            } else if (gameState === 'CHARGING') {
+                // Sway continues to affect the locked aim point visually or logically?
+                // Let's show the reticle moving around the locked point
+                reticle.style.left = (canvas.getBoundingClientRect().left + aimX + swayOffsetX) + 'px';
+                reticle.style.top = (canvas.getBoundingClientRect().top + aimY + swayOffsetY) + 'px';
+
+                // Power Meter
+                power += powerDirection * powerSpeed;
+                if (power >= 100) {
+                    power = 100;
+                    powerDirection = -1;
+                } else if (power <= 0) {
+                    power = 0;
+                    powerDirection = 1;
+                }
+                powerBar.style.height = power + '%';
+            }
+
+            // Animation Logic
+            if (gameState === 'FLIGHT' && activeDart) {
+                activeDart.progress += 0.04; // Speed of throw
+
+                if (activeDart.progress >= 1) {
+                    // Landed
+                    activeDart.progress = 1;
+                    activeDart.x = activeDart.targetX;
+                    activeDart.y = activeDart.targetY;
+                    activeDart.scale = 0.5; // Final scale
+
+                    // Calculate Score
+                    const result = processScore(activeDart.x, activeDart.y);
+
+                    // Add to permanent darts
+                    activeDart.angle = Math.random() * 0.5 - 0.25;
+                    darts.push(activeDart);
+                    activeDart = null;
+
+                    currentDarts--;
+
+                    if (result === 'BUST') {
+                        handleBust();
+                    } else if (score === 0) {
+                        endGame(true);
+                    } else if (currentDarts <= 0) {
+                        showNextTurnButton();
+                    } else {
+                        gameState = 'AIMING';
+                        document.getElementById('reticle').style.display = 'block';
+                    }
+                    updateUI();
+                } else {
+                    // Interpolate
+                    const t = activeDart.progress;
+                    // Ease out cubic
+                    const ease = 1 - Math.pow(1 - t, 3);
+
+                    activeDart.x = activeDart.startX + (activeDart.targetX - activeDart.startX) * ease;
+                    activeDart.y = activeDart.startY + (activeDart.targetY - activeDart.startY) * ease;
+
+                    // Scale from 2.5 to 0.5
+                    activeDart.scale = 2.5 - (2.0 * ease);
+
+                    // Flight arc (fake 3D height)
+                    // y is screen y, but let's add an arc offset for the visual center of the dart
+                    // Not strictly necessary for top-down-ish view but helps depth.
+                    // Actually simple linear interpolation works for "into screen" view.
+
+                    // Wobble
+                    activeDart.wobble = Math.sin(t * 20) * 0.1 * (1 - t); // Decaying wobble
+
+                    // Rotation (pointing to target)
+                    // Just keep it vertical for "into screen" throw
+                    activeDart.rotation = 0;
+                }
+            }
+
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function processScore(x, y) {
+            const dx = x - centerX;
+            const dy = y - centerY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const angle = Math.atan2(dy, dx);
+
+            const sector = getSectorFromAngle(angle);
+            const multiplier = getMultiplier(dist, radius);
+
+            let points = 0;
+            let isDouble = (multiplier === 2) || (multiplier === 50);
+
+            if (multiplier === 25) points = 25;
+            else if (multiplier === 50) points = 50;
+            else points = sector * multiplier;
+
+            const hitText = formatThrow(points, multiplier, sector);
+            document.getElementById('last-throw').innerText = hitText;
+
+            // Show hit on board
+            showHitFeedback(x, y, hitText, isDouble || multiplier === 50 ? '#ffff00' : '#fff');
+
+            let validThrow = false;
+
+            // Double Out Logic
+            if (score - points > 1) {
+                validThrow = true;
+            } else if (score - points === 0) {
+                if (isDouble) {
+                    validThrow = true;
+                }
+            }
+
+            if (validThrow) {
+                score -= points;
+                roundScore += points;
+                return 'VALID';
+            } else {
+                return 'BUST';
+            }
+        }
+
+        function handleBust() {
+            document.getElementById('last-throw').innerText = "BUST!";
+            score = turnStartScore; // Reset score for the turn
+            roundScore = 0;
+            showNextTurnButton("BUST! Turn Over");
+        }
+
+        function showNextTurnButton(msg) {
+            gameState = 'ROUND_OVER';
+            document.getElementById('reticle').style.display = 'none';
+
+            const ui = document.getElementById('ui-layer');
+            let btn = document.getElementById('next-turn-btn');
+            if (!btn) {
+                const container = document.createElement('div');
+                container.id = 'next-turn-container';
+                container.className = 'absolute inset-0 flex items-center justify-center pointer-events-auto z-40';
+                container.innerHTML = `
+                <div class="bg-black/80 p-6 rounded-xl border border-white/20 text-center">
+                    <h2 class="text-3xl font-bold text-white mb-2" id="turn-msg">Round Over</h2>
+                    <div class="text-xl text-yellow-400 mb-4">Round Score: <span id="round-end-score">0</span></div>
+                    <button id="next-turn-btn" class="btn">Next Round</button>
+                </div>
+            `;
+                ui.appendChild(container);
+
+                document.getElementById('next-turn-btn').addEventListener('click', () => {
+                    nextTurn();
+                    container.remove();
+                });
+            }
+
+            document.getElementById('turn-msg').innerText = msg || "Round Over";
+            document.getElementById('round-end-score').innerText = roundScore;
+        }
+
+        function showHitFeedback(x, y, text, color) {
+            const el = document.createElement('div');
+            el.innerText = text;
+            el.style.position = 'absolute';
+            el.style.left = x + 'px';
+            el.style.top = y + 'px';
+            el.style.transform = 'translate(-50%, -100%)';
+            el.style.color = color;
+            el.style.fontWeight = 'bold';
+            el.style.fontSize = '24px';
+            el.style.textShadow = '0 2px 4px rgba(0,0,0,0.8)';
+            el.style.pointerEvents = 'none';
+            el.style.zIndex = '100';
+            el.style.transition = 'all 1s ease-out';
+            el.style.opacity = '1';
+
+            document.body.appendChild(el);
+
+            // Animate
+            requestAnimationFrame(() => {
+                el.style.top = (y - 50) + 'px';
+                el.style.opacity = '0';
+            });
+
+            setTimeout(() => {
+                el.remove();
+            }, 1000);
+        }
+
+        function formatThrow(points, multiplier, sector) {
+            if (points === 0) return "Miss";
+            if (multiplier === 50) return "BULLSEYE";
+            if (multiplier === 25) return "Outer Bull";
+
+            let prefix = "";
+            if (multiplier === 3) prefix = "T-";
+            if (multiplier === 2) prefix = "D-";
+            return prefix + sector;
+        }
+
+        function nextTurn() {
+            turnStartScore = score;
+            currentDarts = 3;
+            roundScore = 0;
+            darts = [];
+            gameState = 'AIMING';
+            document.getElementById('reticle').style.display = 'block';
+            updateUI();
+        }
+
+        function endGame(win) {
+            gameState = 'GAMEOVER';
+            document.getElementById('game-over-modal').style.display = 'flex';
+            // Add stats if tracked
+        }
+
+        // Init
+        resize();
+
+    </script>
+</body>
+
+</html>
