@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Darts Championship</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @keyframes wobble {
+
+            0%,
+            100% {
+                transform: rotate(0deg);
+            }
+
+            25% {
+                transform: rotate(3deg);
+            }
+
+            75% {
+                transform: rotate(-3deg);
+            }
+        }
+
+        @keyframes dartLand {
+            0% {
+                transform: scale(0.5) rotate(-10deg);
+                opacity: 0;
+            }
+
+            50% {
+                transform: scale(1.1) rotate(5deg);
+                opacity: 1;
+            }
+
+            100% {
+                transform: scale(1) rotate(0deg);
+                opacity: 1;
+            }
+        }
+
+        .dart-wobble {
+            animation: wobble 0.3s ease-in-out 3;
+        }
+
+        .dart-land {
+            animation: dartLand 0.4s ease-out forwards;
+        }
+
+        .power-bar-fill {
+            transition: height 0.05s linear;
+        }
+
+        .reticle {
+            pointer-events: none;
+        }
+
+        #gameCanvas {
+            cursor: none;
+        }
+
+        .glow-text {
+            text-shadow: 0 0 10px currentColor;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-900 min-h-screen flex items-center justify-center p-4">
+    <div class="flex flex-col lg:flex-row gap-6 items-center">
+        <!-- Left Panel - Player Info -->
+        <div class="bg-gray-800 rounded-xl p-6 w-64 shadow-2xl border border-gray-700">
+            <h2 class="text-2xl font-bold text-white mb-4 text-center">🎯 Darts</h2>
+
+            <!-- Game Mode Selection -->
+            <div class="mb-4">
+                <label class="text-gray-400 text-sm">Game Mode</label>
+                <select id="gameMode"
+                    class="w-full bg-gray-700 text-white rounded-lg p-2 mt-1 border border-gray-600 focus:border-green-500 focus:outline-none">
+                    <option value="501">501</option>
+                    <option value="301">301</option>
+                </select>
+            </div>
+
+            <!-- Score Display -->
+            <div class="bg-gray-900 rounded-lg p-4 mb-4">
+                <div class="text-gray-400 text-sm text-center">Score Remaining</div>
+                <div id="scoreDisplay" class="text-5xl font-bold text-green-400 text-center glow-text">501</div>
+            </div>
+
+            <!-- Current Turn Score -->
+            <div class="bg-gray-700 rounded-lg p-3 mb-4">
+                <div class="text-gray-400 text-sm text-center">Turn Score</div>
+                <div id="turnScore" class="text-2xl font-bold text-yellow-400 text-center">0</div>
+                <div id="dartCount" class="text-gray-400 text-sm text-center mt-1">Darts: 3</div>
+            </div>
+
+            <!-- Last Throw -->
+            <div class="bg-gray-700 rounded-lg p-3 mb-4">
+                <div class="text-gray-400 text-sm text-center">Last Throw</div>
+                <div id="lastThrow" class="text-xl font-bold text-orange-400 text-center">-</div>
+            </div>
+
+            <!-- Buttons -->
+            <button id="newGameBtn"
+                class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-lg mb-2 transition-all transform hover:scale-105">
+                New Game
+            </button>
+            <button id="endTurnBtn"
+                class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 rounded-lg transition-all transform hover:scale-105">
+                End Turn
+            </button>
+
+            <!-- Instructions -->
+            <div class="mt-4 text-gray-500 text-xs">
+                <p class="mb-1">🎮 Move mouse to aim</p>
+                <p class="mb-1">🖱️ Hold click to charge</p>
+                <p class="mb-1">📍 Release to throw</p>
+                <p>🎯 Hit exactly 0 to win!</p>
+            </div>
+        </div>
+
+        <!-- Game Canvas Container -->
+        <div class="relative">
+            <canvas id="gameCanvas" width="600" height="600" class="rounded-xl shadow-2xl"></canvas>
+
+            <!-- Power Meter -->
+            <div
+                class="absolute right-[-60px] top-1/2 transform -translate-y-1/2 w-10 h-64 bg-gray-800 rounded-lg border border-gray-600 overflow-hidden">
+                <div id="powerBar"
+                    class="absolute bottom-0 w-full bg-gradient-to-t from-green-500 via-yellow-500 to-red-500 power-bar-fill"
+                    style="height: 0%"></div>
+                <div class="absolute inset-0 flex items-center justify-center">
+                    <span class="text-white font-bold text-xs transform -rotate-90 whitespace-nowrap">POWER</span>
+                </div>
+            </div>
+
+            <!-- Thrown Darts Display -->
+            <div id="thrownDarts" class="absolute bottom-4 left-4 flex gap-2"></div>
+        </div>
+
+        <!-- Right Panel - Stats -->
+        <div class="bg-gray-800 rounded-xl p-6 w-64 shadow-2xl border border-gray-700">
+            <h3 class="text-xl font-bold text-white mb-4 text-center">📊 Statistics</h3>
+
+            <div class="space-y-3">
+                <div class="bg-gray-700 rounded-lg p-3">
+                    <div class="text-gray-400 text-sm">Total Throws</div>
+                    <div id="totalThrows" class="text-xl font-bold text-white">0</div>
+                </div>
+                <div class="bg-gray-700 rounded-lg p-3">
+                    <div class="text-gray-400 text-sm">Average Score</div>
+                    <div id="avgScore" class="text-xl font-bold text-white">0.0</div>
+                </div>
+                <div class="bg-gray-700 rounded-lg p-3">
+                    <div class="text-gray-400 text-sm">Highest Turn</div>
+                    <div id="highTurn" class="text-xl font-bold text-purple-400">0</div>
+                </div>
+                <div class="bg-gray-700 rounded-lg p-3">
+                    <div class="text-gray-400 text-sm">Bullseyes</div>
+                    <div id="bullseyes" class="text-xl font-bold text-red-400">0</div>
+                </div>
+            </div>
+
+            <!-- Scoring Reference -->
+            <div class="mt-4 bg-gray-900 rounded-lg p-3">
+                <div class="text-gray-400 text-sm mb-2 text-center">Scoring</div>
+                <div class="text-xs text-gray-500 space-y-1">
+                    <p>🔴 Bull: 50 pts</p>
+                    <p>🟢 Bull Ring: 25 pts</p>
+                    <p>⭕ Triple Ring: 3x</p>
+                    <p>⭕ Double Ring: 2x</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Win Modal -->
+    <div id="winModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-2xl p-8 text-center transform scale-100 animate-pulse">
+            <div class="text-6xl mb-4">🏆</div>
+            <h2 class="text-3xl font-bold text-yellow-400 mb-2">WINNER!</h2>
+            <p id="winMessage" class="text-white mb-4">You won in X darts!</p>
+            <button onclick="startNewGame()"
+                class="bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-8 rounded-lg">
+                Play Again
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Canvas setup
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+
+        // Dartboard dimensions
+        const boardRadius = 250;
+        const doubleRingOuter = 170;
+        const doubleRingInner = 160;
+        const tripleRingOuter = 107;
+        const tripleRingInner = 97;
+        const outerBullRadius = 32;
+        const innerBullRadius = 12.7;
+
+        // Dartboard number sequence (clockwise starting from top)
+        const numbers = [20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5];
+
+        // Game state
+        let gameState = {
+            mode: 501,
+            score: 501,
+            turnScore: 0,
+            dartsRemaining: 3,
+            thrownDarts: [],
+            totalThrows: 0,
+            totalScore: 0,
+            highestTurn: 0,
+            bullseyes: 0,
+            isCharging: false,
+            power: 0,
+            mouseX: centerX,
+            mouseY: centerY,
+            dartInFlight: false,
+            flightDart: null
+        };
+
+        // Colors
+        const colors = {
+            black: '#1a1a1a',
+            white: '#f5f5dc',
+            red: '#e53935',
+            green: '#43a047',
+            outerRing: '#2d2d2d',
+            wire: '#c0c0c0'
+        };
+
+        // Draw dartboard
+        function drawDartboard() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Background
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Outer ring (non-scoring)
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, boardRadius, 0, Math.PI * 2);
+            ctx.fillStyle = colors.outerRing;
+            ctx.fill();
+
+            // Draw segments
+            const segmentAngle = Math.PI / 10;
+            const startAngle = -Math.PI / 2 - segmentAngle / 2;
+
+            for (let i = 0; i < 20; i++) {
+                const angle1 = startAngle + i * segmentAngle * 2;
+                const angle2 = angle1 + segmentAngle * 2;
+                const isEven = i % 2 === 0;
+
+                // Outer single
+                drawSegment(angle1, angle2, doubleRingInner, tripleRingOuter,
+                    isEven ? colors.black : colors.white);
+
+                // Inner single
+                drawSegment(angle1, angle2, tripleRingInner, outerBullRadius,
+                    isEven ? colors.black : colors.white);
+
+                // Double ring
+                drawSegment(angle1, angle2, doubleRingOuter, doubleRingInner,
+                    isEven ? colors.red : colors.green);
+
+                // Triple ring
+                drawSegment(angle1, angle2, tripleRingOuter, tripleRingInner,
+                    isEven ? colors.red : colors.green);
+            }
+
+            // Outer bull (25)
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, outerBullRadius, 0, Math.PI * 2);
+            ctx.fillStyle = colors.green;
+            ctx.fill();
+
+            // Inner bull (50)
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, innerBullRadius, 0, Math.PI * 2);
+            ctx.fillStyle = colors.red;
+            ctx.fill();
+
+            // Draw wire rings
+            drawWireRing(doubleRingOuter);
+            drawWireRing(doubleRingInner);
+            drawWireRing(tripleRingOuter);
+            drawWireRing(tripleRingInner);
+            drawWireRing(outerBullRadius);
+            drawWireRing(innerBullRadius);
+
+            // Draw wire segments
+            for (let i = 0; i < 20; i++) {
+                const angle = startAngle + i * segmentAngle * 2;
+                ctx.beginPath();
+                ctx.moveTo(
+                    centerX + Math.cos(angle) * innerBullRadius,
+                    centerY + Math.sin(angle) * innerBullRadius
+                );
+                ctx.lineTo(
+                    centerX + Math.cos(angle) * doubleRingOuter,
+                    centerY + Math.sin(angle) * doubleRingOuter
+                );
+                ctx.strokeStyle = colors.wire;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+
+            // Draw numbers
+            for (let i = 0; i < 20; i++) {
+                const angle = startAngle + segmentAngle + i * segmentAngle * 2;
+                const x = centerX + Math.cos(angle) * (boardRadius - 30);
+                const y = centerY + Math.sin(angle) * (boardRadius - 30);
+
+                ctx.font = 'bold 20px Arial';
+                ctx.fillStyle = '#ffffff';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(numbers[i].toString(), x, y);
+            }
+
+            // Draw thrown darts
+            gameState.thrownDarts.forEach(dart => drawDart(dart.x, dart.y, dart.wobble));
+
+            // Draw dart in flight
+            if (gameState.dartInFlight && gameState.flightDart) {
+                drawFlyingDart(gameState.flightDart);
+            }
+
+            // Draw reticle
+            if (!gameState.dartInFlight) {
+                drawReticle();
+            }
+        }
+
+        function drawSegment(angle1, angle2, outerRadius, innerRadius, color) {
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, outerRadius, angle1, angle2);
+            ctx.arc(centerX, centerY, innerRadius, angle2, angle1, true);
+            ctx.closePath();
+            ctx.fillStyle = color;
+            ctx.fill();
+        }
+
+        function drawWireRing(radius) {
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            ctx.strokeStyle = colors.wire;
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+        }
+
+        function drawReticle() {
+            const x = gameState.mouseX;
+            const y = gameState.mouseY;
+            const size = 20;
+            const innerSize = 5;
+
+            ctx.strokeStyle = gameState.isCharging ? '#ff6b6b' : '#ffffff';
+            ctx.lineWidth = 2;
+
+            // Outer circle
+            ctx.beginPath();
+            ctx.arc(x, y, size, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Cross hairs
+            ctx.beginPath();
+            ctx.moveTo(x - size - 5, y);
+            ctx.lineTo(x - innerSize, y);
+            ctx.moveTo(x + innerSize, y);
+            ctx.lineTo(x + size + 5, y);
+            ctx.moveTo(x, y - size - 5);
+            ctx.lineTo(x, y - innerSize);
+            ctx.moveTo(x, y + innerSize);
+            ctx.lineTo(x, y + size + 5);
+            ctx.stroke();
+
+            // Center dot
+            ctx.beginPath();
+            ctx.arc(x, y, 3, 0, Math.PI * 2);
+            ctx.fillStyle = gameState.isCharging ? '#ff6b6b' : '#ffffff';
+            ctx.fill();
+
+            // Power indicator rings when charging
+            if (gameState.isCharging) {
+                const pulseSize = size + 10 + Math.sin(Date.now() / 100) * 5;
+                ctx.beginPath();
+                ctx.arc(x, y, pulseSize, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(255, 107, 107, ${0.5 + Math.sin(Date.now() / 100) * 0.3})`;
+                ctx.stroke();
+            }
+        }
+
+        function drawDart(x, y, wobble = 0) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(wobble);
+
+            // Dart point
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(-3, -15);
+            ctx.lineTo(3, -15);
+            ctx.closePath();
+            ctx.fillStyle = '#silver';
+            ctx.fill();
+            ctx.strokeStyle = '#666';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Dart barrel
+            ctx.beginPath();
+            ctx.moveTo(-4, -15);
+            ctx.lineTo(-5, -35);
+            ctx.lineTo(5, -35);
+            ctx.lineTo(4, -15);
+            ctx.closePath();
+            ctx.fillStyle = '#ffd700';
+            ctx.fill();
+            ctx.strokeStyle = '#b8860b';
+            ctx.stroke();
+
+            // Dart shaft
+            ctx.beginPath();
+            ctx.rect(-2, -35, 4, -20);
+            ctx.fillStyle = '#333';
+            ctx.fill();
+
+            // Dart flight
+            ctx.beginPath();
+            ctx.moveTo(0, -55);
+            ctx.lineTo(-12, -70);
+            ctx.lineTo(0, -65);
+            ctx.lineTo(12, -70);
+            ctx.closePath();
+            ctx.fillStyle = '#e53935';
+            ctx.fill();
+            ctx.strokeStyle = '#b71c1c';
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        function drawFlyingDart(dart) {
+            ctx.save();
+            ctx.translate(dart.x, dart.y);
+            ctx.rotate(dart.angle);
+            ctx.scale(dart.scale, dart.scale);
+
+            // Same dart drawing but positioned for flight
+            drawDart(0, 0, 0);
+
+            ctx.restore();
+        }
+
+        // Calculate score for a hit position
+        function calculateScore(x, y) {
+            const dx = x - centerX;
+            const dy = y - centerY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            // Miss (outside board)
+            if (distance > doubleRingOuter) {
+                return { score: 0, text: 'Miss!', multiplier: 0 };
+            }
+
+            // Inner bull (50)
+            if (distance <= innerBullRadius) {
+                return { score: 50, text: 'BULLSEYE! 50', multiplier: 1, isBull: true };
+            }
+
+            // Outer bull (25)
+            if (distance <= outerBullRadius) {
+                return { score: 25, text: 'Bull 25', multiplier: 1 };
+            }
+
+            // Calculate which segment
+            let angle = Math.atan2(dy, dx) + Math.PI / 2;
+            if (angle < 0) angle += Math.PI * 2;
+
+            const segmentAngle = Math.PI / 10;
+            let segmentIndex = Math.floor((angle + segmentAngle / 2) / (segmentAngle * 2)) % 20;
+            const baseScore = numbers[segmentIndex];
+
+            // Determine ring
+            let multiplier = 1;
+            let ringName = '';
+
+            if (distance >= doubleRingInner && distance <= doubleRingOuter) {
+                multiplier = 2;
+                ringName = 'Double ';
+            } else if (distance >= tripleRingInner && distance <= tripleRingOuter) {
+                multiplier = 3;
+                ringName = 'Triple ';
+            }
+
+            const totalScore = baseScore * multiplier;
+            return {
+                score: totalScore,
+                text: `${ringName}${baseScore} = ${totalScore}`,
+                multiplier: multiplier
+            };
+        }
+
+        // Throw dart with physics
+        function throwDart() {
+            if (gameState.dartsRemaining <= 0 || gameState.dartInFlight) return;
+
+            const power = gameState.power;
+            const accuracy = 1 - (power / 100) * 0.3; // Higher power = less accurate
+
+            // Add some randomness based on power
+            const maxOffset = (100 - accuracy * 100) * 1.5;
+            const offsetX = (Math.random() - 0.5) * maxOffset;
+            const offsetY = (Math.random() - 0.5) * maxOffset;
+
+            const targetX = gameState.mouseX + offsetX;
+            const targetY = gameState.mouseY + offsetY;
+
+            // Start dart flight animation
+            gameState.dartInFlight = true;
+            gameState.flightDart = {
+                startX: centerX,
+                startY: canvas.height + 100,
+                x: centerX,
+                y: canvas.height + 100,
+                targetX: targetX,
+                targetY: targetY,
+                progress: 0,
+                angle: 0,
+                scale: 0.5
+            };
+
+            animateDartFlight();
+        }
+
+        function animateDartFlight() {
+            const dart = gameState.flightDart;
+            dart.progress += 0.05;
+
+            if (dart.progress >= 1) {
+                // Dart landed
+                gameState.dartInFlight = false;
+
+                const result = calculateScore(dart.targetX, dart.targetY);
+
+                // Add dart to board with wobble
+                if (result.score > 0) {
+                    const dartObj = {
+                        x: dart.targetX,
+                        y: dart.targetY,
+                        wobble: 0,
+                        wobbleTime: 0
+                    };
+                    gameState.thrownDarts.push(dartObj);
+                    startWobbleAnimation(dartObj);
+                }
+
+                // Update game state
+                processDartScore(result);
+
+                gameState.power = 0;
+                document.getElementById('powerBar').style.height = '0%';
+
+                drawDartboard();
+                return;
+            }
+
+            // Curved flight path
+            const t = dart.progress;
+            const curve = Math.sin(t * Math.PI) * 50; // Arc height
+
+            dart.x = dart.startX + (dart.targetX - dart.startX) * t;
+            dart.y = dart.startY + (dart.targetY - dart.startY) * t - curve;
+            dart.scale = 0.5 + t * 0.5;
+            dart.angle = Math.atan2(
+                dart.targetY - dart.y,
+                dart.targetX - dart.x
+            ) + Math.PI / 2;
+
+            drawDartboard();
+            requestAnimationFrame(animateDartFlight);
+        }
+
+        function startWobbleAnimation(dart) {
+            const wobbleAnimation = () => {
+                dart.wobbleTime += 0.3;
+                dart.wobble = Math.sin(dart.wobbleTime) * 0.1 * Math.exp(-dart.wobbleTime * 0.3);
+
+                if (dart.wobbleTime < 10) {
+                    drawDartboard();
+                    requestAnimationFrame(wobbleAnimation);
+                } else {
+                    dart.wobble = 0;
+                    drawDartboard();
+                }
+            };
+            wobbleAnimation();
+        }
+
+        function processDartScore(result) {
+            gameState.dartsRemaining--;
+            gameState.totalThrows++;
+
+            if (result.isBull) {
+                gameState.bullseyes++;
+            }
+
+            const newScore = gameState.score - result.score;
+
+            // Check for bust (went below 0 or to 1)
+            if (newScore < 0 || newScore === 1) {
+                // Bust - reset turn
+                document.getElementById('lastThrow').textContent = 'BUST!';
+                document.getElementById('lastThrow').classList.add('text-red-500');
+                setTimeout(() => {
+                    document.getElementById('lastThrow').classList.remove('text-red-500');
+                }, 1000);
+
+                gameState.score += gameState.turnScore; // Restore score
+                gameState.turnScore = 0;
+                gameState.dartsRemaining = 0;
+            } else if (newScore === 0) {
+                // Win!
+                gameState.score = 0;
+                showWinModal();
+            } else {
+                gameState.score = newScore;
+                gameState.turnScore += result.score;
+                gameState.totalScore += result.score;
+                document.getElementById('lastThrow').textContent = result.text;
+            }
+
+            updateUI();
+            updateDartDisplay();
+
+            // Auto end turn if no darts remaining
+            if (gameState.dartsRemaining === 0) {
+                setTimeout(endTurn, 1500);
+            }
+        }
+
+        function endTurn() {
+            if (gameState.turnScore > gameState.highestTurn) {
+                gameState.highestTurn = gameState.turnScore;
+            }
+
+            gameState.turnScore = 0;
+            gameState.dartsRemaining = 3;
+            gameState.thrownDarts = [];
+
+            updateUI();
+            updateDartDisplay();
+            drawDartboard();
+        }
+
+        function updateUI() {
+            document.getElementById('scoreDisplay').textContent = gameState.score;
+            document.getElementById('turnScore').textContent = gameState.turnScore;
+            document.getElementById('dartCount').textContent = `Darts: ${gameState.dartsRemaining}`;
+            document.getElementById('totalThrows').textContent = gameState.totalThrows;
+            document.getElementById('avgScore').textContent =
+                gameState.totalThrows > 0
+                    ? (gameState.totalScore / gameState.totalThrows).toFixed(1)
+                    : '0.0';
+            document.getElementById('highTurn').textContent = gameState.highestTurn;
+            document.getElementById('bullseyes').textContent = gameState.bullseyes;
+        }
+
+        function updateDartDisplay() {
+            const container = document.getElementById('thrownDarts');
+            container.innerHTML = '';
+
+            for (let i = 0; i < 3; i++) {
+                const dart = document.createElement('div');
+                dart.className = `w-8 h-8 rounded-full flex items-center justify-center text-lg
+                    ${i < (3 - gameState.dartsRemaining) ? 'bg-red-600' : 'bg-gray-600'}`;
+                dart.textContent = '🎯';
+                container.appendChild(dart);
+            }
+        }
+
+        function showWinModal() {
+            const modal = document.getElementById('winModal');
+            document.getElementById('winMessage').textContent =
+                `You won in ${gameState.totalThrows} darts!`;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function startNewGame() {
+            const mode = parseInt(document.getElementById('gameMode').value);
+            gameState = {
+                mode: mode,
+                score: mode,
+                turnScore: 0,
+                dartsRemaining: 3,
+                thrownDarts: [],
+                totalThrows: 0,
+                totalScore: 0,
+                highestTurn: 0,
+                bullseyes: 0,
+                isCharging: false,
+                power: 0,
+                mouseX: centerX,
+                mouseY: centerY,
+                dartInFlight: false,
+                flightDart: null
+            };
+
+            document.getElementById('winModal').classList.add('hidden');
+            document.getElementById('winModal').classList.remove('flex');
+            document.getElementById('lastThrow').textContent = '-';
+
+            updateUI();
+            updateDartDisplay();
+            drawDartboard();
+        }
+
+        // Power charging
+        let chargeInterval;
+
+        function startCharging() {
+            if (gameState.dartsRemaining <= 0 || gameState.dartInFlight) return;
+
+            gameState.isCharging = true;
+            gameState.power = 0;
+
+            chargeInterval = setInterval(() => {
+                gameState.power += 2;
+                if (gameState.power >= 100) {
+                    gameState.power = 100;
+                }
+                document.getElementById('powerBar').style.height = gameState.power + '%';
+            }, 30);
+        }
+
+        function stopCharging() {
+            if (!gameState.isCharging) return;
+
+            gameState.isCharging = false;
+            clearInterval(chargeInterval);
+
+            if (gameState.power > 10) {
+                throwDart();
+            } else {
+                gameState.power = 0;
+                document.getElementById('powerBar').style.height = '0%';
+            }
+        }
+
+        // Event listeners
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            gameState.mouseX = e.clientX - rect.left;
+            gameState.mouseY = e.clientY - rect.top;
+            if (!gameState.dartInFlight) {
+                drawDartboard();
+            }
+        });
+
+        canvas.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            startCharging();
+        });
+
+        canvas.addEventListener('mouseup', (e) => {
+            stopCharging();
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            if (gameState.isCharging) {
+                stopCharging();
+            }
+        });
+
+        document.getElementById('newGameBtn').addEventListener('click', startNewGame);
+        document.getElementById('endTurnBtn').addEventListener('click', endTurn);
+        document.getElementById('gameMode').addEventListener('change', startNewGame);
+
+        // Prevent context menu
+        canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        // Initialize
+        startNewGame();
+
+        // Animation loop for reticle
+        function gameLoop() {
+            if (gameState.isCharging && !gameState.dartInFlight) {
+                drawDartboard();
+            }
+            requestAnimationFrame(gameLoop);
+        }
+        gameLoop();
+    </script>
+</body>
+
+</html>
