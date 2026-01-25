@@ -1,0 +1,972 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Darts 301/501 — Physics Throw</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        :root {
+            color-scheme: dark;
+        }
+
+        canvas {
+            touch-action: none;
+        }
+
+        .tabular {
+            font-variant-numeric: tabular-nums;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen bg-slate-950 text-slate-100">
+    <div class="max-w-6xl mx-auto px-4 py-6">
+        <header class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-semibold tracking-tight">Darts (301/501)</h1>
+                <p class="text-slate-300 text-sm">Aim with mouse/touch. Hold to charge power, release to throw. Spacebar
+                    also works.</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+                <select id="modeSelect" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm">
+                    <option value="501">501</option>
+                    <option value="301">301</option>
+                </select>
+                <label
+                    class="inline-flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm">
+                    <input id="doubleOut" type="checkbox" class="accent-emerald-400" />
+                    Double-out
+                </label>
+                <button id="newGameBtn"
+                    class="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold rounded-lg px-4 py-2 text-sm">New
+                    Game</button>
+            </div>
+        </header>
+
+        <main class="mt-5 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4">
+            <section class="bg-slate-900/40 border border-slate-800 rounded-2xl p-3 md:p-4">
+                <div class="flex items-center justify-between gap-3 mb-3">
+                    <div class="text-sm text-slate-300">Board</div>
+                    <div class="flex items-center gap-2">
+                        <div class="hidden md:flex items-center gap-2 text-xs text-slate-300">
+                            <span class="inline-block w-2 h-2 rounded-full bg-emerald-400"></span>reticle
+                            <span class="inline-block w-2 h-2 rounded-full bg-sky-400 ml-2"></span>flight
+                        </div>
+                        <button id="endTurnBtn"
+                            class="bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-2 text-sm">End
+                            turn</button>
+                    </div>
+                </div>
+
+                <div class="relative">
+                    <canvas id="game"
+                        class="w-full aspect-square rounded-xl bg-slate-950 border border-slate-800"></canvas>
+
+                    <div class="absolute left-3 bottom-3 right-3 pointer-events-none">
+                        <div class="bg-slate-900/70 border border-slate-700 rounded-xl p-3">
+                            <div class="flex items-center justify-between gap-3">
+                                <div class="text-xs text-slate-300">Throw power</div>
+                                <div id="powerText" class="text-xs text-slate-200 tabular">0%</div>
+                            </div>
+                            <div class="mt-2 h-2 rounded-full bg-slate-800 overflow-hidden">
+                                <div id="powerBar" class="h-full w-0 bg-gradient-to-r from-emerald-400 to-sky-400">
+                                </div>
+                            </div>
+                            <div class="mt-2 text-[11px] text-slate-400">
+                                Tip: Hold longer for more power (faster flight, less arc). Accuracy varies slightly.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="toast" class="absolute top-3 left-3 right-3 hidden">
+                        <div class="bg-slate-950/80 border border-slate-700 rounded-xl px-3 py-2 text-sm">
+                            <span id="toastText" class="text-slate-200"></span>
+                        </div>
+                    </div>
+
+                    <div id="winOverlay" class="absolute inset-0 hidden">
+                        <div class="absolute inset-0 bg-slate-950/70"></div>
+                        <div class="absolute inset-0 flex items-center justify-center p-4">
+                            <div class="w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl p-5">
+                                <div class="text-xl font-semibold">Leg finished</div>
+                                <div id="winText" class="mt-2 text-slate-300"></div>
+                                <div class="mt-4 flex gap-2">
+                                    <button id="playAgainBtn"
+                                        class="flex-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold rounded-lg px-4 py-2">Play
+                                        again</button>
+                                    <button id="closeWinBtn"
+                                        class="bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-4 py-2">Close</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <aside class="bg-slate-900/40 border border-slate-800 rounded-2xl p-4">
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-slate-950/40 border border-slate-800 rounded-xl p-3">
+                        <div class="text-xs text-slate-400">Remaining</div>
+                        <div id="remainingText" class="text-3xl font-semibold tabular mt-1">501</div>
+                    </div>
+                    <div class="bg-slate-950/40 border border-slate-800 rounded-xl p-3">
+                        <div class="text-xs text-slate-400">Darts left</div>
+                        <div id="dartsLeftText" class="text-3xl font-semibold tabular mt-1">3</div>
+                    </div>
+                </div>
+
+                <div class="mt-3 bg-slate-950/40 border border-slate-800 rounded-xl p-3">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <div class="text-xs text-slate-400">This turn</div>
+                            <div id="turnTotalText" class="text-2xl font-semibold tabular mt-1">0</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-xs text-slate-400">Last throw</div>
+                            <div id="lastThrowText" class="text-lg font-semibold tabular mt-1">—</div>
+                        </div>
+                    </div>
+                    <div class="mt-2 flex flex-wrap gap-2" id="pillRow"></div>
+                    <div id="bustText" class="mt-2 text-sm text-rose-300 hidden">Bust — score reset to start of turn.
+                    </div>
+                </div>
+
+                <div class="mt-3 bg-slate-950/40 border border-slate-800 rounded-xl p-3">
+                    <div class="text-xs text-slate-400">Turns</div>
+                    <div class="mt-2 max-h-72 overflow-auto pr-1" id="turnsList"></div>
+                </div>
+
+                <div class="mt-3 text-xs text-slate-400 leading-relaxed">
+                    <div class="font-semibold text-slate-300 mb-1">Controls</div>
+                    <ul class="list-disc pl-5 space-y-1">
+                        <li>Move pointer to aim (reticle shows aim point).</li>
+                        <li>Hold mouse/touch (or spacebar) to charge power, release to throw.</li>
+                        <li>Arrow keys fine-tune aim.</li>
+                    </ul>
+                </div>
+            </aside>
+        </main>
+
+        <footer class="mt-6 text-xs text-slate-500">
+            Dartboard scoring is approximated by standard rings/segments; physics is stylized for gameplay.
+        </footer>
+    </div>
+
+    <script>
+        // ---------- Utilities ----------
+        const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+        const lerp = (a, b, t) => a + (b - a) * t;
+        function randn() {
+            // Box–Muller transform
+            let u = 0, v = 0;
+            while (u === 0) u = Math.random();
+            while (v === 0) v = Math.random();
+            return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+        }
+
+        // ---------- Board definition ----------
+        const WEDGE_VALUES = [20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5];
+
+        // ---------- DOM ----------
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+
+        const modeSelect = document.getElementById('modeSelect');
+        const doubleOutEl = document.getElementById('doubleOut');
+        const newGameBtn = document.getElementById('newGameBtn');
+        const endTurnBtn = document.getElementById('endTurnBtn');
+
+        const remainingText = document.getElementById('remainingText');
+        const dartsLeftText = document.getElementById('dartsLeftText');
+        const turnTotalText = document.getElementById('turnTotalText');
+        const lastThrowText = document.getElementById('lastThrowText');
+        const pillRow = document.getElementById('pillRow');
+        const turnsList = document.getElementById('turnsList');
+        const bustText = document.getElementById('bustText');
+
+        const powerBar = document.getElementById('powerBar');
+        const powerText = document.getElementById('powerText');
+
+        const toast = document.getElementById('toast');
+        const toastText = document.getElementById('toastText');
+
+        const winOverlay = document.getElementById('winOverlay');
+        const winText = document.getElementById('winText');
+        const playAgainBtn = document.getElementById('playAgainBtn');
+        const closeWinBtn = document.getElementById('closeWinBtn');
+
+        // ---------- Audio (tiny thump) ----------
+        let audioCtx = null;
+        function hitSound(strength = 0.4) {
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const now = audioCtx.currentTime;
+                const o = audioCtx.createOscillator();
+                const g = audioCtx.createGain();
+                o.type = 'triangle';
+                o.frequency.setValueAtTime(220, now);
+                o.frequency.exponentialRampToValueAtTime(110, now + 0.08);
+                g.gain.setValueAtTime(0.0001, now);
+                g.gain.exponentialRampToValueAtTime(0.12 * strength + 0.02, now + 0.01);
+                g.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+                o.connect(g);
+                g.connect(audioCtx.destination);
+                o.start(now);
+                o.stop(now + 0.13);
+            } catch { }
+        }
+
+        // ---------- Game state ----------
+        const state = {
+            startScore: 501,
+            remaining: 501,
+            doubleOut: false,
+            gameOver: false,
+
+            // Turn
+            dartsThisTurn: 0,
+            turnStartRemaining: 501,
+            turnThrows: [], // {label, score}
+            turnHistory: [], // {remainingBefore, throws:[...], total, bust, timestamp}
+            bust: false,
+
+            // Aim/power
+            aim: { x: 0, y: 0 },
+            charging: false,
+            chargeStart: 0,
+            power: 0,
+
+            // Render geometry
+            cx: 0,
+            cy: 0,
+            R: 250,
+            metrics: null,
+
+            // Darts
+            activeDart: null,
+            stuckDarts: [], // current turn darts
+
+            // Toast
+            toastUntil: 0,
+        };
+
+        function computeRings(R) {
+            // Approximate relative ring radii (in canvas units)
+            return {
+                R,
+                doubleOuter: R,
+                doubleInner: R * 0.90,
+                tripleOuter: R * 0.60,
+                tripleInner: R * 0.55,
+                bullOuter: R * 0.10,
+                bullInner: R * 0.04,
+                numberRadius: R * 1.08,
+            };
+        }
+
+        function scoreAtPoint(x, y) {
+            const m = state.metrics;
+            const r = Math.hypot(x, y);
+            if (r > m.doubleOuter) return { score: 0, label: 'MISS', mult: 0, base: 0, isDoubleOut: false };
+
+            // Bulls
+            if (r <= m.bullInner) return { score: 50, label: 'DBULL', mult: 2, base: 25, isDoubleOut: true };
+            if (r <= m.bullOuter) return { score: 25, label: 'SBULL', mult: 1, base: 25, isDoubleOut: false };
+
+            // Wedge index: 0 at top, increasing clockwise
+            let ang = Math.atan2(y, x); // -pi..pi, 0 at right
+            ang -= (-Math.PI / 2); // shift so 0 at top => right becomes +90deg
+            // Now ang = 0 at top? Let's normalize
+            while (ang < 0) ang += Math.PI * 2;
+            const sector = Math.floor(ang / (Math.PI * 2 / 20)) % 20;
+            const base = WEDGE_VALUES[sector];
+
+            let mult = 1;
+            if (r >= m.doubleInner && r <= m.doubleOuter) mult = 2;
+            else if (r >= m.tripleInner && r <= m.tripleOuter) mult = 3;
+            else mult = 1;
+
+            const score = base * mult;
+            const label = mult === 1 ? String(base) : (mult === 2 ? `D${base}` : `T${base}`);
+            const isDoubleOut = (mult === 2);
+            return { score, label, mult, base, isDoubleOut };
+        }
+
+        function formatThrows(throws) {
+            if (!throws.length) return '—';
+            return throws.map(t => t.label).join(', ');
+        }
+
+        function showToast(msg, ms = 1200) {
+            state.toastUntil = performance.now() + ms;
+            toastText.textContent = msg;
+            toast.classList.remove('hidden');
+        }
+
+        function hideToastIfExpired(now) {
+            if (!toast.classList.contains('hidden') && now > state.toastUntil) {
+                toast.classList.add('hidden');
+            }
+        }
+
+        // ---------- UI update ----------
+        function updateUI() {
+            remainingText.textContent = String(state.remaining);
+            dartsLeftText.textContent = String(3 - state.dartsThisTurn);
+            const turnTotal = state.turnThrows.reduce((a, t) => a + t.score, 0);
+            turnTotalText.textContent = String(turnTotal);
+            lastThrowText.textContent = state.turnThrows.length ? state.turnThrows[state.turnThrows.length - 1].label : '—';
+
+            pillRow.innerHTML = '';
+            for (const t of state.turnThrows) {
+                const el = document.createElement('div');
+                el.className = 'text-xs px-2 py-1 rounded-full bg-slate-800 border border-slate-700 tabular';
+                el.textContent = `${t.label} (+${t.score})`;
+                pillRow.appendChild(el);
+            }
+
+            bustText.classList.toggle('hidden', !state.bust);
+
+            turnsList.innerHTML = '';
+            // newest first
+            const list = [...state.turnHistory].reverse();
+            for (const turn of list) {
+                const wrap = document.createElement('div');
+                wrap.className = 'mb-2 p-2 rounded-lg bg-slate-900/40 border border-slate-800';
+                const total = turn.total;
+                const bustBadge = turn.bust ? `<span class="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-rose-500/15 border border-rose-400/30 text-rose-200">BUST</span>` : '';
+                wrap.innerHTML = `
+          <div class="flex items-center justify-between gap-2">
+            <div class="text-xs text-slate-300">From <span class="tabular">${turn.remainingBefore}</span> → <span class="tabular">${turn.remainingAfter}</span> ${bustBadge}</div>
+            <div class="text-xs text-slate-400 tabular">-${total}</div>
+          </div>
+          <div class="mt-1 text-xs text-slate-400">${turn.throws.map(t => t.label).join(' · ') || '—'}</div>
+        `;
+                turnsList.appendChild(wrap);
+            }
+
+            const pct = Math.round(state.power * 100);
+            powerText.textContent = `${pct}%`;
+            powerBar.style.width = `${pct}%`;
+        }
+
+        // ---------- Turn / game flow ----------
+        function resetTurn() {
+            state.dartsThisTurn = 0;
+            state.turnStartRemaining = state.remaining;
+            state.turnThrows = [];
+            state.stuckDarts = [];
+            state.bust = false;
+            updateUI();
+        }
+
+        function newGame() {
+            state.startScore = Number(modeSelect.value);
+            state.doubleOut = !!doubleOutEl.checked;
+            state.remaining = state.startScore;
+            state.gameOver = false;
+            state.turnHistory = [];
+            state.activeDart = null;
+            winOverlay.classList.add('hidden');
+            resetTurn();
+            showToast(`New game: ${state.startScore}${state.doubleOut ? ' (double-out)' : ''}`);
+        }
+
+        function endTurn({ bust = false } = {}) {
+            const total = state.turnThrows.reduce((a, t) => a + t.score, 0);
+            state.turnHistory.push({
+                remainingBefore: state.turnStartRemaining,
+                remainingAfter: state.remaining,
+                throws: [...state.turnThrows],
+                total,
+                bust,
+                timestamp: Date.now(),
+            });
+            resetTurn();
+        }
+
+        function finishLeg() {
+            state.gameOver = true;
+            winText.textContent = `Finished from ${state.startScore} with ${state.turnHistory.length + 1} turn(s) recorded.`;
+            winOverlay.classList.remove('hidden');
+            showToast('Leg finished!', 1200);
+        }
+
+        function applyThrow(scoreInfo) {
+            if (state.gameOver) return;
+            state.bust = false;
+
+            state.dartsThisTurn += 1;
+            state.turnThrows.push({ label: scoreInfo.label, score: scoreInfo.score });
+
+            const before = state.remaining;
+            const after = before - scoreInfo.score;
+
+            // Bust / checkout rules
+            let bust = false;
+            if (state.doubleOut) {
+                if (after === 0) {
+                    if (!scoreInfo.isDoubleOut) bust = true;
+                } else if (after < 0 || after === 1) {
+                    bust = true;
+                }
+            } else {
+                if (after < 0) bust = true;
+            }
+
+            if (bust) {
+                state.remaining = state.turnStartRemaining;
+                state.bust = true;
+                showToast('Bust');
+                updateUI();
+                endTurn({ bust: true });
+                return;
+            }
+
+            state.remaining = after;
+            updateUI();
+
+            if (state.remaining === 0) {
+                // record the turn before finishing for history consistency
+                endTurn({ bust: false });
+                finishLeg();
+                return;
+            }
+
+            if (state.dartsThisTurn >= 3) {
+                endTurn({ bust: false });
+            }
+        }
+
+        // ---------- Input handling ----------
+        function canvasToBoard(px, py) {
+            // Convert from canvas CSS pixels (client) to board coordinates
+            const rect = canvas.getBoundingClientRect();
+            const x = (px - rect.left) / rect.width * canvas.width;
+            const y = (py - rect.top) / rect.height * canvas.height;
+            const bx = (x - state.cx);
+            const by = (y - state.cy);
+            return { x: bx, y: by };
+        }
+
+        function setAimFromEvent(e) {
+            const pt = canvasToBoard(e.clientX, e.clientY);
+            // allow aiming slightly outside board for intentional misses
+            const maxR = state.metrics.doubleOuter * 1.08;
+            const r = Math.hypot(pt.x, pt.y);
+            if (r > maxR) {
+                const s = maxR / r;
+                state.aim.x = pt.x * s;
+                state.aim.y = pt.y * s;
+            } else {
+                state.aim.x = pt.x;
+                state.aim.y = pt.y;
+            }
+        }
+
+        function beginCharge() {
+            if (state.gameOver) return;
+            if (state.activeDart) return;
+            if (state.dartsThisTurn >= 3) return;
+            state.charging = true;
+            state.chargeStart = performance.now();
+        }
+
+        function endChargeAndThrow() {
+            if (!state.charging) return;
+            state.charging = false;
+            if (state.gameOver) return;
+            if (state.activeDart) return;
+            if (state.dartsThisTurn >= 3) return;
+            throwDart(state.power);
+        }
+
+        function throwDart(power) {
+            const m = state.metrics;
+            // Accuracy: a bit worse at very high power, and also at very low power (drop/long flight)
+            const accuracy = 1.0 - Math.abs(power - 0.65) * 0.9; // peak around ~65%
+            const sigma = lerp(18, 7, clamp(accuracy, 0.0, 1.0));
+
+            const errX = randn() * sigma;
+            const errY = randn() * sigma;
+
+            const targetX = state.aim.x + errX;
+            const targetY = state.aim.y + errY;
+
+            const duration = lerp(1.20, 0.55, clamp(power, 0, 1));
+            const startX = 0;
+            const startY = m.R * 1.35; // below the board center (player POV)
+
+            state.activeDart = {
+                t0: performance.now(),
+                duration,
+                startX, startY,
+                targetX, targetY,
+                // precomputed
+                flightAngle: Math.atan2(targetY - startY, targetX - startX),
+                wobbleSeed: Math.random() * 1000,
+                power,
+            };
+
+            // Keep power display for a moment, then it will reset by charging logic
+            showToast('Throw!', 500);
+        }
+
+        // Pointer events
+        canvas.addEventListener('pointermove', (e) => {
+            setAimFromEvent(e);
+        });
+
+        canvas.addEventListener('pointerdown', (e) => {
+            canvas.setPointerCapture(e.pointerId);
+            setAimFromEvent(e);
+            beginCharge();
+        });
+
+        canvas.addEventListener('pointerup', (e) => {
+            setAimFromEvent(e);
+            endChargeAndThrow();
+        });
+
+        canvas.addEventListener('pointercancel', () => {
+            state.charging = false;
+        });
+
+        // Keyboard
+        window.addEventListener('keydown', (e) => {
+            if (e.repeat) return;
+            if (e.code === 'Space') {
+                e.preventDefault();
+                beginCharge();
+            }
+            const step = state.metrics ? state.metrics.R * 0.02 : 8;
+            if (e.code === 'ArrowLeft') state.aim.x -= step;
+            if (e.code === 'ArrowRight') state.aim.x += step;
+            if (e.code === 'ArrowUp') state.aim.y -= step;
+            if (e.code === 'ArrowDown') state.aim.y += step;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                endChargeAndThrow();
+            }
+        });
+
+        // Buttons
+        newGameBtn.addEventListener('click', newGame);
+        endTurnBtn.addEventListener('click', () => {
+            if (state.activeDart) return;
+            endTurn({ bust: false });
+            showToast('Turn ended');
+        });
+
+        modeSelect.addEventListener('change', () => {
+            // Keep selection, but don't auto-reset unless a new game is requested.
+            showToast(`Mode set to ${modeSelect.value} (start a new game to apply)`, 1300);
+        });
+
+        doubleOutEl.addEventListener('change', () => {
+            showToast(`Double-out ${doubleOutEl.checked ? 'enabled' : 'disabled'} (start a new game to apply)`, 1300);
+        });
+
+        playAgainBtn.addEventListener('click', newGame);
+        closeWinBtn.addEventListener('click', () => winOverlay.classList.add('hidden'));
+
+        // ---------- Rendering ----------
+        function resizeCanvas() {
+            const rect = canvas.getBoundingClientRect();
+            const dpr = Math.max(1, Math.min(2.5, window.devicePixelRatio || 1));
+            canvas.width = Math.round(rect.width * dpr);
+            canvas.height = Math.round(rect.height * dpr);
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.imageSmoothingEnabled = true;
+
+            state.cx = canvas.width / 2;
+            state.cy = canvas.height / 2;
+
+            // Leave room for numbers near the edge
+            const minDim = Math.min(canvas.width, canvas.height);
+            state.R = minDim * 0.36;
+            state.metrics = computeRings(state.R);
+
+            // Keep aim within a reasonable range after resize
+            const maxR = state.metrics.doubleOuter * 1.08;
+            const r = Math.hypot(state.aim.x, state.aim.y);
+            if (r > maxR) {
+                const s = maxR / r;
+                state.aim.x *= s;
+                state.aim.y *= s;
+            }
+        }
+
+        function drawBoard() {
+            const m = state.metrics;
+            ctx.save();
+            ctx.translate(state.cx, state.cy);
+
+            // Back plate
+            const grad = ctx.createRadialGradient(0, 0, m.R * 0.1, 0, 0, m.R * 1.2);
+            grad.addColorStop(0, '#0b1220');
+            grad.addColorStop(1, '#050914');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(0, 0, m.R * 1.15, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Board base circle
+            ctx.fillStyle = '#0b1324';
+            ctx.beginPath();
+            ctx.arc(0, 0, m.doubleOuter + 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Segments
+            const segAngle = Math.PI * 2 / 20;
+            for (let i = 0; i < 20; i++) {
+                const a0 = -Math.PI / 2 + i * segAngle;
+                const a1 = a0 + segAngle;
+                const isLight = i % 2 === 0;
+
+                // Outer single (between double inner and triple outer)
+                drawRingWedge(m.doubleInner, m.tripleOuter, a0, a1, isLight ? '#e5e7eb' : '#111827');
+
+                // Inner single (between triple inner and bull outer)
+                drawRingWedge(m.tripleInner, m.bullOuter, a0, a1, isLight ? '#e5e7eb' : '#111827');
+
+                // Double ring
+                drawRingWedge(m.doubleInner, m.doubleOuter, a0, a1, isLight ? '#16a34a' : '#dc2626');
+
+                // Triple ring
+                drawRingWedge(m.tripleInner, m.tripleOuter, a0, a1, isLight ? '#16a34a' : '#dc2626');
+            }
+
+            // Bulls
+            ctx.fillStyle = '#16a34a';
+            ctx.beginPath();
+            ctx.arc(0, 0, m.bullOuter, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#dc2626';
+            ctx.beginPath();
+            ctx.arc(0, 0, m.bullInner, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Wire lines
+            ctx.strokeStyle = 'rgba(15, 23, 42, 0.9)';
+            ctx.lineWidth = Math.max(1, m.R * 0.008);
+            // Radials
+            for (let i = 0; i < 20; i++) {
+                const a = -Math.PI / 2 + i * segAngle;
+                ctx.beginPath();
+                ctx.moveTo(Math.cos(a) * m.bullOuter, Math.sin(a) * m.bullOuter);
+                ctx.lineTo(Math.cos(a) * m.doubleOuter, Math.sin(a) * m.doubleOuter);
+                ctx.stroke();
+            }
+            // Ring boundaries
+            drawCircleStroke(m.doubleInner);
+            drawCircleStroke(m.tripleOuter);
+            drawCircleStroke(m.tripleInner);
+            drawCircleStroke(m.bullOuter);
+
+            // Numbers
+            ctx.fillStyle = 'rgba(226, 232, 240, 0.85)';
+            ctx.font = `${Math.max(10, m.R * 0.09)}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            for (let i = 0; i < 20; i++) {
+                const a = -Math.PI / 2 + (i + 0.5) * segAngle;
+                const r = m.numberRadius;
+                const x = Math.cos(a) * r;
+                const y = Math.sin(a) * r;
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(a + Math.PI / 2);
+                ctx.fillText(String(WEDGE_VALUES[i]), 0, 0);
+                ctx.restore();
+            }
+
+            ctx.restore();
+        }
+
+        function drawRingWedge(r0, r1, a0, a1, fill) {
+            ctx.beginPath();
+            ctx.moveTo(Math.cos(a0) * r0, Math.sin(a0) * r0);
+            ctx.arc(0, 0, r0, a0, a1);
+            ctx.lineTo(Math.cos(a1) * r1, Math.sin(a1) * r1);
+            ctx.arc(0, 0, r1, a1, a0, true);
+            ctx.closePath();
+            ctx.fillStyle = fill;
+            ctx.fill();
+        }
+
+        function drawCircleStroke(r) {
+            ctx.beginPath();
+            ctx.arc(0, 0, r, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        function drawReticle() {
+            const m = state.metrics;
+            ctx.save();
+            ctx.translate(state.cx, state.cy);
+            const x = state.aim.x;
+            const y = state.aim.y;
+
+            ctx.strokeStyle = 'rgba(52, 211, 153, 0.9)';
+            ctx.lineWidth = Math.max(1, m.R * 0.006);
+            ctx.setLineDash([m.R * 0.03, m.R * 0.02]);
+            ctx.beginPath();
+            ctx.arc(x, y, m.R * 0.04, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.setLineDash([]);
+            ctx.strokeStyle = 'rgba(52, 211, 153, 0.75)';
+            ctx.beginPath();
+            ctx.moveTo(x - m.R * 0.06, y);
+            ctx.lineTo(x + m.R * 0.06, y);
+            ctx.moveTo(x, y - m.R * 0.06);
+            ctx.lineTo(x, y + m.R * 0.06);
+            ctx.stroke();
+
+            // Show predicted score at aim point (not including spread)
+            const preview = scoreAtPoint(x, y);
+            ctx.font = `${Math.max(10, m.R * 0.07)}px ui-sans-serif, system-ui`;
+            ctx.fillStyle = 'rgba(148, 163, 184, 0.85)';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const hint = preview.score === 0 ? 'MISS' : `${preview.label} (${preview.score})`;
+            ctx.fillText(hint, x, y - m.R * 0.10);
+
+            ctx.restore();
+        }
+
+        function drawDartShape(x, y, angle, scale, tint = 'rgba(56, 189, 248, 0.95)') {
+            const m = state.metrics;
+            ctx.save();
+            ctx.translate(state.cx, state.cy);
+            ctx.translate(x, y);
+            ctx.rotate(angle);
+            ctx.scale(scale, scale);
+
+            const bodyLen = m.R * 0.10;
+            const tipLen = m.R * 0.03;
+            const shaftW = Math.max(1, m.R * 0.006);
+
+            // Shadow
+            ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+            ctx.lineWidth = shaftW * 2.2;
+            ctx.beginPath();
+            ctx.moveTo(-bodyLen * 0.15, -1);
+            ctx.lineTo(bodyLen * 0.9, -1);
+            ctx.stroke();
+
+            // Shaft
+            ctx.strokeStyle = tint;
+            ctx.lineWidth = shaftW * 2.0;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(-bodyLen * 0.15, 0);
+            ctx.lineTo(bodyLen * 0.85, 0);
+            ctx.stroke();
+
+            // Tip
+            ctx.fillStyle = 'rgba(226, 232, 240, 0.95)';
+            ctx.beginPath();
+            ctx.moveTo(bodyLen * 0.85, 0);
+            ctx.lineTo(bodyLen * 0.85 + tipLen, 0);
+            ctx.lineTo(bodyLen * 0.85, shaftW * 1.2);
+            ctx.closePath();
+            ctx.fill();
+
+            // Fletching
+            ctx.fillStyle = 'rgba(34, 197, 94, 0.9)';
+            const f = bodyLen * 0.22;
+            ctx.beginPath();
+            ctx.moveTo(-bodyLen * 0.15, 0);
+            ctx.lineTo(-bodyLen * 0.15 - f, -f * 0.6);
+            ctx.lineTo(-bodyLen * 0.15 - f * 0.2, 0);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(-bodyLen * 0.15, 0);
+            ctx.lineTo(-bodyLen * 0.15 - f, f * 0.6);
+            ctx.lineTo(-bodyLen * 0.15 - f * 0.2, 0);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawStuckDarts(now) {
+            const m = state.metrics;
+            for (const d of state.stuckDarts) {
+                const t = (now - d.hitTime) / 1000;
+                const decay = Math.exp(-t * 3.2);
+                const wob = Math.sin((t * 18) + d.seed) * (0.22 * decay);
+                const angle = d.baseAngle + wob;
+                // Slight position wobble too
+                const px = d.x + Math.cos(angle + Math.PI / 2) * m.R * 0.004 * wob * 20;
+                const py = d.y + Math.sin(angle + Math.PI / 2) * m.R * 0.004 * wob * 20;
+                drawDartShape(px, py, angle, 0.95, 'rgba(226, 232, 240, 0.95)');
+            }
+        }
+
+        function drawActiveDart(now) {
+            const d = state.activeDart;
+            if (!d) return;
+            const m = state.metrics;
+
+            const t = (now - d.t0) / 1000;
+            const u = clamp(t / d.duration, 0, 1);
+
+            const x = lerp(d.startX, d.targetX, u);
+            const yLinear = lerp(d.startY, d.targetY, u);
+            const arcDrop = lerp(m.R * 0.22, m.R * 0.08, d.power);
+            const y = yLinear + arcDrop * (u * (1 - u));
+
+            const scale = lerp(1.6, 0.92, u);
+            const wobble = Math.sin((t * 28) + d.wobbleSeed) * lerp(0.10, 0.03, u);
+            const angle = d.flightAngle + wobble;
+
+            // Trail
+            ctx.save();
+            ctx.translate(state.cx, state.cy);
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.18)';
+            ctx.lineWidth = Math.max(1, m.R * 0.01);
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(d.startX, d.startY);
+            ctx.quadraticCurveTo(
+                lerp(d.startX, d.targetX, 0.5),
+                lerp(d.startY, d.targetY, 0.5) + arcDrop * 0.25,
+                x, y
+            );
+            ctx.stroke();
+            ctx.restore();
+
+            drawDartShape(x, y, angle, scale, 'rgba(56, 189, 248, 0.95)');
+
+            if (u >= 1) {
+                // Hit
+                const hit = { x: d.targetX, y: d.targetY };
+                const info = scoreAtPoint(hit.x, hit.y);
+
+                // Record stuck dart and apply score
+                state.stuckDarts.push({
+                    x: hit.x,
+                    y: hit.y,
+                    hitTime: now,
+                    baseAngle: d.flightAngle,
+                    seed: d.wobbleSeed * 10,
+                    label: info.label,
+                    score: info.score,
+                });
+
+                state.activeDart = null;
+
+                // Feedback + scoring
+                hitSound(clamp(info.score / 60, 0.2, 1));
+                const nice = info.score === 0 ? 'Miss' : `${info.label} for ${info.score}`;
+                showToast(nice, 1100);
+                applyThrow(info);
+            }
+        }
+
+        function drawHUDOverlay(now) {
+            // small status line
+            const m = state.metrics;
+            ctx.save();
+            ctx.fillStyle = 'rgba(2, 6, 23, 0.55)';
+            ctx.strokeStyle = 'rgba(148, 163, 184, 0.15)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.roundRect(14, 14, 220, 48, 12);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = 'rgba(226, 232, 240, 0.85)';
+            ctx.font = `12px ui-sans-serif, system-ui, -apple-system`;
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`Mode: ${state.startScore}${state.doubleOut ? ' (DO)' : ''}`, 28, 30);
+            ctx.fillText(`Remaining: ${state.remaining}`, 28, 48);
+
+            // Aim score preview
+            const p = scoreAtPoint(state.aim.x, state.aim.y);
+            const label = p.score === 0 ? 'MISS' : `${p.label} (${p.score})`;
+            ctx.fillStyle = 'rgba(148, 163, 184, 0.85)';
+            ctx.fillText(`Aim: ${label}`, 128, 30);
+
+            // Charging indicator
+            if (state.charging) {
+                const blink = 0.5 + 0.5 * Math.sin(now / 90);
+                ctx.fillStyle = `rgba(52, 211, 153, ${0.45 + 0.35 * blink})`;
+                ctx.fillText('Charging…', 128, 48);
+            }
+
+            ctx.restore();
+        }
+
+        function clear() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function tick(now) {
+            // Power charging
+            if (state.charging) {
+                const t = (now - state.chargeStart) / 1000;
+                // soft cap at 1.15s
+                state.power = clamp(t / 1.15, 0, 1);
+            } else {
+                // decay power back down slowly
+                state.power = lerp(state.power, 0, 0.12);
+                if (state.power < 0.004) state.power = 0;
+            }
+
+            hideToastIfExpired(now);
+
+            clear();
+            drawBoard();
+            drawStuckDarts(now);
+            drawActiveDart(now);
+            drawReticle();
+            drawHUDOverlay(now);
+
+            updateUI();
+            requestAnimationFrame(tick);
+        }
+
+        // Canvas roundRect polyfill for older browsers
+        if (!CanvasRenderingContext2D.prototype.roundRect) {
+            CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+                const rr = Array.isArray(r) ? r : [r, r, r, r];
+                const [r1, r2, r3, r4] = rr.map(v => Math.max(0, Math.min(v, Math.min(w, h) / 2)));
+                this.beginPath();
+                this.moveTo(x + r1, y);
+                this.lineTo(x + w - r2, y);
+                this.quadraticCurveTo(x + w, y, x + w, y + r2);
+                this.lineTo(x + w, y + h - r3);
+                this.quadraticCurveTo(x + w, y + h, x + w - r3, y + h);
+                this.lineTo(x + r4, y + h);
+                this.quadraticCurveTo(x, y + h, x, y + h - r4);
+                this.lineTo(x, y + r1);
+                this.quadraticCurveTo(x, y, x + r1, y);
+                this.closePath();
+                return this;
+            };
+        }
+
+        // ---------- Boot ----------
+        const ro = new ResizeObserver(() => resizeCanvas());
+        ro.observe(canvas);
+        window.addEventListener('resize', resizeCanvas);
+
+        resizeCanvas();
+        newGame();
+        requestAnimationFrame(tick);
+    </script>
+</body>
+
+</html>
